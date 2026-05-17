@@ -180,7 +180,7 @@ pnpm format:check   # 全包 Prettier 檢查
 
 ## Session History
 
-| 日期       | Session 主題                                       | Agent 模型      | 主要產出                                              | Conversation Log                                       |
-| ---------- | -------------------------------------------------- | --------------- | ----------------------------------------------------- | ------------------------------------------------------ |
-| 2026-05-17 | 初始規劃 + 建立項目記憶系統 + Monorepo 骨架        | Claude Opus 4.7 | Commit #1 文件骨架 + Commit #2 Monorepo + GitHub 連線 | [link](./conversations/2026-05-17-initial-planning.md) |
-| 2026-05-17 | UI 設計策略 + commit 順序調整 + packages/ui 初始化 | Claude Opus 4.7 | ADR-0011 UI 設計語言 + Commit #3 packages/ui 進行中   | （session 結束前歸檔）                                 |
+| 日期       | Session 主題                                       | Agent 模型      | 主要產出                                                                                             | Conversation Log                                                |
+| ---------- | -------------------------------------------------- | --------------- | ---------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| 2026-05-17 | 初始規劃 + 建立項目記憶系統 + Monorepo 骨架        | Claude Opus 4.7 | Commit #1 文件骨架 + Commit #2 Monorepo + GitHub 連線                                                | [link](./conversations/2026-05-17-initial-planning.md)          |
+| 2026-05-17 | UI 設計策略 + commit 順序調整 + packages/ui 初始化 | Claude Opus 4.7 | ADR-0011 UI 設計語言 + Commit #3 packages/ui 完成（design tokens、Storybook、Button、ImmutableMark） | [link](./conversations/2026-05-17-ui-design-and-packages-ui.md) |
