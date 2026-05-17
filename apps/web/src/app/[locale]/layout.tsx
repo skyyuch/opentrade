@@ -8,18 +8,44 @@
  * `NextIntlClientProvider` so Client Components can call
  * `useTranslations()` without re-fetching them.
  *
- * Tailwind global stylesheet, theme provider, and font setup land in t3
- * — this commit ships the routing skeleton only so the i18n plumbing
- * can be verified in isolation.
+ * Style + theme wiring (ADR-0011):
+ *   - `@opentrade/ui/styles/globals.css` is the single source of truth
+ *     for the OpenTrade visual base layer (Tailwind reset + CSS custom
+ *     properties for light / dark themes).
+ *   - `next/font/google` for Inter is "self-hosted" in Next 14 — fonts
+ *     are downloaded at build time and served from the same origin, so
+ *     no runtime requests hit Google CDN (satisfies the GDPR concern in
+ *     rule 22). Source Han self-hosting lands in Phase 0.5 per ADR-0011
+ *     §3 Implementation Notes.
+ *   - `<ThemeProvider>` wraps `<NextIntlClientProvider>` so a future
+ *     theme toggle button (Client Component) can call `useTheme()`
+ *     anywhere inside the locale segment.
  */
 
+import '@opentrade/ui/styles/globals.css';
+
+import { Inter } from 'next/font/google';
 import { notFound } from 'next/navigation';
 import { NextIntlClientProvider, hasLocale } from 'next-intl';
-import { getMessages } from 'next-intl/server';
+import { getMessages, getTranslations } from 'next-intl/server';
 
+import { ThemeProvider } from '../../components/providers/ThemeProvider';
 import { routing } from '../../i18n/routing';
 
+import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
+
+/**
+ * Inter via `next/font/google` — Next 14 downloads the font at build time
+ * and serves it from the same origin (no runtime hit on Google's CDN, so
+ * the GDPR concern in rule 22 is satisfied even though the loader name
+ * suggests otherwise). Source Han self-hosting follows in Phase 0.5 per
+ * ADR-0011 §3 Implementation Notes.
+ */
+const inter = Inter({
+  subsets: ['latin'],
+  display: 'swap',
+});
 
 type Props = {
   children: ReactNode;
@@ -28,6 +54,16 @@ type Props = {
 
 export const generateStaticParams = (): { locale: string }[] =>
   routing.locales.map((locale) => ({ locale }));
+
+export const generateMetadata = async ({ params }: Props): Promise<Metadata> => {
+  const t = await getTranslations({ locale: params.locale, namespace: 'home' });
+
+  return {
+    title: t('title'),
+    description: t('tagline'),
+    robots: { index: true, follow: true },
+  };
+};
 
 const LocaleLayout = async ({ children, params }: Props): Promise<ReactNode> => {
   const { locale } = params;
@@ -39,11 +75,13 @@ const LocaleLayout = async ({ children, params }: Props): Promise<ReactNode> => 
   const messages = await getMessages();
 
   return (
-    <html lang={locale}>
-      <body>
-        <NextIntlClientProvider locale={locale} messages={messages}>
-          {children}
-        </NextIntlClientProvider>
+    <html lang={locale} suppressHydrationWarning>
+      <body className={`${inter.className} min-h-screen bg-background text-foreground antialiased`}>
+        <ThemeProvider>
+          <NextIntlClientProvider locale={locale} messages={messages}>
+            {children}
+          </NextIntlClientProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

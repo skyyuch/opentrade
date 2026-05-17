@@ -12,6 +12,14 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["next-env.d.ts", "next.config.mjs", "src/**/*.ts", "src/**/*.tsx", ".next/types/**/*.ts"],
+  "include": [
+    "next-env.d.ts",
+    "next.config.mjs",
+    "tailwind.config.ts",
+    "postcss.config.mjs",
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    ".next/types/**/*.ts"
+  ],
   "exclude": ["node_modules", ".next", "dist", "out", "**/*.test.ts", "**/*.spec.ts"]
 }
