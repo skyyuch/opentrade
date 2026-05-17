@@ -9,8 +9,8 @@
 ## 最後更新
 
 - **日期**：2026-05-17
-- **更新者**：初始規劃 session（Claude Opus 4.7） — Commit #2
-- **本次更新摘要**：Monorepo 骨架建好（pnpm + Turborepo + ESLint 9 + Husky），全包 typecheck/lint/format 通過
+- **更新者**：UI 設計策略 session（Claude Opus 4.7）— Commit #3 進行中
+- **本次更新摘要**：寫 ADR-0011（UI 設計語言）；重新排序 Phase 0 commits 為依賴正確的 Option C（ui → db → api → web → console → contracts）；開始 packages/ui 初始化
 
 ---
 
@@ -18,7 +18,7 @@
 
 **Phase 0：地基搭建**
 
-進度：60%
+進度：65%
 
 ---
 
@@ -70,19 +70,34 @@
 
 ## 進行中
 
-無（本 session 完成 Commit #2 後即停止 / 換手）。
+### Commit #3：packages/ui 初始化（設計系統地基）
+
+- [x] ADR-0011：UI 設計語言（Civic Trust + Web3 科技感）
+- [x] docs/03-status.md：commit 順序調整為 Option C
+- [ ] packages/ui scaffolding（deps + tsconfig + tailwind preset）
+- [ ] packages/ui design tokens（colors / typography / spacing / radii / shadows / motion / breakpoints / z-index）
+- [ ] packages/ui `cn()` utility
+- [ ] packages/ui Storybook setup（@storybook/react-vite）
+- [ ] packages/ui `<Button>` primitive + stories
+- [ ] packages/ui `<ImmutableMark>` compound（OpenTrade 視覺武器）+ stories
+- [ ] 驗證 + commit
 
 ---
 
-## 下一步（按優先序）
+## 下一步（按優先序，**已調整成 Option C：依賴方向正確的順序**）
 
-### 立即（下個 session）
+> **順序調整原因**：原計劃讓 apps/web 先於 packages/ui，違反 rule 10 依賴方向（web → ui）與 ADR-0009 Storybook-first 原則。重新排序：先設計系統 → 後端 contract → 前端組合。詳見 ADR-0011 與 2026-05-17 session conversation。
 
-1. **Commit #3：apps/web 初始化** — Next.js 14 App Router + next-intl + Tailwind + shadcn
-2. **Commit #4：apps/console 初始化** — 跟 web 類似但桌面優先
-3. **Commit #5：apps/api 初始化** — Hono + DDD 骨架（尚不寫業務）
-4. **Commit #6：packages/db 初始化** — Prisma init + 第一個 migration（user/tenant 基礎）
-5. **Commit #7：packages/ui 初始化** — Storybook + design tokens + 第一個元件（Button）
+### 立即（本 session）
+
+1. **Commit #3：packages/ui 初始化** ⭐ 進行中 — design tokens + cn + Button + Storybook + ImmutableMark
+
+### 接下來（依序）
+
+2. **Commit #4：packages/db 初始化** — Prisma init + 第一個 migration（user/tenant/broker 基礎）
+3. **Commit #5：apps/api 初始化** — Hono + DDD 骨架（health endpoint，尚不寫業務）
+4. **Commit #6：apps/web 初始化** — Next.js 14 App Router + next-intl + Tailwind + 使用 packages/ui 元件
+5. **Commit #7：apps/console 初始化** — Next.js 14（dark default + dashboard 風格）
 6. **Commit #8：packages/contracts 初始化** — Foundry init + OpenZeppelin
 7. **Commit #9：infra/terraform 雛形** — VPC、RDS、ECS Fargate、S3、Secrets Manager
 8. **Commit #10：CI/CD GitHub Actions** — lint + typecheck + test 在 PR 上自動跑
@@ -164,6 +179,7 @@ pnpm format:check   # 全包 Prettier 檢查
 
 ## Session History
 
-| 日期       | Session 主題                                | Agent 模型      | 主要產出                                              | Conversation Log                                       |
-| ---------- | ------------------------------------------- | --------------- | ----------------------------------------------------- | ------------------------------------------------------ |
-| 2026-05-17 | 初始規劃 + 建立項目記憶系統 + Monorepo 骨架 | Claude Opus 4.7 | Commit #1 文件骨架 + Commit #2 Monorepo + GitHub 連線 | [link](./conversations/2026-05-17-initial-planning.md) |
+| 日期       | Session 主題                                       | Agent 模型      | 主要產出                                              | Conversation Log                                       |
+| ---------- | -------------------------------------------------- | --------------- | ----------------------------------------------------- | ------------------------------------------------------ |
+| 2026-05-17 | 初始規劃 + 建立項目記憶系統 + Monorepo 骨架        | Claude Opus 4.7 | Commit #1 文件骨架 + Commit #2 Monorepo + GitHub 連線 | [link](./conversations/2026-05-17-initial-planning.md) |
+| 2026-05-17 | UI 設計策略 + commit 順序調整 + packages/ui 初始化 | Claude Opus 4.7 | ADR-0011 UI 設計語言 + Commit #3 packages/ui 進行中   | （session 結束前歸檔）                                 |
