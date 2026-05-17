@@ -118,8 +118,7 @@
 
 - [x] git config：`skyyuch <skyyuch@gmail.com>`
 - [x] Remote 連 `git@github.com:skyyuch/opentrade.git`（SSH）
-- [x] Commit #1 推送到 GitHub
-- [ ] Commit #2 / #3 / #4 / number-five 統一 push（本 session 結束時 push 一次）
+- [x] Commit #1 ~ number-five 全部 push 到 GitHub（HEAD = `fd2c9bd`）
 
 ---
 
