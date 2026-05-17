@@ -180,6 +180,22 @@ export default tseslint.config(
     },
   },
 
+  // Next.js App Router conventions require default exports on a fixed set
+  // of file names (per Next 14 file-system routing). next-intl's request
+  // resolver and the framework middleware also expect default exports.
+  // These are framework contracts, not opinions; the rule must yield.
+  {
+    files: [
+      'apps/{web,console}/src/app/**/{page,layout,template,default,error,not-found,loading,route,manifest,sitemap,robots,icon,apple-icon,opengraph-image,twitter-image}.{ts,tsx}',
+      'apps/{web,console}/src/middleware.{ts,tsx}',
+      'apps/{web,console}/src/i18n/request.{ts,tsx}',
+      'apps/{web,console}/next.config.{mjs,js,ts}',
+    ],
+    rules: {
+      'import-x/no-default-export': 'off',
+    },
+  },
+
   // Plain JS files — turn off type-aware rules
   {
     files: ['**/*.{js,mjs,cjs}'],

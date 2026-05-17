@@ -1,18 +1,17 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "rootDir": "./src",
-    "outDir": "./dist",
-    "tsBuildInfoFile": "./node_modules/.cache/.tsbuildinfo",
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "jsx": "preserve",
-    "noEmit": true
+    "noEmit": true,
+    "incremental": true,
+    "tsBuildInfoFile": "./node_modules/.cache/.tsbuildinfo",
+    "allowJs": true,
+    "plugins": [{ "name": "next" }],
+    "paths": {
+      "@/*": ["./src/*"]
+    }
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", ".next", "dist", "**/*.test.ts", "**/*.spec.ts"],
-  "references": [
-    { "path": "../../packages/shared" },
-    { "path": "../../packages/config" },
-    { "path": "../../packages/ui" }
-  ]
+  "include": ["next-env.d.ts", "next.config.mjs", "src/**/*.ts", "src/**/*.tsx", ".next/types/**/*.ts"],
+  "exclude": ["node_modules", ".next", "dist", "out", "**/*.test.ts", "**/*.spec.ts"]
 }
