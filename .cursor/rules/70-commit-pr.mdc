@@ -50,11 +50,12 @@ alwaysApply: true
 
 ### Scope
 
-對應 monorepo 的 package / app：
+對應 monorepo 的 package / app（完整清單見 `commitlint.config.mjs` 的 `scope-enum`）：
 
 - `web`、`console`、`api`
 - `contracts`、`db`、`ui`、`shared`、`config`
 - `infra`、`docs`、`rules`
+- `deps`（依賴升級）、`release`（版本發布）、`ci`（CI/CD 變更）
 
 ### Subject
 

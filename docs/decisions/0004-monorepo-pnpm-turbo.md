@@ -1,14 +1,17 @@
 # ADR-0004: Monorepo 使用 pnpm + Turborepo
 
 ## Status
+
 Accepted
 
 ## Date
+
 2026-05-17
 
 ## Context
 
 OpenTrade 包含多個應用與套件：
+
 - 散戶用戶端（Next.js）
 - 商戶後台（Next.js）
 - 後端 API（Hono）
@@ -23,6 +26,7 @@ OpenTrade 包含多個應用與套件：
 ## Decision
 
 採用 **Monorepo 架構**，工具組合：
+
 - **包管理器**：pnpm（workspace）
 - **任務執行器 / 快取**：Turborepo
 - **工作區根目錄**：`/`（即 OpenTrade repo 根）
@@ -63,12 +67,12 @@ OpenTrade/                         # repo root
 ```json
 {
   "tasks": {
-    "build":       { "dependsOn": ["^build"], "outputs": ["dist/**", ".next/**"] },
-    "lint":        { "outputs": [] },
-    "typecheck":   { "dependsOn": ["^build"], "outputs": [] },
-    "test":        { "dependsOn": ["^build"], "outputs": ["coverage/**"] },
-    "test:watch":  { "cache": false, "persistent": true },
-    "dev":         { "cache": false, "persistent": true }
+    "build": { "dependsOn": ["^build"], "outputs": ["dist/**", ".next/**"] },
+    "lint": { "outputs": [] },
+    "typecheck": { "dependsOn": ["^build"], "outputs": [] },
+    "test": { "dependsOn": ["^build"], "outputs": ["coverage/**"] },
+    "test:watch": { "cache": false, "persistent": true },
+    "dev": { "cache": false, "persistent": true }
   }
 }
 ```
@@ -76,6 +80,7 @@ OpenTrade/                         # repo root
 ## Alternatives Considered
 
 ### Alternative A: 多 repo（每個 app / package 一個 repo）
+
 - **Pros**：每個 repo 獨立 versioning，部分元件可開源（合約）部分不開
 - **Cons**：
   - 跨 repo 改 type 同步噩夢
@@ -85,21 +90,25 @@ OpenTrade/                         # repo root
 - **結論**：不選；未來真的需要可從 monorepo 拆出去
 
 ### Alternative B: Monorepo + Yarn Workspaces
+
 - **Pros**：成熟
 - **Cons**：磁碟使用率高（每個 workspace 都複製 node_modules）；Yarn 2+ 跟生態整合有時有坑
 - **結論**：不選
 
 ### Alternative C: Monorepo + npm Workspaces
+
 - **Pros**：原生
 - **Cons**：效能差於 pnpm，特別是大 monorepo 安裝 5 倍慢
 - **結論**：不選
 
 ### Alternative D: pnpm + Nx
+
 - **Pros**：Nx 比 Turborepo 功能更多（generator、graph、task plan）
 - **Cons**：學習曲線陡、配置複雜、AI 對 Nx 教材不如 Turborepo 多
 - **結論**：對 OpenTrade 規模而言 Turborepo 已足夠
 
 ### Alternative E: Bun workspace
+
 - **Pros**：理論上最快
 - **Cons**：尚不夠成熟，部分套件相容性問題；AI 工具支援度也不及 pnpm
 - **結論**：未來可考慮，現在不選
@@ -107,6 +116,7 @@ OpenTrade/                         # repo root
 ## Consequences
 
 ### Positive
+
 - 跨 package type-safe 共享（改 schema → 全 repo type error 立刻浮現）
 - 跨 package 原子提交（一個 PR 改 schema + API + 前端）
 - AI 寫 code 時能一次看到全專案 context，跨層改動更精準
@@ -116,12 +126,14 @@ OpenTrade/                         # repo root
 - 未來想拆 repo 也容易（按 package 邊界拆）
 
 ### Negative / Trade-offs
+
 - pnpm 對少數套件有相容性 issue（特別是某些有 phantom dependency 的舊 package）
 - Turborepo 設定學習曲線
 - IDE 跨 package 跳轉 / refactor 對某些工具不友善（VSCode 還算 OK）
 - Code review 時 PR 可能跨多個 package，review 量大
 
 ### Neutral
+
 - 如果未來開源部分元件（例如智能合約），需要從 monorepo 抽出（不困難，但要做）
 
 ## Implementation Notes

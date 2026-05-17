@@ -1,14 +1,17 @@
 # ADR-0010: 用戶端與商戶後台拆兩個獨立 Next.js app
 
 ## Status
+
 Accepted
 
 ## Date
+
 2026-05-17
 
 ## Context
 
 OpenTrade 服務兩種截然不同的使用者：
+
 1. **散戶投資者**（C 端）：閱讀評論、評分券商、找 KOL
 2. **商戶 / KOL / Admin**（B 端）：管理專頁、發訊號、處理投訴
 
@@ -23,6 +26,7 @@ OpenTrade 服務兩種截然不同的使用者：
 | 權限模型 | 簡單（讀為主） | 複雜（RBAC） |
 
 如果擠在同一個 Next.js app：
+
 - Tailwind 主題打架
 - Routing 邏輯複雜（要根據用戶角色 redirect）
 - bundle size 膨脹（C 端使用者下載 B 端永遠用不到的 code）
@@ -66,6 +70,7 @@ OpenTrade 服務兩種截然不同的使用者：
 ## Alternatives Considered
 
 ### Alternative A: 單一 Next.js app + Route Group 區分
+
 - **Pros**：簡單，一份部署
 - **Cons**：
   - bundle size 浪費
@@ -75,11 +80,13 @@ OpenTrade 服務兩種截然不同的使用者：
 - **結論**：不選
 
 ### Alternative B: 單一 Next.js app + middleware 動態切換主題
+
 - **Pros**：技術上能做
 - **Cons**：複雜度爆炸、難維護
 - **結論**：不選
 
 ### Alternative C: 商戶後台用 React Admin / Refine.dev 等成熟後台框架
+
 - **Pros**：admin UI 開發極快
 - **Cons**：
   - 與 packages/ui 設計系統衝突
@@ -88,6 +95,7 @@ OpenTrade 服務兩種截然不同的使用者：
 - **結論**：不選
 
 ### Alternative D: 完全分離兩個 repo
+
 - **Pros**：終極隔離
 - **Cons**：
   - packages/ui / shared / config 難共享
@@ -96,11 +104,13 @@ OpenTrade 服務兩種截然不同的使用者：
 - **結論**：不選
 
 ### Alternative E: 用 Turborepo 的 Internal Package + 兩個 Next.js apps
+
 - **這就是我們選的**
 
 ## Consequences
 
 ### Positive
+
 - 兩端獨立演進，互不干擾
 - bundle size 各自最佳化
 - 部署互不影響（C 端緊急修復不需要動到 console）
@@ -109,33 +119,37 @@ OpenTrade 服務兩種截然不同的使用者：
 - AI 開發時 context 集中（改 web 的 AI 不需要看 console code）
 
 ### Negative / Trade-offs
+
 - 兩個 Next.js app 維護成本（但共用 packages/ui 已大幅降低）
 - 部署設定要做兩份
 - 跨 app 的功能（例如「Email 通知裡的連結點到對應 app」）需要明確處理
 - Next.js 升級時要兩個 app 都升
 
 ### Neutral
+
 - 將來可能需要第三個 app（例如 marketing landing page），這個架構支援
 
 ## Implementation Notes
 
 ### Domain 規劃
 
-| App | Production | Staging | Dev |
-|---|---|---|---|
-| apps/web | opentrade.io | staging.opentrade.io | dev.opentrade.io |
+| App          | Production           | Staging                      | Dev                      |
+| ------------ | -------------------- | ---------------------------- | ------------------------ |
+| apps/web     | opentrade.io         | staging.opentrade.io         | dev.opentrade.io         |
 | apps/console | console.opentrade.io | console.staging.opentrade.io | console.dev.opentrade.io |
-| apps/api | api.opentrade.io | api.staging.opentrade.io | api.dev.opentrade.io |
+| apps/api     | api.opentrade.io     | api.staging.opentrade.io     | api.dev.opentrade.io     |
 
 ### Auth 流程差異
 
 #### apps/web 流程
+
 1. 訪客可瀏覽部分內容（讀評論等）
 2. 寫評論前要求 Privy 登入
 3. 高權重評論需要 SBT
 4. 登入後可在 web 內完整使用
 
 #### apps/console 流程
+
 1. **不允許訪客瀏覽**（直接 redirect 到登入頁）
 2. Privy 登入後檢查角色
 3. 商戶 / KOL 第一次需要 KYC
@@ -149,6 +163,7 @@ OpenTrade 服務兩種截然不同的使用者：
 ### CORS / API 共用
 
 `apps/api` 的 CORS 設定允許：
+
 - `opentrade.io` (apps/web)
 - `console.opentrade.io` (apps/console)
 - `localhost:3000` (apps/web dev)

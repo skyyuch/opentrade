@@ -1,0 +1,44 @@
+{
+  "name": "@opentrade/config",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Shared configuration: supported chains, contract addresses, supported locales, feature flag keys, tenant defaults.",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./chains": {
+      "types": "./src/chains.ts",
+      "default": "./src/chains.ts"
+    },
+    "./contracts": {
+      "types": "./src/contracts.ts",
+      "default": "./src/contracts.ts"
+    },
+    "./locales": {
+      "types": "./src/locales.ts",
+      "default": "./src/locales.ts"
+    }
+  },
+  "files": [
+    "src",
+    "README.md"
+  ],
+  "scripts": {
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "echo 'no tests yet' && exit 0",
+    "test:unit": "echo 'no tests yet' && exit 0",
+    "clean": "rm -rf .turbo dist node_modules/.cache"
+  },
+  "dependencies": {
+    "@opentrade/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "name": "@opentrade/contracts",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Solidity smart contracts (Foundry). Source of truth for on-chain logic and exported ABIs consumed by the frontend.",
+  "type": "module",
+  "files": [
+    "src",
+    "abi",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "echo 'forge build not yet initialized — see Phase 1' && exit 0",
+    "test": "echo 'forge test not yet initialized — see Phase 1' && exit 0",
+    "test:unit": "echo 'forge test not yet initialized' && exit 0",
+    "lint": "echo 'solhint not yet initialized — see Phase 1' && exit 0",
+    "typecheck": "echo 'no TypeScript yet' && exit 0",
+    "clean": "rm -rf .turbo cache out artifacts typechain-types"
+  }
+}

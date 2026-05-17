@@ -1,0 +1,33 @@
+{
+  "name": "@opentrade/db",
+  "version": "0.0.0",
+  "private": true,
+  "description": "PostgreSQL schema and Prisma client. Imported only by apps/api; other packages may import types only.",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "files": [
+    "src",
+    "prisma",
+    "README.md"
+  ],
+  "scripts": {
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "echo 'no tests yet' && exit 0",
+    "test:unit": "echo 'no tests yet' && exit 0",
+    "clean": "rm -rf .turbo dist node_modules/.cache"
+  },
+  "dependencies": {
+    "@opentrade/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2"
+  }
+}

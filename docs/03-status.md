@@ -9,8 +9,8 @@
 ## 最後更新
 
 - **日期**：2026-05-17
-- **更新者**：初始規劃 session（Claude Opus 4.7）
-- **本次更新摘要**：建立項目記憶系統、完成 Commit #1 的文件骨架部分
+- **更新者**：初始規劃 session（Claude Opus 4.7） — Commit #2
+- **本次更新摘要**：Monorepo 骨架建好（pnpm + Turborepo + ESLint 9 + Husky），全包 typecheck/lint/format 通過
 
 ---
 
@@ -18,34 +18,59 @@
 
 **Phase 0：地基搭建**
 
-進度：30%
+進度：60%
 
 ---
 
 ## 已完成
 
-### Commit #1：文件骨架 + Cursor Rules（本次 session）
+### Commit #1：文件骨架 + Cursor Rules
 
-- [x] 建立目錄結構 `docs/`、`.cursor/rules/`
-- [x] `AGENTS.md` 根層 AI briefing
-- [x] `README.md`
-- [x] `.gitignore`
-- [x] `.editorconfig`
-- [x] `docs/00-vision.md` 願景
-- [x] `docs/01-architecture.md` 架構
-- [x] `docs/02-roadmap.md` 路線圖
-- [x] `docs/03-status.md` 本檔
-- [ ] `docs/04-glossary.md` 術語表
-- [ ] `docs/decisions/` ADR 0001-0010
-- [ ] `docs/conversations/2026-05-17-initial-planning.md` 對話歸檔
-- [ ] `docs/grant-application/README.md`
-- [ ] `.cursor/rules/` 17 條規則
+- [x] `AGENTS.md`、`README.md`、`.gitignore`、`.editorconfig`
+- [x] `docs/00-vision.md` ~ `04-glossary.md`
+- [x] `docs/decisions/` 0001-0010 + README
+- [x] `docs/conversations/2026-05-17-initial-planning.md`
+- [x] `docs/grant-application/README.md`
+- [x] `.cursor/rules/` 全部 17 條規則
+
+### 工具鏈安裝（本次 session 中安裝在使用者本機）
+
+- [x] nvm v0.40.3 → `~/.nvm/`
+- [x] Node.js v22.22.3 (LTS Jod)
+- [x] pnpm v9.15.4（透過 corepack）
+- [x] `~/.zshrc`（首次建立，含 nvm + auto-use `.nvmrc` hook）
+
+### Commit #2：Monorepo 骨架
+
+- [x] root `package.json`（pnpm + Turborepo 設定）
+- [x] `pnpm-workspace.yaml`
+- [x] `turbo.json`（task pipeline + cache 策略）
+- [x] `tsconfig.base.json`（strict TypeScript 全套規則）
+- [x] `.nvmrc` / `.node-version`（鎖定 Node 22）
+- [x] `.npmrc`（pnpm 行為規範）
+- [x] `eslint.config.mjs`（ESLint 9 flat config）
+- [x] `prettier.config.mjs` + `.prettierignore`
+- [x] `commitlint.config.mjs`
+- [x] `.husky/pre-commit` + `.husky/commit-msg`
+- [x] 8 個 stub packages（apps/web, apps/console, apps/api, packages/{contracts,db,ui,shared,config}）
+- [x] 每個 stub 含 `package.json`、`tsconfig.json`、`README.md`、`src/index.ts`
+- [x] `pnpm install` 通過（262 個依賴）
+- [x] `pnpm typecheck` 通過（8/8 packages）
+- [x] `pnpm lint` 通過（8/8 packages）
+- [x] `pnpm format:check` 通過
+
+### GitHub 設定
+
+- [x] git config：`skyyuch <skyyuch@gmail.com>`
+- [x] Remote 連 `git@github.com:skyyuch/opentrade.git`（SSH）
+- [x] Commit #1 推送到 GitHub
+- [ ] Commit #2 推送（即將）
 
 ---
 
 ## 進行中
 
-無（本 session 完成 Commit #1 後即停止 / 換手）。
+無（本 session 完成 Commit #2 後即停止 / 換手）。
 
 ---
 
@@ -53,22 +78,18 @@
 
 ### 立即（下個 session）
 
-1. **Commit #2：Monorepo 骨架**
-   - 初始化 `pnpm + Turborepo`
-   - 建立 root `package.json`、`pnpm-workspace.yaml`、`turbo.json`、`tsconfig.base.json`
-   - 設定 ESLint + Prettier
-   - 設定 Husky + lint-staged
-
-2. **Commit #3-#5：各 package 初始化**
-   - 根據 [`01-architecture.md`](./01-architecture.md) 第三節結構初始化各 package
-
-3. **Commit #6：設計系統 + Storybook**
-4. **Commit #7：Terraform IaC 雛形**
-5. **Commit #8：CI/CD GitHub Actions**
+1. **Commit #3：apps/web 初始化** — Next.js 14 App Router + next-intl + Tailwind + shadcn
+2. **Commit #4：apps/console 初始化** — 跟 web 類似但桌面優先
+3. **Commit #5：apps/api 初始化** — Hono + DDD 骨架（尚不寫業務）
+4. **Commit #6：packages/db 初始化** — Prisma init + 第一個 migration（user/tenant 基礎）
+5. **Commit #7：packages/ui 初始化** — Storybook + design tokens + 第一個元件（Button）
+6. **Commit #8：packages/contracts 初始化** — Foundry init + OpenZeppelin
+7. **Commit #9：infra/terraform 雛形** — VPC、RDS、ECS Fargate、S3、Secrets Manager
+8. **Commit #10：CI/CD GitHub Actions** — lint + typecheck + test 在 PR 上自動跑
 
 ### 中期（Phase 1）
 
-完成 Phase 0 所有 commit 後，進入 Phase 1 MVP-A（鏈上評論功能），詳見 [`02-roadmap.md`](./02-roadmap.md)。
+完成 Phase 0 所有 commit 後，進入 Phase 1 MVP-A（鏈上評論功能）。
 
 ---
 
@@ -76,11 +97,11 @@
 
 ### 環境 / 帳號層級
 
-- ❓ **GitHub 帳號 / Org**：個人 or organization？建議建一個 GitHub Org `opentrade-hk`
-- ❓ **GitHub repo 名稱**：建議 `opentrade`
 - ❓ **AWS 帳號**：是否已有？要建 dev/staging/prod 三帳號還是先一個？
-- ❓ **網域**：opentrade.io / opentrade.hk / opentrade.app — 之後再決定，不影響開發
-- ❓ **AI 翻譯服務**：DeepL（質量最好）vs OpenAI（便宜）— 預設 DeepL 主、GPT 備援
+- ❓ **網域**：opentrade.io / .hk / .app — 之後再決定，不影響開發
+- ❓ **AI 翻譯服務**：DeepL（主）vs OpenAI GPT（備）— 已預設 DeepL 主
+- ❓ **GitHub Org 化**：目前是 `skyyuch/opentrade` 個人 repo。是否轉 GitHub Org `opentrade-hk`？
+- ❓ **Repo Public/Private**：目前 GitHub 上是 Public（看 web 結果）。建議改 Private（在 SFC 高層董事正式加入前）。
 
 ### 業務層級
 
@@ -98,14 +119,34 @@
 
 ## 已知風險
 
-| 風險 | 嚴重度 | 緩解措施 |
-|---|---|---|
-| 沒有 Web3 開發經驗 | 中 | 用 Foundry + OpenZeppelin + AI 輔助；上主網前必做第三方 audit |
-| 冷啟動使用者來源 | 高 | 種子陪審員（業界人脈）+ Glassdoor 式 Give-to-Get 機制 |
-| 香港 SFC 第 4 類牌照風險 | 中 | 純技術定位 + disclaimer + 退休 SFC 董事背書 |
-| KOL 不願意上鏈被監督 | 中 | 把不上鏈定位為紅旗，創造「上鏈 KOL」精英身分 |
-| AWS 成本失控 | 低 | dev 環境用最低規格，prod 規模隨用戶增長 |
-| AI 翻譯品質不夠 | 低 | DeepL + 標明「機器翻譯」+ 後續引入人工校對 |
+| 風險                       | 嚴重度 | 緩解措施                                                      |
+| -------------------------- | ------ | ------------------------------------------------------------- |
+| 沒有 Web3 開發經驗         | 中     | 用 Foundry + OpenZeppelin + AI 輔助；上主網前必做第三方 audit |
+| 冷啟動使用者來源           | 高     | 種子陪審員（業界人脈）+ Glassdoor 式 Give-to-Get 機制         |
+| 香港 SFC 第 4 類牌照風險   | 中     | 純技術定位 + disclaimer + 退休 SFC 董事背書                   |
+| KOL 不願意上鏈被監督       | 中     | 把不上鏈定位為紅旗，創造「上鏈 KOL」精英身分                  |
+| AWS 成本失控               | 低     | dev 環境用最低規格，prod 規模隨用戶增長                       |
+| AI 翻譯品質不夠            | 低     | DeepL + 標明「機器翻譯」+ 後續引入人工校對                    |
+| 使用者 Mac 是全新 dev 環境 | 已緩解 | 已透過 nvm 安裝 Node + pnpm；流程記錄在本檔                   |
+
+---
+
+## 環境基準（給新 session / 新人快速重建）
+
+```bash
+# Node 與 pnpm
+node -v   # v22.22.3 (LTS Jod, 透過 nvm 管理)
+pnpm -v   # 9.15.4 (透過 corepack 啟用)
+
+# 進入專案後
+cd OpenTrade
+pnpm install        # 安裝全部 262 個依賴
+pnpm typecheck      # 全包 type 檢查
+pnpm lint           # 全包 ESLint
+pnpm format:check   # 全包 Prettier 檢查
+```
+
+`.nvmrc` 已設為 `22`，使用者進到專案資料夾時 zsh hook 會自動切到正確 Node 版本。
 
 ---
 
@@ -117,13 +158,12 @@
 - 路線圖：[`02-roadmap.md`](./02-roadmap.md)
 - 術語：[`04-glossary.md`](./04-glossary.md)
 - 架構決策：[`decisions/`](./decisions/)
+- GitHub: [skyyuch/opentrade](https://github.com/skyyuch/opentrade)
 
 ---
 
 ## Session History
 
-每個 session 結束時，在這裡新增一行（最新的在上面）。
-
-| 日期 | Session 主題 | Agent 模型 | 主要產出 | Conversation Log |
-|---|---|---|---|---|
-| 2026-05-17 | 初始規劃 + 建立項目記憶系統 | Claude Opus 4.7 | Commit #1 文件骨架 | [link](./conversations/2026-05-17-initial-planning.md) |
+| 日期       | Session 主題                                | Agent 模型      | 主要產出                                              | Conversation Log                                       |
+| ---------- | ------------------------------------------- | --------------- | ----------------------------------------------------- | ------------------------------------------------------ |
+| 2026-05-17 | 初始規劃 + 建立項目記憶系統 + Monorepo 骨架 | Claude Opus 4.7 | Commit #1 文件骨架 + Commit #2 Monorepo + GitHub 連線 | [link](./conversations/2026-05-17-initial-planning.md) |

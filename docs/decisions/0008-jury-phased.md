@@ -1,14 +1,17 @@
 # ADR-0008: 陪審團採分階段實作但架構保留完整性
 
 ## Status
+
 Accepted
 
 ## Date
+
 2026-05-17
 
 ## Context
 
 OpenTrade 的核心差異化功能之一是**去中心化陪審團仲裁**（類似 Kleros）。完整 Kleros 機制包含：
+
 - 隨機抽取陪審員
 - 雙方質押代幣
 - 陪審員投票
@@ -17,6 +20,7 @@ OpenTrade 的核心差異化功能之一是**去中心化陪審團仲裁**（類
 - 代幣經濟激勵
 
 但完整實作需要：
+
 - 自有 token（與 ADR-0007 衝突）
 - 大量陪審員池（冷啟動難）
 - 複雜的合約邏輯
@@ -54,6 +58,7 @@ V1 階段不可能全部做完，但又不能寫成「之後重寫」的 demo。
 ### 架構保留完整性的重點
 
 合約 `JuryPool` 與 `DisputeArbitration` 從 V1 就設計成：
+
 - ✅ 隨機抽選機制就位（VRF）
 - ✅ 質押 / 獎勵 / 罰金的**介面（interface）**留好
 - ✅ 投票結果計票邏輯支援上訴（即使 V1 不上訴）
@@ -65,6 +70,7 @@ V1 階段不可能全部做完，但又不能寫成「之後重寫」的 demo。
 ## Alternatives Considered
 
 ### Alternative A: V1 直接做完整 Kleros
+
 - **Pros**：一次到位
 - **Cons**：
   - 違反 ADR-0007（V1 不發 token）
@@ -73,6 +79,7 @@ V1 階段不可能全部做完，但又不能寫成「之後重寫」的 demo。
 - **結論**：不選
 
 ### Alternative B: V1 做最簡 demo（單一 admin 仲裁）
+
 - **Pros**：開發極快
 - **Cons**：
   - 失去 OpenTrade 的核心差異化
@@ -81,6 +88,7 @@ V1 階段不可能全部做完，但又不能寫成「之後重寫」的 demo。
 - **結論**：不選
 
 ### Alternative C: V1 不做陪審團，所有評論直接顯示
+
 - **Pros**：開發更快
 - **Cons**：
   - 沒有爭議解決機制 → 商戶被惡意攻擊無救濟管道
@@ -88,6 +96,7 @@ V1 階段不可能全部做完，但又不能寫成「之後重寫」的 demo。
 - **結論**：不選
 
 ### Alternative D: 直接 fork Kleros 部署
+
 - **Pros**：成熟
 - **Cons**：
   - Kleros 的 PNK token 在 Base 沒有部署
@@ -98,6 +107,7 @@ V1 階段不可能全部做完，但又不能寫成「之後重寫」的 demo。
 ## Consequences
 
 ### Positive
+
 - V1 4-5 週可交付，趕得上 CCMF 申請
 - V1 已是「鏈上不可改」的真陪審制度，不是 demo
 - V1 → V2 → V3 升級**不需要重寫合約**（透過 UUPS Proxy + 介面預留）
@@ -106,12 +116,14 @@ V1 階段不可能全部做完，但又不能寫成「之後重寫」的 demo。
 - 對 demo：可以講「這是 Kleros 級的去中心化仲裁系統」
 
 ### Negative / Trade-offs
+
 - V1 沒有 token 激勵，陪審員出席率可能不高（緩解：邀請制種子陪審員，業界前輩出於聲譽參與）
 - V1 抽選只有 5 人，樣本小，可能有判決偏差
 - 合約設計時要寫的「介面預留」會增加 V1 的複雜度
 - 升級代理本身有風險（必須有 timelock + multisig）
 
 ### Neutral
+
 - 跟 Kleros 學設計，必須在合約 comment 中標註參考來源
 
 ## Implementation Notes
@@ -139,6 +151,7 @@ packages/contracts/src/disputes/
 ### 創始陪審員（L3 SBT）
 
 Phase 4 邀請制，名單從業界人脈來：
+
 - 退休 SFC 員工
 - 退休銀行 / 證券業高管
 - 知名金融記者

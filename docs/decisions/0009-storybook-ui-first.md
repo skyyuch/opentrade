@@ -1,19 +1,23 @@
 # ADR-0009: UI 採 Storybook 獨立工作流先行
 
 ## Status
+
 Accepted
 
 ## Date
+
 2026-05-17
 
 ## Context
 
 OpenTrade 的成敗在很大程度上取決於 UI 視覺與體驗：
+
 - 申請數碼港 / ITC 基金時，評委 demo 5 分鐘看 UI 留下的印象
 - 投資人簡報時，UI 直接影響「專業感」判斷
 - 競品（外匯天眼）UI 偏老派，OpenTrade 視覺要明顯勝出
 
 如果 UI 是「順便做」的副產品，最終會：
+
 - 元件風格不一致
 - 一個元件改了影響其他頁面但無法察覺
 - 設計與 dev 反覆對焦浪費時間
@@ -28,6 +32,7 @@ OpenTrade 的成敗在很大程度上取決於 UI 視覺與體驗：
 UI 元件必須在 **Storybook** 中先完成、再被頁面使用。
 
 開發順序：
+
 1. 設計 tokens（顏色、字型、間距）
 2. Primitive 元件（Button、Input 等）→ 寫 stories
 3. Compound 元件（ReviewCard、KOLSignalChart 等）→ 寫 stories
@@ -96,6 +101,7 @@ packages/ui/
 ## Alternatives Considered
 
 ### Alternative A: 不用 Storybook，直接在頁面寫 UI
+
 - **Pros**：開發快
 - **Cons**：
   - 元件風格易不一致
@@ -105,11 +111,13 @@ packages/ui/
 - **結論**：不選
 
 ### Alternative B: 用 Storybook 但不強制獨立工作流
+
 - **Pros**：彈性
 - **Cons**：實際情況會變成「順便寫 stories」，很快崩壞
 - **結論**：不選；必須強制
 
 ### Alternative C: 用其他元件文檔工具（Ladle / Histoire / docusaurus）
+
 - **Pros**：較輕量
 - **Cons**：
   - Storybook 是業界標準，AI 教材最多
@@ -118,6 +126,7 @@ packages/ui/
 - **結論**：選 Storybook
 
 ### Alternative D: 找 freelance 設計師全包做 Figma + Dev
+
 - **Pros**：質量最高
 - **Cons**：成本（HK$200k+），MVP 預算可能不夠
 - **結論**：MVP 階段建議 freelance 設計師做 Figma 高保真稿（HK$30-80k），dev 自己用 AI 寫元件
@@ -125,6 +134,7 @@ packages/ui/
 ## Consequences
 
 ### Positive
+
 - UI 元件複用度高，新頁面開發極快
 - 設計變動有單一 source of truth
 - 設計師 / 投資人 / 顧問可在不啟動 app 的情況下檢視 UI
@@ -133,12 +143,14 @@ packages/ui/
 - 對申請基金的「技術成熟度」加分
 
 ### Negative / Trade-offs
+
 - 額外的 Storybook 配置工作（Phase 0 約 1 天）
 - 每個元件多寫一個 stories 檔
 - 大型 component 的 stories 寫起來繁瑣
 - Storybook build size 大，CI 慢一些
 
 ### Neutral
+
 - 視覺回歸測試需付費（Chromatic）或自建（Playwright + 比對工具）
 
 ## Implementation Notes
@@ -153,6 +165,7 @@ packages/ui/
 ### 色彩系統（待設計師微調）
 
 預設為「冷靜深藍 + 金融金 + 警示紅」：
+
 - Primary: 深藍（信任感）
 - Accent: 金（價值 / 高貴）
 - Success: 綠

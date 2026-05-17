@@ -45,6 +45,7 @@
 ### MVP 收窄聚焦（戰略決策）
 
 原本想做全金融（外匯、證券、黃金、保險），但太龐大，**收窄到香港**：
+
 - 持牌證券商（補 SFC 不管的「使用體驗」）
 - 財演 / KOL（鏈上業績認證）
 - 技術指標賣家（鏈上歷史不可竄改）
@@ -80,6 +81,7 @@
 ### Web 2.5 混合（→ 多份 ADR）
 
 不是「全部上鏈」也不是「全部 DB」：
+
 - **公開且不可變**（評論 hash、KOL 訊號、陪審結果）→ 鏈上 + IPFS
 - **私密且可變**（商戶介紹、用戶 profile、翻譯快取）→ DB
 
@@ -94,6 +96,7 @@
 > 「所有方案都不要臨時快速解案，而是徹底長遠的方案」
 
 → 從第一天就：
+
 - DDD + Modular Monolith 架構（→ ADR-0006）
 - Multi-tenant ready（DB schema 從第一天有 tenantId）
 - UUPS Proxy 升級代理（合約可升級但需 timelock）
@@ -111,6 +114,7 @@
 ### 3. DB 獨立疑慮 → 確認 L1-L4 都獨立
 
 對話中項目負責人擔心 DB 不夠獨立。釐清「獨立」有多個層次：
+
 - L1 實體獨立 ✅（RDS）
 - L2 網路獨立 ✅（VPC private subnet）
 - L3 程式碼獨立 ✅（packages/db）
@@ -122,12 +126,14 @@
 > 「項目規模很大，但同一個 agent 對話不可能做完，要如何才不會令今天聊的計劃漏掉」
 
 → 建立四層「項目記憶系統」：
+
 - L1: AGENTS.md
 - L2: .cursor/rules/
 - L3: docs/（含 ADR、conversations、status）
 - L4: GitHub Issues
 
 並建立 Cursor Rules 強制機制：
+
 - 進 session 必讀文件
 - 結束 session 必更新 status
 - Auto handoff 提醒（→ rule 98）
@@ -152,6 +158,7 @@
 對話結論：**拆細是根本，subagent 是輔助**。
 
 → Rule 96-task-decomposition：
+
 - 任務符合條件必先拆解（用 TodoWrite）
 - 一次只 in_progress 一個
 - subagent 用於並行探索、批次重複工作
@@ -164,11 +171,13 @@
 ### 商業模式紅線
 
 對話確立的「絕對不做」：
+
 - ❌ 收費刪評論（會變第二個 WikiFX）
 - ❌ 商家付費影響顯示順序
 - ❌ V1 發行自有代幣（VATP 監管風險）
 
 可行收入路徑：
+
 1. B 端 SaaS 工具費（dashboard、API、客戶情緒分析）
 2. 爭議仲裁協議費
 3. 資料 API 授權
@@ -191,20 +200,21 @@
 
 ### 競品分析（將寫入 docs/competitor-analysis.md，Phase 0 後期）
 
-| 平台 | 借鑒點 |
-|---|---|
-| WikiFX 外匯天眼 | **反面教材**：付費刪負評是死穴 |
-| Glassdoor | ⭐ **Give-to-Get** 機制：用戶必須先貢獻才能解鎖完整資料 |
-| G2 (B2B) | ⭐ **驗證等級 = 評論顯示權重** |
-| Trustpilot | 反面教材：付費影響排名 |
-| DeBank | ⭐ **鏈上身份 = 信譽分** |
-| Kleros | ⭐ **去中心化法院**機制原型 |
+| 平台            | 借鑒點                                                  |
+| --------------- | ------------------------------------------------------- |
+| WikiFX 外匯天眼 | **反面教材**：付費刪負評是死穴                          |
+| Glassdoor       | ⭐ **Give-to-Get** 機制：用戶必須先貢獻才能解鎖完整資料 |
+| G2 (B2B)        | ⭐ **驗證等級 = 評論顯示權重**                          |
+| Trustpilot      | 反面教材：付費影響排名                                  |
+| DeBank          | ⭐ **鏈上身份 = 信譽分**                                |
+| Kleros          | ⭐ **去中心化法院**機制原型                             |
 
 ### Glassdoor「Give-to-Get」對 OpenTrade 的應用（重要）
 
 > 用戶要看券商完整評論前，必須先綁定一個 SBT（透過上傳該券商月結單做 zk-proof）
 
 這同時解決：
+
 1. 冷啟動有貢獻誘因
 2. 自然防 Sybil（沒帳戶就沒 SBT）
 3. 評論權重可依 SBT 數量加權
@@ -213,14 +223,14 @@
 
 ## 七、Phase 規劃（→ docs/02-roadmap.md）
 
-| Phase | 名稱 | 時程 |
-|---|---|---|
-| Phase 0 | 地基 | 1-2 週 |
-| Phase 1 | MVP-A 鏈上評論 | 3-4 週 |
-| Phase 2 | MVP-B KOL 訊號 | 3-4 週 |
-| Phase 3 | MVP-C 陪審團 V1 | 4-5 週 |
-| Phase 4 | 申請基金 + 內測 | 2-3 週 |
-| Phase 5+ | 公測 + 擴張 | 持續 |
+| Phase    | 名稱            | 時程   |
+| -------- | --------------- | ------ |
+| Phase 0  | 地基            | 1-2 週 |
+| Phase 1  | MVP-A 鏈上評論  | 3-4 週 |
+| Phase 2  | MVP-B KOL 訊號  | 3-4 週 |
+| Phase 3  | MVP-C 陪審團 V1 | 4-5 週 |
+| Phase 4  | 申請基金 + 內測 | 2-3 週 |
+| Phase 5+ | 公測 + 擴張     | 持續   |
 
 **目標**：Phase 0-3 在 12-16 週完成，趕上 CCMF 申請窗口。
 

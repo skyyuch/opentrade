@@ -1,0 +1,55 @@
+# Dependencies
+node_modules/
+.pnp/
+.pnp.js
+.pnpm-store/
+
+# Build outputs
+dist/
+build/
+out/
+.next/
+.turbo/
+.swc/
+*.tsbuildinfo
+storybook-static/
+
+# Foundry / Solidity
+cache/
+artifacts/
+typechain-types/
+
+# Test
+coverage/
+.nyc_output/
+
+# Lock files (managed by package manager)
+pnpm-lock.yaml
+package-lock.json
+yarn.lock
+
+# Auto-generated
+*.min.js
+*.min.css
+*.d.ts.map
+*.js.map
+
+# Environment
+.env*
+
+# Markdown auto-generated
+CHANGELOG.md
+
+# IDE
+.idea/
+.vscode/
+.cursor/state/
+.cursor/cache/
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db

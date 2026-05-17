@@ -11,32 +11,39 @@
 > 任何技術選型決策必須符合下列原則之一。違反原則的提案需先寫 ADR 說明理由。
 
 ### P1. 為「五年後的規模」設計，不是「明天的 demo」設計
+
 - 從第一天就採用可擴展模式（DDD、Modular Monolith、Multi-tenant Ready）
 - 寧可前期多花 20% 時間，避免日後重寫
 
 ### P2. 公平與不可篡改是不可妥協的功能需求
+
 - 任何「方便」的設計都不能違反鏈上不可變承諾
 - Smart contract 不可有「可刪除評論」的邏輯，連 admin 都不行
 
 ### P3. Web 2.5 混合：公開不可變上鏈，私密可變存 DB
+
 - **上鏈內容**：評論 hash、KOL 訊號、陪審團投票結果、SBT 身份
 - **DB 內容**：商戶介紹、用戶 profile、翻譯快取、UI 設定
 - 原則：「**任何使用者可能想刪除的資料**，不上鏈」
 
 ### P4. 多鏈 / 多區域 / 多語言「Ready」，但不立即多
+
 - 第一天的程式碼必須假設將來會多鏈、多區域、多語言部署
 - 透過 config 抽象，但實際只先部署單一目標
 
 ### P5. 前端絕不接觸機敏資料
+
 - 前端不存私鑰、不直連 DB、不持有 server secret
 - 所有機敏操作經由 API + AWS Secrets Manager
 
 ### P6. 測試先於上線
+
 - 智能合約：100% 函式覆蓋率，含 invariant test
 - API 業務邏輯：> 80% 行覆蓋率
 - 關鍵流程 e2e 測試：必過
 
 ### P7. 觀察性優先於除錯
+
 - 從第一天就上 CloudWatch + Sentry + 結構化日誌
 - 任何重要動作必有 metric
 
@@ -103,7 +110,7 @@
 │ Read Replica│  │ Files      │
 │ Prisma ORM  │  └────────────┘
 └─────────────┘
-       
+
 ┌──────────────────────────────────────────────────────────────────────────┐
 │           AWS Secrets Manager · CloudWatch · X-Ray · Sentry              │
 │           SES · SNS · SQS (背景任務) · Lambda (鏈上事件監聽)             │
@@ -178,16 +185,17 @@ OpenTrade/
 
 **為什麼要分兩個 app**：
 
-| 因素 | apps/web | apps/console |
-|---|---|---|
-| 目標使用者 | 散戶投資者 | 商戶員工 / KOL / Admin |
-| UI 風格 | 親切、有溫度、行動優先 | 專業、密度高、桌面優先 |
-| 部署 | opentrade.io | console.opentrade.io |
-| Auth 流程 | Privy (社交登入) | Privy + 額外 KYC |
+| 因素       | apps/web               | apps/console           |
+| ---------- | ---------------------- | ---------------------- |
+| 目標使用者 | 散戶投資者             | 商戶員工 / KOL / Admin |
+| UI 風格    | 親切、有溫度、行動優先 | 專業、密度高、桌面優先 |
+| 部署       | opentrade.io           | console.opentrade.io   |
+| Auth 流程  | Privy (社交登入)       | Privy + 額外 KYC       |
 
 兩者**共用 `packages/ui` 設計系統**，但各自表達品牌調性。
 
 **關鍵技術**：
+
 - Next.js 14 App Router（Server Components）
 - next-intl（URL 含 locale，例如 `/zh-Hant/brokers`）
 - wagmi v2 + viem（Web3 互動）
@@ -273,6 +281,7 @@ packages/db/
 ```
 
 **規則**：
+
 - 只有 `apps/api` 可以 import `packages/db` 的 PrismaClient
 - 前端可以 import type，**不可** import client
 - 所有 schema 必有 `tenantId`（即使 V1 只有 HK 一個 tenant）
@@ -304,6 +313,7 @@ packages/contracts/
 ```
 
 **設計原則**：
+
 - 所有合約用 **UUPS Proxy** 模式（OpenZeppelin），可升級但需 timelock
 - 沒有任何「刪除評論」的函式
 - Owner 權限最小化（只能 pause + upgrade，不能改資料）
@@ -311,14 +321,15 @@ packages/contracts/
 
 ### 4.6 區塊鏈層
 
-| 環境 | 鏈 | 目的 |
-|---|---|---|
-| Local dev | Anvil (Foundry) | 開發 |
-| dev | Base Sepolia | 內部測試 |
-| staging | Base Sepolia | 發行前驗收 |
-| prod | Base Mainnet | 正式環境 |
+| 環境      | 鏈              | 目的       |
+| --------- | --------------- | ---------- |
+| Local dev | Anvil (Foundry) | 開發       |
+| dev       | Base Sepolia    | 內部測試   |
+| staging   | Base Sepolia    | 發行前驗收 |
+| prod      | Base Mainnet    | 正式環境   |
 
 **多鏈準備**：
+
 - 合約地址、RPC、chainId 全部在 `packages/config` 用 env 切換
 - 不寫死 `import "Base"` 之類的東西
 - 將來要部署到 Optimism / Arbitrum 只改 config
@@ -327,20 +338,20 @@ packages/contracts/
 
 **全 AWS，三環境分離**：dev / staging / prod
 
-| 服務 | 用途 | 環境差異 |
-|---|---|---|
-| ECS Fargate | apps/api 容器 | dev: 1 task / prod: 3+ task auto-scale |
-| RDS Postgres 16 | 資料庫 | dev: t4g.small / prod: m6g.large + Multi-AZ + Read Replica |
-| S3 | 私密檔案、frontend 靜態資源 | 三環境分桶 |
-| CloudFront | CDN | 三環境分發 |
-| Route 53 | DNS | dev.opentrade.io / staging.opentrade.io / opentrade.io |
-| ACM | TLS 憑證 | 自動續約 |
-| Secrets Manager | 密碼、私鑰、API key | 嚴格 IAM |
-| CloudWatch | 日誌、指標、警報 | |
-| X-Ray | 分散式追蹤 | |
-| SQS + Lambda | 背景任務（鏈事件監聽、IPFS pin、AI 翻譯） | |
-| SES | Email 通知 | |
-| WAF | API 防護 | prod 必啟 |
+| 服務            | 用途                                      | 環境差異                                                   |
+| --------------- | ----------------------------------------- | ---------------------------------------------------------- |
+| ECS Fargate     | apps/api 容器                             | dev: 1 task / prod: 3+ task auto-scale                     |
+| RDS Postgres 16 | 資料庫                                    | dev: t4g.small / prod: m6g.large + Multi-AZ + Read Replica |
+| S3              | 私密檔案、frontend 靜態資源               | 三環境分桶                                                 |
+| CloudFront      | CDN                                       | 三環境分發                                                 |
+| Route 53        | DNS                                       | dev.opentrade.io / staging.opentrade.io / opentrade.io     |
+| ACM             | TLS 憑證                                  | 自動續約                                                   |
+| Secrets Manager | 密碼、私鑰、API key                       | 嚴格 IAM                                                   |
+| CloudWatch      | 日誌、指標、警報                          |                                                            |
+| X-Ray           | 分散式追蹤                                |                                                            |
+| SQS + Lambda    | 背景任務（鏈事件監聽、IPFS pin、AI 翻譯） |                                                            |
+| SES             | Email 通知                                |                                                            |
+| WAF             | API 防護                                  | prod 必啟                                                  |
 
 **IaC**：所有資源**透過 Terraform 建立**，禁止 console 手動操作。
 
@@ -405,14 +416,14 @@ packages/contracts/
 
 ### 身份分層
 
-| 等級 | 對象 | 取得方式 | 權限 |
-|---|---|---|---|
-| L0 | 訪客 | 無需登入 | 只讀已上鏈評論 |
-| L1 | 已登入用戶 | Privy 社交登入 | 讀全部、寫評論草稿 |
-| L2 | 已驗證投資者 | 持有特定券商 SBT（zk-proof 月結單） | 提交可信評論 |
-| L3 | 創始陪審員 | 邀請制 SBT | 參與陪審投票 |
-| L4 | 機構 | KYC + SFC 牌照驗證 | 認領商戶專頁 |
-| L5 | Admin | 多簽錢包 | 合約 upgrade、緊急暫停 |
+| 等級 | 對象         | 取得方式                            | 權限                   |
+| ---- | ------------ | ----------------------------------- | ---------------------- |
+| L0   | 訪客         | 無需登入                            | 只讀已上鏈評論         |
+| L1   | 已登入用戶   | Privy 社交登入                      | 讀全部、寫評論草稿     |
+| L2   | 已驗證投資者 | 持有特定券商 SBT（zk-proof 月結單） | 提交可信評論           |
+| L3   | 創始陪審員   | 邀請制 SBT                          | 參與陪審投票           |
+| L4   | 機構         | KYC + SFC 牌照驗證                  | 認領商戶專頁           |
+| L5   | Admin        | 多簽錢包                            | 合約 upgrade、緊急暫停 |
 
 ### 機敏資料保護
 
@@ -435,22 +446,22 @@ packages/contracts/
 
 ### Phase 1 目標
 
-| 指標 | 目標 |
-|---|---|
-| API p95 latency | < 300ms |
-| 頁面載入 LCP | < 2.5s |
-| 評論提交端到端 | < 10s（含上鏈確認） |
-| 同時在線用戶 | 1,000 |
-| 每日新評論 | 1,000 |
-| 鏈上 gas 成本（平台代付） | 月 < $500 USD |
+| 指標                      | 目標                |
+| ------------------------- | ------------------- |
+| API p95 latency           | < 300ms             |
+| 頁面載入 LCP              | < 2.5s              |
+| 評論提交端到端            | < 10s（含上鏈確認） |
+| 同時在線用戶              | 1,000               |
+| 每日新評論                | 1,000               |
+| 鏈上 gas 成本（平台代付） | 月 < $500 USD       |
 
 ### Phase 2 目標
 
-| 指標 | 目標 |
-|---|---|
-| 同時在線用戶 | 10,000 |
-| 每日新評論 | 10,000 |
-| API 服務 | 拆出獨立 disputes service |
+| 指標         | 目標                      |
+| ------------ | ------------------------- |
+| 同時在線用戶 | 10,000                    |
+| 每日新評論   | 10,000                    |
+| API 服務     | 拆出獨立 disputes service |
 
 ---
 

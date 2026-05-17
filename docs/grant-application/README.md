@@ -7,13 +7,13 @@
 
 ## 規劃中的申請目標
 
-| 名稱 | 性質 | 預期金額 | 目標時程 |
-|---|---|---|---|
-| **CCMF** (Cyberport Creative Micro Fund) | 數碼港創意微型基金 | HK$ 100,000 | Phase 4（MVP 後） |
-| **CSI** (Cyberport Smart-Space Incubation) | 數碼港培育計劃 | HK$ 500,000 | CCMF 後 6 個月 |
-| **HKSTP Incu-App** | 科技園 App 培育 | HK$ 1.29M | Phase 5 |
-| **TSSSU** (Technology Start-up Support Scheme) | 創科局新創支援 | HK$ 1.5M | Phase 5+ |
-| **天使投資 / Seed VC** | 私人投資 | TBD | Phase 4-5 |
+| 名稱                                           | 性質               | 預期金額    | 目標時程          |
+| ---------------------------------------------- | ------------------ | ----------- | ----------------- |
+| **CCMF** (Cyberport Creative Micro Fund)       | 數碼港創意微型基金 | HK$ 100,000 | Phase 4（MVP 後） |
+| **CSI** (Cyberport Smart-Space Incubation)     | 數碼港培育計劃     | HK$ 500,000 | CCMF 後 6 個月    |
+| **HKSTP Incu-App**                             | 科技園 App 培育    | HK$ 1.29M   | Phase 5           |
+| **TSSSU** (Technology Start-up Support Scheme) | 創科局新創支援     | HK$ 1.5M    | Phase 5+          |
+| **天使投資 / Seed VC**                         | 私人投資           | TBD         | Phase 4-5         |
 
 ---
 

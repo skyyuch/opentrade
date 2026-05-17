@@ -115,22 +115,22 @@
 
 ## 重要工具與框架（必須遵守）
 
-| 類別 | 選型 | 不可改用其他 |
-|---|---|---|
-| Monorepo | pnpm + Turborepo | |
-| 前端 | Next.js 14 (App Router) + TypeScript | |
-| UI | Tailwind + shadcn/ui | |
-| i18n | next-intl（繁中、簡中、英文） | |
-| Web3 前端 | wagmi v2 + viem + Privy | |
-| API | Hono on Node.js | |
-| DB | PostgreSQL (RDS) + Prisma ORM | |
-| 智能合約 | Solidity + Foundry + OpenZeppelin | |
-| 鏈 | Base L2（架構保持 OP Stack 通用） | |
-| 雲端 | AWS（RDS、ECS Fargate、S3、Secrets Manager） | |
-| IaC | Terraform | |
-| CI/CD | GitHub Actions | |
-| UI 開發 | Storybook（獨立工作流） | |
-| 測試 | Vitest + Playwright + Forge | |
+| 類別      | 選型                                         | 不可改用其他 |
+| --------- | -------------------------------------------- | ------------ |
+| Monorepo  | pnpm + Turborepo                             |              |
+| 前端      | Next.js 14 (App Router) + TypeScript         |              |
+| UI        | Tailwind + shadcn/ui                         |              |
+| i18n      | next-intl（繁中、簡中、英文）                |              |
+| Web3 前端 | wagmi v2 + viem + Privy                      |              |
+| API       | Hono on Node.js                              |              |
+| DB        | PostgreSQL (RDS) + Prisma ORM                |              |
+| 智能合約  | Solidity + Foundry + OpenZeppelin            |              |
+| 鏈        | Base L2（架構保持 OP Stack 通用）            |              |
+| 雲端      | AWS（RDS、ECS Fargate、S3、Secrets Manager） |              |
+| IaC       | Terraform                                    |              |
+| CI/CD     | GitHub Actions                               |              |
+| UI 開發   | Storybook（獨立工作流）                      |              |
+| 測試      | Vitest + Playwright + Forge                  |              |
 
 任何要改用其他工具的提案，**必須先寫 ADR 並讓使用者拍板**。
 

@@ -1,0 +1,25 @@
+{
+  "name": "@opentrade/web",
+  "version": "0.0.0",
+  "private": true,
+  "description": "OpenTrade public-facing app for retail investors. Mobile-first, SEO-friendly, three-language UI.",
+  "type": "module",
+  "scripts": {
+    "build": "echo 'next build not yet initialized — see Phase 0 commit #3' && exit 0",
+    "dev": "echo 'next dev not yet initialized' && exit 0",
+    "start": "echo 'next start not yet initialized' && exit 0",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "echo 'no tests yet' && exit 0",
+    "test:unit": "echo 'no tests yet' && exit 0",
+    "clean": "rm -rf .turbo .next out node_modules/.cache"
+  },
+  "dependencies": {
+    "@opentrade/config": "workspace:*",
+    "@opentrade/shared": "workspace:*",
+    "@opentrade/ui": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2"
+  }
+}
