@@ -9,8 +9,10 @@
 ## 最後更新
 
 - **日期**：2026-05-17
-- **更新者**：Commit number-seven session（Claude Opus 4.7）— `apps/console` 初始化
-- **本次更新摘要**：完成 Commit number-seven — `apps/console` Next.js 14 殼，大量複用 `apps/web` 模板：next-intl 4 三 locale（zh-Hant 預設 / zh-Hans / en，`as-needed` prefix）+ Tailwind 接 `@opentrade/ui/tailwind-preset` + Inter via `next/font/google` + zod-validated `NEXT_PUBLIC_API_URL` + dotenv -e ../../.env shared root env；唯一行為差異是 `<ThemeProvider defaultTheme="dark">`（per ADR-0011 dashboard 暗色慣例）、dev port 3001（per ADR-0010）；新增 `/dashboard` 殼商戶後台 placeholder（4 張功能 card：claim / reviews / signals / disputes，純 Tailwind utility，**刻意不用 ImmutableMark** per ADR-0011 §5.1 mock data 紀律）+ site-level `app/robots.ts` disallow-all（per ADR-0010 console 不對外 SEO）+ `<meta name="robots" content="noindex, nofollow">` layout metadata 雙保險。`apps/console` 殼**不接 auth**（auth gate 為 Phase 1 任務，middleware 內已標 TODO 給未來 agent）。Prod `next build` 7 個 SSG static page 全綠、`next start` 端到端三 locale 真實驗證：title `OpenTrade 商戶後台` / `OpenTrade 商户后台` / `OpenTrade merchant back office`、next-themes inline script 注入 `("class","theme","dark",...)` 確認 dark default、`/robots.txt` 回 `User-Agent: * Disallow: /`、HTTP 404 on 不存在 route。Phase 0 進度從 93% 推進到 95%（剩 contracts / infra / CI 三個 commit）。
+- **更新者**：Commit number-eight session（Claude Opus 4.7）— `packages/contracts` 初始化
+- **本次更新摘要**：完成 Commit number-eight — `packages/contracts` Foundry 工具鏈端到端就位：Foundry v1.7.1 安裝（透過 `foundryup --install stable`，加進 `~/.zshenv`）+ `forge init --empty --use-parent-git --shallow`（不生 Counter 範例，forge-std 透過 monorepo root `.gitmodules` 而非 nested git）+ OpenZeppelin v5.6.1 兩個 submodule（`openzeppelin-contracts` 5fd1781b + `openzeppelin-contracts-upgradeable` 7bf4727a，因 `forge install` 對 v5.5+ tag 有解析 bug，改用 raw `git submodule add` + `git checkout v5.6.1`）+ 客製化 `foundry.toml`（solc 0.8.24、evm_version paris OP Stack 通用、`bytecode_hash = "none"` + `cbor_metadata = false` 給 BaseScan deterministic verify、`[fmt]` 完整規則）+ `remappings.txt` 三條（forge-std / OZ / OZ-upgradeable）+ `.solhint.json` warning-only 9 條最低基本盤（compiler-version, func-visibility, leading-underscore, line 120, ordering 等）+ `.solhintignore`（lib/ out/ cache/ broadcast/）+ `test/Sanity.t.sol` 工具鏈煙霧測試（`test_ForgeRunnerIsAlive` + `test_OpenZeppelinTypeNamesResolve` 用 `type(C).name` 強迫 solc 完整 resolve OZ import graph）+ 把 monorepo root `lint-staged` 從 `package.json` 抽到 `.lintstagedrc.mjs`（為了讓 `.sol` 走 `forge fmt --root packages/contracts` 而非 `prettier-plugin-solidity`，避免兩個 formatter 競賽）+ `.prettierignore` 加 `lib/`（vendored OZ 內含自己的 `.prettierrc` 引用 prettier-plugin-solidity，會炸 `format:check`）+ `packages/contracts/package.json` scripts 改實 `forge build/test/test:ci/fmt/fmt:check/lint/clean` + `packages/contracts/turbo.json` package-level override（build outputs `out/**` `cache/**`，typecheck/test/lint outputs `[]` 消除既有 「no output files found」warning） + README 完整 rewrite「Phase 0 toolchain ready + 首次安裝步驟」+ ADR-0015 紀錄 8 個關鍵決策（D1 不寫業務合約、D2 OZ v5.6.1 git submodule、D3 paris EVM、D4 forge fmt 為唯一 style source、D5 solhint warning-only、D6 lint glob 僅 test/、D7 deploy config 走 env、D8 延後 Chainlink VRF） + rule 99 self-review：rule 41 v4 → v5 import path 修正（`security/PausableUpgradeable.sol` 已不存在 v5；`ReentrancyGuardUpgradeable.sol` v5 移除，改 inherit 非 upgradeable `ReentrancyGuard` 透過 ERC-7201 namespaced storage）+ commitlint scope-enum 加 `decisions`（給 ADR commits）。
+
+端到端驗證：`pnpm --filter @opentrade/contracts build` → `forge build` 編 25 個 .sol（含 OZ + forge-std + Sanity）成功；`forge test -vvv` 2 passed 0 failed；`pnpm exec solhint` exit 0 0 warning；`pnpm format:check / lint / typecheck` 全 monorepo 全綠（含 contracts typecheck 不再警告 missing outputs）；`.lintstagedrc.mjs` 對 `.sol` 真實觸發過 `forge fmt --root packages/contracts test/Sanity.t.sol`（t5 commit pre-commit 跑時驗證）。Phase 0 進度從 95% 推進到 97%（剩 infra / CI 兩個 commit）。
 
 ---
 
@@ -18,7 +20,7 @@
 
 **Phase 0：地基搭建**
 
-進度：95%
+進度：97%
 
 ---
 
@@ -74,7 +76,27 @@
 - [x] `pnpm lint` 通過（8/8 packages）
 - [x] `pnpm format:check` 通過
 
-### Commit number-seven：apps/console 初始化（本 session 完成）
+### Commit number-eight：packages/contracts 初始化（本 session 完成）
+
+- [x] ADR-0015：packages/contracts toolchain setup（8 個決策完整紀錄）
+- [x] Foundry v1.7.1 透過 `foundryup --install stable` 裝在使用者本機，`~/.zshenv` 自動補 `PATH`
+- [x] `forge init --empty --use-parent-git --shallow` 在 `packages/contracts/`（不生 Counter、不 nest git repo、`lib/forge-std` 透過 monorepo root `.gitmodules` 註冊）
+- [x] OpenZeppelin v5.6.1 兩個 git submodule（per ADR-0015 D2）：`openzeppelin-contracts` (`5fd1781b`) + `openzeppelin-contracts-upgradeable` (`7bf4727a`)。改用 raw `git submodule add` + `git checkout v5.6.1`，因 `forge install ...@v5.5+` 在 Foundry 1.7.1 有 tag 解析 bug
+- [x] `foundry.toml`：`solc_version = "0.8.24"` + `evm_version = "paris"`（OP Stack 通用，per ADR-0015 D3）+ `optimizer = true, optimizer_runs = 200` + `bytecode_hash = "none"` + `cbor_metadata = false`（BaseScan deterministic verify）+ `fuzz = { runs = 1024 }` + `invariant = { runs = 256, depth = 32 }` + `auto_detect_remappings = false` + `[fmt]` 完整規則（line 120、`uint256` long、double quote、thousands underscore、sorted imports、params-first multiline）
+- [x] `remappings.txt` 三條：`forge-std/`、`@openzeppelin/contracts/`、`@openzeppelin/contracts-upgradeable/`
+- [x] `.solhint.json` minimal warning-only 9 條（per ADR-0015 D5：compiler-version、func-visibility ignoreConstructors、private-vars-leading-underscore、no-empty-blocks、no-global-import、no-console、max-line-length 120、ordering、reason-string off）+ `.solhintignore`（lib/、out/、cache/、broadcast/）
+- [x] `test/Sanity.t.sol`：兩個 test — `test_ForgeRunnerIsAlive`（純 assertTrue 證 runner 起）+ `test_OpenZeppelinTypeNamesResolve`（讀 `type(Ownable).name` + `type(OwnableUpgradeable).name` 強迫 solc 完整 resolve OZ import graph，drift 即 compile-time fail）
+- [x] root `.lintstagedrc.mjs`（新）取代 `package.json` 的 `lint-staged` 欄位，對 `packages/contracts/**/*.sol` 用 `forge fmt --root packages/contracts <files>` —`foundry.toml [fmt]` 是唯一 style source（per ADR-0015 D4）
+- [x] root `.prettierignore` 加 `lib/`（OZ 自己 `.prettierrc` 引用 `prettier-plugin-solidity`，會炸 `format:check`）
+- [x] `packages/contracts/package.json` scripts 改實 forge / solhint commands（build、test、test:unit、test:ci `--no-match-test testFork`、fmt、fmt:check、lint 限 `test/**/*.sol` per D6、typecheck honest echo、clean delegates `forge clean`）
+- [x] `packages/contracts/turbo.json`（新，package-level override）：build inputs 涵蓋 foundry.toml/remappings.txt/全 `.sol`，build outputs `out/** cache/**`，test/lint/typecheck outputs `[]`（消除既有 「no output files found」warning）
+- [x] `packages/contracts/README.md` 完整 rewrite：Phase 0 toolchain ready 狀態、工具鏈表格（含 solc/forge/OZ/forge-std/solhint pinned versions）、目錄結構、first-time setup（`git submodule update --init --recursive` + `foundryup --install stable`）、critical contract rules、Phase 1+ 預告
+- [x] ADR-0015 完整 8 個決策 + alternatives considered（OZ v4、forge install only、prettier-plugin-solidity、cancun EVM、Phase 0 ship ReviewRegistry、Hardhat）+ consequences 三段 + implementation notes 全部到位；`docs/decisions/README.md` index 更新
+- [x] **rule 99 self-review**：rule 41 第 44-47 行 v4 import path 修正為 v5（`security/PausableUpgradeable.sol` → `utils/`；`ReentrancyGuardUpgradeable.sol` 在 v5 已移除，改 inherit 非 upgradeable `ReentrancyGuard` 透過 ERC-7201 namespaced storage），加 inline comment 警示未來 agent 不要「修回去」
+- [x] **rule 99 self-review**：`commitlint.config.mjs` scope-enum 加 `decisions`（給 ADR commits，解 t8 提交時 commitlint warning）+ `.cursor/rules/70-commit-pr.mdc` scope 清單同步（加 `decisions` 與既有 `status`）
+- [x] 端到端驗證：`pnpm --filter @opentrade/contracts build` → 25 個 .sol 編譯成功；`forge test -vvv` 2 passed；`pnpm exec solhint` 0 warning；`pnpm format:check / lint / typecheck` 全 monorepo 8 個 package 全綠（contracts typecheck 不再警告 missing outputs）；`.lintstagedrc.mjs` 對 `.sol` 在 t5 commit pre-commit 真實觸發過 `forge fmt --root packages/contracts test/Sanity.t.sol`
+
+### Commit number-seven：apps/console 初始化
 
 - [x] `apps/console/package.json`：與 `apps/web` 同 pin（Next 14.2.35 + React 18.3.1 + next-intl 4.12 + next-themes 0.4.6 + lucide 0.469 + zod 4.4.3 + Tailwind 3.4.17 + dotenv-cli），dev/build/start 走 `dotenv -e ../../.env -- next ... --port 3001`
 - [x] `apps/console/next.config.mjs` + `tailwind.config.ts` + `postcss.config.mjs`：mirror `apps/web`，docblock 標明唯一三項差異（dark default、port 3001、robots disallow）
@@ -170,7 +192,7 @@
 
 ## 進行中
 
-無（本 session 完成 Commit number-seven 後即停止 / 換手）。
+無（本 session 完成 Commit number-eight 後即停止 / 換手）。
 
 ---
 
@@ -180,9 +202,8 @@
 
 ### 立即（下個 session）
 
-1. **Commit number-eight：packages/contracts 初始化** — Foundry init + OpenZeppelin
-2. **Commit number-nine：infra/terraform 雛形** — VPC、RDS、ECS Fargate、S3、Secrets Manager；同時補 `apps/api/Dockerfile`（per ADR-0014 implementation notes：copy `.prisma/client` engines + `dist/main.js`）；Console 部署也要在這裡規劃（CloudFront + S3 + 自家 OpenNext）— per ADR-0010 兩 app 各自獨立部署
-3. **Commit number-ten：CI/CD GitHub Actions** — lint + typecheck + test + migrate 在 PR 上自動跑；Renovate / dependabot 排除 Prisma 7.x（per ADR-0013）；加 ESLint 規則阻止前端 runtime import `@opentrade/db`（per Commit #4 conversation 提到的紀律強化）；console 的 `X-Robots-Tag: noindex, nofollow` edge header 也要在 deploy 時設好（per ADR-0010 + Commit number-seven `app/robots.ts` docblock）
+1. **Commit number-nine：infra/terraform 雛形** — VPC、RDS、ECS Fargate、S3、Secrets Manager；同時補 `apps/api/Dockerfile`（per ADR-0014 implementation notes：copy `.prisma/client` engines + `dist/main.js`）；Console 部署也要在這裡規劃（CloudFront + S3 + 自家 OpenNext）— per ADR-0010 兩 app 各自獨立部署
+2. **Commit number-ten：CI/CD GitHub Actions** — lint + typecheck + test + migrate 在 PR 上自動跑；Renovate / dependabot 排除 Prisma 7.x（per ADR-0013）；加 ESLint 規則阻止前端 runtime import `@opentrade/db`（per Commit #4 conversation 提到的紀律強化）；console 的 `X-Robots-Tag: noindex, nofollow` edge header 也要在 deploy 時設好（per ADR-0010 + Commit number-seven `app/robots.ts` docblock）；**`foundry-toolchain` action 在 contracts job 設好**（per ADR-0015 implementation notes，pin forge 1.7.x + `git submodule update --init --recursive`）；solhint 在 PR 跑時仍 warning-only（per ADR-0015 D5）但 `forge build / forge test / forge fmt --check` 為 hard gate
 
 ### 中期（Phase 1）
 
@@ -216,6 +237,9 @@
 - ❓ **API 認證流程**：`JWT_SECRET` 目前是 placeholder（min 32 chars 驗證通過即可）；Phase 1 換 ES256 + AWS Secrets Manager（per rule 50）+ Privy token exchange endpoint（per ADR-0005）
 - ❓ **`packages/db` 是否需要真實 build 步驟**：目前 `main: "./src/index.ts"`，dev 直消費 TS；ADR-0014 記錄為「延後」；何時觸發改建 = 多個 consumer 或 cold-start 變慢時
 - ❓ **Next.js 14 → 15 / 16 升級評估**：commit number-six pin `~14.2.35`（per AGENTS.md tech table 寫定 Next 14）。但截至 2026-05 上游 latest 是 16.2.6，Next 15 也已 stable。升級會 touch：`params: Promise<{...}>` 改 sync 簽章、`middleware` 改名 `proxy`、Server Component caching 行為。寫 successor ADR 時機：完成 Phase 0 全部 commit 後集中處理
+- ❓ **OZ v5 `ReentrancyGuard` 在 Upgradeable 合約的 storage 安全性**：v5 用 ERC-7201 namespaced storage，理論上 non-upgradeable `ReentrancyGuard` 可被 `UUPSUpgradeable` 合約直接 inherit。Phase 1 寫第一個業務合約（ReviewRegistry）時必須實測 storage layout（用 `forge inspect ReviewRegistry storage-layout`）並寫進 audit notes。若不安全則改用 `ReentrancyGuardTransient`（Cancun EVM 才能用，需先 ADR 切 `evm_version`）
+- ❓ **Foundry version pin 策略**：本機 `foundryup --install stable` 抓到 `forge 1.7.1`。CI 透過 `foundry-toolchain` action 應 pin 同版本；何時 bump 寫 ADR：(a) 上游 1.8+ 帶來新 cheatcode 是 audit 必需；或 (b) v5 tag 解析 bug 修了之後（ADR-0015 D2 提到）
+- ❓ **solhint 嚴格化時機**：ADR-0015 D5 約定 Phase 1 第一個業務合約 PR 時把 ruleset 從 warning-only 切 error-level，並 extend `solhint:recommended`。需在 Phase 1 同個 PR 內完成，避免「先 ship contract 再 tighten lint」的 backwards 流程
 
 ---
 
@@ -240,6 +264,7 @@
 node -v   # v22.22.3 (LTS Jod, 透過 nvm 管理)
 pnpm -v   # 9.15.4 (透過 corepack 啟用)
 docker --version  # 29.4.2 (Commit #4 起本機 dev DB 必備, per ADR-0012)
+forge --version   # forge 1.7.1 (Commit number-eight 起本機合約開發必備, per ADR-0015)
 
 # 進入專案後
 cd OpenTrade
@@ -268,9 +293,19 @@ open http://localhost:3001/                     # zh-Hant 商戶後台（dark de
 open http://localhost:3001/en                   # 英文 dashboard 殼
 open http://localhost:3001/zh-Hans              # 簡中
 curl http://localhost:3001/robots.txt           # → User-Agent: *  Disallow: /
+
+# Commit number-eight 起：起 forge 工具鏈並驗證合約端到端
+git submodule update --init --recursive         # 首次：拉 OZ + forge-std submodules
+curl -L https://foundry.paradigm.xyz | bash     # 首次：安裝 foundryup
+~/.foundry/bin/foundryup --install stable       # 首次：拉 forge 1.7.x binaries
+forge --version                                  # → forge Version: 1.7.x
+pnpm --filter @opentrade/contracts build        # forge build → 25 個 .sol 編譯成功
+pnpm --filter @opentrade/contracts test         # forge test → 2 passed (Sanity)
+pnpm --filter @opentrade/contracts lint         # solhint --noPrompt 'test/**/*.sol' → 0 warning
+pnpm --filter @opentrade/contracts fmt:check    # forge fmt --check → exit 0
 ```
 
-`.nvmrc` 已設為 `22`，使用者進到專案資料夾時 zsh hook 會自動切到正確 Node 版本。
+`.nvmrc` 已設為 `22`，使用者進到專案資料夾時 zsh hook 會自動切到正確 Node 版本。`~/.zshenv` 已被 `foundryup` 安裝器自動加 `export PATH="$PATH:$HOME/.foundry/bin"`，新開 terminal 直接可用 `forge`。
 
 ---
 
@@ -288,11 +323,12 @@ curl http://localhost:3001/robots.txt           # → User-Agent: *  Disallow: /
 
 ## Session History
 
-| 日期       | Session 主題                                       | Agent 模型      | 主要產出                                                                                                                                                                                                                                                                                                                                       | Conversation Log                                                |
-| ---------- | -------------------------------------------------- | --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
-| 2026-05-17 | 初始規劃 + 建立項目記憶系統 + Monorepo 骨架        | Claude Opus 4.7 | Commit #1 文件骨架 + Commit #2 Monorepo + GitHub 連線                                                                                                                                                                                                                                                                                          | [link](./conversations/2026-05-17-initial-planning.md)          |
-| 2026-05-17 | UI 設計策略 + commit 順序調整 + packages/ui 初始化 | Claude Opus 4.7 | ADR-0011 UI 設計語言 + Commit #3 packages/ui 完成（design tokens、Storybook、Button、ImmutableMark）                                                                                                                                                                                                                                           | [link](./conversations/2026-05-17-ui-design-and-packages-ui.md) |
-| 2026-05-17 | packages/db 初始化（Commit #4）                    | Claude Opus 4.7 | ADR-0012 本機 docker Postgres + ADR-0013 Pin Prisma 6.x + Commit #4 完成（Tenant/User/Broker/BrokerLicense + 5 enum + 17 index，首個 migration apply 到本機）                                                                                                                                                                                  | [link](./conversations/2026-05-17-commit-4-packages-db.md)      |
-| 2026-05-17 | apps/api 初始化（Commit number-five）              | Claude Opus 4.7 | ADR-0014 apps/api 運行架構 + Hono + DDD 四層 health 樣板 + Pino + AppError + OutboxEvent 表 + hk Tenant seed + tsup prod bundle 端到端驗證                                                                                                                                                                                                     | [link](./conversations/2026-05-17-commit-5-apps-api.md)         |
-| 2026-05-17 | apps/web 初始化（Commit number-six）               | Claude Opus 4.7 | Cursor Rules 5 項 deferred sync + Next 14 + next-intl 4 三 locale + Tailwind 接 packages/ui + Inter font + zod env + typed API client + HealthReportDto 移到 packages/shared + /status Server Component 端到端 + 首次在 Storybook 之外用 `<Button>` + prod build SSG 9 頁                                                                      | [link](./conversations/2026-05-17-commit-6-apps-web.md)         |
-| 2026-05-17 | apps/console 初始化（Commit number-seven）         | Claude Opus 4.7 | Next 14 console 殼 mirror web 模板 + dark default ThemeProvider + port 3001 + dashboard 4-card grid（claim/reviews/signals/disputes，無 ImmutableMark per ADR-0011 §5.1）+ site-level robots.ts disallow-all + meta robots noindex 雙保險 + zod env + 三語 dashboard messages + prod build SSG 7 頁 + prod start dark + robots end-to-end 驗證 | [link](./conversations/2026-05-17-commit-7-apps-console.md)     |
+| 日期       | Session 主題                                       | Agent 模型      | 主要產出                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | Conversation Log                                                  |
+| ---------- | -------------------------------------------------- | --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| 2026-05-17 | 初始規劃 + 建立項目記憶系統 + Monorepo 骨架        | Claude Opus 4.7 | Commit #1 文件骨架 + Commit #2 Monorepo + GitHub 連線                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | [link](./conversations/2026-05-17-initial-planning.md)            |
+| 2026-05-17 | UI 設計策略 + commit 順序調整 + packages/ui 初始化 | Claude Opus 4.7 | ADR-0011 UI 設計語言 + Commit #3 packages/ui 完成（design tokens、Storybook、Button、ImmutableMark）                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | [link](./conversations/2026-05-17-ui-design-and-packages-ui.md)   |
+| 2026-05-17 | packages/db 初始化（Commit #4）                    | Claude Opus 4.7 | ADR-0012 本機 docker Postgres + ADR-0013 Pin Prisma 6.x + Commit #4 完成（Tenant/User/Broker/BrokerLicense + 5 enum + 17 index，首個 migration apply 到本機）                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | [link](./conversations/2026-05-17-commit-4-packages-db.md)        |
+| 2026-05-17 | apps/api 初始化（Commit number-five）              | Claude Opus 4.7 | ADR-0014 apps/api 運行架構 + Hono + DDD 四層 health 樣板 + Pino + AppError + OutboxEvent 表 + hk Tenant seed + tsup prod bundle 端到端驗證                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | [link](./conversations/2026-05-17-commit-5-apps-api.md)           |
+| 2026-05-17 | apps/web 初始化（Commit number-six）               | Claude Opus 4.7 | Cursor Rules 5 項 deferred sync + Next 14 + next-intl 4 三 locale + Tailwind 接 packages/ui + Inter font + zod env + typed API client + HealthReportDto 移到 packages/shared + /status Server Component 端到端 + 首次在 Storybook 之外用 `<Button>` + prod build SSG 9 頁                                                                                                                                                                                                                                                                                                                                                                                                                                  | [link](./conversations/2026-05-17-commit-6-apps-web.md)           |
+| 2026-05-17 | apps/console 初始化（Commit number-seven）         | Claude Opus 4.7 | Next 14 console 殼 mirror web 模板 + dark default ThemeProvider + port 3001 + dashboard 4-card grid（claim/reviews/signals/disputes，無 ImmutableMark per ADR-0011 §5.1）+ site-level robots.ts disallow-all + meta robots noindex 雙保險 + zod env + 三語 dashboard messages + prod build SSG 7 頁 + prod start dark + robots end-to-end 驗證                                                                                                                                                                                                                                                                                                                                                             | [link](./conversations/2026-05-17-commit-7-apps-console.md)       |
+| 2026-05-17 | packages/contracts 初始化（Commit number-eight）   | Claude Opus 4.7 | ADR-0015 contracts toolchain setup（8 個決策）+ Foundry v1.7.1 + `forge init --empty --use-parent-git --shallow` + OpenZeppelin v5.6.1 雙 submodule（raw `git submodule add` because of forge install tag bug）+ `foundry.toml`（solc 0.8.24 + paris EVM + deterministic bytecode + [fmt] full rules）+ remappings.txt 三條 + `.solhint.json` warning-only 9 條 + `test/Sanity.t.sol`（forge runner + OZ type-name resolve smoke）+ `.lintstagedrc.mjs` 抽出（`.sol` 走 forge fmt）+ `.prettierignore` skip lib/ + packages/contracts package.json scripts 接實 forge/solhint + package-level turbo.json + README rewrite + rule 41 v4 → v5 import path self-review + commitlint scope-enum 加 `decisions` | [link](./conversations/2026-05-17-commit-8-packages-contracts.md) |
