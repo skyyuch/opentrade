@@ -106,19 +106,47 @@ export function toReviewDto(review: Review): ReviewResponseDto {
 ```ts
 // shared/errors/AppError.ts
 export class AppError extends Error {
+  public readonly code: ErrorCodeType;
+  public readonly statusCode: number;
+  public readonly details: AppErrorDetails | undefined;
+
+  /**
+   * @param code        Stable, machine-readable error code (see ErrorCode).
+   * @param message     Default English message for developer logs.
+   * @param statusCode  HTTP status to return; defaults to 500
+   *                    (unknown == unsafe; explicit codes for known cases).
+   * @param options     Optional `details` payload and / or upstream `cause`.
+   */
   constructor(
-    public readonly code: ErrorCode,
+    code: ErrorCodeType,
     message: string,
-    public readonly statusCode = 400,
-    public readonly cause?: unknown,
+    statusCode = 500,
+    options: { details?: AppErrorDetails; cause?: unknown } = {},
   ) {
-    super(message);
+    super(message, options.cause !== undefined ? { cause: options.cause } : undefined);
+    this.name = 'AppError';
+    this.code = code;
+    this.statusCode = statusCode;
+    this.details = options.details;
   }
 }
 
 // Usage
 throw new AppError(ErrorCode.REVIEW_NOT_FOUND, 'Review not found', 404);
+
+// With details + upstream cause:
+throw new AppError(
+  ErrorCode.SERVICE_UNAVAILABLE,
+  'Database probe failed',
+  503,
+  { details: { latencyMs: 2050 }, cause: prismaErr },
+);
 ```
+
+**規則**：
+- Default `statusCode` 是 **500**（unknown == 不安全）；known 失敗請明確傳 4xx
+- `details` 與 `cause` 走 options bag，不擴張位置參數
+- `details` 必須 JSON-serialisable，禁夾 PII / Error 實例
 
 API 回傳格式：
 
@@ -127,12 +155,13 @@ API 回傳格式：
   "error": {
     "code": "REVIEW_NOT_FOUND",
     "message": "Review not found",
-    "details": { ... }
+    "details": { "...": "..." },
+    "requestId": "f1c8…"
   }
 }
 ```
 
-前端依 `code` 做 i18n 翻譯（不直接顯示 server 的 message）。
+`requestId` 由 `requestContext` middleware 注入（`hono/request-id`），所有錯誤回應都應該帶上以便 traceability。前端依 `code` 做 i18n 翻譯（不直接顯示 server 的 `message`）；`message` 純後端 log 用。
 
 ---
 

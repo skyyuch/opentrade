@@ -205,10 +205,58 @@ export const prismaReadOnly = new PrismaClient({
 
 ## Seed 資料
 
-- `packages/db/seed/seed.ts`
-- 從外部 JSON 讀資料（非 hardcode）
-- 必須冪等（多次執行結果一樣）
-- Phase 1：預載 SFC 持牌證券商清單（從 SFC 公開資料）
+Seed 路徑：`packages/db/scripts/seed.ts`，由 `pnpm --filter @opentrade/db db:seed` 觸發。
+
+### 兩類 seed data，規則不同
+
+| 類別                | 例子                                       | 規則                                     |
+| ------------------- | ------------------------------------------ | ---------------------------------------- |
+| **Bootstrap data**  | `Tenant`、系統角色、預設地區設定           | 可在 `seed.ts` 內 hardcode（單一來源即可） |
+| **Domain data**     | SFC 持牌券商清單、KOL 名錄、預載評論       | 必須從外部 JSON / CSV 讀，避免 schema-by-source-edit |
+
+#### 為何 bootstrap data 准 hardcode？
+
+Bootstrap data 滿足三個條件才合格：
+
+1. **基數固定且極小**（V1 只有 1 個 Tenant `hk`，Phase 2 才加 `tw` / `sg`）
+2. **schema 級必要**（後續任何 insert 都依賴它的 FK，缺它整個 DB 無法用）
+3. **變動需要 ADR / migration 級審視**（不是平常 ops 修改的東西）
+
+Domain data 不滿足任一條，必須走 JSON：可隨資料源更新而不必改 code、可由非 dev 角色維護、可獨立 review。
+
+### 通用規則
+
+- **必須冪等**（同 DB 重跑 seed 結果不變）：用 `prisma.upsert` 加 natural unique key（`Tenant.code`、`Broker.slug + tenantId`）
+- **不可在 seed 內 truncate / delete**（避免誤刪 prod）
+- **`update` 區段保守**：只刷 bootstrap defaults，不 clobber operator 後來改的欄位（如 `isActive`）
+
+### 範例（bootstrap data，hardcode 合法）
+
+```ts
+// packages/db/scripts/seed.ts
+const tenants = [
+  { code: 'hk', name: 'Hong Kong', defaultLocale: 'zh-Hant', timezone: 'Asia/Hong_Kong' },
+] as const;
+
+for (const t of tenants) {
+  await prisma.tenant.upsert({
+    where: { code: t.code },
+    update: { name: t.name, defaultLocale: t.defaultLocale, timezone: t.timezone },
+    create: { ...t, isActive: true },
+  });
+}
+```
+
+### 範例（domain data，必須走 JSON）
+
+```ts
+// Phase 1：預載 SFC 持牌證券商清單
+const brokers = JSON.parse(
+  await fs.readFile('packages/db/seed-data/sfc-brokers.json', 'utf-8'),
+) satisfies BrokerSeed[];
+
+for (const b of brokers) { /* upsert by slug */ }
+```
 
 ---
 
