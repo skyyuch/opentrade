@@ -41,10 +41,18 @@ pragma solidity ^0.8.24;
 - ECDSA / SignatureChecker → OZ
 
 ```solidity
-import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
+// OpenZeppelin v5 layout (pinned to v5.6.1 per ADR-0015):
+//   * `security/` was reorganised in v5 → use `utils/` for Pausable.
+//   * `ReentrancyGuardUpgradeable` was removed in v5; the namespaced-
+//     storage redesign lets the non-upgradeable ReentrancyGuard be
+//     inherited directly from `@openzeppelin/contracts/utils/...`.
+//   * Always use named imports so `forge fmt --check` (sort_imports +
+//     bracket_spacing) stays green.
+import { AccessControlUpgradeable } from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
+import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import { PausableUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
+import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 ```
 
 ---
