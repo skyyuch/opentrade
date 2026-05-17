@@ -1,0 +1,129 @@
+/**
+ * OpenTrade base stylesheet.
+ *
+ * Imported once at the root of every Next.js app:
+ *
+ *   // apps/web/src/app/[locale]/layout.tsx
+ *   import '@opentrade/ui/styles/globals.css';
+ *
+ * CSS custom properties below mirror the semantic colour tokens defined in
+ * `src/design-tokens/colors.ts`. They are duplicated here intentionally:
+ * Tailwind preset references them via `hsl(var(--primary))`, and switching
+ * `.dark` on `<html>` toggles the whole palette in one operation.
+ *
+ * Phase 0 keeps this hand-written; a future build script may codegen this
+ * file from `colors.ts` (ADR-0011 §6 Implementation Notes).
+ */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Surfaces */
+    --background: 0 0% 100%;
+    --foreground: 222 47% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+
+    /* Brand */
+    --primary: 224 76% 48%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222 47% 11%;
+    --accent: 35 43% 50%;
+    --accent-foreground: 0 0% 100%;
+
+    /* States */
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
+    --success: 163 94% 24%;
+    --success-foreground: 0 0% 100%;
+    --danger: 0 74% 42%;
+    --danger-foreground: 0 0% 100%;
+    --warning: 26 90% 37%;
+    --warning-foreground: 0 0% 100%;
+
+    /* Form / focus */
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 217 91% 60%;
+
+    /* On-chain data highlight (ImmutableMark, SBT badges, tx links) */
+    --chain-ink: 215 25% 27%;
+    --chain-bg: 210 40% 98%;
+    --chain-border: 213 27% 84%;
+
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 225 40% 7%;
+    --foreground: 210 40% 98%;
+    --card: 222 47% 11%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222 47% 11%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 217 91% 60%;
+    --primary-foreground: 225 40% 7%;
+    --secondary: 217 33% 17%;
+    --secondary-foreground: 210 40% 98%;
+    --accent: 35 45% 60%;
+    --accent-foreground: 225 40% 7%;
+
+    --muted: 217 33% 17%;
+    --muted-foreground: 215 20% 65%;
+    --success: 160 84% 39%;
+    --success-foreground: 225 40% 7%;
+    --danger: 0 84% 60%;
+    --danger-foreground: 225 40% 7%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 225 40% 7%;
+
+    --border: 217 33% 17%;
+    --input: 217 33% 17%;
+    --ring: 213 94% 68%;
+
+    --chain-ink: 214 32% 91%;
+    --chain-bg: 222 47% 11%;
+    --chain-border: 215 25% 27%;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings:
+      'cv11' on,
+      'ss01' on,
+      'ss03' on;
+  }
+
+  /* Tabular figures for any numeric data — finance trust signal. */
+  .font-numeric,
+  .font-mono {
+    font-variant-numeric: tabular-nums;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
