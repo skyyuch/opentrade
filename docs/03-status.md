@@ -9,8 +9,8 @@
 ## 最後更新
 
 - **日期**：2026-05-17
-- **更新者**：Commit #4 session（Claude Opus 4.7）— `packages/db` 初始化
-- **本次更新摘要**：完成 Commit #4 — root docker-compose Postgres 16、`@opentrade/db` Prisma 6.19.3 骨架（zod env + HMR-safe singleton client）、首個 migration（Tenant / User / Broker / BrokerLicense + 5 個 enum、17 個 index、4 個 FK），實際 apply 到本機 docker DB 驗證；ADR-0012 寫定本機 dev DB 策略、ADR-0013 寫定 Prisma 6.x pin 策略
+- **更新者**：Commit number-five session（Claude Opus 4.7）— `apps/api` 初始化
+- **本次更新摘要**：完成 Commit number-five — `apps/api` Hono on Node 22 完整骨架（zod fail-fast env、Pino + request-id middleware、AppError + ErrorCode 統一錯誤封包、CORS 白名單）+ `domains/health` 完整四層 DDD 樣板（domain VO / IRepository、純函式 use case、Prisma 適配器附超時、Hono router + DTO + mapper）+ `/v1/health` 真實打 DB 回 200 / DOWN 回 503；`packages/db` 加入 `OutboxEvent` 表（ADR-0006 outbox pattern）+ 新 migration、`hk` Tenant 冪等 seed；tsup 生產 bundle（15 kB）端到端驗證；ADR-0014 寫定 apps/api 運行架構（env 載入、bundling、Prisma 表面）
 
 ---
 
@@ -18,7 +18,7 @@
 
 **Phase 0：地基搭建**
 
-進度：82%
+進度：90%
 
 ---
 
@@ -74,7 +74,25 @@
 - [x] `pnpm lint` 通過（8/8 packages）
 - [x] `pnpm format:check` 通過
 
-### Commit #4：packages/db 初始化（本 session 完成）
+### Commit number-five：apps/api 初始化（本 session 完成）
+
+- [x] ADR-0014：apps/api 運行架構（env fail-fast、tsup bundling 規則、`@prisma/client` 為何在 apps/api 直接依賴）
+- [x] `apps/api/package.json`：Hono 4.12 / @hono/node-server / @hono/zod-validator / pino 10 / pino-pretty / zod 4 / tsx / tsup 全裝齊
+- [x] root `.env.example` + `.env`：補 `SERVER_HOST` / `SERVER_PORT` / `CORS_ORIGIN` / `LOG_LEVEL` / `JWT_SECRET` placeholder
+- [x] `apps/api/src/shared/env.ts`：zod 驗證、fail-fast on import（per ADR-0014）
+- [x] `apps/api/src/shared/observability/logger.ts`：Pino 結構化 JSON + dev pino-pretty + PII redact 兜底
+- [x] `apps/api/src/shared/errors/`：`AppError` class + `ErrorCode` const-object union（per rule 20「禁 TS enum」）
+- [x] `apps/api/src/http/`：`server.ts` factory + `main.ts` 入口 + `middleware/requestContext.ts`（hono/request-id + Pino child）+ `middleware/errorHandler.ts`（AppError / HTTPException / ZodError / unknown 四路統一封包）+ CORS 白名單
+- [x] `apps/api/src/domains/health/`：完整四層 DDD 樣板（domain VO + IRepository / pure use case / Prisma adapter 附 2 秒超時 / Hono router + DTO + mapper）
+- [x] `/v1/health` 真實打本機 docker Postgres，200 OK 附真實延遲 + X-Request-Id 標頭；DB DOWN 自動回 503
+- [x] `packages/db/prisma/schema.prisma` 加 `OutboxEvent` model（per ADR-0006 outbox pattern；tenantId + 三條索引 + FK 到 Tenant）+ 新 migration `20260517102829_add_outbox_events` apply 到本機 DB 驗證
+- [x] `packages/db/scripts/seed.ts` + `db:seed` script：冪等 upsert `hk` Tenant（雙跑驗證單 row 不重複）
+- [x] `apps/api/tsup.config.ts`：生產 bundle 配置（workspace 內聯、@prisma/client + pino-pretty external、dist/main.js 15 kB）
+- [x] `node dist/main.js` 跑通：production NODE_ENV → 純 JSON Pino + DB ping 200
+- [x] `apps/api/README.md` + root `README.md`：四層 DDD 結構、env keys、wire envelope、dev + prod 啟動指令完整文件化
+- [x] 全包 `pnpm typecheck / lint / format:check` 全綠
+
+### Commit #4：packages/db 初始化
 
 - [x] ADR-0012：本機開發環境使用 docker-compose 跑 PostgreSQL
 - [x] ADR-0013：Pin Prisma 到 6.x，暫不升 Prisma 7（driver-adapter 模式過於前沿）
@@ -101,13 +119,13 @@
 - [x] git config：`skyyuch <skyyuch@gmail.com>`
 - [x] Remote 連 `git@github.com:skyyuch/opentrade.git`（SSH）
 - [x] Commit #1 推送到 GitHub
-- [ ] Commit #2 / #3 / #4 push 到 GitHub（本 session 結束時統一 push）
+- [ ] Commit #2 / #3 / #4 / number-five 統一 push（本 session 結束時 push 一次）
 
 ---
 
 ## 進行中
 
-無（本 session 完成 Commit #4 後即停止 / 換手）。
+無（本 session 完成 Commit number-five 後即停止 / 換手）。
 
 ---
 
@@ -117,12 +135,11 @@
 
 ### 立即（下個 session）
 
-1. **Commit #5：apps/api 初始化** — Hono + DDD 骨架（health endpoint 連 `@opentrade/db`，尚不寫業務 domain）；env 模組擴大；OutboxEvent 表進 schema
-2. **Commit #6：apps/web 初始化** — Next.js 14 App Router + next-intl + Tailwind + 使用 packages/ui 元件
-3. **Commit #7：apps/console 初始化** — Next.js 14（dark default + dashboard 風格）
-4. **Commit #8：packages/contracts 初始化** — Foundry init + OpenZeppelin
-5. **Commit #9：infra/terraform 雛形** — VPC、RDS、ECS Fargate、S3、Secrets Manager
-6. **Commit #10：CI/CD GitHub Actions** — lint + typecheck + test + migrate 在 PR 上自動跑（並設 Renovate / dependabot 排除 Prisma 7.x，per ADR-0013）
+1. **Commit number-six：apps/web 初始化** — Next.js 14 App Router + next-intl + Tailwind + 使用 packages/ui 元件 + 對接 `apps/api` 的 `/v1/health`（先做個 status page 驗證跨包通訊）
+2. **Commit number-seven：apps/console 初始化** — Next.js 14（dark default + dashboard 風格）
+3. **Commit number-eight：packages/contracts 初始化** — Foundry init + OpenZeppelin
+4. **Commit number-nine：infra/terraform 雛形** — VPC、RDS、ECS Fargate、S3、Secrets Manager；同時補 `apps/api/Dockerfile`（per ADR-0014 implementation notes：copy `.prisma/client` engines + `dist/main.js`）
+5. **Commit number-ten：CI/CD GitHub Actions** — lint + typecheck + test + migrate 在 PR 上自動跑；Renovate / dependabot 排除 Prisma 7.x（per ADR-0013）；加 ESLint 規則阻止前端 runtime import `@opentrade/db`（per Commit #4 conversation 提到的紀律強化）
 
 ### 中期（Phase 1）
 
@@ -152,7 +169,9 @@
 - ❓ **設計師資源**：是否找 freelance 香港設計師（HK$30-80k 預算）做 Figma 高保真稿
 - ❓ **KOL 訊號的 oracle**：Chainlink Price Feeds vs Pyth — Phase 2 開始前決定
 - ❓ **Prisma 7 升級時機**：目前 pin 6.x（ADR-0013）；Prisma 7 driver-adapter 模式成熟後（>= 7.5+ 或 12 個月後）寫 successor ADR
-- ❓ **User.email 加密策略**：Phase 0 `String?` 占位；Commit #5 起需決定 envelope encryption（KMS）vs application-level encryption（AES-256-GCM）
+- ❓ **User.email 加密策略**：Phase 0 `String?` 占位；Phase 1 auth flow 上線前需決定 envelope encryption（KMS）vs application-level encryption（AES-256-GCM）
+- ❓ **API 認證流程**：`JWT_SECRET` 目前是 placeholder（min 32 chars 驗證通過即可）；Phase 1 換 ES256 + AWS Secrets Manager（per rule 50）+ Privy token exchange endpoint（per ADR-0005）
+- ❓ **`packages/db` 是否需要真實 build 步驟**：目前 `main: "./src/index.ts"`，dev 直消費 TS；ADR-0014 記錄為「延後」；何時觸發改建 = 多個 consumer 或 cold-start 變慢時
 
 ---
 
@@ -184,9 +203,14 @@ cp .env.example .env                            # 首次：建立 gitignored .en
 pnpm install                                    # 安裝全部依賴 (postinstall 跑 prisma generate)
 docker compose up -d postgres                   # 起本機 Postgres 16
 pnpm --filter @opentrade/db db:migrate:dev      # apply 任何 pending migration
+pnpm --filter @opentrade/db db:seed             # 冪等 seed hk Tenant
 pnpm typecheck                                  # 全包 type 檢查
 pnpm lint                                       # 全包 ESLint
 pnpm format:check                               # 全包 Prettier 檢查
+
+# Commit number-five 起：起 API 並驗證
+pnpm --filter @opentrade/api dev                # tsx watch http://localhost:4000
+curl http://localhost:4000/v1/health            # 預期 200 OK + 真實 DB 延遲
 ```
 
 `.nvmrc` 已設為 `22`，使用者進到專案資料夾時 zsh hook 會自動切到正確 Node 版本。
@@ -212,3 +236,4 @@ pnpm format:check                               # 全包 Prettier 檢查
 | 2026-05-17 | 初始規劃 + 建立項目記憶系統 + Monorepo 骨架        | Claude Opus 4.7 | Commit #1 文件骨架 + Commit #2 Monorepo + GitHub 連線                                                                                                         | [link](./conversations/2026-05-17-initial-planning.md)          |
 | 2026-05-17 | UI 設計策略 + commit 順序調整 + packages/ui 初始化 | Claude Opus 4.7 | ADR-0011 UI 設計語言 + Commit #3 packages/ui 完成（design tokens、Storybook、Button、ImmutableMark）                                                          | [link](./conversations/2026-05-17-ui-design-and-packages-ui.md) |
 | 2026-05-17 | packages/db 初始化（Commit #4）                    | Claude Opus 4.7 | ADR-0012 本機 docker Postgres + ADR-0013 Pin Prisma 6.x + Commit #4 完成（Tenant/User/Broker/BrokerLicense + 5 enum + 17 index，首個 migration apply 到本機） | [link](./conversations/2026-05-17-commit-4-packages-db.md)      |
+| 2026-05-17 | apps/api 初始化（Commit number-five）              | Claude Opus 4.7 | ADR-0014 apps/api 運行架構 + Hono + DDD 四層 health 樣板 + Pino + AppError + OutboxEvent 表 + hk Tenant seed + tsup prod bundle 端到端驗證                    | [link](./conversations/2026-05-17-commit-5-apps-api.md)         |
