@@ -9,8 +9,8 @@
 ## 最後更新
 
 - **日期**：2026-05-17
-- **更新者**：UI 設計策略 session（Claude Opus 4.7）— Commit #3 進行中
-- **本次更新摘要**：寫 ADR-0011（UI 設計語言）；重新排序 Phase 0 commits 為依賴正確的 Option C（ui → db → api → web → console → contracts）；開始 packages/ui 初始化
+- **更新者**：UI 設計策略 session（Claude Opus 4.7）— Commit #3 完成
+- **本次更新摘要**：完成 Commit #3 packages/ui 初始化 — design tokens、Tailwind preset、cn util、Storybook 8、Button primitive、ImmutableMark compound（OpenTrade 視覺武器）；ADR-0011 寫定 UI 設計語言；重新排序 Phase 0 commits 為依賴正確的 Option C
 
 ---
 
@@ -18,7 +18,7 @@
 
 **Phase 0：地基搭建**
 
-進度：65%
+進度：72%
 
 ---
 
@@ -39,6 +39,21 @@
 - [x] Node.js v22.22.3 (LTS Jod)
 - [x] pnpm v9.15.4（透過 corepack）
 - [x] `~/.zshrc`（首次建立，含 nvm + auto-use `.nvmrc` hook）
+
+### Commit #3：packages/ui 初始化（設計系統地基）
+
+- [x] ADR-0011：UI 設計語言（Civic Trust + Web3 科技感 / Sapphire + Gilded 雙主色）
+- [x] 重排序 Phase 0 commits 為 Option C（ui → db → api → web → console → contracts）
+- [x] Design tokens 完整集合（colors / typography / spacing / radii / shadows / motion / breakpoints / z-index）
+- [x] `cn()` utility（clsx + tailwind-merge）
+- [x] Tailwind preset（HSL CSS 變數 + light/dark 雙主題）
+- [x] `globals.css`（@tailwind + CSS custom properties + tabular-nums for finance）
+- [x] Storybook 8（@storybook/react-vite + addon-themes / a11y / interactions）
+- [x] Foundations stories：Introduction (MDX) + DesignTokens（palette / semantic roles / typography）
+- [x] `<Button>` primitive — 5 intents × 3 sizes，cva variants，asChild slot，loading state
+- [x] `<ImmutableMark>` compound — OpenTrade 視覺武器（每筆鏈上資料的不可篡改章戳）
+- [x] Button + ImmutableMark stories 涵蓋三語、light/dark、in-context demo（review card / KOL signal）
+- [x] Storybook build 通過、root typecheck/lint/format 全 pass
 
 ### Commit #2：Monorepo 骨架
 
@@ -70,17 +85,7 @@
 
 ## 進行中
 
-### Commit #3：packages/ui 初始化（設計系統地基）
-
-- [x] ADR-0011：UI 設計語言（Civic Trust + Web3 科技感）
-- [x] docs/03-status.md：commit 順序調整為 Option C
-- [ ] packages/ui scaffolding（deps + tsconfig + tailwind preset）
-- [ ] packages/ui design tokens（colors / typography / spacing / radii / shadows / motion / breakpoints / z-index）
-- [ ] packages/ui `cn()` utility
-- [ ] packages/ui Storybook setup（@storybook/react-vite）
-- [ ] packages/ui `<Button>` primitive + stories
-- [ ] packages/ui `<ImmutableMark>` compound（OpenTrade 視覺武器）+ stories
-- [ ] 驗證 + commit
+無（本 session 完成 Commit #3 後即停止 / 換手）。
 
 ---
 
@@ -88,19 +93,15 @@
 
 > **順序調整原因**：原計劃讓 apps/web 先於 packages/ui，違反 rule 10 依賴方向（web → ui）與 ADR-0009 Storybook-first 原則。重新排序：先設計系統 → 後端 contract → 前端組合。詳見 ADR-0011 與 2026-05-17 session conversation。
 
-### 立即（本 session）
+### 立即（下個 session）
 
-1. **Commit #3：packages/ui 初始化** ⭐ 進行中 — design tokens + cn + Button + Storybook + ImmutableMark
-
-### 接下來（依序）
-
-2. **Commit #4：packages/db 初始化** — Prisma init + 第一個 migration（user/tenant/broker 基礎）
-3. **Commit #5：apps/api 初始化** — Hono + DDD 骨架（health endpoint，尚不寫業務）
-4. **Commit #6：apps/web 初始化** — Next.js 14 App Router + next-intl + Tailwind + 使用 packages/ui 元件
-5. **Commit #7：apps/console 初始化** — Next.js 14（dark default + dashboard 風格）
-6. **Commit #8：packages/contracts 初始化** — Foundry init + OpenZeppelin
-7. **Commit #9：infra/terraform 雛形** — VPC、RDS、ECS Fargate、S3、Secrets Manager
-8. **Commit #10：CI/CD GitHub Actions** — lint + typecheck + test 在 PR 上自動跑
+1. **Commit #4：packages/db 初始化** — Prisma init + 第一個 migration（user / tenant / broker 基礎）
+2. **Commit #5：apps/api 初始化** — Hono + DDD 骨架（health endpoint，尚不寫業務）
+3. **Commit #6：apps/web 初始化** — Next.js 14 App Router + next-intl + Tailwind + 使用 packages/ui 元件
+4. **Commit #7：apps/console 初始化** — Next.js 14（dark default + dashboard 風格）
+5. **Commit #8：packages/contracts 初始化** — Foundry init + OpenZeppelin
+6. **Commit #9：infra/terraform 雛形** — VPC、RDS、ECS Fargate、S3、Secrets Manager
+7. **Commit #10：CI/CD GitHub Actions** — lint + typecheck + test 在 PR 上自動跑
 
 ### 中期（Phase 1）
 

@@ -8,37 +8,61 @@ alwaysApply: false
 
 ## 設計系統 first
 
-UI 開發遵守 ADR-0009：所有元件先在 `packages/ui` 建好 + 寫 stories，再被 apps 使用。
+UI 開發遵守 ADR-0009 + ADR-0011：所有元件先在 `packages/ui` 建好 + 寫 stories，再被 apps 使用。設計語言：「Civic Trust + Web3 科技感」，雙主色 Sapphire + Gilded。
 
 ---
 
 ## Design Tokens（單一來源）
 
-所有顏色、字型、間距、陰影只能來自 `packages/ui/design-tokens/`：
+所有顏色、字型、間距、陰影只能來自 `packages/ui/src/design-tokens/`。實際結構分兩層：
 
 ```ts
-// packages/ui/design-tokens/colors.ts
-export const colors = {
-  primary: { 50: '...', 500: '...', 900: '...' },
-  accent: { ... },
-  success: { ... },
-  danger: { ... },
-  neutral: { ... },
+// packages/ui/src/design-tokens/colors.ts
+export const palette = {
+  sapphire: { 50: '214 100% 97%', ..., 950: '226 57% 21%' }, // HSL 三元組
+  gilded:   { 50: '...', ..., 950: '...' },
+  emerald:  { 50: '...', ..., 950: '...' },  // success
+  vermilion:{ 50: '...', ..., 950: '...' },  // danger
+  amber:    { 50: '...', ..., 950: '...' },  // warning
+  neutral:  { 0:  '0 0% 100%', ..., 950: '225 40% 7%' },
+} as const;
+
+export const semantic = {
+  light: { background, foreground, primary, accent, ... },
+  dark:  { background, foreground, primary, accent, ... },
 } as const;
 ```
 
-`tailwind.config.ts` 從這個 source 讀取：
+### Tailwind preset 共用
+
+Apps 不自行寫 Tailwind theme，必須走 `@opentrade/ui/tailwind-preset`：
 
 ```ts
-import { colors } from '@opentrade/ui/design-tokens';
-export default { theme: { extend: { colors } } };
+// apps/web/tailwind.config.ts
+import preset from '@opentrade/ui/tailwind-preset';
+export default {
+  presets: [preset],
+  content: ['./src/**/*.{ts,tsx}', '../../packages/ui/src/**/*.{ts,tsx}'],
+};
 ```
+
+### Light / Dark 切換
+
+Semantic tokens 同時映射到 `:root` 與 `.dark` 的 CSS 變數（見 `packages/ui/src/styles/globals.css`），切換靠在 `<html>` 上加 `.dark` class（`next-themes` 處理）。
+
+| App | 預設主題 |
+|---|---|
+| `apps/web` | Light |
+| `apps/console` | Dark |
+| `packages/ui` Storybook | Light（addon-themes 可切） |
 
 ### 嚴禁
 
 - ❌ 在 component 用 `text-[#1a2b3c]`（hard-coded color）
-- ❌ 在 component 用 `text-blue-500`（除非 blue-500 已對應到 design token）
+- ❌ 在 component 用 raw palette 如 `bg-sapphire-700`（必須走 semantic，例如 `bg-primary`）
 - ❌ 自己定義 design token 在 component 層
+- ❌ 在 apps 自寫 `tailwind.config.ts` theme（必須 extends `tailwind.preset.ts`）
+- ❌ Gilded accent 濫用作裝飾色（≤ 10% 畫面，限 SBT / verified / premium 狀態，見 ADR-0011）
 
 ---
 
@@ -78,17 +102,19 @@ export default { theme: { extend: { colors } } };
 
 ### 條件 class
 
-用 `cn()` helper（`clsx` + `tailwind-merge`）：
+用 `cn()` helper（位於 `@opentrade/ui/utils`，內部組合 `clsx` + `tailwind-merge`）：
 
 ```tsx
 import { cn } from '@opentrade/ui/utils';
 
 <button className={cn(
   'rounded px-4 py-2',
-  variant === 'primary' && 'bg-primary-500 text-white',
+  variant === 'primary' && 'bg-primary text-primary-foreground',
   disabled && 'opacity-50 cursor-not-allowed',
 )} />
 ```
+
+複雜 variant 用 `class-variance-authority` (cva) — 參考 `packages/ui/src/primitives/button/Button.tsx`。
 
 ### 嚴禁
 
@@ -163,16 +189,31 @@ const buttonVariants = cva(
 
 ## Storybook 必須
 
-每個 `packages/ui/compounds/` 元件必須有：
-- `Component.tsx`
-- `Component.stories.tsx`（至少 3 個 stories：default、edge case、所有 variants）
-- 必要時 `Component.test.tsx`
+每個 `packages/ui/src/{primitives,compounds}/<name>/` 元件必須有：
+- `<Name>.tsx`
+- `<Name>.stories.tsx`（至少 3 個 stories：default、edge case、所有 variants）
+- 必要時 `<Name>.test.tsx`
 
 stories 必須測試：
 - 不同語言（zh-Hant / zh-Hans / en）
-- 不同主題（light / dark）
+- 不同主題（light / dark）— Storybook 工具列切換
 - Loading / empty / error 狀態
-- 不同裝置 viewport
+- 不同裝置 viewport（已預設 xs / sm / md / lg / xl）
+- 至少一個 **in-context demo**（元件在真實使用情境下，例如 Button 在表單內、ImmutableMark 在 ReviewCard 內）
+
+參考實作：`packages/ui/src/primitives/button/Button.stories.tsx`、`packages/ui/src/compounds/immutable-mark/ImmutableMark.stories.tsx`。
+
+---
+
+## OpenTrade 視覺武器（ADR-0011 §5）
+
+這些是品牌記憶點，**不可隨意改動或弱化**：
+
+- `<ImmutableMark>` — 每筆鏈上資料（評論、KOL 訊號、仲裁結果）的章戳。**只用於真正上鏈的資料**，不可用在 API / 商戶聲明上（會誤導使用者）。
+- `<SBTBadge>` — L1/L2/L3/L4 用戶等級徽章（Phase 1 實作）
+- 自製 justice / jury / verdict icon set（Phase 0.6 實作）
+
+新增業務 compound 時，先檢查是否該使用 ImmutableMark 或 SBTBadge — 維持視覺一致性是品牌價值的一部分。
 
 ---
 
@@ -183,3 +224,5 @@ stories 必須測試：
 - ❌ 改 `packages/ui` 元件 API 卻不更新所有使用處
 - ❌ 把業務邏輯 / API 呼叫寫進 `packages/ui` 元件（必須純展示）
 - ❌ Tailwind classes 一行超過 100 字（拆 cn 或 cva）
+- ❌ ImmutableMark 顯示在非鏈上資料（違反 ADR-0011 §5.1）
+- ❌ 在 `apps/*` 自寫 Tailwind theme 而不 extends `tailwind.preset.ts`

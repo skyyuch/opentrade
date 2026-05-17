@@ -77,6 +77,12 @@ Refs: ADR-0006
 Closes: #42
 ```
 
+### Commit body 注意事項
+
+- ❌ **不要在 body 段用 `Commit #N`、`Phase #N` 等 `<word> #<number>` 模式** — Conventional Commits parser 會把它認成 issue reference 並切到 footer，導致 `footer-leading-blank` 規則報錯。改寫為「the next commit」、「Phase 1」或「commit number 5」。
+- ❌ 不要在 body 用「Token: value」格式（會被當 footer trailer 切走）— 真的要列項用 `-` 或 `•`。
+- 一行 wrap 在 72-80 字之間，方便 `git log` 查閱。
+
 ```
 fix(contracts): prevent reentrancy in JuryPool.vote
 
