@@ -18,6 +18,7 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 
+import { healthRouter } from '../domains/health/index.js';
 import { env } from '../shared/env.js';
 import { AppError } from '../shared/errors/index.js';
 
@@ -48,9 +49,9 @@ export const createServer = (): Hono<AppHonoEnv> => {
     }),
   );
 
-  // Routes for individual domains land here in subsequent commits, e.g.:
-  //   app.route('/v1/health', healthRouter);
-  //   app.route('/v1/reviews', reviewsRouter);
+  // Routes for individual domains. Each domain mounts under `/v1/{domain}`.
+  // Subsequent commits add reviews, brokers, kols, disputes, identity, signals.
+  app.route('/v1/health', healthRouter);
 
   app.notFound((c) =>
     errorHandler(AppError.notFound(`Route ${c.req.method} ${c.req.path} not found`), c),

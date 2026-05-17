@@ -6,10 +6,5 @@
     "tsBuildInfoFile": "./node_modules/.cache/.tsbuildinfo"
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.spec.ts"],
-  "references": [
-    { "path": "../../packages/shared" },
-    { "path": "../../packages/config" },
-    { "path": "../../packages/db" }
-  ]
+  "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.spec.ts"]
 }

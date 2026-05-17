@@ -25,4 +25,12 @@ export { getDbEnv, type DbEnv } from './env.js';
 // tsconfig.base.json's `verbatimModuleSyntax: true`).
 export { LicenseStatus, LicenseType, Regulator, SbtTier, UserRole } from '@prisma/client';
 
-export type { Broker, BrokerLicense, OutboxEvent, Prisma, Tenant, User } from '@prisma/client';
+export type {
+  Broker,
+  BrokerLicense,
+  OutboxEvent,
+  Prisma,
+  PrismaClient,
+  Tenant,
+  User,
+} from '@prisma/client';
