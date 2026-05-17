@@ -1,0 +1,240 @@
+---
+description: Git commit、PR、branch 流程規範
+alwaysApply: true
+---
+
+# Git, Commit & PR Standards
+
+## Branch 策略
+
+- **`main`**：唯一長期 branch，永遠 deployable
+- **`feature/*`**：功能 branch
+- **`fix/*`**：bug fix
+- **`chore/*`**：依賴升級、文件等
+- **`refactor/*`**：純重構
+- **`docs/*`**：純文件
+
+不允許：
+- ❌ `develop` / `staging` / `release` 等持久 branch（用環境分離取代）
+- ❌ 直接 push 到 `main`（必須 PR）
+
+---
+
+## Commit Message: Conventional Commits
+
+格式：
+
+```
+<type>(<scope>): <subject>
+
+<body (optional)>
+
+<footer (optional)>
+```
+
+### Type
+
+| Type | 用途 |
+|---|---|
+| `feat` | 新功能 |
+| `fix` | bug 修復 |
+| `docs` | 純文件變更 |
+| `style` | 格式（不影響程式運作） |
+| `refactor` | 重構（不新增功能也不修 bug） |
+| `perf` | 效能優化 |
+| `test` | 測試 |
+| `build` | build 系統 / 依賴 |
+| `ci` | CI/CD |
+| `chore` | 雜項 |
+| `revert` | 還原 |
+
+### Scope
+
+對應 monorepo 的 package / app：
+
+- `web`、`console`、`api`
+- `contracts`、`db`、`ui`、`shared`、`config`
+- `infra`、`docs`、`rules`
+
+### Subject
+
+- 用英文（commit message 一律英文）
+- 不超過 72 字
+- 用祈使句 (`add`、`fix`、`update`，不用 `added`、`fixes`)
+- 開頭小寫
+- 結尾不加句點
+
+### 範例
+
+```
+feat(api): add review submission endpoint
+
+Implements POST /v1/reviews with zod validation, IPFS upload,
+and chain submission via outbox pattern.
+
+Refs: ADR-0006
+Closes: #42
+```
+
+```
+fix(contracts): prevent reentrancy in JuryPool.vote
+
+Add ReentrancyGuard modifier to vote() function.
+Discovered during Slither static analysis.
+
+Refs: SECURITY-0003
+```
+
+```
+docs(rules): add task decomposition rule
+```
+
+---
+
+## Commit 大小
+
+詳見 rule `96-task-decomposition.mdc`：
+
+- 每個 commit 對應一個原子任務
+- diff 建議 < 200 行（migration / locale / generated 檔案除外）
+- 一個 commit 一件事
+- 每個 commit 都能獨立通過 CI
+
+---
+
+## Commit 前 checklist
+
+每次 commit 前**必須**：
+
+- [ ] `pnpm lint` 通過
+- [ ] `pnpm typecheck` 通過
+- [ ] 相關 `pnpm test:unit` 通過
+- [ ] 相關文件已更新（README、ADR、glossary）
+- [ ] `docs/03-status.md` 已更新進度
+- [ ] 沒有 commit secret / .env / private key
+
+Husky pre-commit hook 強制部分檢查（lint + typecheck on staged files）。
+
+---
+
+## PR 流程
+
+### PR Title
+
+跟 commit message 同格式：
+
+```
+feat(api): add review submission endpoint
+```
+
+### PR Description Template
+
+```markdown
+## What
+（這個 PR 做了什麼？）
+
+## Why
+（為什麼要做？關連 issue / ADR / status）
+
+## How
+（簡述實作方式）
+
+## Tests
+（測試了什麼？覆蓋率影響？）
+
+## Checklist
+- [ ] 跟著 ADR-XXXX
+- [ ] 文件已更新
+- [ ] `docs/03-status.md` 已更新
+- [ ] Cursor Rules 已 review（rule 99）
+- [ ] 沒有 secret 進 code
+
+## Refs
+- ADR-XXXX
+- Closes #XX
+```
+
+### PR 大小
+
+- 建議 < 400 行 diff
+- 超過 800 行必須拆分
+- 必須能在 30 分鐘內 review 完
+
+### Review 要求
+
+- 至少 1 位 reviewer
+- 安全 / 合約相關：至少 2 位
+- 跨 domain 改動：對應 domain owner
+
+---
+
+## CODEOWNERS
+
+```
+.github/CODEOWNERS
+
+# 全 repo
+*               @founder
+
+# Smart contracts (高敏感)
+/packages/contracts/  @founder @security-advisor
+
+# 安全相關
+/.cursor/rules/50-security.mdc  @founder
+
+# ADR (架構決策)
+/docs/decisions/  @founder
+```
+
+---
+
+## CI 必跑檢查
+
+每個 PR 必須通過：
+
+- ✅ Lint (`pnpm lint`)
+- ✅ Typecheck (`pnpm typecheck`)
+- ✅ Unit tests (`pnpm test:unit`)
+- ✅ Build (`pnpm build`)
+- ✅ Solidity tests (若 contracts 有改)
+- ✅ E2E (僅針對 main flow)
+- ✅ Security scan (Slither for contracts, Snyk for deps)
+- ✅ License check
+- ✅ Bundle size check (apps/web)
+- ✅ Migration safety check (若 schema 有改)
+
+---
+
+## Merge 策略
+
+- **Squash and merge**（預設）— main branch 保持 linear
+- **Rebase**（少數情況）— 保留多個 commit history
+- **Merge commit** — 不允許
+
+---
+
+## 嚴禁
+
+- ❌ Force push 到 `main`
+- ❌ 跳過 CI 直接 merge
+- ❌ Commit 大檔案（> 1MB）
+- ❌ Commit `node_modules` / `.next` / `dist`
+- ❌ Commit `.env*`（除了 `.env.example`）
+- ❌ Commit 私鑰、API key
+- ❌ 改別人的 commit history（rewrite shared branch）
+- ❌ PR 沒寫 description
+- ❌ 跳過 review 自己 merge（緊急 hotfix 需事後 ADR）
+- ❌ Commit message 用中文
+
+---
+
+## 緊急 hotfix 流程
+
+當 prod 出現嚴重 bug：
+
+1. 從 `main` 開 `hotfix/xxx` branch
+2. 最小修改
+3. PR + 1 位 reviewer 緊急 approve
+4. Merge → 自動 deploy
+5. **24 小時內**寫 incident report 到 `docs/incidents/`
+6. **72 小時內**補 ADR 說明根因 + 防範措施

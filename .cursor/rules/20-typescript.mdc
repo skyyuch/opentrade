@@ -1,0 +1,189 @@
+---
+description: TypeScript 編碼風格與類型安全規範
+globs: ["**/*.ts", "**/*.tsx"]
+alwaysApply: false
+---
+
+# TypeScript Standards
+
+## 嚴格模式（不可關閉）
+
+`tsconfig.base.json` 強制：
+
+```json
+{
+  "strict": true,
+  "noUncheckedIndexedAccess": true,
+  "noImplicitOverride": true,
+  "noFallthroughCasesInSwitch": true,
+  "exactOptionalPropertyTypes": true,
+  "noPropertyAccessFromIndexSignature": true
+}
+```
+
+任何 package 不得在自家 `tsconfig.json` 放鬆這些設定。
+
+---
+
+## 禁止使用的東西
+
+- ❌ `any` — 用 `unknown` + 縮窄
+- ❌ `as` 強制斷言（除非有充分理由 + 註解）
+- ❌ `// @ts-ignore` / `// @ts-expect-error`（必須附理由與 link）
+- ❌ Non-null assertion `!`（用 type guard 或 `assert` function）
+- ❌ `enum`（用 const object + `as const` + union type）
+
+---
+
+## 命名規範
+
+| 類型 | 格式 | 範例 |
+|---|---|---|
+| 變數 / 函式 | camelCase | `submitReview` |
+| Type / Interface / Class | PascalCase | `ReviewSubmittedEvent` |
+| Constants | UPPER_SNAKE_CASE | `MAX_REVIEW_LENGTH` |
+| 檔案（一般） | kebab-case | `submit-review.ts` |
+| 檔案（含 PascalCase 主類） | PascalCase | `ReviewCard.tsx` |
+| Type 與 Interface | 不加 `T` / `I` 前綴 | `Review` not `IReview` |
+
+---
+
+## Import 順序（ESLint 強制）
+
+```ts
+// 1. Node built-ins
+import { readFile } from 'node:fs/promises';
+
+// 2. External packages
+import { Hono } from 'hono';
+import { z } from 'zod';
+
+// 3. Workspace packages (@opentrade/*)
+import { type Review } from '@opentrade/shared';
+import { prisma } from '@opentrade/db';
+
+// 4. Relative imports
+import { reviewMapper } from '../mappers';
+import type { ReviewDto } from './dto';
+```
+
+絕對不允許：
+- ❌ Default export（除了框架要求，如 Next.js page）
+- ❌ Re-export 整個 module（只 export 明確的 named exports）
+
+---
+
+## 函式規範
+
+- 函式 prefer **arrow function**，除非需要 `this`
+- Top-level function 在 module 內必須 export 才寫（不暴露的 function 寫成 const arrow）
+- 公開 API 必須有完整 JSDoc（包括 `@param`、`@returns`、`@throws`）
+- 一個函式行數**建議 < 50 行**，超過考慮拆分
+
+---
+
+## 錯誤處理
+
+### 自定 Error 類別
+
+```ts
+// packages/shared/errors/AppError.ts
+export class AppError extends Error {
+  constructor(
+    public readonly code: ErrorCode,
+    message: string,
+    public readonly cause?: unknown,
+  ) {
+    super(message);
+    this.name = 'AppError';
+  }
+}
+```
+
+### 使用方式
+
+```ts
+// ❌ 不可
+throw new Error('Review not found');
+
+// ✅ 應該
+throw new AppError(ErrorCode.REVIEW_NOT_FOUND, 'Review not found');
+```
+
+### Promise / async
+
+- 永遠 `await` 或 `.catch()`，不能 dangling promise
+- 錯誤訊息給使用者用 `error_code`，前端 i18n 翻譯
+- `try/catch` 內必須做有意義的事，不可只是吞錯
+
+---
+
+## Type 設計原則
+
+- Prefer `type` over `interface`（除非需要 declaration merging）
+- 使用 discriminated union 而非 optional fields：
+
+```ts
+// ❌ 不好
+type Review = { kind: string; signalId?: string; brokerId?: string };
+
+// ✅ 好
+type Review =
+  | { kind: 'broker'; brokerId: string }
+  | { kind: 'signal'; signalId: string };
+```
+
+- `Pick<T, K>` / `Omit<T, K>` / `Partial<T>` / `Required<T>` 善用
+- 自定 `Branded Types` for ID：
+
+```ts
+type ReviewId = string & { readonly __brand: 'ReviewId' };
+```
+
+---
+
+## Validation
+
+對外輸入（API request、env、DB result）必須走 **Zod** 驗證：
+
+```ts
+const SubmitReviewSchema = z.object({
+  brokerId: z.string().uuid(),
+  sentiment: z.enum(['positive', 'neutral', 'negative']),
+  body: z.string().min(10).max(2000),
+});
+
+// 在 handler 內
+const data = SubmitReviewSchema.parse(rawInput);
+```
+
+不可信任 TypeScript type 直接當 runtime validation。
+
+---
+
+## 跨 package 共用 type
+
+放在 `packages/shared`，例如：
+
+```
+packages/shared/src/
+├── types/
+│   ├── Review.ts
+│   ├── User.ts
+│   └── ...
+├── enums/
+│   └── ErrorCode.ts
+├── utils/
+│   └── ...
+└── index.ts
+```
+
+---
+
+## 嚴禁
+
+- ❌ 在 monorepo 內使用 `as any`、`as unknown as X`（除非有 ADR 級別理由）
+- ❌ 用 `Function` 當 type（用具體 signature）
+- ❌ 用 `Object` / `{}` 當 type（用 `Record<string, unknown>` 或具體 type）
+- ❌ 隱式 any（`function foo(x) {}` 沒型別）
+- ❌ 改 `tsconfig.base.json` 的 strict 選項

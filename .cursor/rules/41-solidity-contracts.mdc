@@ -1,0 +1,285 @@
+---
+description: Solidity 智能合約 + Foundry 規範
+globs: ["packages/contracts/**/*.sol", "packages/contracts/**/*.t.sol"]
+alwaysApply: false
+---
+
+# Solidity & Smart Contract Standards
+
+## 框架
+
+- **Foundry**（forge / cast / anvil），不用 Hardhat
+- 套件：**OpenZeppelin Contracts**（透過 git submodule）
+- 鏈：Base L2，但合約必須 OP Stack 通用
+
+詳見 ADR-0001、ADR-0008。
+
+---
+
+## Solidity 版本
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+```
+
+- 不用 `>=` 的開放範圍
+- 統一使用 0.8.24+（含內建 overflow check）
+- 任何升級 pragma 必有 ADR
+
+---
+
+## OpenZeppelin 為基礎
+
+**禁止重新實作已被 OpenZeppelin 提供的功能**：
+
+- ERC20/ERC721/ERC1155 → OZ
+- AccessControl → OZ AccessControl 或 Ownable2Step
+- Pausable → OZ Pausable
+- Upgradeable → OZ UUPS
+- ReentrancyGuard → OZ
+- ECDSA / SignatureChecker → OZ
+
+```solidity
+import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
+```
+
+---
+
+## Upgradeable Pattern: UUPS
+
+**所有業務合約必須是 UUPS Upgradeable**：
+
+```solidity
+contract ReviewRegistry is
+    Initializable,
+    UUPSUpgradeable,
+    AccessControlUpgradeable,
+    PausableUpgradeable
+{
+    function initialize(address admin) public initializer {
+        __UUPSUpgradeable_init();
+        __AccessControl_init();
+        __Pausable_init();
+
+        _grantRole(DEFAULT_ADMIN_ROLE, admin);
+        _grantRole(UPGRADER_ROLE, admin);
+    }
+
+    function _authorizeUpgrade(address newImplementation)
+        internal
+        override
+        onlyRole(UPGRADER_ROLE)
+    {}
+}
+```
+
+---
+
+## 升級安全（Timelock + Multisig）
+
+- 升級權限走 **2-of-3 multisig**（部署在 Base 上，例如 Safe）
+- 升級前 **48 小時 timelock**
+- 任何升級必須先有 ADR + 第三方 audit
+
+---
+
+## 不可違反的合約設計
+
+### 1. 沒有刪除使用者資料的函數
+
+```solidity
+// ❌ 絕對不可
+function deleteReview(uint256 id) external onlyAdmin {
+    delete reviews[id];
+}
+```
+
+評論一旦上鏈，**任何人**（包括 admin）都不能刪。Admin 只能透過 timelock 升級暫停整個合約，但已存資料不可動。
+
+### 2. Owner 權限最小化
+
+Admin 只能：
+- ✅ Pause / Unpause（緊急情況）
+- ✅ Upgrade contract（with timelock）
+- ✅ Grant / Revoke 特定 role（with timelock）
+
+不能：
+- ❌ 修改使用者資料
+- ❌ 操控陪審結果
+- ❌ 抽取 token
+
+### 3. 多鏈 ready
+
+不寫死 chainId 或 Base 特定 opcode。
+
+```solidity
+// ❌ 不好
+require(block.chainid == 8453, "Only Base");
+
+// ✅ 沒這個必要的話就不寫
+```
+
+---
+
+## 命名與風格
+
+### 命名
+
+| 類型 | 格式 |
+|---|---|
+| Contract | PascalCase | `ReviewRegistry` |
+| Interface | `I` 前綴 | `IReviewRegistry` |
+| Function | camelCase | `submitReview` |
+| Event | PascalCase | `ReviewSubmitted` |
+| Error | PascalCase | `ReviewNotFound` |
+| Constant | UPPER_SNAKE_CASE | `MAX_REVIEW_LENGTH` |
+| Storage | camelCase | `reviewCount` |
+
+### Custom Error（不用 require string）
+
+```solidity
+// ❌ 不好（gas expensive + i18n 問題）
+require(broker != address(0), "Invalid broker");
+
+// ✅ 好
+error InvalidBroker();
+if (broker == address(0)) revert InvalidBroker();
+```
+
+### Event 必須
+
+所有狀態改變必須 emit event：
+
+```solidity
+event ReviewSubmitted(
+    uint256 indexed reviewId,
+    address indexed author,
+    bytes32 indexed brokerId,
+    bytes32 contentHash,
+    string ipfsCid
+);
+```
+
+`indexed` 用於需要過濾的欄位（最多 3 個）。
+
+---
+
+## Storage Layout
+
+### Upgradeable 合約 storage 規則
+
+- 不可改既有變數順序
+- 不可改既有變數型別
+- 新變數加在尾部
+- 用 `__gap` 保留升級空間：
+
+```solidity
+contract ReviewRegistry {
+    mapping(uint256 => Review) public reviews;
+    uint256 public reviewCount;
+
+    // Reserved for future upgrades
+    uint256[48] private __gap;
+}
+```
+
+---
+
+## 隨機性
+
+- ❌ 不可用 `block.timestamp` / `block.difficulty` / `blockhash` 做隨機
+- ✅ 用 **Chainlink VRF**（陪審員抽選等）
+
+---
+
+## Gas 優化（但不過度）
+
+優先順序：**清晰 > 安全 > Gas**。
+
+允許的優化：
+- ✅ Custom error（節省字串 hash）
+- ✅ `unchecked { }` 在數學上不可能 overflow 的地方（要附註解）
+- ✅ Cache storage 變數到 memory
+- ✅ `calldata` over `memory` for read-only params
+
+不該做的「優化」：
+- ❌ 用 `assembly` 除非必要
+- ❌ Bit packing 到看不懂
+- ❌ 為了 gas 犧牲 readability
+
+---
+
+## 測試
+
+### 必跑測試類型
+
+1. **Unit tests** — 每個函式
+2. **Integration tests** — 多合約互動
+3. **Invariant tests** — `forge test --match-contract Invariant`
+4. **Fuzz tests** — `forge test --fuzz-runs 1000`
+
+### 覆蓋率目標
+
+- 業務合約：100% 函式覆蓋率
+- 邊界條件 / revert path 必測
+- 用 `forge coverage` 檢查
+
+### 測試命名
+
+```solidity
+function test_SubmitReview_AsValidUser_Succeeds() public { ... }
+function test_SubmitReview_AsUnverifiedUser_Reverts() public { ... }
+function test_SubmitReview_WithEmptyContent_Reverts() public { ... }
+```
+
+---
+
+## 部署
+
+### 部署 script (`script/Deploy.s.sol`)
+
+- 從環境變數讀私鑰（透過 `--private-key` 或 keystore）
+- 部署到不同鏈用不同 `--rpc-url`
+- 部署後 verify 在 BaseScan
+- 把部署地址寫進 `packages/config/src/contracts.ts`
+
+### 嚴禁
+
+- ❌ 把私鑰寫進 script
+- ❌ 從 mainnet RPC 用 dev 環境帳號
+- ❌ 不 verify 直接部署 mainnet
+
+---
+
+## 安全工具（CI 必跑）
+
+- **Slither** — 靜態分析
+- **Mythril**（選用）— 符號執行
+- **forge fmt** — 格式化
+- **solhint** — linter
+
+---
+
+## 第三方審計
+
+- **mainnet 部署前必須**有第三方 audit
+- 推薦：CertiK、Trail of Bits、Hacken（成本 $30-100k）
+- audit 報告放 `docs/audits/`
+- 嚴重以上 issue 必修才能上 mainnet
+
+---
+
+## 嚴禁
+
+- ❌ `tx.origin` 做 auth（用 `msg.sender`）
+- ❌ 不檢查 return value 的 external call
+- ❌ 接收 ETH 不需要的合約沒設 `revert()`
+- ❌ Reentrancy 漏洞（用 OZ ReentrancyGuard）
+- ❌ Integer overflow（用 0.8.x 內建 + 適當 unchecked）
+- ❌ Public state variables 改 visibility 從 public → private（破壞 ABI）
+- ❌ 把測試的 admin private key commit 到 repo
+- ❌ 用 `selfdestruct`（已 deprecated）

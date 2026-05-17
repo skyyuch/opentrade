@@ -1,0 +1,157 @@
+---
+description: 強制更新 docs/03-status.md 與 ADR 紀錄
+alwaysApply: true
+---
+
+# Status Update & ADR Discipline
+
+> 跨 session 不漏資訊的關鍵：所有重要狀態與決策都必須寫進文件。
+> 這條規則強制執行紀律。
+
+---
+
+## 必須更新 `docs/03-status.md` 的時機
+
+任何**一個**符合就要更新：
+
+- ✅ 完成一個 todo task
+- ✅ 完成一個 commit
+- ✅ 發現新的待決問題
+- ✅ 發現新的風險
+- ✅ session 即將結束
+- ✅ 切換 phase / milestone
+
+### 更新內容
+
+要更新到 `docs/03-status.md` 的欄位：
+
+| 欄位 | 更新時機 |
+|---|---|
+| 「最後更新」 | 每次寫入時 |
+| 「當前 Phase」 | Phase 變動 |
+| 「進度 %」 | 大致估算當前 phase 的完成度 |
+| 「已完成」 | task 完成立即勾選 |
+| 「進行中」 | 開始新 task / 完成既有 task 時 |
+| 「下一步」 | 規劃變動時 |
+| 「待決策」 | 發現新議題、或議題被決定時 |
+| 「已知風險」 | 發現新風險、或風險被緩解時 |
+| 「Session History」 | session 結束時新增一行 |
+
+---
+
+## 必須寫 ADR 的時機
+
+依 `docs/decisions/README.md`，以下情況必寫：
+
+- 引入 / 移除一個重要技術選型
+- 改變專案結構（新增 / 移除 / 合併 packages）
+- 改變部署 / 環境策略
+- 改變安全 / 合規策略
+- 引入跨 module 的 pattern
+- 任何「未來想改回去會很痛」的決定
+
+### ADR 編號
+
+下一個編號 = 現有最大編號 + 1。
+
+不可重複編號。即使廢棄的 ADR 也保留編號（status 改 Deprecated 或 Superseded by ADR-XXXX）。
+
+### ADR 模板
+
+依 `docs/decisions/README.md` 提供的格式。**必填欄位**：
+
+- Status
+- Date
+- Context
+- Decision
+- Alternatives Considered
+- Consequences (Positive + Negative)
+- Implementation Notes
+- References
+
+---
+
+## 必須歸檔對話的時機
+
+當對話包含以下內容，必須歸檔到 `docs/conversations/YYYY-MM-DD-主題.md`：
+
+- 重大架構決策的討論過程
+- 商業策略的轉向
+- 跨多個 ADR 的綜合性討論
+- 對未來方向的長遠規劃
+- session 結束 + 對話內容對未來有參考價值
+
+歸檔模板：
+
+```markdown
+# {主題} — {YYYY-MM-DD}
+
+> 本文件歸檔 OpenTrade 項目 ... 對話的精華內容。
+
+## 對話脈絡
+- 日期、參與者、AI 模型、背景
+
+## 主要討論內容（按主題分節）
+...
+
+## 產生的 ADR
+- ADR-XXXX: ...
+
+## 待後續處理事項
+- ...
+
+## 給未來 AI agent 的建議
+- ...
+```
+
+---
+
+## 文件更新的優先順序
+
+當完成一個重要 task：
+
+1. **第一優先**：更新 `docs/03-status.md`（永遠最新）
+2. **第二優先**：寫新 ADR（若有架構決策）
+3. **第三優先**：更新相關 rules（見 rule 99）
+4. **第四優先**：歸檔對話（若值得）
+5. **commit 文件變更**
+
+文件變更可以與業務 code 變更**同一 commit**（recommended）或**獨立 commit**（若文件量大）。
+
+---
+
+## 文件互相連結
+
+新增任何文件時，必須：
+
+- 在 `docs/03-status.md` 的「重要連結」加入連結
+- 在 `AGENTS.md` 的「相關連結」加入連結（如果是高優先級文件）
+- 從相關 ADR / status / vision 加入交叉引用
+
+避免「孤兒文件」（沒人連結到的文件）。
+
+---
+
+## Session 結束 checklist
+
+session 結束前必跑：
+
+- [ ] `docs/03-status.md` 是最新的
+- [ ] 所有 in_progress todo 已完成 / 改成 cancelled
+- [ ] 重要決策都有 ADR
+- [ ] 對話內容已歸檔（若值得）
+- [ ] 所有 cursor rules 已 review（rule 99）
+- [ ] 給下個 session 的 prompt 建議已產生（rule 98）
+- [ ] 全部變更已 commit
+
+---
+
+## 嚴禁
+
+- ❌ 結束 session 時 `docs/03-status.md` 仍是過時的
+- ❌ 做了架構決策但沒寫 ADR
+- ❌ 寫了 ADR 但 `docs/decisions/README.md` 的列表沒更新
+- ❌ 重要對話沒歸檔（會丟資訊）
+- ❌ 文件沒交叉連結（成為孤兒）
+- ❌ ADR 寫一半就 commit（必須完整再 commit）
+- ❌ 改既有 `Accepted` ADR 內容（要寫新 ADR superseding）

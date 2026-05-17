@@ -1,0 +1,166 @@
+---
+description: 強制任務拆解 + Subagent 派發紀律（提升開發品質）
+alwaysApply: true
+---
+
+# Task Decomposition & Subagent Discipline
+
+> **重要原則**：經驗證明，**將工作拆細**比直接做大任務的品質高 30-50%。
+> 這條規則強制拆細紀律，並規範何時派 subagent。
+
+---
+
+## 強制拆解觸發條件
+
+任務符合以下**任一**條件時，**禁止直接動手**，必須先用 `TodoWrite` 拆解：
+
+- 涉及 2 個以上檔案
+- 涉及 2 個以上 layer（前端 / API / DB / 合約）
+- 預期超過 30 分鐘工作量
+- 屬於新功能、重構、或架構變更
+- 跨 domain 改動
+
+---
+
+## 拆解原則
+
+每個拆出的「原子任務」必須符合：
+
+| 條件 | 說明 |
+|---|---|
+| **單一目的** | 一句話能說清在做什麼 |
+| **可獨立 commit** | 不依賴後面任務也能 commit |
+| **可獨立驗證** | 有明確 done 條件（test pass / typecheck pass / UI 顯示某物） |
+| **粒度 5-30 分鐘** | 太大要再拆，太小要合併 |
+| **獨立通過 CI** | lint + typecheck + 相關 test 不會壞 |
+| **獨立 revert** | 不影響其他功能 |
+| **< 200 行 diff** | 例外：自動產生程式碼、migration、locale 檔 |
+
+如果某個 task 寫到一半已經 > 300 行 diff：
+1. 停下來檢討：是否還能再拆？
+2. 把已寫的部分先 commit
+3. 剩下開新 task
+
+---
+
+## TodoWrite 使用紀律
+
+### 啟動
+
+任何拆解任務必須**第一個動作**就建 TodoWrite：
+
+```
+TodoWrite (merge=false):
+  - id: "t1", content: "...", status: "in_progress"
+  - id: "t2", content: "...", status: "pending"
+  - ...
+```
+
+### 過程
+
+- 同時只能有 **一個** `in_progress`
+- 完成立刻 `completed`，再開下一個
+- 完成後**必須 commit**（commit message 要有意義，不是 "WIP"）
+- 發現新需要做的事 → 加 todo（merge=true）
+- 發現原 todo 過時 → 標 cancelled 或重寫
+
+### 結束
+
+- 所有 todo 必須 `completed` / `cancelled`，不能留 `pending` / `in_progress` 結束 session
+- 若不能完成，必須在 `docs/03-status.md` 紀錄
+
+---
+
+## Subagent 派發紀律
+
+### ✅ 適合派 Subagent 的情況
+
+| 情況 | 用哪個 subagent |
+|---|---|
+| 同時要研究 2+ 個獨立主題 | `explore`（多個並行） |
+| 大量檔案的 grep / glob 搜尋 | `explore` |
+| 跑長時間 build / install / migration | `shell` |
+| 研究第三方 library 用法 | `explore` |
+| 重複性、機械性的批次修改（例如 20 個檔案加同樣 import） | `generalPurpose` |
+
+### ❌ 不該派 Subagent 的情況
+
+- **寫業務邏輯 code** → 主 agent 自己做（subagent 一次到位但無法迭代）
+- **架構決策、複雜重構** → 主 agent 自己做
+- **跟使用者確認 / 對話** → 主 agent 自己做
+- **小於 5 分鐘能完成的事** → 主 agent 直接做
+
+### Subagent 派發時必須給
+
+每個 subagent 派發必須包含：
+
+- **明確的目標**：subagent 不知道前文，每個指令都要自帶背景
+- **限定的 scope**：避免 subagent 越界改動
+- **預期的回傳格式**：列點、表格、code 片段，講清楚
+- **可驗證的結束條件**
+
+範例：
+
+```
+派 explore subagent:
+"研究 Privy 在 Next.js 14 App Router + wagmi v2 的整合方式。
+回傳格式：
+1. 必要的 npm package 與版本
+2. Provider 包法（含 SSR 注意事項）
+3. 與 wagmi 的整合方式
+4. 對 Account Abstraction / Paymaster 的支援設定
+不需要寫進任何檔案，只回報研究結果。"
+```
+
+---
+
+## 並行 vs 序列判斷
+
+```
+任務拆解後：
+    │
+    ├─ 並行 + 獨立 + 探索性 → 派多個 subagent 同時做
+    │   例：「研究 X」、「找所有用到 Y 的地方」
+    │
+    ├─ 序列 + 依賴 + 寫 code → 主 agent 自己一個一個做
+    │   例：建 schema → 寫 migration → 寫 repo → 寫 use case → 寫 API
+    │
+    └─ 大量重複性工作 → 派 generalPurpose subagent
+        例：「把這 20 個檔案都加上 i18n 標記」
+```
+
+---
+
+## Token 成本意識
+
+拆細**會**增加總 token 用量約 10-20%（更多互動次數），但：
+- 單次互動 token 短（context 集中）
+- 品質提升 30-50%
+- 省下 debug 時間遠超 token 成本
+
+→ **OpenTrade 接受這個 trade-off**，因為長期專案品質比 token 成本重要。
+
+---
+
+## 嚴禁
+
+- ❌ 跳過 TodoWrite 直接動手做複雜任務
+- ❌ 同時 in_progress 多個 todo
+- ❌ 完成 todo 但不 commit 就開下一個
+- ❌ 把所有事丟給一個 subagent 一次完成
+- ❌ Subagent 派發沒給足夠 context 就指望它知道
+- ❌ 為了「省事」省略拆解
+- ❌ 結束 session 時還有 in_progress / pending todo 沒處理
+
+---
+
+## 與其他 rules 的配合
+
+| Rule | 作用 |
+|---|---|
+| **96 (本)** | 開工前拆細 + subagent 紀律 |
+| `97-status-update` | 每 task 完成更新 status |
+| `98-session-handoff` | 換 agent 時順便檢查 todo 列表完整性 |
+| `99-self-review` | 換 task 之間順便檢視 rules |
+
+四條 rules 形成「品質守護鏈」。

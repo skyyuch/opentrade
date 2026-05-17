@@ -1,0 +1,185 @@
+---
+description: Tailwind CSS、shadcn/ui 與設計系統規範
+globs: ["**/*.tsx", "**/*.css", "packages/ui/**/*"]
+alwaysApply: false
+---
+
+# Tailwind & shadcn/ui Standards
+
+## 設計系統 first
+
+UI 開發遵守 ADR-0009：所有元件先在 `packages/ui` 建好 + 寫 stories，再被 apps 使用。
+
+---
+
+## Design Tokens（單一來源）
+
+所有顏色、字型、間距、陰影只能來自 `packages/ui/design-tokens/`：
+
+```ts
+// packages/ui/design-tokens/colors.ts
+export const colors = {
+  primary: { 50: '...', 500: '...', 900: '...' },
+  accent: { ... },
+  success: { ... },
+  danger: { ... },
+  neutral: { ... },
+} as const;
+```
+
+`tailwind.config.ts` 從這個 source 讀取：
+
+```ts
+import { colors } from '@opentrade/ui/design-tokens';
+export default { theme: { extend: { colors } } };
+```
+
+### 嚴禁
+
+- ❌ 在 component 用 `text-[#1a2b3c]`（hard-coded color）
+- ❌ 在 component 用 `text-blue-500`（除非 blue-500 已對應到 design token）
+- ❌ 自己定義 design token 在 component 層
+
+---
+
+## 字型
+
+由 `packages/ui/design-tokens/typography.ts` 定義：
+
+- 繁中 / 簡中標題：思源宋體
+- 繁中 / 簡中內文：思源黑體
+- 英文 / 數字：Inter
+- 等寬：JetBrains Mono
+
+字型透過 `next/font/local` 自託管（GDPR / 隱私考量）。
+
+---
+
+## shadcn/ui 使用方式
+
+- 透過 shadcn CLI 加入元件到 `packages/ui/primitives/`
+- 不直接使用 raw shadcn — 必須在 `packages/ui` 包一層 OpenTrade 風格的 wrapper
+- 客製化只能改 token / variant，不改 API surface
+
+---
+
+## Class Name 規範
+
+### 順序（ESLint plugin 強制）
+
+1. Layout: `flex grid block hidden`
+2. Position: `relative absolute`
+3. Display: `w-* h-* p-* m-*`
+4. Typography: `text-* font-*`
+5. Color: `bg-* text-*`
+6. Border: `border-* rounded-*`
+7. Effects: `shadow-* opacity-*`
+8. Animation: `transition-* hover:* focus:*`
+
+### 條件 class
+
+用 `cn()` helper（`clsx` + `tailwind-merge`）：
+
+```tsx
+import { cn } from '@opentrade/ui/utils';
+
+<button className={cn(
+  'rounded px-4 py-2',
+  variant === 'primary' && 'bg-primary-500 text-white',
+  disabled && 'opacity-50 cursor-not-allowed',
+)} />
+```
+
+### 嚴禁
+
+- ❌ Inline style（除非 dynamic value 無法用 class，且必須 ADR）
+- ❌ `!important` (`!text-red-500`)，除非有充分理由註解
+- ❌ 跨多個元件複製貼相同 class string（要包成 component）
+
+---
+
+## 響應式設計
+
+- **apps/web**：mobile-first
+  - 不加前綴 = 手機樣式
+  - `md:` 平板以上
+  - `lg:` 桌面
+- **apps/console**：desktop-first
+  - 預設桌面樣式
+  - `max-md:` 才考慮平板 / 手機（功能精簡版）
+
+---
+
+## 暗色模式
+
+- `packages/ui` 設計系統支援 light / dark
+- 用 `dark:` 前綴
+- 切換邏輯由 `next-themes` 處理
+- 預設跟隨系統
+
+---
+
+## 動畫
+
+- 用 Tailwind 的 `transition-*`
+- 複雜動畫用 `framer-motion`
+- 動畫時長走 design token：
+  - `motion-fast` = 150ms
+  - `motion-base` = 250ms
+  - `motion-slow` = 400ms
+
+避免：
+- ❌ 不必要的閃爍動畫
+- ❌ 違反 `prefers-reduced-motion`
+
+---
+
+## 元件變體（variant）
+
+用 `class-variance-authority` (`cva`)：
+
+```ts
+const buttonVariants = cva(
+  'inline-flex items-center rounded-md',
+  {
+    variants: {
+      intent: {
+        primary: 'bg-primary-500 text-white',
+        secondary: 'bg-neutral-200 text-neutral-900',
+        danger: 'bg-danger-500 text-white',
+      },
+      size: {
+        sm: 'px-2 py-1 text-sm',
+        md: 'px-4 py-2',
+        lg: 'px-6 py-3 text-lg',
+      },
+    },
+    defaultVariants: { intent: 'primary', size: 'md' },
+  },
+);
+```
+
+---
+
+## Storybook 必須
+
+每個 `packages/ui/compounds/` 元件必須有：
+- `Component.tsx`
+- `Component.stories.tsx`（至少 3 個 stories：default、edge case、所有 variants）
+- 必要時 `Component.test.tsx`
+
+stories 必須測試：
+- 不同語言（zh-Hant / zh-Hans / en）
+- 不同主題（light / dark）
+- Loading / empty / error 狀態
+- 不同裝置 viewport
+
+---
+
+## 嚴禁
+
+- ❌ 在 `apps/web` / `apps/console` inline 寫元件並期望「之後重構到 ui」
+- ❌ 重複實作已存在於 `packages/ui` 的元件
+- ❌ 改 `packages/ui` 元件 API 卻不更新所有使用處
+- ❌ 把業務邏輯 / API 呼叫寫進 `packages/ui` 元件（必須純展示）
+- ❌ Tailwind classes 一行超過 100 字（拆 cn 或 cva）

@@ -1,0 +1,236 @@
+---
+description: Web3 前端整合（wagmi + viem + Privy）規範
+globs: ["apps/web/**/*", "apps/console/**/*", "packages/ui/**/*"]
+alwaysApply: false
+---
+
+# Web3 Frontend Standards
+
+## 技術棧
+
+- **wagmi v2**（不是 v1）
+- **viem**（不用 ethers.js）
+- **Privy**（社交登入 + Account Abstraction）
+
+詳見 ADR-0005。
+
+---
+
+## Provider 設定
+
+頁面 root 必須包：
+
+```tsx
+// apps/web/src/app/[locale]/providers.tsx
+'use client';
+
+import { PrivyProvider } from '@privy-io/react-auth';
+import { WagmiProvider } from '@privy-io/wagmi';
+import { wagmiConfig } from '@opentrade/config/wagmi';
+
+export function Providers({ children }: { children: React.ReactNode }) {
+  return (
+    <PrivyProvider
+      appId={env.NEXT_PUBLIC_PRIVY_APP_ID}
+      config={privyConfig}
+    >
+      <WagmiProvider config={wagmiConfig}>
+        <QueryClientProvider client={queryClient}>
+          {children}
+        </QueryClientProvider>
+      </WagmiProvider>
+    </PrivyProvider>
+  );
+}
+```
+
+---
+
+## 鏈設定（多鏈 ready）
+
+**絕不寫死 Base**。從 `@opentrade/config` 讀取：
+
+```ts
+// packages/config/src/chains.ts
+import { base, baseSepolia } from 'viem/chains';
+
+export const targetChain = env.CHAIN === 'mainnet' ? base : baseSepolia;
+export const supportedChains = [base, baseSepolia] as const;
+```
+
+---
+
+## 與 API 整合
+
+當需要登入態下呼叫 API：
+
+```ts
+import { usePrivy } from '@privy-io/react-auth';
+
+function useApi() {
+  const { getAccessToken } = usePrivy();
+
+  return async function api<T>(path: string, init?: RequestInit) {
+    const token = await getAccessToken();
+    const res = await fetch(`${env.NEXT_PUBLIC_API_URL}${path}`, {
+      ...init,
+      headers: {
+        ...init?.headers,
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+    if (!res.ok) throw new ApiError(...);
+    return res.json() as Promise<T>;
+  };
+}
+```
+
+---
+
+## 合約呼叫
+
+### 讀（read）
+
+```ts
+import { useReadContract } from 'wagmi';
+import { reviewRegistryAbi } from '@opentrade/contracts/abi';
+
+const { data, isLoading } = useReadContract({
+  address: contractAddresses.reviewRegistry,
+  abi: reviewRegistryAbi,
+  functionName: 'getReview',
+  args: [reviewId],
+});
+```
+
+### 寫（write）
+
+```ts
+import { useWriteContract } from 'wagmi';
+
+const { writeContract, isPending } = useWriteContract();
+
+writeContract({
+  address: contractAddresses.reviewRegistry,
+  abi: reviewRegistryAbi,
+  functionName: 'submitReview',
+  args: [brokerId, contentHash, ipfsCid],
+});
+```
+
+### 等待 receipt
+
+```ts
+import { useWaitForTransactionReceipt } from 'wagmi';
+
+const { data: receipt } = useWaitForTransactionReceipt({ hash });
+```
+
+---
+
+## 合約地址管理
+
+統一從 `@opentrade/config/contracts` 讀：
+
+```ts
+// packages/config/src/contracts.ts
+export const contractAddresses = {
+  reviewRegistry: env.NEXT_PUBLIC_REVIEW_REGISTRY_ADDRESS as Address,
+  juryPool: env.NEXT_PUBLIC_JURY_POOL_ADDRESS as Address,
+  signalLogger: env.NEXT_PUBLIC_SIGNAL_LOGGER_ADDRESS as Address,
+};
+```
+
+絕不寫死合約地址在 component。
+
+---
+
+## ABI 來源
+
+ABI 從 `@opentrade/contracts` 包匯出（由 Foundry 編譯後產生）：
+
+```ts
+// packages/contracts/abi/index.ts
+export { reviewRegistryAbi } from './ReviewRegistry.abi';
+// ...
+```
+
+---
+
+## Gasless / Paymaster
+
+OpenTrade 大部分使用者操作必須 gasless：
+
+```ts
+// 透過 Privy 的 paymaster 功能
+const txHash = await sendTransactionWithPaymaster({
+  to: contractAddresses.reviewRegistry,
+  data: encodeFunctionData({ ... }),
+});
+```
+
+不允許直接讓使用者付 gas（除非該操作明確指定使用者付，例如 KOL 發訊號）。
+
+---
+
+## 錢包顯示
+
+地址必須脫敏顯示：
+
+```tsx
+import { shortenAddress } from '@opentrade/shared';
+
+<span>{shortenAddress(address)}</span>
+// 0x1234...abcd
+```
+
+提供「複製完整地址」按鈕。
+
+---
+
+## 鏈上資料快取
+
+- Read 結果用 wagmi 的內建 cache（透過 TanStack Query）
+- 寫入後 invalidate 相關 query
+- 不可在 component 自己存「上次合約讀到什麼」
+
+---
+
+## 鏈上事件監聽
+
+前端不直接監聽 contract events（成本高、不穩）。改為：
+
+1. 後端 worker 監聽 events → 寫進 DB
+2. 前端 poll API（或 SSE）
+3. 顯示更新
+
+---
+
+## 顯示 tx 狀態
+
+從「使用者點按鈕」到「上鏈成功」流程：
+
+```
+1. 使用者點「提交」
+2. 顯示 modal: "Confirming with wallet..."
+3. Privy 顯示確認 UI（社交登入用戶會跳 Privy 內建確認）
+4. 拿到 hash → 顯示 "Waiting for confirmation on Base..."
+5. 1 個區塊確認後 → 顯示 "Submitted! 🎉"
+6. 提供 link to BaseScan
+```
+
+每一步都有 i18n 文案（不可寫死英文）。
+
+---
+
+## 嚴禁
+
+- ❌ 直接 import ethers.js（用 viem）
+- ❌ 寫死 chainId / 合約地址 / RPC URL
+- ❌ 把 Privy server secret 暴露到前端
+- ❌ 把 wallet 私鑰存 localStorage / sessionStorage
+- ❌ 跳過 wagmi 直接 `new ethers.Contract(...)`（失去 cache / type safety）
+- ❌ 在 SSR 期間呼叫 wallet 相關 hook（必 client-side only）
+- ❌ 在 production 用 testnet RPC
+- ❌ 用 `as` 強制斷言 address（用 `Address` type from viem）

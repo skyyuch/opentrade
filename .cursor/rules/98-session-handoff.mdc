@@ -1,0 +1,146 @@
+---
+description: 自動判斷並建議使用者開新 Agent Session
+alwaysApply: true
+---
+
+# Session Handoff Discipline
+
+> AI agent 必須**主動**判斷何時建議使用者換新 session，並提供完整 handoff 流程。
+> 這條規則保護 OpenTrade 不因 context 過載而失去品質。
+
+---
+
+## 觸發條件（任一達成即提醒使用者）
+
+| # | 條件 | 為什麼要換 |
+|---|---|---|
+| 1 | **對話累積過長**：估算當前對話已 50+ 來回 / 80k+ tokens | Context 過長會降低判斷準確度，增加遺忘風險 |
+| 2 | **完成一個邏輯單元**：剛完成一個 commit、PR、或一個 phase | 自然的換手點，handoff 最乾淨 |
+| 3 | **領域切換**：使用者從「寫合約」切到「設計 UI」，或從「架構討論」切到「實作 code」 | 不同領域需要不同 context |
+| 4 | **連續混亂訊號**：在同一 session 裡需重讀同一份文件 ≥ 2 次，或回答前後矛盾 | Context 已過載 |
+| 5 | **長時間卡關**：超過 30 分鐘繞同一個問題沒進展 | 通常是 context 偏了，重啟反而快 |
+| 6 | **使用者明確表示** 「明天再繼續」/「先休息」 | 主動把當前狀態固化 |
+| 7 | **跨日 / 跨大段時間** | 雖然 Cursor 有保留對話，但時間久了 context 反而成包袱 |
+
+---
+
+## 觸發時的提醒格式
+
+當任一條件達成，**主動**跳出來說：
+
+```
+🔔 建議開啟新 Agent Session
+
+觸發原因：[具體哪個條件]
+
+換手前我會先做以下事情，確保新 session 無縫接手：
+1. ✅ 更新 docs/03-status.md
+2. ✅ 若有新決策 → 寫 ADR
+3. ✅ 若對話有重要內容 → 歸檔到 docs/conversations/
+4. ✅ 檢視 .cursor/rules/ 是否需要更新（rule 99）
+5. ✅ 列出新 session 第一個 prompt 建議
+
+是否要進行 handoff？(y/n)
+```
+
+---
+
+## 設計原則：軟提醒，不硬中斷
+
+- ✅ **主動提醒**，但使用者可以說「不用，繼續」
+- ✅ 使用者可以說「先做完這件事再 handoff」
+- ❌ **不單方面結束對話**
+- ❌ **不在使用者沒同意前自行歸檔 / commit**
+
+這樣既保持 handoff 紀律，又不打擾工作流。
+
+---
+
+## Handoff 動作（使用者同意後執行）
+
+依序進行：
+
+### Step 1: 更新 status
+
+更新 `docs/03-status.md`：
+- 最後更新日期
+- 進度
+- 已完成項目
+- 進行中項目（若有未完成的）
+- 下一步建議
+- 新發現的待決問題
+- 新發現的風險
+
+### Step 2: 寫新 ADR（若有決策）
+
+依 rule 97 流程。
+
+### Step 3: 歸檔對話（若值得）
+
+依 rule 97 流程。檔名：`docs/conversations/{YYYY-MM-DD}-{主題}.md`。
+
+### Step 4: 檢視 Cursor Rules（依 rule 99）
+
+依 rule 99 自我檢視。
+
+### Step 5: 產生新 session 開場 prompt
+
+```
+新 Session 開場 Prompt（複製這段給新 agent）：
+---
+我是 OpenTrade 項目負責人，繼續 [當前 Phase] 的工作。
+
+請先讀：
+1. AGENTS.md
+2. docs/00-vision.md
+3. docs/03-status.md（重要）
+4. docs/conversations/{YYYY-MM-DD}-{主題}.md（上 session 歸檔）
+5. ADR-XXXX 到 ADR-YYYY（最近相關 ADR）
+
+然後告訴我：
+- 你掌握的當前進度摘要
+- 上 session 結束時的進行中項目
+- 你建議下一步從哪開始
+
+確認後我們繼續。
+---
+```
+
+### Step 6: 全部 commit
+
+```
+git add docs/
+git commit -m "docs: session handoff at YYYY-MM-DD - {summary}"
+```
+
+---
+
+## Handoff 後的下一步建議
+
+提供使用者：
+- 何時開新 session（建議休息 / 直接開）
+- 開新 session 後要做的第一件事
+
+---
+
+## 嚴禁
+
+- ❌ 不主動觸發提醒（讓使用者自己注意 context 已過載）
+- ❌ 強制中斷使用者
+- ❌ 使用者沒同意就自行 commit handoff
+- ❌ Handoff 沒做 status update
+- ❌ Handoff 沒產生新 session prompt
+- ❌ Handoff 後讓 todo 還是 in_progress
+- ❌ 多次提醒被拒後還繼續強推（提醒過 3 次拒絕後當 session 自然完成處理）
+
+---
+
+## 特殊情況：使用者主動要求 handoff
+
+當使用者直接說：
+- 「我們 handoff 吧」
+- 「準備換 agent」
+- 「明天繼續」
+- 「先到這邊」
+
+→ 不必 trigger condition，直接跑 Step 1-6。

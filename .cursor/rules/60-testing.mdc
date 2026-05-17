@@ -1,0 +1,202 @@
+---
+description: 測試規範（Vitest, Playwright, Forge）
+globs: ["**/*.test.ts", "**/*.test.tsx", "**/*.spec.ts", "**/*.t.sol"]
+alwaysApply: false
+---
+
+# Testing Standards
+
+## 測試框架
+
+| 層次 | 工具 |
+|---|---|
+| Unit (TS) | **Vitest** |
+| Component | **Vitest + React Testing Library** |
+| E2E | **Playwright** |
+| Solidity | **Foundry forge** |
+| API contract | **Pactum** 或自製 |
+| Visual regression | **Chromatic** 或 Playwright screenshot |
+
+---
+
+## 測試金字塔
+
+```
+        E2E
+       /    \
+  Integration
+  /          \
+Unit (大量)
+```
+
+- 70% Unit
+- 20% Integration
+- 10% E2E
+
+---
+
+## 覆蓋率目標
+
+| Package / App | 目標 |
+|---|---|
+| `apps/api` (domain layer) | > 90% |
+| `apps/api` (application layer) | > 85% |
+| `apps/api` (infrastructure) | > 70% |
+| `apps/web` / `apps/console` | > 60% |
+| `packages/contracts` | **100% 函式覆蓋率** |
+| `packages/ui` | 透過 stories 覆蓋 |
+| `packages/shared` | > 90% |
+
+CI 強制：覆蓋率下降 > 5% PR 不可 merge。
+
+---
+
+## Unit Test 規範
+
+### 命名
+
+```ts
+describe('SubmitReviewUseCase', () => {
+  it('should reject review shorter than 10 characters', async () => { ... });
+  it('should emit ReviewSubmittedEvent on success', async () => { ... });
+  it('should rollback on chain submission failure', async () => { ... });
+});
+```
+
+### Arrange-Act-Assert
+
+```ts
+it('should submit a review', async () => {
+  // Arrange
+  const mockRepo = mock<IReviewRepository>();
+  const useCase = new SubmitReviewUseCase(mockRepo);
+  const input = { brokerId: '...', body: '...' };
+
+  // Act
+  const result = await useCase.execute(input);
+
+  // Assert
+  expect(result.success).toBe(true);
+  expect(mockRepo.save).toHaveBeenCalledOnce();
+});
+```
+
+### 獨立性
+
+- ❌ 測試之間共用 state
+- ❌ 測試依賴執行順序
+- ❌ 測試直接連真實 DB / API
+- ✅ 每個測試自己 setup / teardown
+
+---
+
+## Component Test (React)
+
+```tsx
+import { render, screen } from '@testing-library/react';
+import { ReviewCard } from './ReviewCard';
+
+describe('ReviewCard', () => {
+  it('renders sentiment badge correctly', () => {
+    render(<ReviewCard review={{ sentiment: 'positive', body: '...' }} />);
+    expect(screen.getByText(/正評/i)).toBeInTheDocument();
+  });
+});
+```
+
+- 測 user behavior，不測 implementation
+- 用 `getByRole` / `getByLabelText` 而非 `getByTestId`
+- 模擬 i18n provider
+
+---
+
+## E2E Test (Playwright)
+
+關鍵 user flow 必測：
+
+1. 散戶寫評論並上鏈
+2. 商戶認領專頁
+3. KOL 發訊號
+4. 用戶投訴 → 仲裁
+
+```ts
+test('user can submit a review', async ({ page }) => {
+  await page.goto('/zh-Hant/brokers/abc');
+  await page.getByRole('button', { name: '寫評論' }).click();
+  await page.getByLabel('評論內容').fill('Long enough review text...');
+  await page.getByRole('button', { name: '提交' }).click();
+  await expect(page.getByText(/已上鏈/)).toBeVisible({ timeout: 30000 });
+});
+```
+
+E2E 必須跑在 dev / staging 真實環境（用測試錢包與 testnet）。
+
+---
+
+## Solidity Test (Foundry)
+
+詳見 `41-solidity-contracts.mdc`。重點：
+
+- 必跑 unit + integration + invariant + fuzz
+- 命名：`test_FunctionName_Condition_ExpectedBehavior`
+- 用 `vm.expectRevert(CustomError.selector)` 而非字串
+
+```solidity
+function test_SubmitReview_AsUnverifiedUser_Reverts() public {
+    address user = makeAddr("user");
+    vm.prank(user);
+    vm.expectRevert(IReviewRegistry.NotVerified.selector);
+    registry.submitReview(brokerId, "0x...", "ipfs://...");
+}
+```
+
+---
+
+## Mock 規範
+
+- 用 `vitest-mock-extended` 對 interface mock
+- 不 mock 第三方套件本身（mock 我們自己的 wrapper）
+- 不過度 mock（會變成測 mock 而非業務）
+
+---
+
+## 環境分離
+
+```bash
+# Local dev
+pnpm test               # 跑全部
+pnpm test:watch         # watch mode
+pnpm test:unit          # 只 unit
+pnpm test:e2e           # 只 e2e（要先起 dev server）
+
+# CI
+pnpm test:ci            # 含 coverage report
+```
+
+---
+
+## CI / Pre-commit
+
+每個 commit 必須跑：
+- `pnpm lint`
+- `pnpm typecheck`
+- `pnpm test:unit`
+
+每個 PR 必須跑：
+- 上述全部
+- `pnpm test:integration`
+- `pnpm test:contracts` (Forge)
+- 對核心 flow `pnpm test:e2e`
+
+---
+
+## 嚴禁
+
+- ❌ Skip 測試（`it.skip`）超過 1 PR cycle 不修
+- ❌ `expect(true).toBe(true)` 之類 placeholder
+- ❌ 測試打到真實 DB（用 testcontainers 或 mock）
+- ❌ 測試打到真實鏈（用 anvil fork）
+- ❌ 測試打到真實第三方 API（mock）
+- ❌ 測試需要特定執行順序
+- ❌ 測試裡有 `setTimeout(..., 5000)` 之類 hard wait（用 `waitFor`）
+- ❌ 一個測試做太多事（一個 it 一件事）

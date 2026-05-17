@@ -1,0 +1,109 @@
+---
+description: OpenTrade 項目總覽 — 任何 AI agent 必讀的最高優先規則
+alwaysApply: true
+---
+
+# OpenTrade Project Overview
+
+你正在參與 **OpenTrade** — 一個 Web 3.0 去中心化金融服務評論平台，初期聚焦香港市場。
+
+> 本規則是最高優先級。所有其他規則的解讀以本規則為準。
+
+---
+
+## 開始任何工作前必讀
+
+1. `AGENTS.md`（根目錄）
+2. `docs/00-vision.md`
+3. `docs/03-status.md`（**最重要**，每次都要看）
+4. `docs/02-roadmap.md`
+5. 最近 5 份 `docs/decisions/` ADR
+
+讀完後第一句話必須是：
+> 「我已掌握當前項目狀態：[2-3 句摘要]。當前 Phase：[X]。下一步預期：[Y]。請確認後我開始工作。」
+
+---
+
+## 核心戰略（永遠記得）
+
+- **不在 Web 2.0 跟 WikiFX 拼流量**，用 Web 3.0 不可篡改特性進行降維打擊
+- **公平、公開、不可篡改**是項目根本承諾，所有設計必須符合
+- **散戶用 Web2 體驗**（Privy 社交登入），底層是 Web3
+- **所有方案必須是徹底長遠方案**，不接受 hack / 臨時解
+
+---
+
+## 業務紅線（絕對不可違反）
+
+- ❌ **不可實作「平台可刪除使用者評論」的功能**（即使 admin 也只能標註，不能刪除鏈上資料）
+- ❌ **不可實作「商戶付費影響評論顯示順序」的功能**
+- ❌ **不可發表任何投資建議**（避開 SFC 第 4 類牌照風險）
+- ❌ **不可在 V1 發行任何代幣**（避開 VATP 風險，見 ADR-0007）
+- ❌ **不可繞過去中心化原則**用 admin 修改鏈上資料
+
+---
+
+## 技術紅線（絕對不可違反）
+
+- ❌ 不可寫死任何 secret（key、密碼、合約地址）→ 一律 env / Secrets Manager
+- ❌ 前端不可直連 DB → 一律走 API
+- ❌ Server log 不可寫入 PII 原始資料
+- ❌ Smart contract 不可有 owner-only 修改評論的函數
+- ❌ 不可寫死任何特定鏈（Base）→ 走 `packages/config`
+- ❌ Smart contract 不可使用未經審計的 library → 用 OpenZeppelin
+
+---
+
+## 技術選型（不可隨意改）
+
+| 類別 | 選擇 |
+|---|---|
+| Monorepo | pnpm + Turborepo |
+| 前端 | Next.js 14 App Router + TypeScript |
+| UI | Tailwind + shadcn/ui + Storybook |
+| i18n | next-intl（zh-Hant 預設、zh-Hans、en） |
+| Web3 | wagmi v2 + viem + Privy |
+| API | Hono on Node.js + DDD + Modular Monolith |
+| DB | PostgreSQL (RDS) + Prisma ORM |
+| Smart Contract | Solidity + Foundry + OpenZeppelin |
+| 鏈 | Base L2（架構保持 OP Stack 通用） |
+| 雲端 | AWS（RDS、ECS Fargate、S3、Secrets Manager） |
+| IaC | Terraform |
+| CI/CD | GitHub Actions |
+| 測試 | Vitest + Playwright + Forge |
+
+要改用其他工具，必須先寫 ADR 並讓使用者拍板。
+
+---
+
+## 工作流程要點
+
+- **使用者主要語言**：繁體中文（user-facing 都用繁中回應）
+- **commit message / code / 變數命名**：英文
+- **永遠先拆細任務再執行**（見 rule 96）
+- **永遠先 commit 小步再走下一步**
+- **永遠不在沒測試 / typecheck pass 的情況下推進**
+- **每個 session 結束前必更新 `docs/03-status.md`**（見 rule 97）
+- **適時建議使用者開新 agent session**（見 rule 98）
+- **每次重要修改後檢視 cursor rules 本身**（見 rule 99）
+
+---
+
+## 何時需要與使用者確認
+
+- 任何架構級決策（必須先寫 ADR、讓使用者拍板再執行）
+- 任何違反 rules 的需求（必須提醒使用者並請求明確同意）
+- 任何不在當前 Phase 規劃內的功能
+- 任何可能影響合規 / 監管定位的設計
+- 任何可能突破當前預算的雲端資源
+
+---
+
+## 連結
+
+- AI 入口：[`AGENTS.md`](mdc:AGENTS.md)
+- 願景：[`docs/00-vision.md`](mdc:docs/00-vision.md)
+- 架構：[`docs/01-architecture.md`](mdc:docs/01-architecture.md)
+- 路線圖：[`docs/02-roadmap.md`](mdc:docs/02-roadmap.md)
+- 狀態：[`docs/03-status.md`](mdc:docs/03-status.md)
+- ADR：[`docs/decisions/`](mdc:docs/decisions/)

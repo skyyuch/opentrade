@@ -1,0 +1,202 @@
+---
+description: React 與 Next.js 14 App Router 開發規範
+globs: ["apps/web/**/*.{ts,tsx}", "apps/console/**/*.{ts,tsx}", "packages/ui/**/*.{ts,tsx}"]
+alwaysApply: false
+---
+
+# React & Next.js Standards
+
+## Server Component 優先
+
+預設 Server Component。只有以下情況才標 `'use client'`：
+
+- 需要 React state / effect
+- 需要瀏覽器 API（window、localStorage 等）
+- 需要事件 handler（onClick、onChange）
+- 需要 wagmi / Privy / 其他 client-side hook
+
+**規則：把 `'use client'` 推到最末梢的元件**，上層保持 Server Component。
+
+```tsx
+// ❌ 不好：整個頁面都變 Client
+'use client';
+export default function ReviewsPage() { ... }
+
+// ✅ 好：頁面是 Server，互動部分才是 Client
+// reviews/page.tsx (Server)
+export default async function ReviewsPage() {
+  const reviews = await getReviews();
+  return <ReviewList reviews={reviews} />;
+}
+
+// reviews/ReviewList.tsx ('use client')
+'use client';
+export function ReviewList({ reviews }) { ... }
+```
+
+---
+
+## 資料抓取
+
+- Server Component → 直接 `await fetch()` / 呼叫 API（fetch 內建 cache）
+- Client Component → 用 **TanStack Query**（`@tanstack/react-query`）
+- 不可在 component 內混用兩者
+
+### Server Component fetch 模式
+
+```ts
+async function getBroker(id: string) {
+  const res = await fetch(`${process.env.API_URL}/v1/brokers/${id}`, {
+    next: { revalidate: 60 }, // 60s ISR
+  });
+  if (!res.ok) throw new AppError(...);
+  return res.json();
+}
+```
+
+### Client Component query 模式
+
+```ts
+const { data, isLoading } = useQuery({
+  queryKey: ['reviews', brokerId],
+  queryFn: () => api.reviews.list(brokerId),
+});
+```
+
+---
+
+## i18n 強制（zh-Hant / zh-Hans / en）
+
+- ❌ 絕對不可寫死任何使用者可見文字
+- ✅ 全部走 `useTranslations` / `getTranslations`
+
+```tsx
+// ❌ 不可
+<button>提交評論</button>
+
+// ✅ 應該
+import { useTranslations } from 'next-intl';
+function ReviewForm() {
+  const t = useTranslations('reviews');
+  return <button>{t('submit')}</button>;
+}
+```
+
+訊息檔放 `apps/{web,console}/messages/{zh-Hant,zh-Hans,en}.json`。
+
+---
+
+## Routing
+
+- 頁面路徑：`app/[locale]/...`
+- 範例：`app/[locale]/brokers/[id]/page.tsx` → URL：`/zh-Hant/brokers/abc123`
+- 預設 locale：zh-Hant
+- 不允許在頁面層讀取或設定 locale 之外的 cookie 直接影響 routing
+
+---
+
+## State 管理
+
+| 場景 | 用什麼 |
+|---|---|
+| Local component state | `useState` |
+| Form state | `react-hook-form` + zod resolver |
+| Server state / API data | TanStack Query |
+| Global app state | Zustand（minimal）|
+| Wallet / Web3 state | wagmi（不額外包） |
+| URL state | searchParams + `useSearchParams` |
+
+**禁止**：
+- ❌ Redux（過度複雜）
+- ❌ Context 大量使用（造成不必要 re-render）
+- ❌ 全域變數
+
+---
+
+## Form 規範
+
+統一使用 `react-hook-form` + `zod`：
+
+```tsx
+const schema = z.object({
+  body: z.string().min(10).max(2000),
+});
+
+const { register, handleSubmit, formState } = useForm({
+  resolver: zodResolver(schema),
+});
+```
+
+絕不允許：
+- ❌ 自寫表單驗證（必須用 zod）
+- ❌ 直接 `useState` 管表單（必須用 react-hook-form）
+
+---
+
+## Web3 整合
+
+詳見 `40-web3-frontend.mdc`。重點：
+
+- Privy `<PrivyProvider>` 包在 root layout
+- wagmi 透過 `<PrivyWagmiConnector>` 整合
+- 鏈相關設定走 `@opentrade/config/chains`
+
+---
+
+## 元件設計原則
+
+- 元件純展示，業務邏輯放 hooks 或 use case
+- Props 必須有 type，禁止 `any`
+- 不允許 `defaultProps`（廢棄 API），用 destructuring default
+- 不允許 `React.FC` type（改用一般 function 加 props type）
+
+```tsx
+// ✅ 好
+type ReviewCardProps = {
+  review: Review;
+  onClick?: () => void;
+};
+
+export function ReviewCard({ review, onClick }: ReviewCardProps) {
+  ...
+}
+```
+
+---
+
+## Accessibility (a11y)
+
+- 互動元素必須有 `aria-label` 或 visible label
+- 圖片必須有 `alt`
+- 顏色對比符合 WCAG AA
+- 鍵盤可操作（不只 mouse）
+
+Storybook 必須跑 `@storybook/addon-a11y`。
+
+---
+
+## Performance
+
+- Image 用 `next/image`
+- Font 用 `next/font/local`（思源字型自託管）
+- Lazy load 非首屏元件用 `dynamic()`
+- 大型 third-party library 必用 dynamic import
+
+---
+
+## SEO（apps/web）
+
+- 每頁必須有 `metadata` export
+- 多語言 metadata 用 `getTranslations`
+- 商戶 / KOL 頁需要 OpenGraph image
+- `apps/console` **不做 SEO**（robots.txt 全 disallow）
+
+---
+
+## 嚴禁
+
+- ❌ `dangerouslySetInnerHTML`（除非有完整 sanitize + ADR）
+- ❌ Inline style（用 Tailwind class）
+- ❌ 直接操作 DOM（用 ref + React life cycle）
+- ❌ 在 React component 裡 `console.log`（用 logger 或刪除）
+- ❌ 在 component 直接 import `@opentrade/db`（前端絕不接觸 DB，只能 type-only）

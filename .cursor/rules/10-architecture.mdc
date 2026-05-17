@@ -1,0 +1,108 @@
+---
+description: Monorepo 結構與 package 邊界規範
+alwaysApply: true
+---
+
+# Architecture & Package Boundaries
+
+## Monorepo 結構
+
+```
+OpenTrade/
+├── apps/
+│   ├── web/          # 散戶用戶端 (Next.js)
+│   ├── console/      # 商戶後台 (Next.js)
+│   └── api/          # 後端 API (Hono)
+├── packages/
+│   ├── contracts/    # Foundry 合約
+│   ├── db/           # Prisma schema
+│   ├── ui/           # 設計系統 + Storybook
+│   ├── shared/       # 共用 types / utils
+│   └── config/       # 多鏈、多租戶 config
+├── infra/terraform/
+└── docs/
+```
+
+詳見 `docs/01-architecture.md`。
+
+---
+
+## Package 依賴規則（強制）
+
+### 允許的依賴方向（從上到下）
+
+```
+apps/web ──┐
+apps/console ─┼── 可 import packages/{ui, shared, config, contracts(types only)}
+apps/api ──┘     可 import packages/{db, shared, config, contracts(types only), ui(無)}
+
+packages/db ─────── 可 import packages/{shared}
+packages/ui ─────── 可 import packages/{shared}
+packages/contracts ─ 不 import 任何 packages
+packages/config ──── 可 import packages/{shared}
+packages/shared ──── 不 import 任何 packages
+```
+
+### 禁止的依賴
+
+- ❌ `apps/web` ↔ `apps/console`（兄弟之間絕不互相 import）
+- ❌ `apps/web` 或 `apps/console` import `packages/db`（前端絕不接觸 DB）
+- ❌ 下層 import 上層
+- ❌ 跨層繞圈依賴
+
+### Type-only import 例外
+
+- 前端可以 `import type { Review } from '@opentrade/db'`（只有 type，不引入 runtime）
+- 必須使用 `import type` 語法
+
+---
+
+## 新增功能時的目錄選擇
+
+決策樹：
+
+```
+這是純展示元件嗎？
+├─ 是 → packages/ui
+└─ 否 → 是純 type / util，不依賴框架嗎？
+        ├─ 是 → packages/shared
+        └─ 否 → 是業務邏輯嗎？
+                ├─ 是 → apps/api/src/domains/{該領域}
+                └─ 否 → 是頁面嗎？
+                        ├─ 散戶用 → apps/web
+                        └─ 商戶用 → apps/console
+```
+
+---
+
+## 領域劃分（apps/api 內）
+
+依 `docs/01-architecture.md` 第 4.3 節，現有 domains：
+
+- `reviews` — 評論
+- `brokers` — 證券商
+- `kols` — KOL / 財演
+- `disputes` — 爭議仲裁
+- `identity` — 身份 / SBT / KYC
+- `signals` — KOL 訊號
+
+新增 domain 必須：
+1. 寫 ADR 說明為何需要新 domain
+2. 在 `domains/` 下建完整四層（domain / application / infrastructure / presentation）
+3. 在 `docs/04-glossary.md` 登記領域術語
+
+---
+
+## 新增 package 的條件
+
+只有以下情況才該新增 package：
+
+- 多個 apps / packages 共享的程式碼
+- 邊界清楚的領域（例如：將來可能拆出去）
+- 獨立發布需求（例如：開源 SDK）
+
+新 package 必須：
+1. 寫 ADR
+2. 加入 `pnpm-workspace.yaml`
+3. 加入 `turbo.json` 的 task 列表
+4. 在 `docs/01-architecture.md` 更新結構圖

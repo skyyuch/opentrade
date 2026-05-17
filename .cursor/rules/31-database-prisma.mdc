@@ -1,0 +1,223 @@
+---
+description: PostgreSQL + Prisma ORM 規範
+globs: ["packages/db/**/*", "apps/api/**/*"]
+alwaysApply: false
+---
+
+# Database & Prisma Standards
+
+## 唯一資料庫存取入口
+
+- 只有 `apps/api` 可以 import `@opentrade/db` 的 PrismaClient
+- 前端 (`apps/web`、`apps/console`) 只能 `import type`，不可 import client
+- Schema 唯一 source of truth：`packages/db/prisma/schema.prisma`
+
+---
+
+## Schema 命名規範
+
+```prisma
+model Review {
+  id              String   @id @default(uuid()) @db.Uuid
+  tenantId        String   @db.Uuid
+  brokerId        String   @db.Uuid
+  authorUserId    String   @db.Uuid
+  sentiment       Sentiment
+  body            String   @db.Text
+  ipfsCid         String?
+  chainTxHash     String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  deletedAt       DateTime?
+
+  broker          Broker   @relation(fields: [brokerId], references: [id])
+  author          User     @relation(fields: [authorUserId], references: [id])
+
+  @@index([tenantId, brokerId])
+  @@index([tenantId, createdAt])
+  @@map("reviews")
+}
+```
+
+### 規則
+
+- Model 名：PascalCase（`Review`、`KolSignal`）
+- 欄位：camelCase
+- DB 表名：snake_case（`@@map("reviews")`）
+- DB 欄位（hidden）：自動 snake_case（Prisma 預設可不寫 `@map`，但不一致時手動指定）
+- ID：UUID v4（`@db.Uuid`）
+- 時間：`@default(now())` + `@updatedAt`
+- 軟刪除：`deletedAt: DateTime?`
+- 索引：明確標 `@@index([...])`，不靠隱式
+
+---
+
+## Multi-tenant Ready（強制）
+
+**所有 user-scoped 表必須有 `tenantId`**，即使 V1 只有一個 tenant（HK）：
+
+```prisma
+model Broker {
+  id        String @id
+  tenantId  String @db.Uuid    // 必有
+  // ...
+}
+```
+
+查詢時必須加 `tenantId` filter：
+
+```ts
+// ❌ 不可
+prisma.broker.findMany({ where: { name: 'XYZ' } });
+
+// ✅ 應該
+prisma.broker.findMany({
+  where: {
+    tenantId: ctx.tenantId,
+    name: 'XYZ',
+  },
+});
+```
+
+最佳做法：用 Prisma extension 自動注入 `tenantId`（Phase 0 後期實作）。
+
+---
+
+## 軟刪除（Soft Delete）
+
+- **絕不真的 DELETE**（除了測試 / GDPR 合規 hard delete）
+- 改 `deletedAt` 欄位
+- 查詢時自動排除 `deletedAt: null`（用 Prisma extension）
+
+例外：
+- `outbox_events` 處理完後可真的 DELETE（保留時間 7 天）
+- 測試資料
+
+---
+
+## Migration 規範
+
+### 命名
+
+```
+20260518120000_add_review_signal_relation
+```
+
+格式：`{timestamp}_{verb}_{noun}_{detail}`
+
+### 流程
+
+1. 改 `schema.prisma`
+2. 跑 `pnpm db:migrate dev --name {description}`
+3. Review 產生的 SQL，確保沒有破壞性操作
+4. 跑測試
+5. Commit `schema.prisma` + `migrations/`
+
+### 嚴禁
+
+- ❌ 手改 `migrations/` 內的 SQL（除非 Prisma 產生有 bug，且要 ADR）
+- ❌ 在 prod 用 `db:migrate dev`（用 `db:migrate deploy`）
+- ❌ 不 review 直接執行 migration
+- ❌ Drop column 不分階段（先 deprecate → 兩個 release 後才 drop）
+
+---
+
+## Repository Pattern
+
+`apps/api` 不直接呼叫 Prisma，透過 Repository：
+
+```ts
+// domains/reviews/domain/IReviewRepository.ts
+export interface IReviewRepository {
+  findById(id: ReviewId): Promise<Review | null>;
+  save(review: Review): Promise<void>;
+  list(filter: ReviewFilter): Promise<Review[]>;
+}
+
+// domains/reviews/infrastructure/PrismaReviewRepository.ts
+export class PrismaReviewRepository implements IReviewRepository {
+  constructor(private readonly prisma: PrismaClient) {}
+  // 實作...
+}
+```
+
+Use case 接受 interface，不接受具體實作：
+
+```ts
+class SubmitReviewUseCase {
+  constructor(private readonly reviewRepo: IReviewRepository) {}
+}
+```
+
+---
+
+## Transaction
+
+跨表寫入必須在 transaction 內：
+
+```ts
+await prisma.$transaction(async (tx) => {
+  await tx.review.create({ data: ... });
+  await tx.outboxEvent.create({ data: ... });
+});
+```
+
+特別重要：**業務寫入 + Outbox event 必須同 transaction**（避免事件丟失）。
+
+---
+
+## 索引策略
+
+每個 query pattern 必須有對應索引：
+
+- 單欄 PK：`@id`
+- Foreign key：自動建 index
+- 列表查詢：`@@index([tenantId, status, createdAt])`（複合索引，order 重要）
+- 唯一限制：`@@unique([...])`
+
+不可用的索引：
+- ❌ `@@index([])` 沒實際 query 用到的索引（浪費空間）
+- ❌ 只有 `tenantId` 單欄的索引（沒區別性）
+
+---
+
+## 連線管理
+
+- `PrismaClient` 全 app 一個實例（`packages/db/src/client.ts`）
+- 不在 hot path 創建新 instance
+- 用環境變數 `DATABASE_URL`（從 AWS Secrets Manager 注入）
+- Read replica：另一個 client 連 readonly URL
+
+```ts
+// packages/db/src/client.ts
+export const prisma = new PrismaClient({
+  log: ['warn', 'error'],
+});
+
+export const prismaReadOnly = new PrismaClient({
+  datasources: {
+    db: { url: env.DATABASE_READ_URL },
+  },
+});
+```
+
+---
+
+## Seed 資料
+
+- `packages/db/seed/seed.ts`
+- 從外部 JSON 讀資料（非 hardcode）
+- 必須冪等（多次執行結果一樣）
+- Phase 1：預載 SFC 持牌證券商清單（從 SFC 公開資料）
+
+---
+
+## 嚴禁
+
+- ❌ 用 raw SQL 繞過 Prisma（除非有充分理由 + ADR）
+- ❌ 在 schema 用 `String` 存 enum（用 Prisma `enum` 或在 app 層 zod）
+- ❌ 用 Float 存金錢（用 `Decimal` 或整數 cents）
+- ❌ N+1 query（用 `include` / `select`）
+- ❌ Migration 內含資料遷移（資料遷移用獨立 script）
+- ❌ Prisma Studio 在 prod 連線
+- ❌ DB 直接從 console.aws.amazon.com 改 schema（必須 Terraform + Prisma migration）

@@ -1,0 +1,41 @@
+# EditorConfig is awesome: https://EditorConfig.org
+# OpenTrade — 跨 IDE / 跨平台的格式統一規範
+# 此檔不可隨意修改，會破壞所有貢獻者的編輯體驗
+
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 2
+
+# Python (若未來有任何 Python 工具腳本)
+[*.py]
+indent_size = 4
+
+# Solidity
+[*.sol]
+indent_size = 4
+
+# Makefile 必須用 tab
+[Makefile]
+indent_style = tab
+
+# Markdown 不要 trim trailing whitespace（因為 markdown 換行需要）
+[*.md]
+trim_trailing_whitespace = false
+
+# YAML
+[*.{yml,yaml}]
+indent_size = 2
+
+# JSON
+[*.json]
+indent_size = 2
+
+# Terraform
+[*.{tf,tfvars}]
+indent_size = 2

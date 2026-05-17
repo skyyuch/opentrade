@@ -1,0 +1,241 @@
+---
+description: i18n 三語架構（zh-Hant / zh-Hans / en）規範
+globs: ["apps/**/*.{ts,tsx}", "packages/ui/**/*.{ts,tsx}"]
+alwaysApply: false
+---
+
+# i18n Standards
+
+詳見 ADR-0003。
+
+## 支援語言
+
+| Locale Code | 名稱 | 用途 |
+|---|---|---|
+| `zh-Hant` | 繁體中文 | **預設**，HK 主要市場 |
+| `zh-Hans` | 簡體中文 | 中港跨境用戶、大陸 KOL |
+| `en` | English | 國際投資者、媒體、政府基金 |
+
+---
+
+## 前端工具：next-intl
+
+### 訊息檔位置
+
+```
+apps/web/messages/
+├── zh-Hant.json    # 預設
+├── zh-Hans.json
+└── en.json
+
+apps/console/messages/
+├── zh-Hant.json
+├── zh-Hans.json
+└── en.json
+```
+
+### 訊息檔結構
+
+按 namespace 分組：
+
+```json
+{
+  "common": {
+    "submit": "提交",
+    "cancel": "取消",
+    "loading": "載入中..."
+  },
+  "reviews": {
+    "form": {
+      "title": "撰寫評論",
+      "bodyPlaceholder": "分享你的真實體驗..."
+    },
+    "errors": {
+      "tooShort": "評論至少 10 字",
+      "tooLong": "評論最多 2000 字"
+    }
+  },
+  "brokers": { ... }
+}
+```
+
+### 使用方式
+
+```tsx
+// Server Component
+import { getTranslations } from 'next-intl/server';
+
+export default async function Page() {
+  const t = await getTranslations('reviews.form');
+  return <h1>{t('title')}</h1>;
+}
+
+// Client Component
+'use client';
+import { useTranslations } from 'next-intl';
+
+export function ReviewForm() {
+  const t = useTranslations('reviews.form');
+  return <input placeholder={t('bodyPlaceholder')} />;
+}
+```
+
+---
+
+## Routing
+
+URL 必須含 locale：
+
+- `/zh-Hant/brokers` ✅
+- `/brokers` ❌（沒 locale prefix）
+
+`middleware.ts` 處理：
+- 未含 locale → 從 Accept-Language → cookie → 預設（zh-Hant）
+- 切換語言時更新 cookie
+
+---
+
+## 後端錯誤訊息
+
+API 不直接回傳人類可讀文字，而是 `error_code`：
+
+```json
+{
+  "error": {
+    "code": "REVIEW_TOO_SHORT",
+    "message": "Review body too short" // 給開發者看，不是給使用者
+  }
+}
+```
+
+前端依 `code` 在 i18n 訊息檔翻譯：
+
+```json
+// zh-Hant.json
+{
+  "errors": {
+    "REVIEW_TOO_SHORT": "評論至少 10 字"
+  }
+}
+```
+
+---
+
+## DB 多語欄位
+
+業務 metadata（券商介紹、KOL 簡介等）用 JSON 欄位多語存：
+
+```prisma
+model Broker {
+  id          String @id
+  // 多語欄位
+  name        Json   // { zh_hant, zh_hans, en }
+  description Json   // { zh_hant, zh_hans, en }
+  // ...
+}
+```
+
+或用獨立翻譯表（更可擴展）：
+
+```prisma
+model BrokerTranslation {
+  brokerId String
+  locale   String  // 'zh-Hant', 'zh-Hans', 'en'
+  field    String  // 'name', 'description'
+  value    String
+
+  @@id([brokerId, locale, field])
+}
+```
+
+---
+
+## 用戶生成內容（評論）翻譯
+
+流程：
+
+1. 用戶寫評論（簡中）
+2. DB 存原文 + `language='zh-Hans'`
+3. SQS event triggers Lambda
+4. Lambda 呼叫 DeepL → 翻成 zh-Hant + en
+5. 結果存 `review_translations` 表
+6. 前端依使用者 locale 顯示對應翻譯
+7. UI 標明「機器翻譯」+ 切換原文按鈕
+
+### 翻譯服務優先序
+
+1. **DeepL**（主）— 質量最好
+2. **OpenAI GPT-4**（備援）— 成本較低
+3. **Google Translate API**（最後備援）
+
+設定走 env feature flag：
+
+```ts
+TRANSLATION_PROVIDER_PRIMARY=deepl
+TRANSLATION_PROVIDER_FALLBACK=openai
+```
+
+---
+
+## 鏈上資料
+
+- 鏈上**只存原文 hash**
+- 翻譯不上鏈（會漂移）
+- 顯示時 frontend 根據原文 hash 查 DB 拿對應翻譯
+
+---
+
+## 文化敏感事項
+
+### 繁體中文
+
+- HK 用詞與 TW 不同（質素 vs 品質、信用咭 vs 信用卡）
+- 建議由 HK 在地團隊 review
+- 字型：思源宋體 / 思源黑體（支援港字）
+
+### 簡體中文
+
+- 注意敏感字詞（金融類用詞符合大陸規範）
+- 不可用 TW 慣用語
+
+### 英文
+
+- American English 為基準
+- 金融術語符合國際慣例
+- 縮寫第一次出現要全名（SFC = Securities and Futures Commission）
+
+---
+
+## 數字 / 日期 / 貨幣
+
+用 `Intl` API：
+
+```ts
+// 數字
+new Intl.NumberFormat('zh-Hant').format(12345.67)
+// "12,345.67"
+
+// 日期
+new Intl.DateTimeFormat('zh-Hant', {
+  year: 'numeric', month: 'long', day: 'numeric'
+}).format(new Date())
+// "2026年5月17日"
+
+// 貨幣
+new Intl.NumberFormat('zh-Hant', {
+  style: 'currency',
+  currency: 'HKD',
+}).format(100)
+// "HK$100.00"
+```
+
+---
+
+## 嚴禁
+
+- ❌ Hardcode 任何使用者可見文字
+- ❌ 在 component 用 `if (locale === 'zh-Hant')` 顯示不同內容（用 i18n 訊息檔）
+- ❌ 在後端回傳人類可讀文字（回 error_code）
+- ❌ 把翻譯結果上鏈
+- ❌ 在 console 不做 i18n（即使是 admin 用，也要遵守規範）
+- ❌ 漏譯欄位（CI 必須檢查 zh-Hant / zh-Hans / en 同步）

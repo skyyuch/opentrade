@@ -1,0 +1,253 @@
+---
+description: 安全與隱私規範（PDPO、PII、Secrets）
+alwaysApply: true
+---
+
+# Security & Privacy Standards
+
+> **最高優先級規則**。任何違反這些規則的 code 都不可進 main branch。
+
+---
+
+## Secrets 管理
+
+### 絕對不可寫死
+
+❌ 任何 secret 不可進 git：
+- API key（Privy、DeepL、Pinata、AWS）
+- 資料庫密碼
+- 智能合約 owner 私鑰
+- JWT signing key
+- Webhook secret
+
+### 環境變數
+
+- 開發環境：`.env.local`（絕不 commit）
+- 部署環境：**AWS Secrets Manager**
+- 各環境（dev/staging/prod）的 secret 完全獨立
+
+### 命名規範
+
+```bash
+# 前端可見（會 bundle 進 client）
+NEXT_PUBLIC_API_URL=https://api.opentrade.io
+NEXT_PUBLIC_PRIVY_APP_ID=xxx
+NEXT_PUBLIC_REVIEW_REGISTRY_ADDRESS=0x...
+
+# 後端 only（絕不 NEXT_PUBLIC_ 開頭）
+DATABASE_URL=postgres://...
+PRIVY_APP_SECRET=xxx
+DEEPL_API_KEY=xxx
+JWT_SECRET=xxx
+```
+
+### Validation
+
+任何 env 必須在 startup 用 zod 驗證：
+
+```ts
+// shared/config/env.ts
+const envSchema = z.object({
+  DATABASE_URL: z.string().url(),
+  JWT_SECRET: z.string().min(32),
+  // ...
+});
+
+export const env = envSchema.parse(process.env);
+```
+
+不允許散在各處用 `process.env.X`。
+
+---
+
+## PII（個人身份資料）保護
+
+依香港 **PDPO**（個人資料條例）：
+
+### 不可儲存的原始 PII
+
+- 月結單原檔（zk-proof 後丟棄）
+- 身份證影本（KYC 用後丟棄）
+- 完整信用卡 / 銀行帳號
+
+### 必須加密 / 脫敏的 PII
+
+- Email：加密儲存，顯示時脫敏 (`s***@gmail.com`)
+- 電話：加密儲存
+- 真實姓名：加密儲存
+- 錢包地址：明文（鏈上本來就 public）但顯示時 shorten
+
+### Log 規則
+
+- ❌ Log PII 原文
+- ✅ Log hash / shortened
+- ✅ Log `userId`（不洩漏身份）
+
+```ts
+// ❌ 不可
+logger.info({ email: user.email }, 'User logged in');
+
+// ✅ 應該
+logger.info({ userId: user.id }, 'User logged in');
+```
+
+---
+
+## Auth & Authorization
+
+### Auth 流程
+
+1. 前端用 Privy 登入 → 拿到 Privy access token
+2. 前端用 Privy token 換取 OpenTrade JWT（POST /v1/auth/exchange）
+3. 後續 API 請求帶 OpenTrade JWT
+4. JWT 過期 1 小時，refresh token 7 天
+
+### JWT 規範
+
+- 演算法：**ES256**（不用 HS256）
+- 私鑰存 AWS Secrets Manager
+- payload 不放 PII（只放 userId / role / exp）
+
+### Authorization
+
+每個 endpoint 必須明確標權限：
+
+```ts
+reviewsRouter.post('/', authMiddleware('verified'), ...);
+reviewsRouter.delete('/:id', authMiddleware('admin'), ...);
+```
+
+權限等級見 `30-api-hono.mdc`。
+
+### Rate Limit
+
+詳見 `30-api-hono.mdc`。重要的：
+
+- 登入 / 註冊：5 req/min/IP
+- 提交評論：3 req/min/user
+- 寫入合約：1 req/min/user
+
+---
+
+## 輸入驗證
+
+**所有外部輸入必須 zod 驗證**：
+- Request body / query / params
+- Webhook payload
+- 第三方 API 回應
+- 鏈上事件 data
+
+不可信任：
+- ❌ 前端傳來的 user role
+- ❌ 前端傳來的 wallet 地址（必須從 JWT 取）
+- ❌ 前端傳來的 timestamp（用 server time）
+- ❌ 鏈上 event 的 sender 沒驗證
+
+---
+
+## CORS
+
+詳見 `30-api-hono.mdc`。重點：
+- ✅ 白名單明確 origin
+- ❌ `origin: '*'`（除非真的 public API）
+
+---
+
+## CSRF
+
+- API 走 `Bearer token` 而非 cookie，天生免疫 CSRF
+- 若未來用 cookie：必須 SameSite=Lax + CSRF token
+
+---
+
+## XSS
+
+- React 預設 escape 輸出
+- ❌ 不用 `dangerouslySetInnerHTML`（除非 sanitize 過 + ADR）
+- 富文本必須走 DOMPurify
+
+---
+
+## 鏈上資料的 PII 風險
+
+⚠️ **鏈上不可逆**。任何寫上鏈的東西都是永久公開：
+
+### 可上鏈
+
+- 評論 hash
+- IPFS CID
+- KOL 訊號（buy/sell/symbol）
+- 投票結果
+- 錢包地址（本來就公開）
+
+### 不可上鏈
+
+- 評論原文（放 IPFS，鏈上只 hash）
+- 任何 PII
+- 任何個人身份證明
+- 任何商業敏感資料
+
+⚠️ IPFS 也是公開的，**真正私密的東西**：S3 + 加密。
+
+---
+
+## Smart Contract 安全
+
+詳見 `41-solidity-contracts.mdc`。重點：
+
+- 用 OpenZeppelin（不重造輪子）
+- 升級透過 multisig + timelock
+- 部署前 Slither / Mythril 掃描
+- mainnet 前必做第三方 audit
+
+---
+
+## DDoS / Abuse 防範
+
+- WAF 在 CloudFront 層擋常見攻擊
+- API Gateway throttling
+- 應用層 rate limit
+- 異常行為偵測（同一 IP 大量註冊、同一錢包大量提交）
+
+---
+
+## 監控與警報
+
+任何安全事件必須有 alert：
+
+- 多次登入失敗
+- 不正常的 API 呼叫量
+- 任何 5xx error
+- AWS Secrets Manager / IAM 設定變動
+- 合約 admin role 變動
+
+警報走 PagerDuty / Slack。
+
+---
+
+## Incident Response
+
+當發生安全事件：
+
+1. 立即 pause 受影響合約（透過 multisig）
+2. 切斷洩漏管道
+3. 通知使用者（PDPO 規定 72 小時內）
+4. 寫 incident report 進 `docs/incidents/`
+5. 寫 ADR 防止未來再發生
+
+---
+
+## 嚴禁清單
+
+- ❌ Secret 進 git
+- ❌ Secret 進前端 bundle
+- ❌ PII 進 log
+- ❌ PII 上鏈
+- ❌ `dangerouslySetInnerHTML` 沒 sanitize
+- ❌ SQL injection 風險（必用 Prisma 參數化）
+- ❌ 用 HS256 對稱 JWT
+- ❌ JWT 永不過期
+- ❌ 信任前端傳來的 role / wallet
+- ❌ 不驗證的輸入直接進 DB
+- ❌ Public S3 bucket 含使用者資料
+- ❌ 任何 bypass auth 的 backdoor（即使是「dev only」）

@@ -1,0 +1,248 @@
+---
+description: API (Hono on Node.js) 開發規範與 DDD 邊界
+globs: ["apps/api/**/*.{ts,js}"]
+alwaysApply: false
+---
+
+# API Standards (Hono + DDD)
+
+## 架構：DDD + Modular Monolith
+
+詳見 ADR-0006。每個 domain 嚴格按四層切：
+
+```
+apps/api/src/domains/{domain}/
+├── domain/              # Entity, VO, Domain Event, Repository interface
+├── application/         # Use Cases (Commands + Queries)
+├── infrastructure/      # 具體實作（Prisma repo, Chain client, IPFS）
+└── presentation/        # Hono routes + DTO + Mapper
+```
+
+---
+
+## API 版本策略
+
+- **所有 endpoint 從第一天就 `/v1/...`**
+- 新版本不取代舊版（v1 + v2 並存一段時間）
+- Breaking change 必須 v2，不可動 v1
+- Endpoint 命名 RESTful：
+  - `GET /v1/brokers` 列表
+  - `GET /v1/brokers/:id` 單一
+  - `POST /v1/brokers/:id/reviews` 巢狀
+  - `PATCH /v1/reviews/:id`
+  - `DELETE`（rare，soft delete only）
+
+---
+
+## 路由註冊
+
+```ts
+// apps/api/src/http/server.ts
+const app = new Hono();
+
+app.route('/v1/reviews', reviewsRouter);
+app.route('/v1/brokers', brokersRouter);
+// ...
+```
+
+每個 domain 自己的 `presentation/routes.ts` 暴露 `Hono` 實例，不直接寫進 server.ts。
+
+---
+
+## Validation
+
+所有 input 必須走 Zod：
+
+```ts
+import { zValidator } from '@hono/zod-validator';
+
+const submitReviewSchema = z.object({
+  brokerId: z.string().uuid(),
+  sentiment: z.enum(['positive', 'neutral', 'negative']),
+  body: z.string().min(10).max(2000),
+});
+
+reviewsRouter.post(
+  '/',
+  zValidator('json', submitReviewSchema),
+  async (c) => {
+    const data = c.req.valid('json');
+    // ...
+  },
+);
+```
+
+---
+
+## DTO（Data Transfer Object）
+
+`presentation/dto/` 定義對外 schema，**絕不直接暴露 Domain Entity**：
+
+```ts
+// presentation/dto/ReviewResponseDto.ts
+export type ReviewResponseDto = {
+  id: string;
+  brokerId: string;
+  sentiment: 'positive' | 'neutral' | 'negative';
+  body: string;
+  authorWalletAddress: string;
+  createdAt: string;
+  ipfsCid: string | null;
+  chainTxHash: string | null;
+};
+
+// presentation/mappers.ts
+export function toReviewDto(review: Review): ReviewResponseDto {
+  return { /* 明確映射 */ };
+}
+```
+
+---
+
+## 錯誤處理
+
+統一用 `AppError` + `ErrorCode`：
+
+```ts
+// shared/errors/AppError.ts
+export class AppError extends Error {
+  constructor(
+    public readonly code: ErrorCode,
+    message: string,
+    public readonly statusCode = 400,
+    public readonly cause?: unknown,
+  ) {
+    super(message);
+  }
+}
+
+// Usage
+throw new AppError(ErrorCode.REVIEW_NOT_FOUND, 'Review not found', 404);
+```
+
+API 回傳格式：
+
+```json
+{
+  "error": {
+    "code": "REVIEW_NOT_FOUND",
+    "message": "Review not found",
+    "details": { ... }
+  }
+}
+```
+
+前端依 `code` 做 i18n 翻譯（不直接顯示 server 的 message）。
+
+---
+
+## Logging
+
+- 用 **Pino** + 結構化 JSON
+- 必有欄位：`requestId`、`tenantId`、`userId`（若已登入）、`domain`
+- **絕不 log PII**（email / phone / wallet 私鑰 / 月結單內容）
+- log 等級：
+  - `debug` — 開發用，prod 關閉
+  - `info` — 業務事件（評論提交、仲裁完成）
+  - `warn` — 異常但可恢復
+  - `error` — 需要 alert
+
+```ts
+logger.info({
+  event: 'review.submitted',
+  reviewId,
+  brokerId,
+  userId,
+}, 'Review submitted');
+```
+
+---
+
+## Auth Middleware
+
+```ts
+import { authMiddleware } from '../shared/auth/middleware';
+
+reviewsRouter.post('/', authMiddleware('user'), async (c) => {
+  const user = c.get('user');
+  // ...
+});
+```
+
+權限等級：
+- `public` — 不需登入
+- `user` — L1+ 已登入
+- `verified` — L2+ 持有 SBT
+- `juror` — L3+ 創始陪審員
+- `admin` — L5 admin
+
+---
+
+## Domain Events（Outbox Pattern）
+
+跨 domain 通訊用 events，**不可直接呼叫他人 use case**：
+
+```ts
+// 在同一個 transaction 內：
+await prisma.$transaction(async (tx) => {
+  await reviewRepo.save(review, tx);
+  await outboxRepo.append({
+    type: 'review.submitted',
+    payload: { reviewId, brokerId },
+  }, tx);
+});
+```
+
+背景 worker 讀 outbox → SQS → 訂閱者處理。
+
+---
+
+## OpenAPI 自動產生
+
+- 用 `@hono/zod-openapi` 從 Zod schema 自動產生 OpenAPI 3 spec
+- spec 暴露在 `/v1/openapi.json`
+- 開發環境暴露 Swagger UI 在 `/v1/docs`
+- prod 環境只給 partner 看
+
+---
+
+## CORS
+
+`apps/api` 嚴格設定 CORS：
+
+```ts
+cors({
+  origin: [
+    'https://opentrade.io',
+    'https://console.opentrade.io',
+    'https://staging.opentrade.io',
+    'http://localhost:3000', // dev only
+    'http://localhost:3001',
+  ],
+  credentials: true,
+});
+```
+
+不可 `origin: '*'`。
+
+---
+
+## Rate Limiting
+
+- 所有 public endpoint 必須 rate limit
+- 預設：100 req/min/IP
+- 寫入 endpoint：10 req/min/user
+- 用 Redis 或 AWS API Gateway throttling
+
+---
+
+## 嚴禁
+
+- ❌ 在 presentation 層做業務邏輯（只能呼叫 use case）
+- ❌ 在 use case 直接 import Prisma / Hono（用 interface）
+- ❌ 直接回傳 Domain Entity / Prisma model（必須 mapping 到 DTO）
+- ❌ 跨 domain 直接呼叫 use case（用 events）
+- ❌ console.log（用 logger）
+- ❌ 在 endpoint 不做 input validation
+- ❌ 把 secret 寫進 code（一律 env）
+- ❌ 用 `process.env.X` 散落各處（包進 `shared/config`）

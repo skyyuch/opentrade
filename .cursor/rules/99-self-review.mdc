@@ -1,0 +1,214 @@
+---
+description: 自我檢視 Cursor Rules（Meta Rule，最低編號優先級但執行優先）
+alwaysApply: true
+---
+
+# Cursor Rules Self-Review (Meta Rule)
+
+> 規則本身需要與時俱進。每次重要修改後，必須檢視 cursor rules 是否需要更新。
+> 這條規則確保規則庫不會因為時間流逝而過時。
+
+---
+
+## 必須檢視的時機
+
+任何**一個**符合就要檢視：
+
+- ✅ 完成一個 commit（特別是引入新模式時）
+- ✅ 引入新 library / framework
+- ✅ 移除既有 library / framework
+- ✅ 改變專案結構
+- ✅ 寫了新 ADR（一定有對應的規則需要更新）
+- ✅ session handoff 前（依 rule 98）
+- ✅ 發現某條既有 rule 不再適用 / 描述不清
+
+---
+
+## 檢視流程
+
+### Step 1: 列出所有 rules
+
+```
+.cursor/rules/
+├── 00-project-overview.mdc
+├── 10-architecture.mdc
+├── 20-typescript.mdc
+├── 21-react-nextjs.mdc
+├── 22-tailwind-shadcn.mdc
+├── 30-api-hono.mdc
+├── 31-database-prisma.mdc
+├── 40-web3-frontend.mdc
+├── 41-solidity-contracts.mdc
+├── 50-security.mdc
+├── 51-i18n.mdc
+├── 60-testing.mdc
+├── 70-commit-pr.mdc
+├── 96-task-decomposition.mdc
+├── 97-status-update.mdc
+├── 98-session-handoff.mdc
+└── 99-self-review.mdc (本檔)
+```
+
+### Step 2: 對照本次變更
+
+逐一判斷每條 rule：
+
+| 判斷 | 動作 |
+|---|---|
+| 🔄 **需要修改** | 規則描述已過時 / 模糊 → 更新內容 |
+| ➕ **需要新增** | 引入了新模式 / 工具，但沒對應規則 → 新增規則 |
+| ➖ **需要刪除** | 規則所指的舊做法已被取代 → 刪除（或改 deprecated） |
+| ✅ **不變** | 規則仍然準確 |
+
+### Step 3: 報告與執行
+
+回覆使用者：
+
+```
+🔍 Cursor Rules Self-Review
+
+本次變更：[簡述]
+
+檢視結果：
+- 🔄 修改：[rule X]，原因 [...]
+- ➕ 新增：[rule Y]，內容 [...]
+- ➖ 刪除：[rule Z]，原因 [...]
+- ✅ 其他規則不變
+
+是否套用上述更新？(y/n)
+```
+
+使用者同意後，執行更新並 commit。
+
+### Step 4: 若無變更
+
+回覆：
+
+```
+🔍 Cursor Rules Self-Review
+
+本次變更：[簡述]
+
+✅ Cursor Rules 已 review，與本次變更一致，無需更動。
+```
+
+---
+
+## 新增 rule 的規範
+
+### 命名與編號
+
+| 編號區段 | 用途 |
+|---|---|
+| `00-09` | Meta / overview |
+| `10-19` | Architecture & structure |
+| `20-29` | Language / framework: TypeScript, React, Tailwind |
+| `30-39` | Backend: API, DB |
+| `40-49` | Web3: frontend, contracts |
+| `50-59` | Cross-cutting: security, i18n |
+| `60-69` | Quality: testing, performance |
+| `70-89` | Process: commit, PR, deployment |
+| `90-99` | Meta-discipline: task, status, handoff, self-review |
+
+新 rule 取下一個未使用編號。
+
+### Rule 檔案格式
+
+```markdown
+---
+description: 一句話描述這條規則做什麼
+globs: ["相關檔案 pattern"]   # 可選
+alwaysApply: true | false      # 是否每次都載入
+---
+
+# Rule Title
+
+## 內容區塊
+
+### 嚴禁
+- ❌ ...
+
+### 應該
+- ✅ ...
+```
+
+### Rule 內容原則
+
+- ✅ 具體可執行（不是空泛建議）
+- ✅ 有反例（❌）與正例（✅）
+- ✅ 有「嚴禁」清單
+- ✅ 連結相關 ADR
+- ❌ 不可與其他 rule 衝突
+- ❌ 不可重複既有 rule 的內容（用「詳見 rule X」連結）
+
+---
+
+## 修改 rule 的規範
+
+### 不必先寫 ADR 的修改
+
+- 補充例子
+- 修正 typo
+- 重排順序
+- 補充連結
+
+### 必須先寫 ADR 的修改
+
+- 改變既有禁令（從 ❌ 改成 ✅）
+- 改變既有強制行為
+- 改變編號 / 命名規範
+- 引入新章節影響多條 rules
+
+### 修改後
+
+- 在 commit message 寫清楚原因
+- 若影響其他 rule → 同步更新
+
+---
+
+## 刪除 rule 的規範
+
+通常不刪除，改：
+
+1. 把內容改成「This rule has been deprecated. See ADR-XXXX.」
+2. 將檔案重命名加 `.deprecated` 後綴：`50-old-rule.deprecated.mdc`
+3. 寫 ADR 說明 deprecation 原因
+
+只有以下情況可真正刪除：
+- 實驗性 rule 沒被採用
+- 與其他 rule 完全重複（要先合併）
+
+---
+
+## 規則衝突處理
+
+當兩條 rules 衝突：
+
+1. **編號小的優先**（00 > 99）
+2. **alwaysApply: true 優先**
+3. **更具體的 glob 優先**
+
+若無法判斷，必須寫 ADR 說明優先順序。
+
+---
+
+## 嚴禁
+
+- ❌ 跳過 self-review 直接 commit 重大變更
+- ❌ 改 rule 不寫 commit message 解釋原因
+- ❌ 改既有 rule 改成違反 ADR 的內容
+- ❌ 加 rule 但與既有 rule 衝突而不解決
+- ❌ Rule 改了但不把 99 的對應描述更新（比如新增 rule 50-59 編號）
+- ❌ 把使用者特定的偏好寫進 rule（rule 是專案級別，個人偏好寫在自己的 settings）
+
+---
+
+## 為什麼這條是最低優先級但執行重要
+
+數字大不代表不重要 —— 99 是「最後一道把關」。
+
+每次完成主要工作後，這條規則確保：
+- 規則庫與實際代碼狀態一致
+- 新加入的 AI agent 看到的規則是最新的
+- 規則與 ADR 同步演進
+- 「做了什麼」與「規範了什麼」永遠對齊
