@@ -5,9 +5,9 @@
   "description": "OpenTrade public-facing app for retail investors. Mobile-first, SEO-friendly, three-language UI.",
   "type": "module",
   "scripts": {
-    "build": "echo 'next build not yet initialized — see Phase 0 commit #3' && exit 0",
-    "dev": "echo 'next dev not yet initialized' && exit 0",
-    "start": "echo 'next start not yet initialized' && exit 0",
+    "dev": "next dev --port 3000",
+    "build": "next build",
+    "start": "next start --port 3000",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "echo 'no tests yet' && exit 0",
@@ -17,9 +17,21 @@
   "dependencies": {
     "@opentrade/config": "workspace:*",
     "@opentrade/shared": "workspace:*",
-    "@opentrade/ui": "workspace:*"
+    "@opentrade/ui": "workspace:*",
+    "next": "~14.2.35",
+    "next-intl": "^4.12.0",
+    "next-themes": "^0.4.6",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@types/node": "^22.10.5",
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.5.1",
+    "tailwindcss": "^3.4.17",
     "typescript": "^5.7.2"
   }
 }
