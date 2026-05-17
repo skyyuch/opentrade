@@ -10,3 +10,5 @@
  */
 
 export const PACKAGE_NAME = '@opentrade/shared' as const;
+
+export type { DependencyHealthDto, HealthReportDto, HealthStatus } from './health/HealthReportDto';
