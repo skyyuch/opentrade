@@ -3,5 +3,36 @@
     "title": "OpenTrade",
     "tagline": "區塊鏈讓金融服務評論回歸公正",
     "phaseNotice": "Phase 0 — 地基搭建中"
+  },
+  "status": {
+    "eyebrow": "系統狀態",
+    "title": "API 與依賴服務的健康檢查",
+    "subtitle": "OpenTrade API 與其底層依賴的即時運行狀態。本頁同時驗證 apps/web 與 apps/api 之間的跨包通訊。",
+    "refresh": "重新整理",
+    "overall": "整體狀態",
+    "uptime": "已運行",
+    "dependencies": "相依服務",
+    "lastChecked": "最後檢查：{value}",
+    "checkedAtLabel": "檢查時間",
+    "uptimeS": "{s} 秒",
+    "uptimeMs": "{m} 分 {s} 秒",
+    "uptimeHms": "{h} 時 {m} 分 {s} 秒",
+    "uptimeDhms": "{d} 天 {h} 時 {m} 分 {s} 秒",
+    "states": {
+      "OK": "正常運作",
+      "DEGRADED": "效能降級",
+      "DOWN": "停止服務"
+    },
+    "deps": {
+      "database": "資料庫"
+    },
+    "errors": {
+      "unreachableTitle": "無法連線至 API",
+      "unreachableHint": "Next.js 伺服器無法取得 OpenTrade API 的健康回應。請確認 apps/api 是否在運作，或環境變數 NEXT_PUBLIC_API_URL 是否正確。",
+      "code": "錯誤碼",
+      "status": "HTTP 狀態",
+      "requestId": "Request ID"
+    },
+    "disclaimer": "本頁僅顯示系統運行狀態，不構成任何投資建議。"
   }
 }

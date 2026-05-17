@@ -3,5 +3,36 @@
     "title": "OpenTrade",
     "tagline": "Bringing fairness back to financial-service reviews — on chain.",
     "phaseNotice": "Phase 0 — foundation in progress"
+  },
+  "status": {
+    "eyebrow": "System status",
+    "title": "API and dependency health check",
+    "subtitle": "Live health of the OpenTrade API and the services it depends on. This page also exercises the apps/web ↔ apps/api wire end to end.",
+    "refresh": "Refresh",
+    "overall": "Overall",
+    "uptime": "Uptime",
+    "dependencies": "Dependencies",
+    "lastChecked": "Last checked: {value}",
+    "checkedAtLabel": "Checked at",
+    "uptimeS": "{s}s",
+    "uptimeMs": "{m}m {s}s",
+    "uptimeHms": "{h}h {m}m {s}s",
+    "uptimeDhms": "{d}d {h}h {m}m {s}s",
+    "states": {
+      "OK": "Operational",
+      "DEGRADED": "Degraded",
+      "DOWN": "Down"
+    },
+    "deps": {
+      "database": "Database"
+    },
+    "errors": {
+      "unreachableTitle": "API unreachable",
+      "unreachableHint": "The Next.js server could not fetch a health response from the OpenTrade API. Confirm apps/api is running and that NEXT_PUBLIC_API_URL is set correctly.",
+      "code": "Code",
+      "status": "HTTP status",
+      "requestId": "Request ID"
+    },
+    "disclaimer": "This page reports operational status only and does not constitute investment advice."
   }
 }
