@@ -101,6 +101,7 @@ YYYY-MM-DD
 | 0010 | 用戶端與商戶後台拆兩個獨立 Next.js app             | Accepted | 2026-05-17 |
 | 0011 | OpenTrade UI 設計語言（Civic Trust + Web3 科技感） | Accepted | 2026-05-17 |
 | 0012 | 本機開發環境使用 docker-compose 跑 PostgreSQL      | Accepted | 2026-05-17 |
+| 0013 | Pin Prisma to 6.x — defer Prisma 7 adoption        | Accepted | 2026-05-17 |
 
 ---
 

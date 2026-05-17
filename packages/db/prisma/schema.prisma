@@ -1,0 +1,204 @@
+// OpenTrade — Prisma schema (single source of truth)
+//
+// This schema models the **off-chain mirror** of OpenTrade. It deliberately
+// stays small in Phase 0 (Tenant / User / Broker / BrokerLicense) and grows
+// per-domain in later phases (Review / KolSignal / Dispute / OutboxEvent / ...).
+//
+// Authoritative rules:
+//   - .cursor/rules/31-database-prisma.mdc
+//   - ADR-0002 (AWS RDS Postgres 16)
+//   - ADR-0006 (DDD + Modular Monolith — only apps/api consumes the runtime client)
+//   - ADR-0012 (local docker-compose Postgres for dev)
+//
+// Style conventions:
+//   - Model:    PascalCase singular (Tenant, BrokerLicense)
+//   - Field:    camelCase
+//   - Table:    snake_case via @@map
+//   - IDs:      UUID v4 stored as @db.Uuid
+//   - Auditing: createdAt + updatedAt on every row; deletedAt for soft delete
+//   - Tenant:   every user-scoped row carries tenantId so a future Prisma
+//               extension can transparently inject the filter
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// =============================================================================
+// Enums
+// =============================================================================
+
+/// Application role assigned to a User. Distinct from on-chain SBT tier:
+/// `role` controls platform permissions, `sbtTier` reflects on-chain identity.
+enum UserRole {
+  USER     // Default. Anyone signed in via Privy.
+  REVIEWER // Has the right to submit on-chain reviews (paired with L2 SBT).
+  JURY     // Founding juror; eligible for dispute arbitration.
+  ADMIN    // Internal staff (multisig-controlled in prod).
+}
+
+/// On-chain identity tier — mirrors docs/01-architecture.md §6 "身份分層".
+/// L0 (visitor) is not represented in the DB; users always have at least L1
+/// once they have completed a Privy social login.
+enum SbtTier {
+  L1 // Logged-in via Privy.
+  L2 // Verified investor (zk-proof of broker statement).
+  L3 // Founding juror (invite-only SBT).
+  L4 // Institution (KYC + license verified).
+}
+
+/// Regulator that issued a broker license. V1 ships HK_SFC only; future
+/// regulators (SG_MAS, TW_FSC, JP_FSA, ...) can be added as non-breaking
+/// enum values. Naming uses an ISO-country prefix to avoid name collisions.
+enum Regulator {
+  HK_SFC
+}
+
+/// Specific license category. Naming convention is `<REGULATOR>_<CATEGORY>`,
+/// so each value is self-describing about which jurisdiction's framework it
+/// belongs to and can be displayed as-is in admin tools.
+///
+/// SFC categories map to Hong Kong's 10 "regulated activities":
+///   https://www.sfc.hk/en/Welcome-to-the-Fintech-Contact-Point/Types-of-regulated-activities
+enum LicenseType {
+  HK_SFC_TYPE_1  // Dealing in securities — 證券交易
+  HK_SFC_TYPE_2  // Dealing in futures contracts — 期貨合約交易
+  HK_SFC_TYPE_3  // Leveraged foreign exchange trading — 槓桿式外匯交易
+  HK_SFC_TYPE_4  // Advising on securities — 就證券提供意見
+  HK_SFC_TYPE_5  // Advising on futures contracts — 就期貨合約提供意見
+  HK_SFC_TYPE_6  // Advising on corporate finance — 就機構融資提供意見
+  HK_SFC_TYPE_7  // Providing automated trading services — 提供自動化交易服務
+  HK_SFC_TYPE_8  // Securities margin financing — 證券保證金融資
+  HK_SFC_TYPE_9  // Asset management — 提供資產管理
+  HK_SFC_TYPE_10 // Providing credit rating services — 提供信貸評級服務
+}
+
+/// Lifecycle of a single broker license. Per project red-line rules we NEVER
+/// hard-delete: a revoked license is kept with status = REVOKED so it remains
+/// publicly visible on the broker profile.
+enum LicenseStatus {
+  ACTIVE
+  SUSPENDED
+  REVOKED
+  EXPIRED
+}
+
+// =============================================================================
+// Models
+// =============================================================================
+
+/// A logical jurisdiction / market segment. V1 only ships `code = "hk"`; the
+/// tenantId column on every user-scoped table exists from day one so future
+/// regions (TW, SG, ...) can be added without schema migrations.
+model Tenant {
+  id            String   @id @default(uuid()) @db.Uuid
+  code          String   @unique
+  name          String
+  defaultLocale String   @default("zh-Hant")
+  timezone      String   @default("Asia/Hong_Kong")
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  users    User[]
+  brokers  Broker[]
+  licenses BrokerLicense[]
+
+  @@map("tenants")
+}
+
+/// A registered platform user. Identity originates from Privy social login;
+/// the AA wallet address is populated asynchronously after Privy mints it.
+///
+/// PII handling (per rule 50):
+///   - `email` is a plaintext placeholder in Phase 0. App-layer envelope
+///     encryption + display-time masking lands with the auth flow in Commit #5.
+///   - `displayName` is user-controlled and not treated as PII.
+///   - `privyId` is an opaque external identifier; not PII on its own.
+model User {
+  id              String   @id @default(uuid()) @db.Uuid
+  tenantId        String   @db.Uuid
+  privyId         String
+  walletAddress   String?  @unique
+  email           String?
+  displayName     String?
+  preferredLocale String?
+  role            UserRole @default(USER)
+  sbtTier         SbtTier  @default(L1)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@unique([tenantId, privyId])
+  @@index([tenantId, role])
+  @@index([tenantId, sbtTier])
+  @@map("users")
+}
+
+/// A financial services provider that can receive reviews. For Phase 1 these
+/// are Hong Kong SFC-licensed securities brokers, seeded from public SFC data
+/// so users can write reviews about brokers that have not yet onboarded.
+///
+/// `isClaimed` flips to true once an L4 KYC has completed for a custodial
+/// staff user. Pre-claim, `description` / `logoUrl` come from the seed.
+model Broker {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @db.Uuid
+  slug        String
+  legalName   String
+  displayName String
+  websiteUrl  String?
+  description String?  @db.Text
+  logoUrl     String?
+  isClaimed   Boolean  @default(false)
+  claimedAt   DateTime?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  tenant   Tenant          @relation(fields: [tenantId], references: [id])
+  licenses BrokerLicense[]
+
+  @@unique([tenantId, slug])
+  @@index([tenantId, isClaimed])
+  @@index([tenantId, legalName])
+  @@map("brokers")
+}
+
+/// A single regulator-issued license belonging to a Broker. Normalized into
+/// its own table so we can track issuance date, expiry, and lifecycle status
+/// without losing history. On revocation we DO NOT delete the row; we change
+/// status to REVOKED and keep showing the historical record on the broker
+/// profile (this is a core trust signal — investors must see who got struck off).
+model BrokerLicense {
+  id            String        @id @default(uuid()) @db.Uuid
+  tenantId      String        @db.Uuid
+  brokerId      String        @db.Uuid
+  regulator     Regulator
+  licenseType   LicenseType
+  licenseNumber String
+  issuedAt      DateTime
+  expiresAt     DateTime?
+  status        LicenseStatus @default(ACTIVE)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  broker Broker @relation(fields: [brokerId], references: [id])
+
+  @@unique([tenantId, regulator, licenseNumber])
+  @@index([tenantId, brokerId])
+  @@index([tenantId, status])
+  @@index([tenantId, regulator, licenseType])
+  @@map("broker_licenses")
+}
