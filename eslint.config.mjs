@@ -30,6 +30,7 @@ export default tseslint.config(
       '**/cache/**',
       '**/artifacts/**',
       '**/typechain-types/**',
+      '**/*.mdx',
     ],
   },
 
@@ -161,6 +162,18 @@ export default tseslint.config(
       '@typescript-eslint/no-unsafe-member-access': 'off',
       'import-x/no-default-export': 'off',
       'no-console': 'off',
+    },
+  },
+
+  // Storybook config + stories conventionally use default exports
+  {
+    files: [
+      '**/.storybook/**/*.{ts,tsx}',
+      '**/*.stories.@(ts|tsx)',
+      '**/tailwind.preset.{ts,js,mjs}',
+    ],
+    rules: {
+      'import-x/no-default-export': 'off',
     },
   },
 

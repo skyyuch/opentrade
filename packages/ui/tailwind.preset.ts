@@ -138,5 +138,4 @@ const preset = {
 } satisfies Partial<Config>;
 
 // Tailwind requires the preset to be a default export.
-// eslint-disable-next-line import-x/no-default-export
 export default preset;

@@ -39,12 +39,13 @@
     "README.md"
   ],
   "scripts": {
+    "dev": "storybook dev -p 6006 --no-open",
+    "storybook": "storybook dev -p 6006",
+    "build-storybook": "storybook build",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "echo 'no tests yet' && exit 0",
     "test:unit": "echo 'no tests yet' && exit 0",
-    "storybook": "echo 'storybook not yet initialized — see Phase 0.4' && exit 0",
-    "build-storybook": "echo 'storybook not yet initialized' && exit 0",
     "clean": "rm -rf .turbo dist storybook-static node_modules/.cache"
   },
   "peerDependencies": {
@@ -60,15 +61,26 @@
     "tailwind-merge": "^2.5.5"
   },
   "devDependencies": {
+    "@storybook/addon-a11y": "^8.6.18",
+    "@storybook/addon-essentials": "^8.6.18",
+    "@storybook/addon-interactions": "^8.6.18",
+    "@storybook/addon-themes": "^8.6.18",
+    "@storybook/blocks": "^8.6.18",
+    "@storybook/react": "^8.6.18",
+    "@storybook/react-vite": "^8.6.18",
+    "@storybook/test": "^8.6.18",
     "@types/react": "^18.3.18",
     "@types/react-dom": "^18.3.5",
+    "@vitejs/plugin-react": "^4.3.4",
     "autoprefixer": "^10.4.20",
     "postcss": "^8.5.1",
     "prettier-plugin-tailwindcss": "^0.6.9",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "storybook": "^8.6.18",
     "tailwindcss": "^3.4.17",
     "tailwindcss-animate": "^1.0.7",
-    "typescript": "^5.7.2"
+    "typescript": "^5.7.2",
+    "vite": "^5.4.11"
   }
 }

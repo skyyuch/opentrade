@@ -1,0 +1,57 @@
+import { Meta } from '@storybook/blocks';
+
+<Meta title="OpenTrade / Introduction" />
+
+# OpenTrade Design System
+
+> **Civic Trust + Web3 Tech Feel** — like a Hong Kong financial-district institution, digitised, with the openness and verifiability of Web3.
+
+This Storybook is the source of truth for OpenTrade's UI. Every primitive
+and compound used in `apps/web` and `apps/console` is documented and
+visually tested here **before** it ships into a page.
+
+## Why a separate Storybook?
+
+Per [ADR-0009](../../docs/decisions/0009-storybook-ui-first.md) the design
+system is a first-class citizen: it has its own development workflow, its
+own visual regression coverage, and its own demo target (investors and
+designers can review the system without running the apps).
+
+## Design language
+
+Per [ADR-0011](../../docs/decisions/0011-ui-design-language.md):
+
+- **Dual-tone palette**: Sapphire (primary) + Gilded (accent).
+  Functional colours are sober — never neon, never marketing-pink.
+- **Cool slate neutrals** — not warm grey. Feels like a Web3 product
+  rather than a consumer app.
+- **Hairline borders, restrained shadows, generous whitespace.**
+- **Tabular numerals everywhere** for finance data trust.
+- **OpenTrade-unique visuals**: ImmutableMark on every on-chain datum,
+  SBT badge tiers, justice/jury iconography.
+
+## What competitors are doing (so we know what to avoid)
+
+| Platform | Vibe | OpenTrade does what? |
+| --- | --- | --- |
+| WikiFX | Pop-up ads, garish | The opposite |
+| Glassdoor | Sterile enterprise grey | More opinionated |
+| Stripe | Trust + modern + clean | Take it as the north star |
+| Linear | Dark, precise | Take it for `apps/console` |
+| Uniswap | Crypto purple, playful | Avoid — HK retail rejects it |
+
+## Navigation
+
+- **Foundations / Design Tokens** — palette, type scale, spacing
+- **Primitives** — shadcn-style atoms (Button, …)
+- **Compounds** — OpenTrade business components (ImmutableMark, …)
+
+## Contributing
+
+A new component is not "done" until:
+
+1. It compiles, type-checks, and lints
+2. It has at least 3 stories (default, edge case, every variant)
+3. It is visually verified in **both light and dark themes**
+4. It passes `addon-a11y` colour-contrast and aria checks
+5. It is exported from the package barrel
