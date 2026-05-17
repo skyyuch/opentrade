@@ -1,0 +1,3 @@
+# Foundry deploy / upgrade scripts (`forge script script/Deploy.s.sol ...`)
+# live here from Phase 1 onward. Never commit private keys — `--private-key`
+# arguments come from env vars or a keystore (per rule 41 §"Deploy").

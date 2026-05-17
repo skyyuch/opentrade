@@ -1,0 +1,60 @@
+# =============================================================================
+# OpenTrade smart-contract compiler & formatter configuration.
+#
+# Authoritative sources for every value below:
+#   - ADR-0001 (Base L2 as primary chain, OP Stack-generic)
+#   - ADR-0015 (packages/contracts toolchain setup)
+#   - .cursor/rules/41-solidity-contracts.mdc (Solidity standards)
+#
+# Deploy-time settings (RPC URLs, BaseScan API keys) MUST live in env vars,
+# never in this file — see ADR-0015 §"Why no [rpc_endpoints] in foundry.toml".
+# =============================================================================
+
+[profile.default]
+src = "src"
+out = "out"
+libs = ["lib"]
+test = "test"
+script = "script"
+
+# Pinned per rule 41 — every upgrade to the pragma needs an ADR.
+solc_version = "0.8.24"
+
+# Paris is the lowest common denominator across Base Sepolia / Base Mainnet
+# today. Cancun (PUSH0 + TLOAD/TSTORE) is supported on OP Stack but pinning
+# Paris keeps Phase 0 contracts portable across every OP Stack rollup.
+# When (and only when) we need transient storage, write an ADR and flip.
+evm_version = "paris"
+
+optimizer = true
+optimizer_runs = 200
+
+# Deterministic deploy bytecode: stripping the metadata hash means repeated
+# builds and multi-machine verifications produce byte-identical artifacts.
+# Crucial when verifying on BaseScan from a CI runner that differs from a
+# local dev machine.
+bytecode_hash = "none"
+cbor_metadata = false
+
+# Per rule 41 — fuzz + invariant are required test classes for any business
+# contract. Phase 0 has no business contracts yet, but the budget is set so
+# `forge test` Just Works once Phase 1 starts.
+fuzz = { runs = 1024 }
+invariant = { runs = 256, depth = 32 }
+
+# Lazy remappings: rely on remappings.txt (committed) instead of auto-detect
+# so that solhint, VSCode and CI all see the same mapping table.
+auto_detect_remappings = false
+
+# =============================================================================
+# Formatter (per rule 41 + ADR-0015 §"Forge fmt as the single style source")
+# =============================================================================
+[fmt]
+line_length = 120
+tab_width = 4
+bracket_spacing = true
+int_types = "long"
+multiline_func_header = "params_first"
+quote_style = "double"
+number_underscore = "thousands"
+sort_imports = true

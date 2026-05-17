@@ -1,0 +1,3 @@
+# Business contracts land here in Phase 1 onward (per rule 41 + ADR-0008).
+# Phase 0 intentionally keeps this directory empty — the toolchain is the
+# deliverable, not the contracts.
