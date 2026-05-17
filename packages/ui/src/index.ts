@@ -24,4 +24,4 @@ export const PACKAGE_NAME = '@opentrade/ui' as const;
 export * from './design-tokens';
 export * from './utils';
 export * from './primitives';
-// Compounds are re-exported as they ship; the barrel is currently a stub.
+export * from './compounds';
