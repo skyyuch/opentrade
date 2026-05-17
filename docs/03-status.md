@@ -141,8 +141,7 @@
 
 - [x] git config：`skyyuch <skyyuch@gmail.com>`
 - [x] Remote 連 `git@github.com:skyyuch/opentrade.git`（SSH）
-- [x] Commit #1 ~ number-five 全部 push 到 GitHub
-- [ ] Commit number-six（本 session 6 個 commit + 1 個 docs commit）尚未 push（等使用者確認後再 push）
+- [x] Commit #1 ~ number-six 全部 push 到 GitHub（HEAD = `aa52ddb`）
 
 ---
 
