@@ -227,8 +227,9 @@ curl -s http://localhost:3001/en      # en:      OpenTrade merchant back office
 
 ### 結束本 session 時的 git 狀態
 
-- branch: `main`，落後 origin/main **8** 個 commit（待 push）
+- branch: `main`，與 `origin/main` 同步（push 完成）
 - HEAD（本 session 開始前）：`71ad956 docs(status): mark commit number-six as pushed`
+- HEAD（本 session 結束）：`3c44684 docs(status): handoff after commit number-seven (apps/console shipped)`，後續再加一個小 status commit 標 push 完成
 - 本 session commits（時間順）：
   1. `4cdfade` chore(console): add next 14, next-intl, react 18 and tailwind deps
   2. `d5c9f44` chore(console): wire next.config, tailwind preset and postcss pipeline
@@ -237,4 +238,5 @@ curl -s http://localhost:3001/en      # en:      OpenTrade merchant back office
   5. `81517fe` feat(console): add merchant dashboard placeholder shell
   6. `c7b0ad9` feat(console): add robots disallow-all and zod-validated client env
   7. `6237948` docs(console): document the Phase 0 console shell and how to run it
-  8. （本 docs commit — 接下來要 ship）
+  8. `3c44684` docs(status): handoff after commit number-seven (apps/console shipped)
+  9. （`docs(status): mark commit number-seven as pushed` — 本 push 後追加）
