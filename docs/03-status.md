@@ -9,8 +9,8 @@
 ## 最後更新
 
 - **日期**：2026-05-17
-- **更新者**：UI 設計策略 session（Claude Opus 4.7）— Commit #3 完成
-- **本次更新摘要**：完成 Commit #3 packages/ui 初始化 — design tokens、Tailwind preset、cn util、Storybook 8、Button primitive、ImmutableMark compound（OpenTrade 視覺武器）；ADR-0011 寫定 UI 設計語言；重新排序 Phase 0 commits 為依賴正確的 Option C
+- **更新者**：Commit #4 session（Claude Opus 4.7）— `packages/db` 初始化
+- **本次更新摘要**：完成 Commit #4 — root docker-compose Postgres 16、`@opentrade/db` Prisma 6.19.3 骨架（zod env + HMR-safe singleton client）、首個 migration（Tenant / User / Broker / BrokerLicense + 5 個 enum、17 個 index、4 個 FK），實際 apply 到本機 docker DB 驗證；ADR-0012 寫定本機 dev DB 策略、ADR-0013 寫定 Prisma 6.x pin 策略
 
 ---
 
@@ -18,7 +18,7 @@
 
 **Phase 0：地基搭建**
 
-進度：72%
+進度：82%
 
 ---
 
@@ -74,18 +74,40 @@
 - [x] `pnpm lint` 通過（8/8 packages）
 - [x] `pnpm format:check` 通過
 
+### Commit #4：packages/db 初始化（本 session 完成）
+
+- [x] ADR-0012：本機開發環境使用 docker-compose 跑 PostgreSQL
+- [x] ADR-0013：Pin Prisma 到 6.x，暫不升 Prisma 7（driver-adapter 模式過於前沿）
+- [x] root `docker-compose.yml`（Postgres 16-alpine + named volume + healthcheck + UTC tz）
+- [x] root `.env.example`（DATABASE_URL / DATABASE_READ_URL + 預留 JWT / Privy / 鏈 / IPFS slots）
+- [x] root `README.md` 加「本機開發環境」段落（前置依賴、第一次設定、日常指令）
+- [x] `packages/db/prisma/schema.prisma`：
+  - 5 個 enum（`UserRole`、`SbtTier`、`Regulator`、`LicenseType`、`LicenseStatus`）
+  - 4 個 model（`Tenant`、`User`、`Broker`、`BrokerLicense`）
+  - 全程符合 rule 31 命名（PascalCase model / camelCase 欄位 / snake_case 表名 / UUID PK / `tenantId` / `createdAt-updatedAt-deletedAt` 三件套）
+  - `Tenant.timezone` + `Tenant.defaultLocale` + `User.preferredLocale` 預載
+  - 牌照正規化為獨立表（吊銷不刪 row，只改 status）
+- [x] `packages/db/src/env.ts`：zod 驗證 `DATABASE_URL` / `DATABASE_READ_URL`（per rule 50）
+- [x] `packages/db/src/client.ts`：PrismaClient HMR-safe singleton（rw + readonly）
+- [x] `packages/db/src/index.ts`：re-export 模型 type + enum 值（前端 `import type` 紀律）
+- [x] `package.json` scripts：`db:format / db:generate / db:migrate:dev / db:migrate:deploy / db:migrate:status / db:migrate:reset / db:studio`（全部走 `dotenv-cli -e ../../.env`）
+- [x] postinstall hook 自動 `prisma generate`（新人 `pnpm install` 即拿到 typed client）
+- [x] 首個 migration `20260517100533_init_tenant_user_broker_license` 真實 apply 到本機 docker DB
+- [x] 驗證：4 表 + 5 enum + 17 index + 4 FK 在容器內正確存在
+- [x] 全包 `pnpm typecheck / lint / format:check` 全綠
+
 ### GitHub 設定
 
 - [x] git config：`skyyuch <skyyuch@gmail.com>`
 - [x] Remote 連 `git@github.com:skyyuch/opentrade.git`（SSH）
 - [x] Commit #1 推送到 GitHub
-- [ ] Commit #2 推送（即將）
+- [ ] Commit #2 / #3 / #4 push 到 GitHub（本 session 結束時統一 push）
 
 ---
 
 ## 進行中
 
-無（本 session 完成 Commit #3 後即停止 / 換手）。
+無（本 session 完成 Commit #4 後即停止 / 換手）。
 
 ---
 
@@ -95,13 +117,12 @@
 
 ### 立即（下個 session）
 
-1. **Commit #4：packages/db 初始化** — Prisma init + 第一個 migration（user / tenant / broker 基礎）
-2. **Commit #5：apps/api 初始化** — Hono + DDD 骨架（health endpoint，尚不寫業務）
-3. **Commit #6：apps/web 初始化** — Next.js 14 App Router + next-intl + Tailwind + 使用 packages/ui 元件
-4. **Commit #7：apps/console 初始化** — Next.js 14（dark default + dashboard 風格）
-5. **Commit #8：packages/contracts 初始化** — Foundry init + OpenZeppelin
-6. **Commit #9：infra/terraform 雛形** — VPC、RDS、ECS Fargate、S3、Secrets Manager
-7. **Commit #10：CI/CD GitHub Actions** — lint + typecheck + test 在 PR 上自動跑
+1. **Commit #5：apps/api 初始化** — Hono + DDD 骨架（health endpoint 連 `@opentrade/db`，尚不寫業務 domain）；env 模組擴大；OutboxEvent 表進 schema
+2. **Commit #6：apps/web 初始化** — Next.js 14 App Router + next-intl + Tailwind + 使用 packages/ui 元件
+3. **Commit #7：apps/console 初始化** — Next.js 14（dark default + dashboard 風格）
+4. **Commit #8：packages/contracts 初始化** — Foundry init + OpenZeppelin
+5. **Commit #9：infra/terraform 雛形** — VPC、RDS、ECS Fargate、S3、Secrets Manager
+6. **Commit #10：CI/CD GitHub Actions** — lint + typecheck + test + migrate 在 PR 上自動跑（並設 Renovate / dependabot 排除 Prisma 7.x，per ADR-0013）
 
 ### 中期（Phase 1）
 
@@ -130,6 +151,8 @@
 - ❓ **License 選擇**：Business Source License 1.1 vs AGPL-3.0 — 上線前決定
 - ❓ **設計師資源**：是否找 freelance 香港設計師（HK$30-80k 預算）做 Figma 高保真稿
 - ❓ **KOL 訊號的 oracle**：Chainlink Price Feeds vs Pyth — Phase 2 開始前決定
+- ❓ **Prisma 7 升級時機**：目前 pin 6.x（ADR-0013）；Prisma 7 driver-adapter 模式成熟後（>= 7.5+ 或 12 個月後）寫 successor ADR
+- ❓ **User.email 加密策略**：Phase 0 `String?` 占位；Commit #5 起需決定 envelope encryption（KMS）vs application-level encryption（AES-256-GCM）
 
 ---
 
@@ -153,13 +176,17 @@
 # Node 與 pnpm
 node -v   # v22.22.3 (LTS Jod, 透過 nvm 管理)
 pnpm -v   # 9.15.4 (透過 corepack 啟用)
+docker --version  # 29.4.2 (Commit #4 起本機 dev DB 必備, per ADR-0012)
 
 # 進入專案後
 cd OpenTrade
-pnpm install        # 安裝全部 262 個依賴
-pnpm typecheck      # 全包 type 檢查
-pnpm lint           # 全包 ESLint
-pnpm format:check   # 全包 Prettier 檢查
+cp .env.example .env                            # 首次：建立 gitignored .env
+pnpm install                                    # 安裝全部依賴 (postinstall 跑 prisma generate)
+docker compose up -d postgres                   # 起本機 Postgres 16
+pnpm --filter @opentrade/db db:migrate:dev      # apply 任何 pending migration
+pnpm typecheck                                  # 全包 type 檢查
+pnpm lint                                       # 全包 ESLint
+pnpm format:check                               # 全包 Prettier 檢查
 ```
 
 `.nvmrc` 已設為 `22`，使用者進到專案資料夾時 zsh hook 會自動切到正確 Node 版本。
@@ -180,7 +207,8 @@ pnpm format:check   # 全包 Prettier 檢查
 
 ## Session History
 
-| 日期       | Session 主題                                       | Agent 模型      | 主要產出                                                                                             | Conversation Log                                                |
-| ---------- | -------------------------------------------------- | --------------- | ---------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
-| 2026-05-17 | 初始規劃 + 建立項目記憶系統 + Monorepo 骨架        | Claude Opus 4.7 | Commit #1 文件骨架 + Commit #2 Monorepo + GitHub 連線                                                | [link](./conversations/2026-05-17-initial-planning.md)          |
-| 2026-05-17 | UI 設計策略 + commit 順序調整 + packages/ui 初始化 | Claude Opus 4.7 | ADR-0011 UI 設計語言 + Commit #3 packages/ui 完成（design tokens、Storybook、Button、ImmutableMark） | [link](./conversations/2026-05-17-ui-design-and-packages-ui.md) |
+| 日期       | Session 主題                                       | Agent 模型      | 主要產出                                                                                                                                                      | Conversation Log                                                |
+| ---------- | -------------------------------------------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| 2026-05-17 | 初始規劃 + 建立項目記憶系統 + Monorepo 骨架        | Claude Opus 4.7 | Commit #1 文件骨架 + Commit #2 Monorepo + GitHub 連線                                                                                                         | [link](./conversations/2026-05-17-initial-planning.md)          |
+| 2026-05-17 | UI 設計策略 + commit 順序調整 + packages/ui 初始化 | Claude Opus 4.7 | ADR-0011 UI 設計語言 + Commit #3 packages/ui 完成（design tokens、Storybook、Button、ImmutableMark）                                                          | [link](./conversations/2026-05-17-ui-design-and-packages-ui.md) |
+| 2026-05-17 | packages/db 初始化（Commit #4）                    | Claude Opus 4.7 | ADR-0012 本機 docker Postgres + ADR-0013 Pin Prisma 6.x + Commit #4 完成（Tenant/User/Broker/BrokerLicense + 5 enum + 17 index，首個 migration apply 到本機） | _(待換手時歸檔)_                                                |

@@ -19,17 +19,25 @@
 
 ## 香港監管術語
 
-| 中文        | English                                | 定義                                                  |
-| ----------- | -------------------------------------- | ----------------------------------------------------- |
-| SFC         | Securities and Futures Commission      | 香港證券及期貨事務監察委員會                          |
-| 第 1 類牌照 | Type 1 License                         | 證券交易                                              |
-| 第 2 類牌照 | Type 2 License                         | 期貨合約交易                                          |
-| 第 4 類牌照 | Type 4 License                         | 就證券提供意見（OpenTrade 必須避開）                  |
-| VATP        | Virtual Asset Trading Platform License | 虛擬資產交易平台牌照（OpenTrade 不發 token 即可避開） |
-| PDPO        | Personal Data (Privacy) Ordinance      | 個人資料（私隱）條例                                  |
-| 創科局      | ITC                                    | Innovation and Technology Commission，香港創新科技署  |
-| CCMF        | Cyberport Creative Micro Fund          | 數碼港創意微型基金，10 萬港幣                         |
-| HKSTP       | Hong Kong Science and Technology Parks | 香港科技園                                            |
+| 中文         | English                                | 定義                                                                               |
+| ------------ | -------------------------------------- | ---------------------------------------------------------------------------------- |
+| SFC          | Securities and Futures Commission      | 香港證券及期貨事務監察委員會                                                       |
+| 第 1 類牌照  | Type 1 License                         | 證券交易（schema 內為 `HK_SFC_TYPE_1`）                                            |
+| 第 2 類牌照  | Type 2 License                         | 期貨合約交易（`HK_SFC_TYPE_2`）                                                    |
+| 第 3 類牌照  | Type 3 License                         | 槓桿式外匯交易（`HK_SFC_TYPE_3`）                                                  |
+| 第 4 類牌照  | Type 4 License                         | 就證券提供意見（`HK_SFC_TYPE_4`，OpenTrade 必須避開）                              |
+| 第 5 類牌照  | Type 5 License                         | 就期貨合約提供意見（`HK_SFC_TYPE_5`）                                              |
+| 第 6 類牌照  | Type 6 License                         | 就機構融資提供意見（`HK_SFC_TYPE_6`）                                              |
+| 第 7 類牌照  | Type 7 License                         | 提供自動化交易服務（`HK_SFC_TYPE_7`）                                              |
+| 第 8 類牌照  | Type 8 License                         | 證券保證金融資（`HK_SFC_TYPE_8`）                                                  |
+| 第 9 類牌照  | Type 9 License                         | 提供資產管理（`HK_SFC_TYPE_9`）                                                    |
+| 第 10 類牌照 | Type 10 License                        | 提供信貸評級服務（`HK_SFC_TYPE_10`）                                               |
+| CE Number    | Central Entity Number                  | SFC 發給每位持牌人的識別號（例如 "BJA907"），在 `BrokerLicense.licenseNumber` 欄位 |
+| VATP         | Virtual Asset Trading Platform License | 虛擬資產交易平台牌照（OpenTrade 不發 token 即可避開）                              |
+| PDPO         | Personal Data (Privacy) Ordinance      | 個人資料（私隱）條例                                                               |
+| 創科局       | ITC                                    | Innovation and Technology Commission，香港創新科技署                               |
+| CCMF         | Cyberport Creative Micro Fund          | 數碼港創意微型基金，10 萬港幣                                                      |
+| HKSTP        | Hong Kong Science and Technology Parks | 香港科技園                                                                         |
 
 ## Web3 / 區塊鏈術語
 
@@ -75,6 +83,9 @@
 | 基礎設施即程式碼 | Infrastructure as Code (IaC)       | 用程式碼描述基礎設施，例如 Terraform                       |
 | 特性開關         | Feature Flag                       | 用設定控制功能開關，無需重新部署                           |
 | 不可變基礎設施   | Immutable Infrastructure           | 部署新版本而非修改現有伺服器                               |
+| 軟刪除           | Soft Delete                        | 將記錄標為 `deletedAt` 而非真的 DELETE，保留歷史可追溯性   |
+| 監管機構         | Regulator                          | 發出金融牌照的官方機構，schema 內為 `Regulator` enum       |
+| 牌照記錄         | BrokerLicense                      | 證券商持有的單張牌照紀錄，吊銷後保留 row 並改為 REVOKED    |
 
 ## OpenTrade 內部專用詞
 
