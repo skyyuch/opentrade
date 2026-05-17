@@ -9,8 +9,8 @@
 ## 最後更新
 
 - **日期**：2026-05-17
-- **更新者**：Commit number-six session（Claude Opus 4.7）— `apps/web` 初始化
-- **本次更新摘要**：完成 Commit number-six — `apps/web` Next.js 14 + next-intl 4 三語（zh-Hant 預設 / zh-Hans / en，`as-needed` prefix）+ Tailwind 接 `@opentrade/ui/tailwind-preset` + `next-themes` ThemeProvider（light default per ADR-0011）+ Inter via `next/font/google`（build-time self-hosted，GDPR-safe）+ zod-validated `NEXT_PUBLIC_API_URL` env + 端到端 typed API client（`apiGet<T>` + `ApiClientError` lift rule 30 envelope）+ `HealthReportDto` 移到 `packages/shared`（避免跨 apps 邊界，per rule 10）+ `/status` 頁面 Server Component 對接 `apps/api/v1/health`（首次在 Storybook 之外真實使用 `<Button>`）+ `RefreshButton` Client Component（useTransition + locale-aware `useRouter`）；prod `next build` 9 個 SSG static page 全綠、prod `next start` + apps/api 端到端三 locale 真實 DB 延遲驗證；同時 ship Cursor Rules 5 項 deferred sync（rule 30 AppError 簽章、預設 statusCode、error envelope `requestId` + rule 31 seed bootstrap-data 例外 + commitlint scope `status`）
+- **更新者**：Commit number-seven session（Claude Opus 4.7）— `apps/console` 初始化
+- **本次更新摘要**：完成 Commit number-seven — `apps/console` Next.js 14 殼，大量複用 `apps/web` 模板：next-intl 4 三 locale（zh-Hant 預設 / zh-Hans / en，`as-needed` prefix）+ Tailwind 接 `@opentrade/ui/tailwind-preset` + Inter via `next/font/google` + zod-validated `NEXT_PUBLIC_API_URL` + dotenv -e ../../.env shared root env；唯一行為差異是 `<ThemeProvider defaultTheme="dark">`（per ADR-0011 dashboard 暗色慣例）、dev port 3001（per ADR-0010）；新增 `/dashboard` 殼商戶後台 placeholder（4 張功能 card：claim / reviews / signals / disputes，純 Tailwind utility，**刻意不用 ImmutableMark** per ADR-0011 §5.1 mock data 紀律）+ site-level `app/robots.ts` disallow-all（per ADR-0010 console 不對外 SEO）+ `<meta name="robots" content="noindex, nofollow">` layout metadata 雙保險。`apps/console` 殼**不接 auth**（auth gate 為 Phase 1 任務，middleware 內已標 TODO 給未來 agent）。Prod `next build` 7 個 SSG static page 全綠、`next start` 端到端三 locale 真實驗證：title `OpenTrade 商戶後台` / `OpenTrade 商户后台` / `OpenTrade merchant back office`、next-themes inline script 注入 `("class","theme","dark",...)` 確認 dark default、`/robots.txt` 回 `User-Agent: * Disallow: /`、HTTP 404 on 不存在 route。Phase 0 進度從 93% 推進到 95%（剩 contracts / infra / CI 三個 commit）。
 
 ---
 
@@ -18,7 +18,7 @@
 
 **Phase 0：地基搭建**
 
-進度：93%
+進度：95%
 
 ---
 
@@ -74,7 +74,30 @@
 - [x] `pnpm lint` 通過（8/8 packages）
 - [x] `pnpm format:check` 通過
 
-### Commit number-six：apps/web 初始化（本 session 完成）
+### Commit number-seven：apps/console 初始化（本 session 完成）
+
+- [x] `apps/console/package.json`：與 `apps/web` 同 pin（Next 14.2.35 + React 18.3.1 + next-intl 4.12 + next-themes 0.4.6 + lucide 0.469 + zod 4.4.3 + Tailwind 3.4.17 + dotenv-cli），dev/build/start 走 `dotenv -e ../../.env -- next ... --port 3001`
+- [x] `apps/console/next.config.mjs` + `tailwind.config.ts` + `postcss.config.mjs`：mirror `apps/web`，docblock 標明唯一三項差異（dark default、port 3001、robots disallow）
+- [x] `apps/console/tsconfig.json`：升到 Next 14 形狀（allowJs + next plugin + `@/*` alias + 涵蓋 4 個 config 檔 + src + 生成的 `.next/types`）
+- [x] `apps/console/src/i18n/{routing,request,navigation}.ts` + `middleware.ts`：複用 web 模板；middleware docblock 寫 Phase 1 加 auth gate 的 TODO（per ADR-0010 §"Auth flow"），確保未來 agent 接得起來
+- [x] `apps/console/src/components/providers/ThemeProvider.tsx`：唯一行為差異 `defaultTheme="dark"`，docblock 強調這是 console 與 web 的**唯一**設計分歧
+- [x] `apps/console/src/app/[locale]/layout.tsx`：root layout + `hasLocale` 守門 + `getMessages` + `<NextIntlClientProvider>` + Inter via `next/font/google`（build-time self-host）+ `<ThemeProvider>` + `generateMetadata` 從 `dashboard` namespace 翻譯 + `robots: { index: false, follow: false }`（雙保險） + `generateStaticParams` 三 locale SSG
+- [x] `apps/console/messages/{zh-Hant,zh-Hans,en}.json`：`dashboard` namespace 完整三語（eyebrow / title / subtitle / phaseNotice / shellTitle / shellDescription / sectionsTitle / 4 個 sections × {title, description} / phaseHint / disclaimer）
+- [x] `apps/console/src/app/[locale]/page.tsx`：商戶 dashboard 殼（Server Component、純 Tailwind、**不**用 ImmutableMark per ADR-0011 §5.1）— 4 張 card grid（claim ShieldCheck / reviews Star / signals TrendingUp / disputes Gavel）+ Megaphone phase hint aside + footer disclaimer
+- [x] `apps/console/src/app/robots.ts`：站級 metadata route 回 `Disallow: /`（放在 `app/` 根而非 `[locale]` 下，因為 robots.txt 是 site-level resource；next-intl matcher `.*\\..*` 已自動排除）
+- [x] `apps/console/src/env.ts`：zod 驗證 `NEXT_PUBLIC_API_URL`（與 web 同模式：literal-bracket access for TS strict + Next DefinePlugin 兼容）
+- [x] root `README.md` + `apps/console/README.md`：apps 結構欄位升級到 Phase 0+；first-time setup steps 8/9 加 web/console dev 啟動驗證；console README 完整 rewrite（不再是 stub）
+- [x] Prod `next build`：7 個 static page（3 locale × `/[locale]` + `/_not-found` + `/robots.txt`）全綠，First Load JS 88.5 kB，Middleware 38 kB
+- [x] Prod `next start` 端到端驗證：
+  - `/robots.txt` → `User-Agent: *  Disallow: /` ✓
+  - `/` → HTTP 200 + `set-cookie: NEXT_LOCALE=zh-Hant` + `x-middleware-rewrite: /zh-Hant` ✓
+  - zh-Hant title `OpenTrade 商戶後台` / zh-Hans `OpenTrade 商户后台` / en `OpenTrade merchant back office` ✓
+  - `<meta name="robots" content="noindex, nofollow">` 注入 ✓
+  - next-themes inline script `("class","theme","dark",null,...)` 確認 dark default ✓
+  - `/en/anything-bad` → HTTP 404 ✓
+- [x] 全包 `pnpm typecheck / lint / format:check` 全綠
+
+### Commit number-six：apps/web 初始化
 
 - [x] `apps/web/package.json`：Next 14.2.35（pin 14，待寫 ADR 評估升 15/16）+ React 18.3.1 + next-intl 4.12 + next-themes 0.4.6 + lucide-react + zod 4.4.3 + dotenv-cli + Tailwind 3.4.17 + PostCSS / autoprefixer 全裝齊
 - [x] root `.env.example` + `.env`：補 `NEXT_PUBLIC_API_URL=http://localhost:4000` 段落（含 rule 50 「絕不放 secret 在 NEXT*PUBLIC*\*」提醒）
@@ -141,13 +164,14 @@
 
 - [x] git config：`skyyuch <skyyuch@gmail.com>`
 - [x] Remote 連 `git@github.com:skyyuch/opentrade.git`（SSH）
-- [x] Commit #1 ~ number-six 全部 push 到 GitHub（HEAD = `aa52ddb`）
+- [x] Commit #1 ~ number-six 全部 push 到 GitHub（HEAD before this session = `71ad956`）
+- [ ] Commit number-seven 系列 8 個 commits 待 push（本 session 結束時尚未 push）
 
 ---
 
 ## 進行中
 
-無（本 session 完成 Commit number-six 後即停止 / 換手）。
+無（本 session 完成 Commit number-seven 後即停止 / 換手）。
 
 ---
 
@@ -157,10 +181,9 @@
 
 ### 立即（下個 session）
 
-1. **Commit number-seven：apps/console 初始化** — Next.js 14（dark default per ADR-0011 + dashboard 風格 + 商戶 dashboard 殼）；可大量複用 `apps/web` 的 i18n / Tailwind / theme 模板
-2. **Commit number-eight：packages/contracts 初始化** — Foundry init + OpenZeppelin
-3. **Commit number-nine：infra/terraform 雛形** — VPC、RDS、ECS Fargate、S3、Secrets Manager；同時補 `apps/api/Dockerfile`（per ADR-0014 implementation notes：copy `.prisma/client` engines + `dist/main.js`）
-4. **Commit number-ten：CI/CD GitHub Actions** — lint + typecheck + test + migrate 在 PR 上自動跑；Renovate / dependabot 排除 Prisma 7.x（per ADR-0013）；加 ESLint 規則阻止前端 runtime import `@opentrade/db`（per Commit #4 conversation 提到的紀律強化）
+1. **Commit number-eight：packages/contracts 初始化** — Foundry init + OpenZeppelin
+2. **Commit number-nine：infra/terraform 雛形** — VPC、RDS、ECS Fargate、S3、Secrets Manager；同時補 `apps/api/Dockerfile`（per ADR-0014 implementation notes：copy `.prisma/client` engines + `dist/main.js`）；Console 部署也要在這裡規劃（CloudFront + S3 + 自家 OpenNext）— per ADR-0010 兩 app 各自獨立部署
+3. **Commit number-ten：CI/CD GitHub Actions** — lint + typecheck + test + migrate 在 PR 上自動跑；Renovate / dependabot 排除 Prisma 7.x（per ADR-0013）；加 ESLint 規則阻止前端 runtime import `@opentrade/db`（per Commit #4 conversation 提到的紀律強化）；console 的 `X-Robots-Tag: noindex, nofollow` edge header 也要在 deploy 時設好（per ADR-0010 + Commit number-seven `app/robots.ts` docblock）
 
 ### 中期（Phase 1）
 
@@ -239,6 +262,13 @@ pnpm --filter @opentrade/web dev                # next dev http://localhost:3000
 open http://localhost:3000/                     # zh-Hant 首頁（無 prefix per as-needed）
 open http://localhost:3000/en/status            # 英文 /status 對接 /v1/health
 open http://localhost:3000/zh-Hans/status       # 簡中
+
+# Commit number-seven 起：起 console 並驗證 dark default + robots disallow
+pnpm --filter @opentrade/console dev            # next dev http://localhost:3001
+open http://localhost:3001/                     # zh-Hant 商戶後台（dark default + 4 張 card grid）
+open http://localhost:3001/en                   # 英文 dashboard 殼
+open http://localhost:3001/zh-Hans              # 簡中
+curl http://localhost:3001/robots.txt           # → User-Agent: *  Disallow: /
 ```
 
 `.nvmrc` 已設為 `22`，使用者進到專案資料夾時 zsh hook 會自動切到正確 Node 版本。
@@ -259,10 +289,11 @@ open http://localhost:3000/zh-Hans/status       # 簡中
 
 ## Session History
 
-| 日期       | Session 主題                                       | Agent 模型      | 主要產出                                                                                                                                                                                                                                                                  | Conversation Log                                                |
-| ---------- | -------------------------------------------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
-| 2026-05-17 | 初始規劃 + 建立項目記憶系統 + Monorepo 骨架        | Claude Opus 4.7 | Commit #1 文件骨架 + Commit #2 Monorepo + GitHub 連線                                                                                                                                                                                                                     | [link](./conversations/2026-05-17-initial-planning.md)          |
-| 2026-05-17 | UI 設計策略 + commit 順序調整 + packages/ui 初始化 | Claude Opus 4.7 | ADR-0011 UI 設計語言 + Commit #3 packages/ui 完成（design tokens、Storybook、Button、ImmutableMark）                                                                                                                                                                      | [link](./conversations/2026-05-17-ui-design-and-packages-ui.md) |
-| 2026-05-17 | packages/db 初始化（Commit #4）                    | Claude Opus 4.7 | ADR-0012 本機 docker Postgres + ADR-0013 Pin Prisma 6.x + Commit #4 完成（Tenant/User/Broker/BrokerLicense + 5 enum + 17 index，首個 migration apply 到本機）                                                                                                             | [link](./conversations/2026-05-17-commit-4-packages-db.md)      |
-| 2026-05-17 | apps/api 初始化（Commit number-five）              | Claude Opus 4.7 | ADR-0014 apps/api 運行架構 + Hono + DDD 四層 health 樣板 + Pino + AppError + OutboxEvent 表 + hk Tenant seed + tsup prod bundle 端到端驗證                                                                                                                                | [link](./conversations/2026-05-17-commit-5-apps-api.md)         |
-| 2026-05-17 | apps/web 初始化（Commit number-six）               | Claude Opus 4.7 | Cursor Rules 5 項 deferred sync + Next 14 + next-intl 4 三 locale + Tailwind 接 packages/ui + Inter font + zod env + typed API client + HealthReportDto 移到 packages/shared + /status Server Component 端到端 + 首次在 Storybook 之外用 `<Button>` + prod build SSG 9 頁 | [link](./conversations/2026-05-17-commit-6-apps-web.md)         |
+| 日期       | Session 主題                                       | Agent 模型      | 主要產出                                                                                                                                                                                                                                                                                                                                       | Conversation Log                                                |
+| ---------- | -------------------------------------------------- | --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| 2026-05-17 | 初始規劃 + 建立項目記憶系統 + Monorepo 骨架        | Claude Opus 4.7 | Commit #1 文件骨架 + Commit #2 Monorepo + GitHub 連線                                                                                                                                                                                                                                                                                          | [link](./conversations/2026-05-17-initial-planning.md)          |
+| 2026-05-17 | UI 設計策略 + commit 順序調整 + packages/ui 初始化 | Claude Opus 4.7 | ADR-0011 UI 設計語言 + Commit #3 packages/ui 完成（design tokens、Storybook、Button、ImmutableMark）                                                                                                                                                                                                                                           | [link](./conversations/2026-05-17-ui-design-and-packages-ui.md) |
+| 2026-05-17 | packages/db 初始化（Commit #4）                    | Claude Opus 4.7 | ADR-0012 本機 docker Postgres + ADR-0013 Pin Prisma 6.x + Commit #4 完成（Tenant/User/Broker/BrokerLicense + 5 enum + 17 index，首個 migration apply 到本機）                                                                                                                                                                                  | [link](./conversations/2026-05-17-commit-4-packages-db.md)      |
+| 2026-05-17 | apps/api 初始化（Commit number-five）              | Claude Opus 4.7 | ADR-0014 apps/api 運行架構 + Hono + DDD 四層 health 樣板 + Pino + AppError + OutboxEvent 表 + hk Tenant seed + tsup prod bundle 端到端驗證                                                                                                                                                                                                     | [link](./conversations/2026-05-17-commit-5-apps-api.md)         |
+| 2026-05-17 | apps/web 初始化（Commit number-six）               | Claude Opus 4.7 | Cursor Rules 5 項 deferred sync + Next 14 + next-intl 4 三 locale + Tailwind 接 packages/ui + Inter font + zod env + typed API client + HealthReportDto 移到 packages/shared + /status Server Component 端到端 + 首次在 Storybook 之外用 `<Button>` + prod build SSG 9 頁                                                                      | [link](./conversations/2026-05-17-commit-6-apps-web.md)         |
+| 2026-05-17 | apps/console 初始化（Commit number-seven）         | Claude Opus 4.7 | Next 14 console 殼 mirror web 模板 + dark default ThemeProvider + port 3001 + dashboard 4-card grid（claim/reviews/signals/disputes，無 ImmutableMark per ADR-0011 §5.1）+ site-level robots.ts disallow-all + meta robots noindex 雙保險 + zod env + 三語 dashboard messages + prod build SSG 7 頁 + prod start dark + robots end-to-end 驗證 | [link](./conversations/2026-05-17-commit-7-apps-console.md)     |
