@@ -10,11 +10,14 @@
     "README.md"
   ],
   "scripts": {
-    "build": "echo 'forge build not yet initialized — see Phase 1' && exit 0",
-    "test": "echo 'forge test not yet initialized — see Phase 1' && exit 0",
-    "test:unit": "echo 'forge test not yet initialized' && exit 0",
-    "lint": "echo 'solhint not yet initialized — see Phase 1' && exit 0",
-    "typecheck": "echo 'no TypeScript yet' && exit 0",
-    "clean": "rm -rf .turbo cache out artifacts typechain-types"
+    "build": "forge build",
+    "test": "forge test",
+    "test:unit": "forge test",
+    "test:ci": "forge test --no-match-test testFork",
+    "fmt": "forge fmt",
+    "fmt:check": "forge fmt --check",
+    "lint": "solhint --config .solhint.json --noPrompt 'test/**/*.sol'",
+    "typecheck": "echo '@opentrade/contracts: no TypeScript bindings yet (forge build covers solc compilation)' && exit 0",
+    "clean": "forge clean && rm -rf .turbo"
   }
 }

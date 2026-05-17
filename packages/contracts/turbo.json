@@ -1,0 +1,37 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    "build": {
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "foundry.toml",
+        "remappings.txt",
+        "src/**/*.sol",
+        "test/**/*.sol",
+        "script/**/*.sol"
+      ],
+      "outputs": ["out/**", "cache/**"]
+    },
+    "test": {
+      "dependsOn": ["build"],
+      "inputs": ["$TURBO_DEFAULT$", "foundry.toml", "remappings.txt", "src/**/*.sol", "test/**/*.sol"],
+      "outputs": []
+    },
+    "test:unit": {
+      "dependsOn": ["build"],
+      "outputs": []
+    },
+    "test:ci": {
+      "dependsOn": ["build"],
+      "outputs": []
+    },
+    "lint": {
+      "inputs": ["$TURBO_DEFAULT$", ".solhint.json", ".solhintignore", "test/**/*.sol", "src/**/*.sol"],
+      "outputs": []
+    },
+    "typecheck": {
+      "outputs": []
+    }
+  }
+}
