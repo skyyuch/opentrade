@@ -35,10 +35,10 @@ datasource db {
 /// Application role assigned to a User. Distinct from on-chain SBT tier:
 /// `role` controls platform permissions, `sbtTier` reflects on-chain identity.
 enum UserRole {
-  USER     // Default. Anyone signed in via Privy.
+  USER // Default. Anyone signed in via Privy.
   REVIEWER // Has the right to submit on-chain reviews (paired with L2 SBT).
-  JURY     // Founding juror; eligible for dispute arbitration.
-  ADMIN    // Internal staff (multisig-controlled in prod).
+  JURY // Founding juror; eligible for dispute arbitration.
+  ADMIN // Internal staff (multisig-controlled in prod).
 }
 
 /// On-chain identity tier — mirrors docs/01-architecture.md §6 "身份分層".
@@ -65,15 +65,15 @@ enum Regulator {
 /// SFC categories map to Hong Kong's 10 "regulated activities":
 ///   https://www.sfc.hk/en/Welcome-to-the-Fintech-Contact-Point/Types-of-regulated-activities
 enum LicenseType {
-  HK_SFC_TYPE_1  // Dealing in securities — 證券交易
-  HK_SFC_TYPE_2  // Dealing in futures contracts — 期貨合約交易
-  HK_SFC_TYPE_3  // Leveraged foreign exchange trading — 槓桿式外匯交易
-  HK_SFC_TYPE_4  // Advising on securities — 就證券提供意見
-  HK_SFC_TYPE_5  // Advising on futures contracts — 就期貨合約提供意見
-  HK_SFC_TYPE_6  // Advising on corporate finance — 就機構融資提供意見
-  HK_SFC_TYPE_7  // Providing automated trading services — 提供自動化交易服務
-  HK_SFC_TYPE_8  // Securities margin financing — 證券保證金融資
-  HK_SFC_TYPE_9  // Asset management — 提供資產管理
+  HK_SFC_TYPE_1 // Dealing in securities — 證券交易
+  HK_SFC_TYPE_2 // Dealing in futures contracts — 期貨合約交易
+  HK_SFC_TYPE_3 // Leveraged foreign exchange trading — 槓桿式外匯交易
+  HK_SFC_TYPE_4 // Advising on securities — 就證券提供意見
+  HK_SFC_TYPE_5 // Advising on futures contracts — 就期貨合約提供意見
+  HK_SFC_TYPE_6 // Advising on corporate finance — 就機構融資提供意見
+  HK_SFC_TYPE_7 // Providing automated trading services — 提供自動化交易服務
+  HK_SFC_TYPE_8 // Securities margin financing — 證券保證金融資
+  HK_SFC_TYPE_9 // Asset management — 提供資產管理
   HK_SFC_TYPE_10 // Providing credit rating services — 提供信貸評級服務
 }
 
@@ -104,9 +104,10 @@ model Tenant {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  users    User[]
-  brokers  Broker[]
-  licenses BrokerLicense[]
+  users        User[]
+  brokers      Broker[]
+  licenses     BrokerLicense[]
+  outboxEvents OutboxEvent[]
 
   @@map("tenants")
 }
@@ -149,15 +150,15 @@ model User {
 /// `isClaimed` flips to true once an L4 KYC has completed for a custodial
 /// staff user. Pre-claim, `description` / `logoUrl` come from the seed.
 model Broker {
-  id          String   @id @default(uuid()) @db.Uuid
-  tenantId    String   @db.Uuid
+  id          String    @id @default(uuid()) @db.Uuid
+  tenantId    String    @db.Uuid
   slug        String
   legalName   String
   displayName String
   websiteUrl  String?
-  description String?  @db.Text
+  description String?   @db.Text
   logoUrl     String?
-  isClaimed   Boolean  @default(false)
+  isClaimed   Boolean   @default(false)
   claimedAt   DateTime?
 
   createdAt DateTime  @default(now())
@@ -201,4 +202,54 @@ model BrokerLicense {
   @@index([tenantId, status])
   @@index([tenantId, regulator, licenseType])
   @@map("broker_licenses")
+}
+
+/// Transactional outbox for cross-domain domain events (per ADR-0006 outbox
+/// pattern). Use cases write business rows + an OutboxEvent in the same DB
+/// transaction; a background worker (added in Phase 1) reads pending rows
+/// and republishes them to SQS. This guarantees we never "commit the write
+/// but lose the event" — the two are atomic at the database level.
+///
+/// Lifecycle:
+///   - `processedAt = null`           → pending; worker will pick it up.
+///   - `processedAt != null`          → delivered to downstream.
+///   - `attempts` / `lastError`       → retry diagnostics for the worker.
+///
+/// Retention: per rule 31, processed rows older than 7 days MAY be hard
+/// deleted by a cron job (this is the one exception to "never DELETE" rule).
+///
+/// Field shape:
+///   - `aggregateType` — namespaced string identifying the producing
+///                       aggregate (e.g. `"review"`, `"kol_signal"`).
+///   - `aggregateId`   — UUID of that aggregate, stored as string to keep
+///                       this table aggregate-agnostic (no FK).
+///   - `eventType`     — dotted event name (e.g. `"review.submitted"`,
+///                       `"kol_signal.created"`); the worker uses this to
+///                       route to the correct SQS topic / subscriber.
+///   - `payload`       — JSON serialisable payload; must NOT contain PII
+///                       (per rule 50). Use IDs and hashes, not raw values.
+model OutboxEvent {
+  id            String    @id @default(uuid()) @db.Uuid
+  tenantId      String    @db.Uuid
+  aggregateType String
+  aggregateId   String    @db.Uuid
+  eventType     String
+  payload       Json
+  attempts      Int       @default(0)
+  lastError     String?   @db.Text
+  createdAt     DateTime  @default(now())
+  processedAt   DateTime?
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  // Worker query: "fetch oldest unprocessed events". The partial-index shape
+  // (processedAt first, createdAt second) lets Postgres skip processed rows
+  // efficiently even before the 7-day GC kicks in.
+  @@index([processedAt, createdAt])
+  // Tenant-scoped pending lookup; mirrors every other table's tenant index.
+  @@index([tenantId, processedAt])
+  // Forensic lookup: "what events did aggregate X emit?" — used by admin
+  // tooling and by reprocessing scripts after a downstream outage.
+  @@index([tenantId, aggregateType, aggregateId])
+  @@map("outbox_events")
 }
