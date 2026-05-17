@@ -73,7 +73,7 @@ OpenTrade/
 ├── apps/
 │   ├── web/                   # 用戶端 Next.js (Phase 1+)
 │   ├── console/               # 商戶後台 Next.js (Phase 1+)
-│   └── api/                   # Hono API (Phase 1+)
+│   └── api/                   # Hono API (Phase 0+ — /v1/health 已上線)
 ├── packages/
 │   ├── contracts/             # Solidity 智能合約 (Phase 1+)
 │   ├── db/                    # Prisma schema (Phase 0+)
@@ -101,27 +101,38 @@ OpenTrade/
 # 1. 複製環境變數樣板
 cp .env.example .env
 
-# 2. 安裝依賴
+# 2. 安裝依賴（postinstall 會自動跑 prisma generate）
 pnpm install
 
 # 3. 起本機 PostgreSQL（背景執行，資料保留在 named volume）
 docker compose up -d postgres
-docker compose ps                # 等到 STATUS 顯示 healthy
+docker compose ps                                # 等到 STATUS 顯示 healthy
 
-# 4. 套用 Prisma migrations（Commit #4 之後可用）
-pnpm db:migrate:dev
+# 4. 套用 Prisma migrations
+pnpm --filter @opentrade/db db:migrate:dev
 
-# 5. 全包檢查
+# 5. Seed 基礎資料（冪等：hk Tenant）
+pnpm --filter @opentrade/db db:seed
+
+# 6. 全包檢查
 pnpm typecheck && pnpm lint
+
+# 7. 起 API server 並驗證健康檢查
+pnpm --filter @opentrade/api dev                 # 監聽 http://localhost:4000
+# 另開一個 terminal:
+curl http://localhost:4000/v1/health             # → 200 OK + 真實 DB 延遲
 ```
 
 ### 日常指令
 
 ```bash
-docker compose up -d postgres    # 起 DB
-docker compose down              # 停 DB（資料保留）
-docker compose down -v           # 停 DB 並 wipe（重置）
-pnpm db:studio                   # Prisma Studio GUI
+docker compose up -d postgres                    # 起 DB
+docker compose down                              # 停 DB（資料保留）
+docker compose down -v                           # 停 DB 並 wipe（重置）
+pnpm --filter @opentrade/db db:studio            # Prisma Studio GUI
+pnpm --filter @opentrade/db db:migrate:status    # 看 migration 狀態
+pnpm --filter @opentrade/api dev                 # 起 API（tsx watch）
+pnpm --filter @opentrade/api build               # 產生 dist/main.js 生產 bundle
 ```
 
 ---
