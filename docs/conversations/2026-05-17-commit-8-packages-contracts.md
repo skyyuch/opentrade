@@ -250,7 +250,7 @@ t5 commit 時 `.lintstagedrc.mjs` 對 `.sol` 真實觸發過 forge fmt — pre-c
 
 ## 待後續處理事項
 
-- [ ] **Commit number-eight 系列 8 個 commits + handoff commit 推到 GitHub**：本 session 結束時尚未 push。等使用者明確指示再 push
+- [x] **Commit number-eight 系列 8 個 commits + handoff commit 推到 GitHub**：已 push (`b9bcbfe..f5be3c1`)，origin/main 與 local 同步
 - [ ] **Phase 1 第一個業務合約 PR 必做**（per ADR-0015 D5/D6）：
   - solhint 從 warning-only 切 error-level，並 extend `solhint:recommended`
   - lint glob 從 `test/**/*.sol` 擴成 `{src,test,script}/**/*.sol`
@@ -291,7 +291,7 @@ t5 commit 時 `.lintstagedrc.mjs` 對 `.sol` 真實觸發過 forge fmt — pre-c
 
 ### 結束本 session 時的 git 狀態
 
-- branch: `main`，與 `origin/main` 暫不同步（本 session 9 個 commit 待 push）
+- branch: `main`，與 `origin/main` 完全同步（push 在 handoff commit 之後完成）
 - HEAD（本 session 開始前）：`b9bcbfe docs(status): mark commit number-seven as pushed`
 - HEAD（本 session 結束前）：`18b52c8 chore(rules): sync rule 41 imports to OZ v5 layout and reserve decisions scope`
 - 本 session 9 個 commits（時間順）：
