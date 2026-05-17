@@ -18,6 +18,10 @@ storybook-static/
 cache/
 artifacts/
 typechain-types/
+# Vendored Solidity libraries pulled in as git submodules. Each upstream
+# ships its own `.prettierrc` (often referencing prettier-plugin-solidity),
+# so letting our prettier walk into them breaks `format:check`.
+lib/
 
 # Test
 coverage/

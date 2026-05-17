@@ -1,0 +1,13 @@
+{
+  "rules": {
+    "compiler-version": ["warn", "^0.8.24"],
+    "func-visibility": ["warn", { "ignoreConstructors": true }],
+    "private-vars-leading-underscore": "warn",
+    "no-empty-blocks": "warn",
+    "no-global-import": "warn",
+    "no-console": "warn",
+    "max-line-length": ["warn", 120],
+    "ordering": "warn",
+    "reason-string": "off"
+  }
+}
