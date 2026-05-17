@@ -1,0 +1,33 @@
+{
+  "dashboard": {
+    "eyebrow": "OpenTrade Console",
+    "title": "OpenTrade merchant back office",
+    "subtitle": "Claim profiles, track on-chain reviews, and publish strategy signals. The full feature set ships in Phase 1.",
+    "phaseNotice": "Phase 0 — foundation in progress",
+    "shellTitle": "Merchant back office",
+    "shellDescription": "Built for brokers, KOLs, and platform admins; desktop-first. All workflows are previews until Phase 1 launches.",
+    "sectionsTitle": "What you will manage here",
+    "sections": {
+      "claim": {
+        "title": "Profile claim",
+        "description": "Bind a licensed broker or a KOL identity after KYC and take ownership of your on-chain profile."
+      },
+      "reviews": {
+        "title": "On-chain reviews",
+        "description": "Read user reviews ordered chain-time-first and weighted by SBT tier. The platform has no power to delete on-chain content."
+      },
+      "signals": {
+        "title": "Strategy signals",
+        "description": "KOLs publish buy / sell / hold calls on-chain; an oracle scores them objectively, building a verifiable personal brand."
+      },
+      "disputes": {
+        "title": "Dispute resolution",
+        "description": "Submit two-sided evidence into a decentralised jury process; the verdict is recorded immutably on-chain."
+      }
+    },
+    "ctaPrimary": "View the Phase 1 roadmap",
+    "ctaSecondary": "Not yet available",
+    "phaseHint": "Login, KYC, and RBAC arrive with Phase 1.",
+    "disclaimer": "This platform surfaces on-chain data only and does not constitute investment advice."
+  }
+}

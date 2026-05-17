@@ -1,0 +1,33 @@
+{
+  "dashboard": {
+    "eyebrow": "OpenTrade Console",
+    "title": "OpenTrade 商户后台",
+    "subtitle": "认领主页、追踪链上评论、发布策略信号的工作空间。Phase 1 上线后将开放完整功能。",
+    "phaseNotice": "Phase 0 — 基础搭建中",
+    "shellTitle": "商户后台",
+    "shellDescription": "本后台为商户、KOL 与管理员设计，桌面优先。所有功能在 Phase 1 上线前皆为预览。",
+    "sectionsTitle": "功能总览",
+    "sections": {
+      "claim": {
+        "title": "主页认领",
+        "description": "完成 KYC 后绑定持牌证券商或 KOL 身份，正式接管属于您的链上主页。"
+      },
+      "reviews": {
+        "title": "链上评论",
+        "description": "查看用户对您的评论，依链上时序与 SBT 等级加权呈现。平台无权删除任何已上链评论。"
+      },
+      "signals": {
+        "title": "策略信号",
+        "description": "KOL 可将买 / 卖 / 持有信号上链，由 oracle 客观计算胜率，建立可验证的个人品牌资产。"
+      },
+      "disputes": {
+        "title": "争议仲裁",
+        "description": "对任何疑似不实评论，可提交双方证据进入去中心化陪审程序，结果不可篡改地公开于链上。"
+      }
+    },
+    "ctaPrimary": "查看 Phase 1 路线图",
+    "ctaSecondary": "暂不可用",
+    "phaseHint": "登录、KYC 与权限控制将于 Phase 1 上线。",
+    "disclaimer": "本平台仅呈现链上数据，不发表任何投资建议。"
+  }
+}

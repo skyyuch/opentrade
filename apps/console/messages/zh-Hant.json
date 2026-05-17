@@ -1,0 +1,33 @@
+{
+  "dashboard": {
+    "eyebrow": "OpenTrade Console",
+    "title": "OpenTrade 商戶後台",
+    "subtitle": "認領專頁、追蹤鏈上評論、發布策略訊號的工作空間。Phase 1 上線後將開放完整功能。",
+    "phaseNotice": "Phase 0 — 地基搭建中",
+    "shellTitle": "商戶後台",
+    "shellDescription": "本後台為商戶、KOL 與管理員設計，桌面優先。所有功能在 Phase 1 上線前皆為預覽。",
+    "sectionsTitle": "功能總覽",
+    "sections": {
+      "claim": {
+        "title": "專頁認領",
+        "description": "完成 KYC 後綁定持牌證券商或 KOL 身份，正式接管屬於您的鏈上專頁。"
+      },
+      "reviews": {
+        "title": "鏈上評論",
+        "description": "查看用戶對您的評論，依鏈上時序與 SBT 等級加權呈現。平台無權刪除任何已上鏈評論。"
+      },
+      "signals": {
+        "title": "策略訊號",
+        "description": "KOL 可將買 / 賣 / 持有訊號上鏈，由 oracle 客觀計算勝率，建立可驗證的個人品牌資產。"
+      },
+      "disputes": {
+        "title": "爭議仲裁",
+        "description": "對任何疑似不實評論，可提交雙方證據進入去中心化陪審程序，結果不可竄改地公開於鏈上。"
+      }
+    },
+    "ctaPrimary": "查看 Phase 1 路線圖",
+    "ctaSecondary": "暫不可用",
+    "phaseHint": "登入、KYC 與權限控制將於 Phase 1 上線。",
+    "disclaimer": "本平台僅呈現鏈上資料，不發表任何投資建議。"
+  }
+}
