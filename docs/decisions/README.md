@@ -103,6 +103,7 @@ YYYY-MM-DD
 | 0012 | 本機開發環境使用 docker-compose 跑 PostgreSQL         | Accepted | 2026-05-17 |
 | 0013 | Pin Prisma to 6.x — defer Prisma 7 adoption           | Accepted | 2026-05-17 |
 | 0014 | apps/api runtime architecture (env / bundle / Prisma) | Accepted | 2026-05-17 |
+| 0015 | packages/contracts toolchain setup                    | Accepted | 2026-05-17 |
 
 ---
 
