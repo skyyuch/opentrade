@@ -23,5 +23,5 @@ export const PACKAGE_NAME = '@opentrade/ui' as const;
 
 export * from './design-tokens';
 export * from './utils';
-// Primitives and compounds are re-exported once they ship; their barrels are
-// currently empty stubs to keep package `exports` resolvable.
+export * from './primitives';
+// Compounds are re-exported as they ship; the barrel is currently a stub.

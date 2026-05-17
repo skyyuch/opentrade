@@ -103,6 +103,9 @@ export default tseslint.config(
       '@typescript-eslint/no-unsafe-argument': 'error',
       '@typescript-eslint/restrict-template-expressions': 'error',
 
+      // Prefer `type` over `interface` (rule 20) — overrides stylistic default.
+      '@typescript-eslint/consistent-type-definitions': ['error', 'type'],
+
       // No `enum` — use const object + as const + union type instead
       'no-restricted-syntax': [
         'error',
