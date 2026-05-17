@@ -172,6 +172,16 @@
 - ❓ **API 認證流程**：`JWT_SECRET` 目前是 placeholder（min 32 chars 驗證通過即可）；Phase 1 換 ES256 + AWS Secrets Manager（per rule 50）+ Privy token exchange endpoint（per ADR-0005）
 - ❓ **`packages/db` 是否需要真實 build 步驟**：目前 `main: "./src/index.ts"`，dev 直消費 TS；ADR-0014 記錄為「延後」；何時觸發改建 = 多個 consumer 或 cold-start 變慢時
 
+### Cursor Rules 同步（commit number-five 後 deferred — 留給下個 session 開頭處理）
+
+> 上次 session 完成 commit number-five 時 rule 99 self-review 發現 4 處 rule 文件與實作 drift，使用者未明示同意更新就先 handoff，先記下來：
+
+- ❓ **rule 30 「錯誤處理」AppError 構造器範例**：rule 寫第四個位置參數 `cause?: unknown`，實作改為 options bag `{ details?, cause? }`。建議更新 rule 範例
+- ❓ **rule 30 API 回傳 JSON 範例**：rule 沒有 `requestId` 欄位，實作為 traceability 加了。建議更新 rule
+- ❓ **rule 30 AppError 預設 statusCode**：rule 寫 `400`，實作改為 `500`（未知錯誤更安全）。建議更新 rule
+- ❓ **rule 31 「Seed 資料」段落**：rule 強制「從外部 JSON 讀資料（非 hardcode）」，但 commit number-five 的 `hk` Tenant seed 是 hardcode（bootstrap data 例外）。建議 rule 補一段區分 bootstrap data vs domain data
+- ❓ **commitlint scope-enum 加 `status`**：commit `82ffd47 docs(status):` 觸發了 warning（level 1）— 將來 `docs(status):` 都會跳警告。要嘛把 `status` 加進 scope-enum，要嘛規範 status 更新統一用 `docs(docs):`
+
 ---
 
 ## 已知風險
