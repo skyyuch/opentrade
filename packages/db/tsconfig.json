@@ -2,11 +2,11 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "composite": true,
-    "rootDir": "./src",
+    "rootDir": ".",
     "outDir": "./dist",
     "tsBuildInfoFile": "./node_modules/.cache/.tsbuildinfo"
   },
-  "include": ["src/**/*"],
+  "include": ["src/**/*", "scripts/**/*"],
   "exclude": ["node_modules", "dist", "prisma/migrations", "**/*.test.ts", "**/*.spec.ts"],
   "references": [{ "path": "../shared" }]
 }
