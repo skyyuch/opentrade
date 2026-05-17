@@ -1,4 +1,0 @@
-# Forge tests live here. The toolchain smoke test (`Sanity.t.sol`) lands in a
-# follow-up commit and verifies that `forge test` + OpenZeppelin imports
-# compile end-to-end. Business-contract unit / fuzz / invariant tests come
-# with Phase 1 ReviewRegistry work.
