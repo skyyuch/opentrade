@@ -71,8 +71,8 @@ OpenTrade/
 │   └── grant-application/     # 政府基金申請材料
 ├── .cursor/rules/             # Cursor Rules（AI 行為準則）
 ├── apps/
-│   ├── web/                   # 用戶端 Next.js (Phase 1+)
-│   ├── console/               # 商戶後台 Next.js (Phase 1+)
+│   ├── web/                   # 散戶用戶端 Next.js 14 (Phase 0+ — i18n shell + /status 已上線，light default)
+│   ├── console/               # 商戶後台 Next.js 14 (Phase 0+ — dashboard 殼已上線，dark default，robots disallow)
 │   └── api/                   # Hono API (Phase 0+ — /v1/health 已上線)
 ├── packages/
 │   ├── contracts/             # Solidity 智能合約 (Phase 1+)
@@ -121,6 +121,19 @@ pnpm typecheck && pnpm lint
 pnpm --filter @opentrade/api dev                 # 監聽 http://localhost:4000
 # 另開一個 terminal:
 curl http://localhost:4000/v1/health             # → 200 OK + 真實 DB 延遲
+
+# 8. 起散戶用戶端（apps/web，light default、port 3000）
+pnpm --filter @opentrade/web dev                 # http://localhost:3000
+# 三 locale 端到端驗證：
+#   http://localhost:3000/                       # zh-Hant（無 prefix）
+#   http://localhost:3000/zh-Hans/status         # 簡中
+#   http://localhost:3000/en/status              # 英文 + /v1/health 接通
+
+# 9. 起商戶後台（apps/console，dark default、port 3001、robots disallow）
+pnpm --filter @opentrade/console dev             # http://localhost:3001
+#   http://localhost:3001/                       # zh-Hant 商戶 dashboard 殼
+#   http://localhost:3001/en                     # 英文版
+#   curl http://localhost:3001/robots.txt        # → User-agent: *  Disallow: /
 ```
 
 ### 日常指令
@@ -133,6 +146,8 @@ pnpm --filter @opentrade/db db:studio            # Prisma Studio GUI
 pnpm --filter @opentrade/db db:migrate:status    # 看 migration 狀態
 pnpm --filter @opentrade/api dev                 # 起 API（tsx watch）
 pnpm --filter @opentrade/api build               # 產生 dist/main.js 生產 bundle
+pnpm --filter @opentrade/web dev                 # 散戶用戶端（port 3000，light default）
+pnpm --filter @opentrade/console dev             # 商戶後台（port 3001，dark default）
 ```
 
 ---
