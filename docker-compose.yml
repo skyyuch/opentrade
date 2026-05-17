@@ -1,0 +1,54 @@
+# OpenTrade — Local development infrastructure
+#
+# Purpose: Spin up the runtime dependencies that the monorepo needs on a developer
+# laptop. Currently only PostgreSQL; future additions (e.g. LocalStack for SQS,
+# Anvil for chain) are tracked under ADR-0012 and added here when needed.
+#
+# Production parity:
+#   - Postgres major version matches AWS RDS target (PostgreSQL 16, per ADR-0002)
+#   - Locale/encoding matches RDS default (en_US.UTF-8)
+#
+# Usage:
+#   docker compose up -d postgres        # start in background
+#   docker compose ps                    # check health
+#   docker compose down                  # stop (data preserved in named volume)
+#   docker compose down -v               # stop AND wipe volume (DESTRUCTIVE)
+#
+# Connection details (see also .env.example):
+#   host=localhost  port=5432  db=opentrade_dev  user=opentrade  password=opentrade_dev_password
+#
+# Why a named volume instead of bind mount:
+#   - Survives `docker compose down` (only `down -v` wipes it)
+#   - Avoids file-permission surprises on macOS bind mounts
+#   - Faster IO on Docker Desktop
+#
+# DO NOT use this file in production. Production Postgres lives on AWS RDS,
+# provisioned via infra/terraform.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: opentrade-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: opentrade
+      POSTGRES_PASSWORD: opentrade_dev_password
+      POSTGRES_DB: opentrade_dev
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+      # Keep timestamps in UTC; the application layer formats per tenant timezone.
+      TZ: UTC
+      PGTZ: UTC
+    ports:
+      - "5432:5432"
+    volumes:
+      - opentrade-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U opentrade -d opentrade_dev"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+volumes:
+  opentrade-db-data:
+    name: opentrade-db-data

@@ -85,6 +85,47 @@ OpenTrade/
 
 ---
 
+## 本機開發環境
+
+> 詳細依據見 [ADR-0012](./docs/decisions/0012-local-dev-docker-postgres.md)。
+
+### 前置依賴
+
+- **Node 22**（透過 `nvm`；專案根目錄有 `.nvmrc`）
+- **pnpm 9.15+**（透過 `corepack enable`）
+- **Docker Desktop**（macOS / Windows）或 **Docker Engine**（Linux）— 用於本機 PostgreSQL
+
+### 第一次設定
+
+```bash
+# 1. 複製環境變數樣板
+cp .env.example .env
+
+# 2. 安裝依賴
+pnpm install
+
+# 3. 起本機 PostgreSQL（背景執行，資料保留在 named volume）
+docker compose up -d postgres
+docker compose ps                # 等到 STATUS 顯示 healthy
+
+# 4. 套用 Prisma migrations（Commit #4 之後可用）
+pnpm db:migrate:dev
+
+# 5. 全包檢查
+pnpm typecheck && pnpm lint
+```
+
+### 日常指令
+
+```bash
+docker compose up -d postgres    # 起 DB
+docker compose down              # 停 DB（資料保留）
+docker compose down -v           # 停 DB 並 wipe（重置）
+pnpm db:studio                   # Prisma Studio GUI
+```
+
+---
+
 ## 開發狀態
 
 目前處於 **Phase 0：地基搭建**。

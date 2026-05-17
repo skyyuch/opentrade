@@ -100,6 +100,7 @@ YYYY-MM-DD
 | 0009 | UI 採 Storybook 獨立工作流先行                     | Accepted | 2026-05-17 |
 | 0010 | 用戶端與商戶後台拆兩個獨立 Next.js app             | Accepted | 2026-05-17 |
 | 0011 | OpenTrade UI 設計語言（Civic Trust + Web3 科技感） | Accepted | 2026-05-17 |
+| 0012 | 本機開發環境使用 docker-compose 跑 PostgreSQL      | Accepted | 2026-05-17 |
 
 ---
 
