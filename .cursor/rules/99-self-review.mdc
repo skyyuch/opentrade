@@ -43,6 +43,7 @@ alwaysApply: true
 ├── 51-i18n.mdc
 ├── 60-testing.mdc
 ├── 70-commit-pr.mdc
+├── 80-aws-accounts.mdc
 ├── 96-task-decomposition.mdc
 ├── 97-status-update.mdc
 ├── 98-session-handoff.mdc

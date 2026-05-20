@@ -1,0 +1,293 @@
+---
+description: AWS 帳號架構與 SSO profile 操作規範（per ADR-0016）
+alwaysApply: true
+---
+
+# AWS Accounts & SSO Operational Standards
+
+> 本規則描述 OpenTrade 的 AWS 帳號邊界、SSO profile 用法、與紅線。
+> 完整脈絡與決策理由見 [ADR-0016](mdc:docs/decisions/0016-aws-account-architecture.md)。
+
+---
+
+## 帳號結構（永遠不可違反）
+
+OpenTrade 的所有 AWS 資源**只能存在於以下兩個 account 之內**：
+
+| Account 顯示名稱 | Account ID | 角色 | 進入方式 |
+|---|---|---|---|
+| `skyyuch627` (`opentrade-root`) | `774126906499` | Management — 只放 Organizations、Identity Center、Billing | `--profile opentrade-management` |
+| `opentrade-dev` | `371637912734` | Member — Phase 0–3 全部開發資源 | `--profile opentrade-dev` |
+
+未來 Phase 4+ 會加：
+- `opentrade-staging`（成員 account，與 dev 隔離）
+- `opentrade-prod`（成員 account，獨立 IAM 邊界 + 強化 SCP）
+
+加 sub-account **必須先寫新 ADR**（superseding 或 amending ADR-0016）。
+
+---
+
+## SSO profile 命名規約（強制）
+
+`~/.aws/config` 的 OpenTrade profile **永遠**遵循 `opentrade-{env}` 前綴：
+
+```ini
+[sso-session opentrade]
+sso_start_url = https://d-9667ab75a1.awsapps.com/start
+sso_region = ap-southeast-1
+sso_registration_scopes = sso:account:access
+
+[profile opentrade-dev]
+sso_session = opentrade
+sso_account_id = 371637912734
+sso_role_name = OpenTradeAdmin
+region = ap-southeast-1
+output = json
+
+[profile opentrade-management]
+sso_session = opentrade
+sso_account_id = 774126906499
+sso_role_name = OpenTradeAdmin
+region = ap-southeast-1
+output = json
+```
+
+### 紅線
+
+- ❌ **不可改 `[default]` profile** — 那留給專案負責人的 legacy AWS 帳號用
+- ❌ **不可在 OpenTrade profile 用 `[default]` 名稱**（會 hijack legacy）
+- ❌ **不可拿 OpenTrade SSO profile 去操作 legacy 帳號**（會誤建資源）
+- ❌ **profile 不可前綴別的字** — 永遠 `opentrade-` 開頭
+
+---
+
+## 日常使用紀律
+
+### 散戶 / 商戶 / 開發資源（99% 操作）
+
+```bash
+aws ... --profile opentrade-dev
+# 或
+export AWS_PROFILE=opentrade-dev
+aws ...
+```
+
+### 帳號 / Org / Billing 管理（極少數操作）
+
+```bash
+aws ... --profile opentrade-management
+```
+
+### Token 過期（每 8 小時）
+
+```bash
+aws sso login --profile opentrade-dev
+```
+
+### 紅線
+
+- ❌ **不可在 management account 跑 production / dev 工作負載**
+- ❌ **不可在 dev account 改 Organizations 設定**（沒權限，但若有也不可改）
+- ❌ **不可把 management account 與 dev account 混用 IAM Role / Policy**
+
+---
+
+## Region 紀律
+
+OpenTrade 只用兩個 region：
+
+| Region | 用途 | Phase 0 啟用？ |
+|---|---|---|
+| **`ap-southeast-1` (Singapore)** | Production region — 所有 workload | ✅ Yes |
+| **`us-east-1` (N. Virginia)** | 只給 CloudFront ACM + Route 53 用（AWS 強制） | ❌ Phase 4+ 啟用 |
+
+### 紅線
+
+- ❌ **不可在其他 region 開資源**（包含 dev playground / 測試）
+- ❌ **不可把 production data 存到 us-east-1**（那只給 global service 用）
+- ❌ **不可寫死 region 在程式碼**（per rule 00 技術紅線；走 `packages/config`）
+- ❌ **Terraform 也不可寫死 region** — 走 `var.region` + workspace
+
+---
+
+## Terraform 操作規範
+
+### 一律 reference profile 而非 access key
+
+```hcl
+# ✅ 正確
+provider "aws" {
+  region  = var.region
+  profile = var.aws_profile  # 預設 "opentrade-dev"
+}
+
+# ❌ 錯誤
+provider "aws" {
+  region     = "ap-southeast-1"
+  access_key = var.aws_access_key   # 不可有 access key 變數
+  secret_key = var.aws_secret_key
+}
+```
+
+### Phase 0 全部 apply 到 dev account
+
+`infra/terraform/environments/dev` 的所有 module 都 apply 到 `opentrade-dev`。Phase 4+ 加 `infra/terraform/environments/{staging,prod}` 時，每個環境 reference 自己的 profile。
+
+### State backend
+
+Terraform state 放在 **`opentrade-dev` account** 的 S3 bucket（per Commit number-nine 第一個 atomic commit），DynamoDB lock table 同帳號。
+
+### 紅線
+
+- ❌ **不可把 Terraform state 存到 management account**
+- ❌ **不可把 state bucket 設成 public**
+- ❌ **不可在 PR 跑 `terraform apply`**（CI 只跑 `terraform plan`）
+
+---
+
+## Cost Guardrails（在 management account 內）
+
+| 名稱 | 類型 | 觸發條件 | Recipient |
+|---|---|---|---|
+| `phase-0-soft-cap` | Budget | $50 USD 軟性月度 | 日常 email |
+| `phase-0-hard-cap` | Budget | $200 USD 硬性月度 | 日常 email |
+| `opentrade-anomaly-alerts` | Cost Anomaly Detection | $25 OR 40% 異常 | 日常 email |
+
+每進入新 phase **必須評估**這三條 budget 是否仍合理（per `docs/02-roadmap.md`）。
+
+### 紅線
+
+- ❌ **任何 commit 不可造成 dev 月費 > $200**（per ADR-0002 + ADR-0016）
+- ❌ **不可關掉 Budget alert 來 silence noise**（要嘛調 threshold + 寫 ADR，要嘛省下這筆錢）
+
+---
+
+## Identity Center 紀律
+
+| 項目 | 值 | 是否可變 |
+|---|---|---|
+| Home region | `ap-southeast-1` | ❌ 終身（換要重建 Identity Center + 重邀所有 user） |
+| Instance ID | `ssoins-82102c3fe7f6ab49` | ❌ 自動 |
+| Organization ID | `o-o5wm740m1h` | ❌ 自動 |
+| Identity source | `Identity Center directory` | ⚠️ Phase 4+ 可遷至 corporate IdP |
+| Permission set (Phase 0) | `OpenTradeAdmin` (`AdministratorAccess`, 8h session) | ⚠️ Phase 4+ 拆 read-only / billing-only / etc |
+
+### 紅線
+
+- ❌ **不可改 Identity Center home region**
+- ❌ **不可建 IAM user**（人類一律走 SSO）
+- ❌ **不可建長期 access key**（CI 用 OIDC / Roles Anywhere）
+- ❌ **不可給 Phase 0 permission set 加 `AdministratorAccess` 以外的 inline policy**
+
+---
+
+## Sub-account email 紀律
+
+新增 sub-account email 一律遵循 Gmail `+alias` pattern：
+
+```
+<owner-gmail-localpart>+{env}@gmail.com
+```
+
+範例：
+- ✅ `skyyuch627+dev@gmail.com`（已用）
+- ✅ `skyyuch627+staging@gmail.com`（Phase 4+）
+- ✅ `skyyuch627+prod@gmail.com`（Phase 4+）
+
+### 紅線
+
+- ❌ **不可用 management account 的同一 email 給 sub-account**（AWS 拒收）
+- ❌ **不可把 sub-account email 改到不支援 `+alias` 的 provider**（除非先寫 ADR 改 corporate domain）
+- ❌ **不可遺失 sub-account root email 控制權**（root reset 要靠它）
+
+---
+
+## Root user 紀律
+
+每個 account 都有 root user（management account 的 root email = 創辦人主 email；sub-account 的 root email = `+alias`）。
+
+### 應該
+
+- ✅ Root 永遠開啟 MFA
+- ✅ Root 永遠**沒有** access key
+- ✅ Root 只在以下情況使用：
+  - 改 root MFA / 密碼
+  - 加 / 移除 sub-account
+  - 改 SCP（Phase 4+）
+  - AWS Support 緊急要求（極罕見）
+
+### 紅線
+
+- ❌ **不可日常用 root** — 永遠走 SSO user `skyyu`
+- ❌ **Root 不可建 access key**
+- ❌ **Root email 不可日常使用**（被釣魚就完了）
+- ❌ **Root 密碼不可儲存在非 1Password 的地方**
+
+---
+
+## SCP / RCP 啟用規範
+
+Phase 0 全部 disabled。Phase 4+ 至少啟用：
+
+```hcl
+# infra/terraform/modules/scp/main.tf  （Phase 4+）
+
+# 1. Region allow-list（最高槓桿）
+resource "aws_organizations_policy" "deny_unauthorized_regions" {
+  name = "DenyAllRegionsExceptApSoutheast1AndUsEast1"
+  type = "SERVICE_CONTROL_POLICY"
+  ...
+}
+
+# 2. Deny root user actions
+resource "aws_organizations_policy" "deny_root_user_actions" { ... }
+
+# 3. Deny MFA disable
+resource "aws_organizations_policy" "deny_mfa_disable" { ... }
+```
+
+### 紅線
+
+- ❌ **Phase 4 之前不可主動啟用 SCP**（會擋住開發流程）
+- ❌ **SCP 變更不可走 console** — 一律 Terraform
+- ❌ **SCP attach 要從 OU 級別**，不可直接 attach 到 single account
+
+---
+
+## 已知後續 follow-up（per ADR-0016 Implementation Notes）
+
+- [ ] **Phase 4+**：在 `opentrade-management` enable `us-east-1`（給 CloudFront ACM）
+- [ ] **Phase 4+**：建 `opentrade-staging` + `opentrade-prod` sub-accounts
+- [ ] **Phase 4+**：拆 `OpenTradeAdmin` permission set 成 role-specific 集合
+- [ ] **Phase 4+**：寫 `infra/terraform/modules/scp/` 套用 SCP 三條
+- [ ] **Phase 4+**：考慮從 Identity Center directory 換到 corporate IdP（Workspace / Okta）
+
+---
+
+## 嚴禁清單（重點集合）
+
+- ❌ 把資源建在兩個 account 之外（包括 legacy 帳號）
+- ❌ 用 root user 做日常工作
+- ❌ 建 IAM user 給人類用
+- ❌ 建長期 access key
+- ❌ 把 SSO profile 命名為 `[default]`
+- ❌ 把 Terraform state 放在 management account
+- ❌ 在 `ap-southeast-1` 與 `us-east-1` 以外的 region 開資源
+- ❌ 寫死 region 在程式碼或 Terraform
+- ❌ 改 Identity Center home region
+- ❌ commit `aws_access_key_id` / `aws_secret_access_key` 進 git
+- ❌ Phase 4 前啟用 SCP / RCP
+- ❌ 跳過 budget alert 提醒（除非超 budget 已寫 ADR）
+
+---
+
+## 與其他 rules 的關連
+
+| Rule | 關連點 |
+|---|---|
+| [rule 50 (security)](mdc:.cursor/rules/50-security.mdc) | Secrets Manager / IAM / MFA / 加密 baseline |
+| [rule 70 (commit-pr)](mdc:.cursor/rules/70-commit-pr.mdc) | `infra` scope commits 走這條 |
+| [rule 96 (task-decomposition)](mdc:.cursor/rules/96-task-decomposition.mdc) | Terraform 改動跨多 module 必拆 |
+| [rule 97 (status-update)](mdc:.cursor/rules/97-status-update.mdc) | AWS 重大變更必寫 ADR + 更新 status |
+| ADR-0002 | AWS 唯一雲端供應商 + 月費上限 |
+| ADR-0016 | 本規則的依據與完整 context |

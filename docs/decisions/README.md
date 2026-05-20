@@ -104,6 +104,7 @@ YYYY-MM-DD
 | 0013 | Pin Prisma to 6.x — defer Prisma 7 adoption           | Accepted | 2026-05-17 |
 | 0014 | apps/api runtime architecture (env / bundle / Prisma) | Accepted | 2026-05-17 |
 | 0015 | packages/contracts toolchain setup                    | Accepted | 2026-05-17 |
+| 0016 | AWS account architecture (Org, Identity Center, SSO)  | Accepted | 2026-05-20 |
 
 ---
 
