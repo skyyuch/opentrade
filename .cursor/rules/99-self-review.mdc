@@ -44,6 +44,7 @@ alwaysApply: true
 ├── 60-testing.mdc
 ├── 70-commit-pr.mdc
 ├── 80-aws-accounts.mdc
+├── 81-terraform-iac.mdc
 ├── 96-task-decomposition.mdc
 ├── 97-status-update.mdc
 ├── 98-session-handoff.mdc

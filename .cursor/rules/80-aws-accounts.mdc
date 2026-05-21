@@ -287,7 +287,9 @@ resource "aws_organizations_policy" "deny_mfa_disable" { ... }
 |---|---|
 | [rule 50 (security)](mdc:.cursor/rules/50-security.mdc) | Secrets Manager / IAM / MFA / 加密 baseline |
 | [rule 70 (commit-pr)](mdc:.cursor/rules/70-commit-pr.mdc) | `infra` scope commits 走這條 |
+| [rule 81 (terraform-iac)](mdc:.cursor/rules/81-terraform-iac.mdc) | Terraform 程式碼結構與紅線；本規則管邊界，81 管程式碼 |
 | [rule 96 (task-decomposition)](mdc:.cursor/rules/96-task-decomposition.mdc) | Terraform 改動跨多 module 必拆 |
 | [rule 97 (status-update)](mdc:.cursor/rules/97-status-update.mdc) | AWS 重大變更必寫 ADR + 更新 status |
 | ADR-0002 | AWS 唯一雲端供應商 + 月費上限 |
 | ADR-0016 | 本規則的依據與完整 context |
+| ADR-0017 | Terraform IaC 結構與 Phase-0 apply scope |

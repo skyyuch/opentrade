@@ -1,0 +1,288 @@
+# Terraform IaC Operational Discipline
+
+> 本規則描述 OpenTrade 的 Terraform 結構紀律與紅線。
+> 完整脈絡與決策理由見 [ADR-0017](mdc:docs/decisions/0017-terraform-iac-and-phase0-apply-scope.md)。
+> 本規則與 [rule 80](mdc:.cursor/rules/80-aws-accounts.mdc) 配合：80 講 AWS account 邊界、SSO profile；本規則講 Terraform 程式碼怎麼長。
+
+---
+
+## 目錄結構（永遠不可違反）
+
+```
+infra/terraform/
+├── README.md
+├── bootstrap/
+│   └── state-backend/         ← chicken-and-egg root；LOCAL state；apply 一次
+├── environments/
+│   └── {env}/                 ← composition root；wires modules；唯一進 remote backend
+│       ├── versions.tf
+│       ├── providers.tf       ← provider + default_tags
+│       ├── backend.tf         ← S3 + DynamoDB（與 bootstrap 同步）
+│       ├── variables.tf
+│       ├── outputs.tf
+│       ├── main.tf            ← 純粹 module 引用 + 串接
+│       └── terraform.tfvars.example
+└── modules/
+    └── {module-name}/         ← reusable building block
+        ├── versions.tf
+        ├── variables.tf
+        ├── main.tf
+        └── outputs.tf
+```
+
+### 紅線
+
+- ❌ **不可在 `modules/{X}/` 內加第五個 .tf 檔**（保持 4-file 紀律一致）
+- ❌ **不可在 `modules/` 內 declare provider block**（環境 inherit）
+- ❌ **不可在 `modules/` 內讀 env var**（每個輸入都是 `variable`）
+- ❌ **不可在 `modules/` 內寫死 region、account ID、name**（`var.name_prefix` + 邏輯後綴）
+- ❌ **不可把 `bootstrap/` 與 `environments/` 結構合併**（chicken-and-egg 必須 isolated workspace）
+- ❌ **不可加 sub-environment 到 `environments/dev/`**（dev 是單一 namespace；分用途請另開 environment）
+
+---
+
+## Module 4-file 紀律（強制）
+
+每個 `modules/{name}/` 必須**且只能**有四個 .tf 檔，順序與職責固定：
+
+| 檔名 | 內容 | 紅線 |
+|---|---|---|
+| `versions.tf` | `required_version`、`required_providers` 兩 block 而已 | ❌ 不可放 resource 或 variable |
+| `variables.tf` | 全部 input；每個 `variable` 必有 `type` + `description`，可選 `default` + `validation` | ❌ description 不可寫 `${var_name}`（會被 interpolation） |
+| `main.tf` | resources 與相依的 `data` block；`locals` 放最上 | ❌ 不可放未引用的 `data` block |
+| `outputs.tf` | 全部 output；每個必有 `description` | ❌ 不可有邏輯（只 reference resource 屬性） |
+
+### 描述字串紅線
+
+`variable.description` / `output.description` 不可包含 `${...}` interpolation 語法 — Terraform 1.15+ 會在 init 階段嘗試 evaluate 而炸 `Variables not allowed`。改用文字佔位：
+
+```hcl
+# ❌ 錯誤
+variable "name_prefix" {
+  description = "Resource name prefix; produces names like ${name_prefix}-vpc."
+}
+
+# ✅ 正確
+variable "name_prefix" {
+  description = "Resource name prefix; produces names like '<prefix>-vpc'."
+}
+```
+
+---
+
+## Composition root 紀律（`environments/{env}/`）
+
+`main.tf` 內**只能有**：
+
+- 一組 `data "aws_caller_identity"` + `null_resource.guard_account_id`（identity guard，per ADR-0017 D8）
+- 多個 `module "..."` block，依依賴順序排列
+
+### Identity guard（強制）
+
+每個 environment 的 `main.tf` 開頭：
+
+```hcl
+data "aws_caller_identity" "current" {}
+
+resource "null_resource" "guard_account_id" {
+  lifecycle {
+    precondition {
+      condition     = data.aws_caller_identity.current.account_id == var.account_id
+      error_message = "Caller is account ${data.aws_caller_identity.current.account_id} but expected ${var.account_id}. Did you forget --profile opentrade-dev?"
+    }
+  }
+}
+```
+
+`var.account_id` 在 `variables.tf` 有預設（per ADR-0016 該 environment 對應的 account ID）。Plan 階段就會擋住「跑錯帳號」的誤觸。
+
+### 紅線
+
+- ❌ **不可在 `main.tf` 內直接定義 resource**（resource 永遠走 module）
+- ❌ **不可省略 identity guard**（rule 80 紅線的 enforcement layer）
+- ❌ **不可在 environment 之間共享 state file key**（每個 environment 自己的 namespace）
+
+---
+
+## Provider + default_tags 紀律（`providers.tf`）
+
+每個 environment 的 `providers.tf` 必有：
+
+```hcl
+provider "aws" {
+  region  = var.region
+  profile = var.aws_profile
+
+  default_tags {
+    tags = {
+      Project     = "OpenTrade"
+      Environment = var.environment        # dev / staging / prod
+      ManagedBy   = "Terraform"
+      CostCenter  = "phase-0"               # 或 phase-1, phase-2 ...
+      Owner       = var.owner               # 個人 / 團隊識別
+    }
+  }
+}
+```
+
+### 紅線
+
+- ❌ **不可改五個核心 tag key 名**（`Project` / `Environment` / `ManagedBy` / `CostCenter` / `Owner`）
+- ❌ **module 不可 override 五個核心 tag key**（只可加新 key，例如 `Name` / `Tier`）
+- ❌ **不可寫死 `region` 或 `profile` 字串**（一律走 var）
+
+---
+
+## State backend 紀律（`backend.tf`）
+
+`backend "s3"` block 的 `bucket` 與 `dynamodb_table` 是 literal 字串（Terraform backend block 不允許 var）。Phase 0 dev：
+
+```hcl
+terraform {
+  backend "s3" {
+    bucket         = "opentrade-tfstate-dev-371637912734"
+    key            = "environments/dev/terraform.tfstate"
+    region         = "ap-southeast-1"
+    dynamodb_table = "opentrade-tfstate-locks-dev"
+    encrypt        = true
+  }
+}
+```
+
+### 紅線
+
+- ❌ **不可把 state backend bucket 開在 management account**（rule 80 + ADR-0016 D1）
+- ❌ **不可把不同 environment 共用同一個 state `key`**（每 env 自己 namespace）
+- ❌ **不可關掉 `encrypt = true`**
+- ❌ **不可把 backend 設定改成 local**（除了 `bootstrap/state-backend/` 本身）
+
+---
+
+## 寫死的事與不可寫死的事
+
+| 該寫死 | 不可寫死 |
+|---|---|
+| AWS account ID（在 `variable "account_id"` 的 default + `backend.tf` 字面） | Region（一律 `var.region`） |
+| Bucket name（`backend.tf` 字面，`var "state_bucket_name_prefix"` 預設組合） | Profile（一律 `var.aws_profile`） |
+| Postgres engine major.minor（`var.engine_version` 預設） | Resource name（一律 `var.name_prefix` + 後綴） |
+| 工作流程性的 path（如 `key = "environments/dev/..."`） | Owner / CostCenter（一律 var） |
+
+---
+
+## Secret 紀律（與 rule 50 配合）
+
+### 紅線
+
+- ❌ **secret 值不可進 `*.tf` / `*.tfvars` / state file**
+- ❌ **不可用 Terraform `aws_secretsmanager_secret_version` 寫 secret value**（會把 value 留在 state）
+- ❌ **不可用 `random_password` 直接 inject 進 application secret**（一樣留 state）
+
+### 應該
+
+- ✅ Terraform 只創建空 slot（`aws_secretsmanager_secret`，**沒有** `secret_string`）
+- ✅ Secret value 由 operator 透過 `aws secretsmanager put-secret-value --profile opentrade-dev` 寫入
+- ✅ RDS master password 走 `manage_master_user_password = true`（AWS 自己管，不過 Terraform）
+
+---
+
+## Cost-tuning toggle 慣例
+
+每個影響成本的設定都**必須是 module variable**（不寫死），且 dev 預設選便宜版：
+
+| Module | 變數 | Dev 預設 | Phase 4+ prod 值 |
+|---|---|---|---|
+| `vpc` | `single_nat_gateway` | `true` | `false`（雙 NAT） |
+| `rds-postgres` | `multi_az` | `false` | `true` |
+| `rds-postgres` | `instance_class` | `"db.t4g.micro"` | `"db.r7g.large"` 或更高 |
+| `rds-postgres` | `performance_insights_enabled` | `false` | `true` |
+| `rds-postgres` | `deletion_protection` | `false` | `true` |
+| `rds-postgres` | `skip_final_snapshot` | `true` | `false` |
+| `frontend-cdn` | `price_class` | `"PriceClass_100"` | `"PriceClass_All"` |
+| `ecr-repo` | `image_tag_mutability` | `"MUTABLE"` | `"IMMUTABLE"` |
+| `secrets` | `recovery_window_in_days` | `0` | `30` |
+
+### 紅線
+
+- ❌ **不可把成本選擇寫死在 module main.tf**（一律 var）
+- ❌ **不可在 dev 開 prod-only feature 「只是好玩」**（per rule 80 cost guardrail）
+
+---
+
+## Apply 紀律
+
+### 應該
+
+- ✅ 永遠先 `terraform plan -out tfplan` 再 `terraform apply tfplan`（plan 上下文不變）
+- ✅ Apply 前先 `aws sts get-caller-identity --profile opentrade-dev` 確認對 account
+- ✅ Apply 後 `terraform output` 紀錄到 `docs/03-status.md` 或 ADR Implementation Notes
+- ✅ Apply 失敗中斷 → 看 error → 修 module → re-plan → re-apply（Terraform state 會記住已建好的部分，不會重做）
+
+### 紅線
+
+- ❌ **不可 `terraform apply` 對 management account**（per rule 80 + ADR-0016；只 dev workload）
+- ❌ **不可在 PR / CI 跑 apply**（CI 只跑 `plan`，apply 是 human-in-loop 操作；Phase 4+ 才有 GitHub Actions OIDC 自動 deploy）
+- ❌ **不可在 Phase 0 用 `-target=...` 部分 apply**（會讓 state 與 code 不一致）
+- ❌ **不可 `terraform destroy` 對 production environment**（永遠）
+- ❌ **不可 `terraform destroy` 對 `bootstrap/state-backend/`**（會讓所有其他 workspace 失去 state）
+
+---
+
+## Module 新增 / 移除紀律
+
+### 新增 module 必做
+
+1. 寫 ADR 說明為什麼需要新 module（per `docs/decisions/README.md`）
+2. 在 `modules/{name}/` 建 4 個 .tf 檔
+3. 在 `environments/{env}/main.tf` 加 `module "..."` block
+4. 在 `environments/{env}/outputs.tf` 加對應 output
+5. 在 `infra/terraform/README.md` 的 Layout 段落加一行
+
+### 移除 module 必做
+
+1. 寫 ADR 說明為什麼移除 + 影響範圍
+2. 確認沒有其他 module 透過 output reference 它
+3. `terraform plan` 看到對應 destroy plan
+4. `terraform apply` 真的 destroy
+5. 才能 `git rm -r modules/{name}/`
+
+### 紅線
+
+- ❌ **不可 `git rm` module 程式碼但 state 還引用它**（孤兒 state，未來 plan 會報錯）
+
+---
+
+## 與 ADR / 其他 rules 的關連
+
+| 文件 | 關連點 |
+|---|---|
+| [ADR-0002](mdc:docs/decisions/0002-aws-stack.md) | AWS 唯一雲端、Phase 0 cost 上限 |
+| [ADR-0010](mdc:docs/decisions/0010-split-web-and-console.md) | `frontend-cdn` 模組為何要可 `noindex` |
+| [ADR-0014](mdc:docs/decisions/0014-api-runtime-architecture.md) | `apps/api/Dockerfile` 多階段建置設計 |
+| [ADR-0016](mdc:docs/decisions/0016-aws-account-architecture.md) | 雙 account、SSO profile naming convention |
+| [ADR-0017](mdc:docs/decisions/0017-terraform-iac-and-phase0-apply-scope.md) | 本規則的依據；module 結構、apply scope、cost envelope |
+| [rule 50](mdc:.cursor/rules/50-security.mdc) | Secret 不進 state file |
+| [rule 70](mdc:.cursor/rules/70-commit-pr.mdc) | infra scope commit 規則 |
+| [rule 80](mdc:.cursor/rules/80-aws-accounts.mdc) | AWS account 邊界、SSO profile、紅線 |
+| [rule 96](mdc:.cursor/rules/96-task-decomposition.mdc) | Terraform 跨多 module 改動必拆 |
+| [rule 97](mdc:.cursor/rules/97-status-update.mdc) | 重大 infra 變動必寫 ADR + 更新 status |
+
+---
+
+## 嚴禁清單（重點集合）
+
+- ❌ Module 內 declare provider
+- ❌ Module 內讀 env var 或寫死 region/account/name
+- ❌ Module 4-file convention 之外的檔案（除非單元測試 fixture，加 `.tftest.hcl` 例外）
+- ❌ description 字串內含 `${...}` interpolation
+- ❌ Composition root 直接定義 resource（一律走 module）
+- ❌ 缺 identity guard
+- ❌ 改五個核心 tag key 名
+- ❌ secret 值進 .tf / .tfvars / state
+- ❌ Cost-tuning 寫死在 main.tf
+- ❌ Apply 對 management account
+- ❌ Apply 在 CI（Phase 0–3）
+- ❌ `terraform destroy` 對 `bootstrap/state-backend/`
+- ❌ State backend bucket 開在 management account
+- ❌ 不同 env 共用同一 state `key`
+- ❌ 加 module 沒寫 ADR
+- ❌ 移 module 但 state 還引用它

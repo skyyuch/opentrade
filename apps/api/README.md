@@ -77,6 +77,62 @@ The build externalises `@prisma/client` (native engine binaries) and
 `pino-pretty` (dev-only transport); everything else, including workspace
 packages, is inlined. See `tsup.config.ts` for details.
 
+### Production container image
+
+The Dockerfile is a multi-stage Debian-slim build. Build context is the
+**monorepo root** (NOT `apps/api/`):
+
+```bash
+# from repo root:
+docker build -f apps/api/Dockerfile -t opentrade-api:dev .
+```
+
+Stage breakdown (per [ADR-0014](../../docs/decisions/0014-api-runtime-architecture.md) +
+[ADR-0017](../../docs/decisions/0017-terraform-iac-and-phase0-apply-scope.md)):
+
+1. `base` — Node 22.13-slim + pinned pnpm 9.15.4 + OpenSSL.
+2. `deps` — `pnpm install --frozen-lockfile` against all manifests +
+   the Prisma schema. Layer cache breaks only on lockfile changes.
+3. `builder` — `pnpm --filter @opentrade/api build` (tsup) →
+   `pnpm --filter @opentrade/api --prod deploy --ignore-scripts /deploy` →
+   manual copy of the prisma-generated `.prisma/` from pnpm's `.pnpm`
+   content store into `/deploy/node_modules/.prisma/`.
+4. `runtime` — fresh Debian-slim, non-root `opentrade` user, single
+   COPY from `/deploy`, HEALTHCHECK on `/v1/health`.
+
+Image size: ~554 MB uncompressed / ~125 MB compressed (ECR-stored).
+
+Smoke-run locally:
+
+```bash
+docker run --rm -p 14000:4000 \
+  -e DATABASE_URL='postgresql://opentrade:devpassword@host.docker.internal:5432/opentrade?schema=public' \
+  -e JWT_SECRET='this-is-a-development-jwt-secret-of-32-bytes' \
+  opentrade-api:dev
+
+# in another terminal:
+curl http://localhost:14000/v1/health
+```
+
+### Push to ECR (Phase-0 dev environment)
+
+`infra/terraform/environments/dev` provisioned an ECR repository at
+`371637912734.dkr.ecr.ap-southeast-1.amazonaws.com/opentrade-api`. To
+push the locally-built image:
+
+```bash
+aws ecr get-login-password --profile opentrade-dev --region ap-southeast-1 \
+  | docker login --username AWS --password-stdin 371637912734.dkr.ecr.ap-southeast-1.amazonaws.com
+
+docker tag opentrade-api:dev \
+  371637912734.dkr.ecr.ap-southeast-1.amazonaws.com/opentrade-api:dev
+
+docker push 371637912734.dkr.ecr.ap-southeast-1.amazonaws.com/opentrade-api:dev
+```
+
+Phase 1 introduces release-tagged pushes (e.g. `:0.1.0`) via GitHub
+Actions OIDC.
+
 ## Endpoints
 
 | Method | Path         | Auth   | Purpose                                |
@@ -127,8 +183,9 @@ offending field names in the error message.
 
 ## Status
 
-Phase 0 (Commit number-five). Health endpoint live; reviews / brokers / kols
-/ disputes / identity / signals domains land in Phase 1.
+Phase 0 (Commit number-nine). Health endpoint live; Dockerfile multi-stage
+build smoke-tested + image pushed to ECR. ECS service definition lands in
+Phase 1 alongside the first business domain.
 
 See [`docs/01-architecture.md`](../../docs/01-architecture.md) §4.3 for the
 full architecture.

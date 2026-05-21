@@ -1,0 +1,19 @@
+# Copy this file to terraform.tfvars (gitignored) only if you need to
+# override a default. Every variable in variables.tf has a sensible
+# default for the dev environment, so most contributors will never
+# write a tfvars file at all.
+#
+# Example overrides:
+#
+# region      = "ap-southeast-1"
+# aws_profile = "opentrade-dev"
+# environment = "dev"
+# owner       = "skyyu"
+#
+# vpc_cidr           = "10.0.0.0/16"
+# availability_zones = ["ap-southeast-1a", "ap-southeast-1b"]
+#
+# db_instance_class       = "db.t4g.micro"
+# db_allocated_storage_gb = 20
+# db_name                 = "opentrade"
+# db_username             = "opentrade_admin"

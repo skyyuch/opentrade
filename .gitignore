@@ -65,6 +65,11 @@ override.tf
 override.tf.json
 *_override.tf
 *_override.tf.json
+# Per ADR-0017: never commit a saved plan file. Plan artefacts are
+# environment-specific and contain inferred resource attributes that
+# look like state. Re-plan locally instead of trusting an old tfplan.
+tfplan
+*.tfplan
 
 # Private keys / wallets
 *.pem

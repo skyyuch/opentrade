@@ -1,0 +1,10 @@
+# Local state lives only in this directory by design (chicken-and-egg);
+# never commit it.
+.local-state/
+terraform.tfstate
+terraform.tfstate.backup
+.terraform/
+.terraform.lock.hcl
+tfplan
+*.tfvars
+!*.tfvars.example

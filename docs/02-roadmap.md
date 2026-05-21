@@ -89,7 +89,8 @@
 - ✅ `pnpm lint` 全部 pass
 - ✅ Storybook 跑得起來能看到示範元件
 - ✅ Foundry test 跑得起來（即使是空殼測試）
-- ✅ Terraform `plan` 跑得起來（沒實際 apply）
+- ✅ Terraform `apply` 在 `opentrade-dev` 真實跑通（VPC + RDS + ECS cluster + ECR + 2× CloudFront + Secrets slots，~$54/月，per ADR-0017 D4）
+- ✅ apps/api Dockerfile multi-stage build smoke-test 通過（per ADR-0014 + ADR-0017）
 - ✅ CI 在 PR 上自動跑
 
 ---
