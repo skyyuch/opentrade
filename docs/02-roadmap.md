@@ -76,11 +76,15 @@
 - [ ] Secrets Manager 結構
 - [ ] AWS 帳號接通
 
-#### 0.6 CI/CD（Commit #8）
+#### 0.6 CI/CD（Commit number-ten）
 
-- [ ] GitHub Actions: lint + typecheck + test
-- [ ] PR template + CODEOWNERS
-- [ ] Branch protection 設定
+- [x] GitHub Actions: lint + typecheck + test + format（`.github/workflows/ci.yml`）
+- [x] Foundry CI（`.github/workflows/contracts.yml`，forge 1.7.1 + solhint warning-only）
+- [x] Terraform CI（`.github/workflows/terraform.yml`，fmt -check + per-workspace `init -backend=false` + validate，NO apply）
+- [x] PR template + CODEOWNERS（`.github/pull_request_template.md` + `.github/CODEOWNERS`）
+- [x] Dependabot（`.github/dependabot.yml`，npm + github-actions ecosystems，ignore Prisma 7+ / Next 15+ majors per ADR-0013 + docs/03-status.md 開放問題）
+- [x] ESLint runtime-import guard：`apps/{web,console}` 禁 runtime import `@opentrade/db` / `@prisma/client`（type-only allowed per rule 10）
+- [ ] Branch protection 設定（GitHub Settings UI follow-up per ADR-0018 D10；不可由 commit 編碼）
 
 ### Phase 0 完成定義 (Definition of Done)
 
@@ -91,7 +95,7 @@
 - ✅ Foundry test 跑得起來（即使是空殼測試）
 - ✅ Terraform `apply` 在 `opentrade-dev` 真實跑通（VPC + RDS + ECS cluster + ECR + 2× CloudFront + Secrets slots，~$54/月，per ADR-0017 D4）
 - ✅ apps/api Dockerfile multi-stage build smoke-test 通過（per ADR-0014 + ADR-0017）
-- ✅ CI 在 PR 上自動跑
+- ✅ CI 在 PR 上自動跑（三 workflow：`ci` lint/typecheck/test/format + `contracts` forge/solhint + `terraform` fmt/validate；首 PR 全 9 個 check 第一輪即綠，per ADR-0018）
 
 ---
 
