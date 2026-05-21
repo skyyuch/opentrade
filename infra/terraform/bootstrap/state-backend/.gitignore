@@ -4,7 +4,9 @@
 terraform.tfstate
 terraform.tfstate.backup
 .terraform/
-.terraform.lock.hcl
+# `.terraform.lock.hcl` IS committed for this workspace too (per ADR-0018
+# + rule 81). CI does not run init against this workspace (it has local
+# state) but committing the lock keeps the provider set transparent.
 tfplan
 *.tfvars
 !*.tfvars.example

@@ -158,6 +158,31 @@ terraform {
 
 ---
 
+## Provider lock file 紀律（`.terraform.lock.hcl`）
+
+### 應該
+
+- ✅ **必須 commit** 每個 workspace 的 `.terraform.lock.hcl`（per ADR-0018）
+- ✅ Bump `versions.tf` 任何 provider 版本時，**同一 PR** 內跑：
+
+  ```bash
+  terraform providers lock \
+    -platform=linux_amd64 \
+    -platform=darwin_arm64 \
+    -platform=darwin_amd64
+  ```
+
+  並 commit 結果，確保 Mac（founder）+ Linux（CI runner）+ Intel Mac（contributor）三平台都有 hash
+- ✅ CI 跑 `terraform init -backend=false` 時靠 lock file resolve provider，**不對外連網**做版本協商
+
+### 紅線
+
+- ❌ **不可 `.gitignore` 排除 `.terraform.lock.hcl`**（per ADR-0018；舊版 `.gitignore` 在 Commit number-ten 已修正）
+- ❌ **不可在 PR 改 `versions.tf` 但不 refresh lock file**（會讓 CI 與本機 provider 不一致）
+- ❌ **不可只 lock 單一 platform**（CI runner 必跑 `linux_amd64`，少了會 fail at install）
+
+---
+
 ## 寫死的事與不可寫死的事
 
 | 該寫死 | 不可寫死 |
@@ -260,6 +285,7 @@ terraform {
 | [ADR-0014](mdc:docs/decisions/0014-api-runtime-architecture.md) | `apps/api/Dockerfile` 多階段建置設計 |
 | [ADR-0016](mdc:docs/decisions/0016-aws-account-architecture.md) | 雙 account、SSO profile naming convention |
 | [ADR-0017](mdc:docs/decisions/0017-terraform-iac-and-phase0-apply-scope.md) | 本規則的依據；module 結構、apply scope、cost envelope |
+| [ADR-0018](mdc:docs/decisions/0018-ci-cd-github-actions.md) | CI 紀律：`validate -backend=false`、lock file commit、apply 仍 human-in-loop |
 | [rule 50](mdc:.cursor/rules/50-security.mdc) | Secret 不進 state file |
 | [rule 70](mdc:.cursor/rules/70-commit-pr.mdc) | infra scope commit 規則 |
 | [rule 80](mdc:.cursor/rules/80-aws-accounts.mdc) | AWS account 邊界、SSO profile、紅線 |
@@ -286,3 +312,5 @@ terraform {
 - ❌ 不同 env 共用同一 state `key`
 - ❌ 加 module 沒寫 ADR
 - ❌ 移 module 但 state 還引用它
+- ❌ `.gitignore` 排除 `.terraform.lock.hcl`（per ADR-0018）
+- ❌ Bump `versions.tf` 不同步 refresh `.terraform.lock.hcl`

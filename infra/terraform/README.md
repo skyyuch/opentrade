@@ -114,7 +114,37 @@ terraform output                  # print module outputs
 ```
 
 Whenever you change a `.tf` file, run `fmt` + `validate` before
-`plan`. The PR CI (Commit number-ten) will enforce both.
+`plan`. The PR CI (per ADR-0018) enforces both via
+`.github/workflows/terraform.yml`.
+
+### Updating the provider lock file
+
+Per ADR-0018 + rule 81, `.terraform.lock.hcl` **IS committed** for
+both workspaces (`bootstrap/state-backend/` and `environments/dev/`).
+That lock file is what lets CI's
+`terraform init -backend=false` resolve providers from a pinned set
+without contacting AWS.
+
+When you bump `versions.tf` (e.g., AWS provider 5.83 → 5.90), refresh
+the multi-platform hashes once so both Mac (founder) and Linux (CI)
+runners pick up the new providers:
+
+```bash
+cd infra/terraform/bootstrap/state-backend
+terraform providers lock \
+  -platform=linux_amd64 \
+  -platform=darwin_arm64 \
+  -platform=darwin_amd64
+
+cd ../../environments/dev
+terraform providers lock \
+  -platform=linux_amd64 \
+  -platform=darwin_arm64 \
+  -platform=darwin_amd64
+```
+
+Commit the resulting `.terraform.lock.hcl` deltas alongside the
+`versions.tf` bump in the same PR.
 
 ---
 
@@ -149,7 +179,7 @@ explicit.
 
 ---
 
-## Hard rules (per rule 80 + rule 50)
+## Hard rules (per rule 80 + rule 50 + rule 81)
 
 - ❌ Never commit `*.tfstate` / `*.tfvars` (`.gitignore` enforces this)
 - ❌ Never put secrets in `*.tf` or `*.tfvars` — values go to Secrets
@@ -159,6 +189,11 @@ explicit.
 - ❌ Never write account IDs as literals in module code — pass via vars.
 - ❌ Never `terraform apply` against the management account — only
   `opentrade-dev` accepts workload Terraform until Phase 4+.
+- ❌ Never `terraform apply` from CI — CI only runs `validate` per
+  ADR-0018 D7. `apply` is human-in-loop until the Phase 4+ OIDC role
+  lands.
+- ✅ Always commit `.terraform.lock.hcl` alongside any `versions.tf`
+  change so CI and laptops resolve identical providers.
 
 ---
 
