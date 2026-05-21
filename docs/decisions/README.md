@@ -106,6 +106,7 @@ YYYY-MM-DD
 | 0015 | packages/contracts toolchain setup                    | Accepted | 2026-05-17 |
 | 0016 | AWS account architecture (Org, Identity Center, SSO)  | Accepted | 2026-05-20 |
 | 0017 | Terraform IaC structure + Phase-0 full apply scope    | Accepted | 2026-05-21 |
+| 0018 | CI/CD GitHub Actions architecture (Phase 0 scope)     | Accepted | 2026-05-21 |
 
 ---
 

@@ -58,7 +58,13 @@ aws-exports.js
 *.tfvars
 !*.tfvars.example
 .terraform/
-.terraform.lock.hcl
+# Per ADR-0018 + rule 81: `.terraform.lock.hcl` IS committed. The lock
+# file pins exact provider versions and hashes per platform so CI's
+# `terraform init -backend=false` (per ADR-0018 D7) and every developer's
+# `terraform init` resolve to byte-identical providers. Use
+# `terraform providers lock -platform=linux_amd64 -platform=darwin_arm64
+# -platform=darwin_amd64` to (re)generate multi-platform hashes when
+# bumping AWS provider version.
 crash.log
 crash.*.log
 override.tf

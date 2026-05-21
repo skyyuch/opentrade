@@ -54,7 +54,7 @@ alwaysApply: true
 
 - `web`、`console`、`api`
 - `contracts`、`db`、`ui`、`shared`、`config`
-- `infra`、`docs`、`decisions`（ADR commits）、`rules`
+- `infra`、`docs`、`decisions`（ADR commits）、`conversations`（session 歸檔）、`rules`
 - `deps`（依賴升級）、`release`（版本發布）、`ci`（CI/CD 變更）、`status`（`docs/03-status.md` 更新）
 
 ### Subject

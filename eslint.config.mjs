@@ -196,6 +196,47 @@ export default tseslint.config(
     },
   },
 
+  // Architecture boundary enforcement (per .cursor/rules/10-architecture.mdc):
+  // Frontend apps (web, console) must never reach the DB layer at runtime.
+  // All data access goes through apps/api. Type-only imports of model
+  // shapes from @opentrade/db are still allowed (the type-only escape
+  // hatch from rule 10), but anything that survives `import type` erasure
+  // — values, namespaces, side-effectful imports — is blocked.
+  //
+  // @prisma/client is also blocked because it is the underlying database
+  // engine; if it ever shows up in a frontend bundle that is the same
+  // boundary violation by a different path. apps/api owns the only
+  // legitimate runtime use of @prisma/client (per ADR-0014).
+  {
+    files: ['apps/web/src/**/*.{ts,tsx}', 'apps/console/src/**/*.{ts,tsx}'],
+    rules: {
+      '@typescript-eslint/no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['@opentrade/db', '@opentrade/db/*'],
+              message:
+                'Frontend apps must not runtime-import @opentrade/db. ' +
+                'Use `import type { ... } from "@opentrade/db"` for model ' +
+                'shape, and fetch data via apps/api. See .cursor/rules/' +
+                '10-architecture.mdc and ADR-0006.',
+              allowTypeImports: true,
+            },
+            {
+              group: ['@prisma/client', '@prisma/client/*'],
+              message:
+                'Frontend apps must not runtime-import @prisma/client. ' +
+                'Database access is server-only per .cursor/rules/' +
+                '10-architecture.mdc, ADR-0014, and rule 50.',
+              allowTypeImports: true,
+            },
+          ],
+        },
+      ],
+    },
+  },
+
   // Plain JS files — turn off type-aware rules
   {
     files: ['**/*.{js,mjs,cjs}'],

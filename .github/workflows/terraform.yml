@@ -1,0 +1,103 @@
+# OpenTrade — Terraform IaC CI pipeline
+#
+# Runs whenever infra/terraform/** or this workflow itself changes.
+# Validates HCL syntax, formatting, and module wiring for both the
+# bootstrap state-backend workspace and the environments/dev workspace
+# WITHOUT ever touching AWS. Per ADR-0018 D7 + D8 + rule 81:
+#
+#   - terraform init runs with -backend=false (no S3 state read)
+#   - terraform validate runs offline (provider plugins resolved from
+#     the committed .terraform.lock.hcl per ADR-0018 commit t2)
+#   - NO terraform plan (would require backend access + AWS creds)
+#   - NO terraform apply (rule 81 hard red line; always human-in-loop)
+#   - NO AWS credentials configured anywhere in this workflow
+#
+# CI gets `plan` + PR-comment integration in Phase 4+ via a successor
+# ADR (planned ADR-0019 deploy pipeline) once the OIDC role lands in
+# opentrade-dev IAM.
+
+name: terraform
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "infra/terraform/**"
+      - ".github/workflows/terraform.yml"
+  push:
+    branches: [main]
+    paths:
+      - "infra/terraform/**"
+      - ".github/workflows/terraform.yml"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Strictly read-only against the codebase. No id-token (no OIDC), no
+# AWS, no GitHub write permissions. The whole job is offline-safe.
+permissions:
+  contents: read
+
+env:
+  # Matches the founder's local install per docs/03-status.md and
+  # ADR-0017 D7 (within "Terraform 1.9.0 ≤ x < 2.0.0" pin range).
+  TERRAFORM_VERSION: 1.15.4
+
+jobs:
+  fmt:
+    name: fmt -check
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+
+      - name: Setup Terraform ${{ env.TERRAFORM_VERSION }}
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+          terraform_wrapper: false
+
+      - name: terraform fmt -check -recursive
+        working-directory: infra/terraform
+        run: terraform fmt -check -recursive
+
+  validate:
+    name: validate (${{ matrix.workspace }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    strategy:
+      fail-fast: false
+      matrix:
+        workspace:
+          - bootstrap/state-backend
+          - environments/dev
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+
+      - name: Setup Terraform ${{ env.TERRAFORM_VERSION }}
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+          terraform_wrapper: false
+
+      - name: terraform init -backend=false
+        working-directory: infra/terraform/${{ matrix.workspace }}
+        # -backend=false skips the S3 backend init so no AWS creds
+        # are required. Providers are still resolved from the committed
+        # .terraform.lock.hcl, which lists hashes for linux_amd64
+        # (this runner) per ADR-0018 commit t2.
+        # -input=false fails fast rather than waiting for a TTY prompt
+        # if Terraform decides it needs input.
+        run: terraform init -backend=false -input=false
+
+      - name: terraform validate
+        working-directory: infra/terraform/${{ matrix.workspace }}
+        run: terraform validate

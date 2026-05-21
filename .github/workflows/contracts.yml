@@ -1,0 +1,126 @@
+# OpenTrade — Solidity / Foundry CI pipeline
+#
+# Runs whenever packages/contracts/** or this workflow itself changes.
+# Fetches OZ + forge-std git submodules (recursive), installs Foundry
+# pinned to v1.7.1 (per ADR-0015 D2 + ADR-0018 D5), and runs the four
+# Phase-0 contract gates: build, test (no fork tests), fmt --check,
+# solhint (warning-only per ADR-0015 D5).
+#
+# See ADR-0018 D5+D6 for the full rationale on version pin, solhint
+# posture, and why this is a separate workflow from ci.yml.
+
+name: contracts
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "packages/contracts/**"
+      - ".github/workflows/contracts.yml"
+      - ".gitmodules"
+      - "pnpm-lock.yaml"
+  push:
+    branches: [main]
+    paths:
+      - "packages/contracts/**"
+      - ".github/workflows/contracts.yml"
+      - ".gitmodules"
+      - "pnpm-lock.yaml"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  forge:
+    name: forge
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository (with submodules)
+        uses: actions/checkout@v4
+        with:
+          # OpenZeppelin v5.6.1 + OpenZeppelin-Upgradeable v5.6.1 +
+          # forge-std all live as git submodules under
+          # packages/contracts/lib/ per ADR-0015 D2. Recursive fetch
+          # is required so forge build can resolve `@openzeppelin/...`
+          # imports.
+          submodules: recursive
+
+      - name: Install Foundry pinned to v1.7.1
+        # Pin matches ADR-0015 D2's known-good version for OZ v5.6.1
+        # submodule resolution. Bumping requires a successor ADR.
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.7.1
+
+      - name: Print forge version
+        run: forge --version
+
+      - name: forge build
+        working-directory: packages/contracts
+        run: forge build
+
+      - name: forge test (excluding fork tests)
+        working-directory: packages/contracts
+        # Phase 0 has no RPC URL configured; fork tests are excluded.
+        # When Phase 1 adds fork-test infra, this flag will be flipped.
+        run: forge test --no-match-test testFork -vvv
+
+      - name: forge fmt --check
+        working-directory: packages/contracts
+        # Single source of truth for Solidity style per ADR-0015 D4.
+        run: forge fmt --check
+
+  solhint:
+    name: solhint (warning-only)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    # Solhint runs in Phase 0 as a soft gate per ADR-0015 D5; it
+    # publishes warnings but never fails CI. When the first business
+    # contract lands in Phase 1, this job flips to error-level in the
+    # same PR that introduces the contract.
+    continue-on-error: true
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          # solhint reads only test/**/*.sol per ADR-0015 D6 and
+          # .solhintignore excludes lib/, so OZ submodules are not
+          # required for this job. Skipping them saves ~80 MB.
+          submodules: false
+
+      - name: Setup Node 22 from .nvmrc
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: Enable Corepack and pin pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@9.15.4 --activate
+
+      - name: Get pnpm store path
+        id: pnpm-store
+        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: pnpm-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            pnpm-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: solhint
+        working-directory: packages/contracts
+        run: pnpm lint

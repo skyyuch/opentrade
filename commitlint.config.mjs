@@ -4,7 +4,7 @@
  * Allowed types: feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert
  * Allowed scopes (initial set, expand as we add packages):
  *   web, console, api, contracts, db, ui, shared, config,
- *   infra, docs, decisions, rules, deps, release, ci, status
+ *   infra, docs, decisions, conversations, rules, deps, release, ci, status
  *
  * `status` is reserved for `docs/03-status.md` updates per rule 97 — these
  * happen at the end of every session and deserve their own scope so they
@@ -13,6 +13,11 @@
  * `decisions` is reserved for ADR commits under `docs/decisions/`. ADR
  * commits are common enough (per rule 97) and structurally distinct
  * from generic docs to warrant their own scope.
+ *
+ * `conversations` is reserved for session archive commits under
+ * `docs/conversations/`. These follow the rule 97 + rule 98 handoff
+ * cadence (one per ship-worthy session) and are structurally distinct
+ * from generic docs.
  */
 
 /** @type {import('@commitlint/types').UserConfig} */
@@ -51,6 +56,7 @@ const config = {
         'infra',
         'docs',
         'decisions',
+        'conversations',
         'rules',
         'deps',
         'release',
