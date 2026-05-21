@@ -1,0 +1,41 @@
+# OpenTrade CODEOWNERS
+#
+# Per rule 70 and ADR-0018 D10. Phase 0 is solo-developed by the
+# founder, so every path resolves to @skyyuch. The granular path-
+# specific entries below are intentionally present (even though they
+# all point to the same owner today) so that when a second contributor
+# joins, sensitive areas can be re-routed in a single targeted PR
+# rather than a large reshuffle.
+#
+# Reviewer assignment via CODEOWNERS is automatic. Branch protection
+# rules (configured in the GitHub Settings UI per ADR-0018 D10) make
+# CODEOWNERS-suggested reviewers a hard requirement on PRs to main.
+
+# ── Default fallback ────────────────────────────────────────────────
+* @skyyuch
+
+# ── High-sensitivity areas (Phase 1+ will add @security-advisor) ────
+# Smart contracts — financial primitives. Phase 1+ ships
+# ReviewRegistry.sol; per ADR-0015 D5, that PR also tightens solhint
+# and likely adds a security-focused reviewer.
+/packages/contracts/ @skyyuch
+
+# Security rule itself — never change without explicit founder review.
+/.cursor/rules/50-security.mdc @skyyuch
+
+# Architecture decisions — every ADR change is a "future you will
+# regret" filter (per docs/decisions/README.md). Founder gates all.
+/docs/decisions/ @skyyuch
+
+# Cursor rules — operational discipline for every AI agent in the
+# repo. Changes touch how the project enforces its red lines.
+/.cursor/rules/ @skyyuch
+
+# AWS account / IaC boundary — anything here is a real cloud cost.
+/infra/terraform/ @skyyuch
+
+# CI/CD workflows + Dependabot — supply-chain surface.
+/.github/ @skyyuch
+
+# Database schema + migrations — destructive changes possible.
+/packages/db/prisma/ @skyyuch
