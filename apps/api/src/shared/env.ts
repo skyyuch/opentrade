@@ -71,12 +71,44 @@ const envSchema = z.object({
   LOG_LEVEL: z.enum(LOG_LEVELS).default('info'),
 
   /**
-   * JWT signing secret. Phase 0 placeholder: validated only for length so a
-   * truncated value cannot accidentally land in any environment. Commit
-   * number-six (auth flow) replaces this with an ES256 private key loaded
-   * from AWS Secrets Manager — see ADR-0006 and rule 50.
+   * Privy App ID — the same value as NEXT_PUBLIC_PRIVY_APP_ID on the
+   * frontend but without the NEXT_PUBLIC_ prefix (backend-only).
    */
-  JWT_SECRET: z.string().min(32, 'JWT_SECRET must be at least 32 characters long'),
+  PRIVY_APP_ID: z.string().min(1, 'PRIVY_APP_ID is required for auth (ADR-0005)'),
+
+  /**
+   * Privy App Secret — server-side only. Never expose to frontend.
+   */
+  PRIVY_APP_SECRET: z.string().min(1, 'PRIVY_APP_SECRET is required for auth (ADR-0005)'),
+
+  /**
+   * Privy verification key (SPKI PEM string) — found in the Privy Dashboard
+   * under App Settings > Verification Key. Used by `verifyAccessToken()` to
+   * verify the Privy-issued JWT without a network call.
+   */
+  PRIVY_VERIFICATION_KEY: z
+    .string()
+    .min(1, 'PRIVY_VERIFICATION_KEY is required for Privy token verification'),
+
+  /**
+   * ES256 private key in PEM format for signing OpenTrade JWTs.
+   * Per rule 50: must be ES256 (not HS256). In production, loaded from
+   * AWS Secrets Manager at deploy time.
+   */
+  JWT_PRIVATE_KEY_PEM: z.string().min(1, 'JWT_PRIVATE_KEY_PEM is required for ES256 JWT signing'),
+
+  /**
+   * ES256 public key in PEM format for verifying OpenTrade JWTs.
+   */
+  JWT_PUBLIC_KEY_PEM: z
+    .string()
+    .min(1, 'JWT_PUBLIC_KEY_PEM is required for ES256 JWT verification'),
+
+  /**
+   * Default tenant UUID for the HK market. Phase 1 only has one tenant;
+   * multi-tenant routing lands in Phase 3+.
+   */
+  DEFAULT_TENANT_ID: z.string().uuid('DEFAULT_TENANT_ID must be a valid UUID'),
 });
 
 export type ApiEnv = z.infer<typeof envSchema>;

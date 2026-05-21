@@ -9,6 +9,7 @@
  * the values.
  */
 
+import type { AuthenticatedUser } from '../domains/identity/domain/AuthenticatedUser.js';
 import type { Logger } from 'pino';
 
 export type AppHonoVariables = {
@@ -25,6 +26,12 @@ export type AppHonoVariables = {
    * is correlated to the originating request automatically.
    */
   logger: Logger;
+
+  /**
+   * Authenticated user context. Set by the auth middleware — only present
+   * on routes that pass through `authMiddleware()`.
+   */
+  user: AuthenticatedUser;
 };
 
 export type AppHonoEnv = {

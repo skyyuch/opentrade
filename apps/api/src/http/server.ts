@@ -19,9 +19,11 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 
 import { healthRouter } from '../domains/health/index.js';
+import { identityRouter, JoseJwtService } from '../domains/identity/index.js';
 import { env } from '../shared/env.js';
 import { AppError } from '../shared/errors/index.js';
 
+import { setAuthJwtService } from './middleware/auth.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { requestId, requestLogger } from './middleware/requestContext.js';
 
@@ -49,9 +51,12 @@ export const createServer = (): Hono<AppHonoEnv> => {
     }),
   );
 
-  // Routes for individual domains. Each domain mounts under `/v1/{domain}`.
-  // Subsequent commits add reviews, brokers, kols, disputes, identity, signals.
+  // Initialise the shared JWT service so auth middleware can verify tokens.
+  const jwtService = new JoseJwtService(env.JWT_PRIVATE_KEY_PEM, env.JWT_PUBLIC_KEY_PEM);
+  setAuthJwtService(jwtService);
+
   app.route('/v1/health', healthRouter);
+  app.route('/v1/auth', identityRouter);
 
   app.notFound((c) =>
     errorHandler(AppError.notFound(`Route ${c.req.method} ${c.req.path} not found`), c),
