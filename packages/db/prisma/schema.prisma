@@ -107,6 +107,7 @@ model Tenant {
   users        User[]
   brokers      Broker[]
   licenses     BrokerLicense[]
+  reviews      Review[]
   outboxEvents OutboxEvent[]
 
   @@map("tenants")
@@ -135,7 +136,8 @@ model User {
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  tenant Tenant @relation(fields: [tenantId], references: [id])
+  tenant  Tenant   @relation(fields: [tenantId], references: [id])
+  reviews Review[]
 
   @@unique([tenantId, privyId])
   @@index([tenantId, role])
@@ -167,6 +169,7 @@ model Broker {
 
   tenant   Tenant          @relation(fields: [tenantId], references: [id])
   licenses BrokerLicense[]
+  reviews  Review[]
 
   @@unique([tenantId, slug])
   @@index([tenantId, isClaimed])
@@ -202,6 +205,65 @@ model BrokerLicense {
   @@index([tenantId, status])
   @@index([tenantId, regulator, licenseType])
   @@map("broker_licenses")
+}
+
+/// Lifecycle status of a review as it moves through the submission pipeline.
+/// Reviews start PENDING while IPFS pinning + chain tx are in flight, then
+/// transition to CONFIRMED once the chain tx receipt is verified. FAILED marks
+/// a permanently broken submission (IPFS or chain failure after max retries).
+enum ReviewStatus {
+  PENDING // Created in DB; IPFS pin + chain tx not yet confirmed.
+  CONFIRMED // On-chain tx confirmed; review is immutable.
+  FAILED // Pipeline permanently failed (operator intervention needed).
+}
+
+/// An off-chain mirror of a single review submission. The authoritative copy
+/// of the content lives on IPFS (addressed by `ipfsCid`), and its tamper-proof
+/// anchor lives on-chain in ReviewRegistry (addressed by `chainReviewId` +
+/// `txHash`). This DB row exists for fast query and full-text search; it is
+/// NOT the source of truth for immutability — the chain is.
+///
+/// Per ADR-0019 D1: contentHash = keccak256 of the IPFS JSON; the contract
+/// stores (contentHash, ipfsCid) and this table mirrors those values so the
+/// API can serve reviews without querying the chain on every page load.
+///
+/// Per ADR-0019 D5 + project red line: there is NO deleteReview endpoint.
+/// Soft-delete (`deletedAt`) is reserved for extraordinary legal compliance
+/// (court order) and requires an ADR + admin audit log.
+model Review {
+  id            String       @id @default(uuid()) @db.Uuid
+  tenantId      String       @db.Uuid
+  userId        String       @db.Uuid
+  brokerId      String       @db.Uuid
+
+  /// keccak256(JSON.stringify(ipfsPayload)) — matches on-chain contentHash.
+  contentHash   String
+  /// IPFS CID where the full review JSON is pinned (via Pinata).
+  ipfsCid       String?
+  /// On-chain review ID returned by ReviewRegistry.submitReview().
+  chainReviewId Int?
+  /// Transaction hash of the on-chain submission.
+  txHash        String?
+
+  title         String       @db.VarChar(200)
+  body          String       @db.Text
+  /// 1-5 star rating.
+  rating        Int          @db.SmallInt
+
+  status        ReviewStatus @default(PENDING)
+
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  deletedAt     DateTime?
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
+  broker Broker @relation(fields: [brokerId], references: [id])
+
+  @@index([tenantId, brokerId, createdAt])
+  @@index([tenantId, userId])
+  @@index([tenantId, status])
+  @@map("reviews")
 }
 
 /// Transactional outbox for cross-domain domain events (per ADR-0006 outbox

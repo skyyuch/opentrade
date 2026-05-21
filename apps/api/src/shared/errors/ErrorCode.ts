@@ -27,6 +27,8 @@ export const ErrorCode = {
   FORBIDDEN: 'FORBIDDEN',
   /** Downstream dependency (DB, IPFS, chain RPC) is unhealthy; surfaced as 503. */
   SERVICE_UNAVAILABLE: 'SERVICE_UNAVAILABLE',
+  /** Rate limit exceeded; surfaced as 429. */
+  RATE_LIMIT_EXCEEDED: 'RATE_LIMIT_EXCEEDED',
 } as const;
 
 export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode];

@@ -109,6 +109,12 @@ const envSchema = z.object({
    * multi-tenant routing lands in Phase 3+.
    */
   DEFAULT_TENANT_ID: z.string().uuid('DEFAULT_TENANT_ID must be a valid UUID'),
+
+  /**
+   * Pinata JWT for IPFS pinning (per ADR-0019 D1: review content on IPFS,
+   * hash on-chain). Obtain from https://app.pinata.cloud/developers/api-keys.
+   */
+  PINATA_JWT: z.string().min(1, 'PINATA_JWT is required for IPFS review pinning'),
 });
 
 export type ApiEnv = z.infer<typeof envSchema>;
