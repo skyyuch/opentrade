@@ -36,7 +36,8 @@
     "clean": "rm -rf .turbo dist node_modules/.cache"
   },
   "dependencies": {
-    "@opentrade/shared": "workspace:*"
+    "@opentrade/shared": "workspace:*",
+    "viem": "^2.50.4"
   },
   "devDependencies": {
     "typescript": "^5.7.2"
