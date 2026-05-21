@@ -1,0 +1,136 @@
+# OpenTrade — Dependabot configuration
+#
+# Two ecosystems are tracked in Phase 0:
+#   - npm:            workspace root pnpm-lock.yaml (covers all 8 packages)
+#   - github-actions: action versions referenced in .github/workflows/
+#
+# Ignore rules encode ADR-0013 (Prisma 6.x pin) and the
+# docs/03-status.md open question on Next.js 14 → 15/16 upgrade — both
+# are major bumps that require an ADR before adoption, so Dependabot
+# must never propose them as routine PRs.
+#
+# Group rules consolidate noisy ecosystems (@types/*, @storybook/*,
+# typescript-eslint, eslint*) into single PRs so the founder reviews
+# one batched bump per week instead of a dozen separate PRs.
+#
+# Terraform provider bumps are NOT tracked here — Phase 0 stays on the
+# `~> 5.83` AWS provider pin per ADR-0017 D7; a Terraform-provider
+# ecosystem subscription gets added in Phase 4+ when the deploy
+# pipeline is live.
+#
+# Docker base-image bumps (apps/api/Dockerfile pins node:22.13-slim)
+# are NOT tracked here in Phase 0; revisit when the Phase 4+ deploy
+# pipeline can automatically rebuild and push.
+#
+# Reviewer/assignee fields are intentionally omitted: this is a solo
+# Phase-0 repo. Reviewers are added in the same PR that updates
+# .github/CODEOWNERS for the first additional contributor.
+#
+# See ADR-0018 D9 for the full rationale.
+
+version: 2
+
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Asia/Hong_Kong
+    open-pull-requests-limit: 10
+    commit-message:
+      prefix: "build(deps)"
+      include: scope
+    labels:
+      - dependencies
+      - npm
+
+    # Ignore majors that need ADR review before adoption.
+    ignore:
+      # ADR-0013: pin Prisma to 6.x; 7.x adoption requires successor ADR.
+      - dependency-name: prisma
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@prisma/client"
+        update-types: ["version-update:semver-major"]
+
+      # docs/03-status.md open question: Next 14 → 15/16 evaluation
+      # is scheduled after Phase 0 closes. No Dependabot 15.x or 16.x
+      # PRs until that ADR lands.
+      - dependency-name: next
+        update-types: ["version-update:semver-major"]
+      - dependency-name: eslint-config-next
+        update-types: ["version-update:semver-major"]
+
+      # React 18 → 19 is gated behind Next 14 → 15 (RSC alignment),
+      # so it follows the same defer-until-ADR posture.
+      - dependency-name: react
+        update-types: ["version-update:semver-major"]
+      - dependency-name: react-dom
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@types/react"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@types/react-dom"
+        update-types: ["version-update:semver-major"]
+
+      # Storybook 8 → 9 will be reviewed when the @opentrade/ui design
+      # system stabilises (Phase 1+).
+      - dependency-name: storybook
+        update-types: ["version-update:semver-major"]
+
+      # OZ v5 → v6 is far away; per ADR-0015 D2, OZ submodules are
+      # pinned via git, not npm — Dependabot doesn't track them.
+
+    # Batch noisy ecosystems into single weekly PRs.
+    groups:
+      types:
+        patterns:
+          - "@types/*"
+        update-types: [minor, patch]
+      eslint:
+        patterns:
+          - "eslint"
+          - "eslint-*"
+          - "@typescript-eslint/*"
+          - "typescript-eslint"
+        update-types: [minor, patch]
+      storybook:
+        patterns:
+          - "@storybook/*"
+          - "storybook"
+        update-types: [minor, patch]
+      next:
+        patterns:
+          - "next"
+          - "next-*"
+          - "eslint-config-next"
+        update-types: [minor, patch]
+      hono:
+        patterns:
+          - "hono"
+          - "@hono/*"
+        update-types: [minor, patch]
+      pino:
+        patterns:
+          - "pino"
+          - "pino-*"
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Asia/Hong_Kong
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "ci(deps)"
+      include: scope
+    labels:
+      - dependencies
+      - github-actions
+    # No ignore rules: every action major bump should at least surface
+    # for a manual review (e.g., actions/checkout@v4 → v5). The list of
+    # actions we use is short (checkout, setup-node, cache,
+    # foundry-toolchain, setup-terraform).
