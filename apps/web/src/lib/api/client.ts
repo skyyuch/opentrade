@@ -149,6 +149,19 @@ export const apiPost = async <T>(
 };
 
 // ---------------------------------------------------------------------------
+// Auth — Privy → OpenTrade JWT exchange
+// ---------------------------------------------------------------------------
+
+export type ExchangeTokenResponse = {
+  accessToken: string;
+  expiresIn: number;
+  userId: string;
+};
+
+export const exchangeAuthToken = (privyToken: string): Promise<ExchangeTokenResponse> =>
+  apiPost<ExchangeTokenResponse>('/v1/auth/exchange', { accessToken: privyToken });
+
+// ---------------------------------------------------------------------------
 // Domain-specific typed fetchers
 // ---------------------------------------------------------------------------
 
@@ -204,6 +217,11 @@ export type BrokerDetailResponse = {
 export const fetchBroker = (slug: string, options?: FetchOptions): Promise<BrokerDetailResponse> =>
   apiGet<BrokerDetailResponse>(`/v1/brokers/${slug}`, options);
 
+export type ReviewAuthor = {
+  displayName: string | null;
+  sbtTier: string;
+};
+
 export type ReviewItem = {
   id: string;
   brokerId: string;
@@ -216,6 +234,7 @@ export type ReviewItem = {
   rating: number;
   status: string;
   createdAt: string;
+  author?: ReviewAuthor;
 };
 
 export type BrokerReviewsResponse = {
@@ -259,3 +278,72 @@ export const submitReview = (
   input: SubmitReviewInput,
   options: FetchOptions,
 ): Promise<SubmitReviewResponse> => apiPost<SubmitReviewResponse>('/v1/reviews', input, options);
+
+// ---------------------------------------------------------------------------
+// User profile
+// ---------------------------------------------------------------------------
+
+export type UserProfile = {
+  id: string;
+  displayName: string | null;
+  email: string | null;
+  walletAddress: string | null;
+  walletAddressFull: string | null;
+  preferredLocale: string | null;
+  role: string;
+  sbtTier: string;
+  createdAt: string;
+};
+
+export type UserProfileResponse = { user: UserProfile };
+
+export const fetchMyProfile = (options: FetchOptions): Promise<UserProfileResponse> =>
+  apiGet<UserProfileResponse>('/v1/auth/me', options);
+
+export const apiPatch = async <T>(
+  path: string,
+  body: unknown,
+  options: FetchOptions = {},
+): Promise<T> => {
+  const url = `${env.NEXT_PUBLIC_API_URL}${path}`;
+
+  const res = await fetch(url, {
+    method: 'PATCH',
+    headers: { ...buildHeaders(options), 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+    ...(options.signal !== undefined ? { signal: options.signal } : {}),
+  });
+
+  if (!res.ok) {
+    let parsed: unknown = undefined;
+    try {
+      parsed = await res.json();
+    } catch {
+      // Non-JSON error body.
+    }
+    if (isApiErrorBody(parsed)) {
+      throw new ApiClientError(res.status, parsed.error.code, parsed.error.message, {
+        ...(parsed.error.requestId !== undefined ? { requestId: parsed.error.requestId } : {}),
+        ...(parsed.error.details !== undefined ? { details: parsed.error.details } : {}),
+      });
+    }
+    throw new ApiClientError(
+      res.status,
+      'INTERNAL_ERROR',
+      `Upstream PATCH ${path} returned ${res.status}`,
+    );
+  }
+
+  return (await res.json()) as T;
+};
+
+export type UpdateProfileInput = {
+  displayName?: string;
+  preferredLocale?: string;
+};
+
+export const updateMyProfile = (
+  input: UpdateProfileInput,
+  options: FetchOptions,
+): Promise<UserProfileResponse> =>
+  apiPatch<UserProfileResponse>('/v1/auth/me', input, options);

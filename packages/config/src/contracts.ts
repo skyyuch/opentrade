@@ -7,6 +7,7 @@
  *
  * Phase 1 contracts:
  *   - ReviewRegistry (UUPS proxy)
+ *   - ReviewerSBT (UUPS proxy, per ADR-0021)
  *
  * Phase 2+ contracts (placeholders):
  *   - SignalLogger
@@ -17,6 +18,7 @@ import type { Address } from 'viem';
 
 export type ContractAddresses = {
   reviewRegistry: Address;
+  reviewerSbt: Address;
 };
 
 /**
@@ -25,8 +27,12 @@ export type ContractAddresses = {
  * Each app calls this once at startup, passing values from its own validated
  * env module. This keeps packages/config free of `process.env` access.
  */
-export function buildContractAddresses(env: { reviewRegistryAddress: string }): ContractAddresses {
+export function buildContractAddresses(env: {
+  reviewRegistryAddress: string;
+  reviewerSbtAddress: string;
+}): ContractAddresses {
   return {
     reviewRegistry: env.reviewRegistryAddress as Address,
+    reviewerSbt: env.reviewerSbtAddress as Address,
   };
 }

@@ -1,9 +1,10 @@
 /**
  * tsup build configuration for `@opentrade/api`.
  *
- * Produces two entry points:
- *   - `dist/main.js`     — Hono API server (default CMD in Dockerfile)
- *   - `dist/sync-sfc.js` — SFC broker sync task (ECS CMD override, ADR-0020)
+ * Produces three entry points:
+ *   - `dist/main.js`              — Hono API server (default CMD in Dockerfile)
+ *   - `dist/tasks/sync-sfc.js`    — SFC broker sync task (ECS CMD override, ADR-0020)
+ *   - `dist/tasks/outbox-worker.js` — Outbox event processor (on-chain anchoring)
  *
  * Bundling strategy:
  *   - Workspace packages (`@opentrade/*`) are inlined into the bundle.
@@ -23,7 +24,7 @@
 import { defineConfig } from 'tsup';
 
 export default defineConfig({
-  entry: ['src/main.ts', 'src/tasks/sync-sfc.ts'],
+  entry: ['src/main.ts', 'src/tasks/sync-sfc.ts', 'src/tasks/outbox-worker.ts'],
   format: ['esm'],
   target: 'node22',
   outDir: 'dist',

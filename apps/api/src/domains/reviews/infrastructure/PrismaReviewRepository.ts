@@ -22,8 +22,8 @@ export class PrismaReviewRepository implements IReviewRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
   async create(data: CreateReviewData): Promise<ReviewRecord> {
-    const [review] = await this.prisma.$transaction([
-      this.prisma.review.create({
+    const review = await this.prisma.$transaction(async (tx) => {
+      const created = await tx.review.create({
         data: {
           tenantId: data.tenantId,
           userId: data.userId,
@@ -34,12 +34,13 @@ export class PrismaReviewRepository implements IReviewRepository {
           body: data.body,
           rating: data.rating,
         },
-      }),
-      this.prisma.outboxEvent.create({
+      });
+
+      await tx.outboxEvent.create({
         data: {
           tenantId: data.tenantId,
           aggregateType: 'review',
-          aggregateId: '00000000-0000-0000-0000-000000000000',
+          aggregateId: created.id,
           eventType: 'review.submitted',
           payload: {
             brokerId: data.brokerId,
@@ -48,20 +49,9 @@ export class PrismaReviewRepository implements IReviewRepository {
             userId: data.userId,
           },
         },
-      }),
-    ]);
+      });
 
-    // Patch the outbox event's aggregateId with the real review ID.
-    // Done outside the batch because $transaction batching returns
-    // results in order but we need the review.id first.
-    await this.prisma.outboxEvent.updateMany({
-      where: {
-        tenantId: data.tenantId,
-        aggregateType: 'review',
-        aggregateId: '00000000-0000-0000-0000-000000000000',
-        eventType: 'review.submitted',
-      },
-      data: { aggregateId: review.id },
+      return created;
     });
 
     return this.toRecord(review);

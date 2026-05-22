@@ -19,6 +19,7 @@ import { AppError, ErrorCode } from '../../../shared/errors/index.js';
 
 import type { IReviewRepository } from '../domain/IReviewRepository.js';
 import type { ReviewRecord, SubmitReviewInput } from '../domain/ReviewEntity.js';
+import type { DeepLTranslationService } from '../infrastructure/DeepLTranslationService.js';
 import type { IIpfsService } from '../infrastructure/IIpfsService.js';
 
 export type SubmitReviewOutput = {
@@ -29,6 +30,7 @@ export class SubmitReviewUseCase {
   constructor(
     private readonly reviewRepo: IReviewRepository,
     private readonly ipfsService: IIpfsService,
+    private readonly translationService?: DeepLTranslationService | null,
   ) {}
 
   async execute(input: SubmitReviewInput): Promise<SubmitReviewOutput> {
@@ -56,6 +58,14 @@ export class SubmitReviewUseCase {
       contentHash,
       ipfsCid: pinResult.cid,
     });
+
+    if (this.translationService) {
+      try {
+        await this.translationService.translateReview(review.id, input.title, input.body);
+      } catch {
+        // Translation failure is non-critical; review is still saved.
+      }
+    }
 
     return { review };
   }

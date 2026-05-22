@@ -24,6 +24,7 @@ import { env } from '../../../shared/env.js';
 import { AppError, ErrorCode } from '../../../shared/errors/index.js';
 import { GetBrokerReviewsUseCase } from '../application/GetBrokerReviewsUseCase.js';
 import { SubmitReviewUseCase } from '../application/SubmitReviewUseCase.js';
+import { DeepLTranslationService } from '../infrastructure/DeepLTranslationService.js';
 import { PinataIpfsService } from '../infrastructure/PinataIpfsService.js';
 import { PrismaReviewRepository } from '../infrastructure/PrismaReviewRepository.js';
 
@@ -33,7 +34,10 @@ const DEFAULT_TENANT_ID = env.DEFAULT_TENANT_ID;
 
 const reviewRepo = new PrismaReviewRepository(prisma);
 const ipfsService = new PinataIpfsService(env.PINATA_JWT);
-const submitReview = new SubmitReviewUseCase(reviewRepo, ipfsService);
+const translationService = env.DEEPL_API_KEY
+  ? new DeepLTranslationService(env.DEEPL_API_KEY, prisma)
+  : null;
+const submitReview = new SubmitReviewUseCase(reviewRepo, ipfsService, translationService);
 const getBrokerReviews = new GetBrokerReviewsUseCase(reviewRepo);
 
 const submitReviewBodySchema = z.object({
@@ -50,7 +54,7 @@ const listReviewsQuerySchema = z.object({
 
 export const reviewsRouter = new Hono<AppHonoEnv>();
 
-reviewsRouter.post('/', authMiddleware('user'), async (c) => {
+reviewsRouter.post('/', authMiddleware('reviewer'), async (c) => {
   const rawBody: unknown = await c.req.json();
   const parsed = submitReviewBodySchema.safeParse(rawBody);
 
@@ -132,20 +136,55 @@ reviewsRouter.get('/broker/:slug', async (c) => {
     limit: query.data.limit,
   });
 
+  const acceptLang = c.req.header('Accept-Language')?.split(',')[0]?.trim() ?? null;
+  const requestedLocale =
+    acceptLang === 'zh-Hant' || acceptLang === 'zh-Hans' || acceptLang === 'en' ? acceptLang : null;
+
+  const reviewIds = result.items.map((r) => r.id);
+  const userIds = [...new Set(result.items.map((r) => r.userId))];
+
+  const [users, translations] = await Promise.all([
+    prisma.user.findMany({
+      where: { id: { in: userIds } },
+      select: { id: true, displayName: true, sbtTier: true },
+    }),
+    requestedLocale
+      ? prisma.reviewTranslation.findMany({
+          where: { reviewId: { in: reviewIds }, locale: requestedLocale },
+        })
+      : Promise.resolve([]),
+  ]);
+
+  const userMap = new Map(users.map((u) => [u.id, u]));
+  const translationMap = new Map(translations.map((t) => [t.reviewId, t]));
+
   return c.json({
-    reviews: result.items.map((r) => ({
-      id: r.id,
-      brokerId: r.brokerId,
-      contentHash: r.contentHash,
-      ipfsCid: r.ipfsCid,
-      chainReviewId: r.chainReviewId,
-      txHash: r.txHash,
-      title: r.title,
-      body: r.body,
-      rating: r.rating,
-      status: r.status,
-      createdAt: r.createdAt.toISOString(),
-    })),
+    reviews: result.items.map((r) => {
+      const author = userMap.get(r.userId);
+      const translation = translationMap.get(r.id);
+      const isTranslated = !!translation;
+
+      return {
+        id: r.id,
+        brokerId: r.brokerId,
+        contentHash: r.contentHash,
+        ipfsCid: r.ipfsCid,
+        chainReviewId: r.chainReviewId,
+        txHash: r.txHash,
+        title: isTranslated ? translation.title : r.title,
+        body: isTranslated ? translation.body : r.body,
+        originalTitle: isTranslated ? r.title : null,
+        originalBody: isTranslated ? r.body : null,
+        isTranslated,
+        rating: r.rating,
+        status: r.status,
+        createdAt: r.createdAt.toISOString(),
+        author: {
+          displayName: author?.displayName ?? null,
+          sbtTier: author?.sbtTier ?? 'L1',
+        },
+      };
+    }),
     nextCursor: result.nextCursor,
     broker: {
       id: broker.id,

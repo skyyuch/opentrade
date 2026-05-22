@@ -6,6 +6,7 @@
   },
   "nav": {
     "brokers": "證券商",
+    "settings": "帳號設定",
     "status": "系統狀態"
   },
   "brokers": {
@@ -47,6 +48,25 @@
     "successMessage": "你的評論正在上鏈中，完成後將無法刪除或修改。",
     "errorTitle": "提交失敗",
     "stars": "{count} 顆星"
+  },
+  "settings": {
+    "title": "帳號設定",
+    "subtitle": "管理你的顯示名稱、語言偏好及帳號資訊。",
+    "displayName": "顯示名稱",
+    "displayNamePlaceholder": "輸入你的顯示名稱",
+    "preferredLocale": "偏好語言",
+    "localeZhHant": "繁體中文",
+    "localeZhHans": "简体中文",
+    "localeEn": "English",
+    "walletAddress": "錢包地址",
+    "email": "電子信箱",
+    "sbtTier": "身份等級",
+    "role": "角色",
+    "memberSince": "加入日期",
+    "save": "儲存變更",
+    "saving": "儲存中…",
+    "saved": "已儲存",
+    "loginRequired": "請先登入以查看設定。"
   },
   "status": {
     "eyebrow": "系統狀態",

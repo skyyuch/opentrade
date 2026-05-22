@@ -104,11 +104,13 @@ model Tenant {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  users        User[]
-  brokers      Broker[]
-  licenses     BrokerLicense[]
-  reviews      Review[]
-  outboxEvents OutboxEvent[]
+  users                   User[]
+  brokers                 Broker[]
+  licenses                BrokerLicense[]
+  reviews                 Review[]
+  outboxEvents            OutboxEvent[]
+  sbtVerificationRequests SbtVerificationRequest[]
+  brokerClaimRequests     BrokerClaimRequest[]
 
   @@map("tenants")
 }
@@ -131,13 +133,16 @@ model User {
   preferredLocale String?
   role            UserRole @default(USER)
   sbtTier         SbtTier  @default(L1)
+  sbtTokenId      Int?
+  sbtMintTxHash   String?
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  tenant  Tenant   @relation(fields: [tenantId], references: [id])
-  reviews Review[]
+  tenant                Tenant                 @relation(fields: [tenantId], references: [id])
+  reviews               Review[]
+  sbtVerificationRequests SbtVerificationRequest[]
 
   @@unique([tenantId, privyId])
   @@index([tenantId, role])
@@ -152,24 +157,26 @@ model User {
 /// `isClaimed` flips to true once an L4 KYC has completed for a custodial
 /// staff user. Pre-claim, `description` / `logoUrl` come from the seed.
 model Broker {
-  id          String    @id @default(uuid()) @db.Uuid
-  tenantId    String    @db.Uuid
-  slug        String
-  legalName   String
-  displayName String
-  websiteUrl  String?
-  description String?   @db.Text
-  logoUrl     String?
-  isClaimed   Boolean   @default(false)
-  claimedAt   DateTime?
+  id              String    @id @default(uuid()) @db.Uuid
+  tenantId        String    @db.Uuid
+  slug            String
+  legalName       String
+  displayName     String
+  websiteUrl      String?
+  description     String?   @db.Text
+  logoUrl         String?
+  isClaimed       Boolean   @default(false)
+  claimedAt       DateTime?
+  claimedByUserId String?   @db.Uuid
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  tenant   Tenant          @relation(fields: [tenantId], references: [id])
-  licenses BrokerLicense[]
-  reviews  Review[]
+  tenant        Tenant             @relation(fields: [tenantId], references: [id])
+  licenses      BrokerLicense[]
+  reviews       Review[]
+  claimRequests BrokerClaimRequest[]
 
   @@unique([tenantId, slug])
   @@index([tenantId, isClaimed])
@@ -205,6 +212,67 @@ model BrokerLicense {
   @@index([tenantId, status])
   @@index([tenantId, regulator, licenseType])
   @@map("broker_licenses")
+}
+
+/// Status of a claim or verification request.
+enum ClaimStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+/// Status of an SBT verification request (L2 identity proof).
+enum VerificationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+/// A request from a user to verify their broker account for L2 SBT.
+/// Per ADR-0022: the server never receives raw account data. Instead it
+/// stores a commitment hash computed client-side and an encrypted evidence
+/// IPFS CID that only an admin can decrypt.
+model SbtVerificationRequest {
+  id               String             @id @default(uuid()) @db.Uuid
+  tenantId         String             @db.Uuid
+  userId           String             @db.Uuid
+  brokerSlug       String
+  commitment       String
+  evidenceIpfsCid  String
+  status           VerificationStatus @default(PENDING)
+  adminNote        String?            @db.Text
+  createdAt        DateTime           @default(now())
+  reviewedAt       DateTime?
+
+  user   User   @relation(fields: [userId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, status])
+  @@index([tenantId, userId])
+  @@map("sbt_verification_requests")
+}
+
+/// A request from a merchant to claim ownership of a broker profile.
+/// Manual KYC: user provides CE ref number and a company authorization letter
+/// (uploaded to IPFS). Admin reviews and approves/rejects.
+model BrokerClaimRequest {
+  id                    String      @id @default(uuid()) @db.Uuid
+  tenantId              String      @db.Uuid
+  brokerId              String      @db.Uuid
+  userId                String      @db.Uuid
+  ceRefNumber           String
+  companyLetterIpfsCid  String
+  status                ClaimStatus @default(PENDING)
+  adminNote             String?     @db.Text
+  createdAt             DateTime    @default(now())
+  reviewedAt            DateTime?
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  broker Broker @relation(fields: [brokerId], references: [id])
+
+  @@index([tenantId, status])
+  @@index([tenantId, brokerId])
+  @@map("broker_claim_requests")
 }
 
 /// Lifecycle status of a review as it moves through the submission pipeline.
@@ -251,19 +319,38 @@ model Review {
   rating        Int          @db.SmallInt
 
   status        ReviewStatus @default(PENDING)
+  sourceLocale  String?
 
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
   deletedAt     DateTime?
 
-  tenant Tenant @relation(fields: [tenantId], references: [id])
-  user   User   @relation(fields: [userId], references: [id])
-  broker Broker @relation(fields: [brokerId], references: [id])
+  tenant       Tenant              @relation(fields: [tenantId], references: [id])
+  user         User                @relation(fields: [userId], references: [id])
+  broker       Broker              @relation(fields: [brokerId], references: [id])
+  translations ReviewTranslation[]
 
   @@index([tenantId, brokerId, createdAt])
   @@index([tenantId, userId])
   @@index([tenantId, status])
   @@map("reviews")
+}
+
+/// Machine-translated version of a review in a specific locale.
+/// Per ADR-0023: translations are additive siblings of the original
+/// Review content, stored per locale for instant serving.
+model ReviewTranslation {
+  id           String   @id @default(uuid()) @db.Uuid
+  reviewId     String   @db.Uuid
+  locale       String
+  title        String   @db.VarChar(200)
+  body         String   @db.Text
+  translatedAt DateTime @default(now())
+
+  review Review @relation(fields: [reviewId], references: [id])
+
+  @@unique([reviewId, locale])
+  @@map("review_translations")
 }
 
 /// Transactional outbox for cross-domain domain events (per ADR-0006 outbox
