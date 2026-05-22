@@ -138,3 +138,166 @@ identityRouter.patch('/me', authMiddleware('user'), async (c) => {
     },
   });
 });
+
+// ---------------------------------------------------------------------------
+// L2 SBT Verification (per ADR-0022)
+// ---------------------------------------------------------------------------
+
+const verifyBrokerSchema = z.object({
+  brokerSlug: z.string().min(1),
+  commitment: z.string().regex(/^0x[0-9a-fA-F]{64}$/, 'commitment must be a keccak256 hash'),
+  evidenceIpfsCid: z.string().min(1),
+});
+
+identityRouter.post('/verify-broker', authMiddleware('user'), async (c) => {
+  const { userId, tenantId } = c.get('user');
+
+  const body: unknown = await c.req.json();
+  const parsed = verifyBrokerSchema.safeParse(body);
+  if (!parsed.success) {
+    throw new AppError(ErrorCode.VALIDATION_ERROR, 'Invalid verification request', 400, {
+      details: { issues: parsed.error.issues },
+    });
+  }
+
+  const existing = await prisma.sbtVerificationRequest.findFirst({
+    where: { userId, tenantId, status: 'PENDING' },
+  });
+  if (existing) {
+    throw new AppError(ErrorCode.CONFLICT, 'You already have a pending verification request', 409);
+  }
+
+  const request = await prisma.sbtVerificationRequest.create({
+    data: {
+      tenantId,
+      userId,
+      brokerSlug: parsed.data.brokerSlug,
+      commitment: parsed.data.commitment,
+      evidenceIpfsCid: parsed.data.evidenceIpfsCid,
+    },
+  });
+
+  return c.json({ verification: { id: request.id, status: request.status } }, 201);
+});
+
+identityRouter.get('/verification-status', authMiddleware('user'), async (c) => {
+  const { userId, tenantId } = c.get('user');
+
+  const requests = await prisma.sbtVerificationRequest.findMany({
+    where: { userId, tenantId },
+    orderBy: { createdAt: 'desc' },
+    take: 5,
+  });
+
+  return c.json({
+    verifications: requests.map((r) => ({
+      id: r.id,
+      brokerSlug: r.brokerSlug,
+      status: r.status,
+      adminNote: r.adminNote,
+      createdAt: r.createdAt.toISOString(),
+      reviewedAt: r.reviewedAt?.toISOString() ?? null,
+    })),
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Admin verification endpoints
+// ---------------------------------------------------------------------------
+
+identityRouter.get('/admin/verifications', authMiddleware('admin'), async (c) => {
+  const status = c.req.query('status') ?? 'PENDING';
+
+  const requests = await prisma.sbtVerificationRequest.findMany({
+    where: {
+      tenantId: DEFAULT_TENANT_ID,
+      status: status as 'PENDING' | 'APPROVED' | 'REJECTED',
+    },
+    include: {
+      user: { select: { id: true, displayName: true, walletAddress: true, sbtTier: true } },
+    },
+    orderBy: { createdAt: 'asc' },
+    take: 50,
+  });
+
+  return c.json({
+    verifications: requests.map((r) => ({
+      id: r.id,
+      userId: r.userId,
+      user: r.user,
+      brokerSlug: r.brokerSlug,
+      commitment: r.commitment,
+      evidenceIpfsCid: r.evidenceIpfsCid,
+      status: r.status,
+      adminNote: r.adminNote,
+      createdAt: r.createdAt.toISOString(),
+    })),
+  });
+});
+
+const adminVerifyActionSchema = z.object({
+  adminNote: z.string().max(500).optional(),
+});
+
+identityRouter.post('/admin/verifications/:id/approve', authMiddleware('admin'), async (c) => {
+  const id = c.req.param('id');
+
+  const body: unknown = await c.req.json().catch(() => ({}));
+  const parsed = adminVerifyActionSchema.safeParse(body);
+
+  const request = await prisma.sbtVerificationRequest.findUnique({ where: { id } });
+  if (!request || request.status !== 'PENDING') {
+    throw new AppError(ErrorCode.NOT_FOUND, 'Pending verification not found', 404);
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.sbtVerificationRequest.update({
+      where: { id },
+      data: {
+        status: 'APPROVED',
+        adminNote: parsed.success ? (parsed.data.adminNote ?? null) : null,
+        reviewedAt: new Date(),
+      },
+    });
+
+    await tx.user.update({
+      where: { id: request.userId },
+      data: { sbtTier: 'L2', role: 'REVIEWER' },
+    });
+
+    await tx.outboxEvent.create({
+      data: {
+        tenantId: request.tenantId,
+        aggregateType: 'sbt_verification',
+        aggregateId: id,
+        eventType: 'sbt.mint_requested',
+        payload: { userId: request.userId, verificationId: id },
+      },
+    });
+  });
+
+  return c.json({ status: 'approved', verificationId: id });
+});
+
+identityRouter.post('/admin/verifications/:id/reject', authMiddleware('admin'), async (c) => {
+  const id = c.req.param('id');
+
+  const body: unknown = await c.req.json().catch(() => ({}));
+  const parsed = adminVerifyActionSchema.safeParse(body);
+
+  const request = await prisma.sbtVerificationRequest.findUnique({ where: { id } });
+  if (!request || request.status !== 'PENDING') {
+    throw new AppError(ErrorCode.NOT_FOUND, 'Pending verification not found', 404);
+  }
+
+  await prisma.sbtVerificationRequest.update({
+    where: { id },
+    data: {
+      status: 'REJECTED',
+      adminNote: parsed.success ? (parsed.data.adminNote ?? null) : null,
+      reviewedAt: new Date(),
+    },
+  });
+
+  return c.json({ status: 'rejected', verificationId: id });
+});

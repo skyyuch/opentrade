@@ -50,7 +50,7 @@ const listReviewsQuerySchema = z.object({
 
 export const reviewsRouter = new Hono<AppHonoEnv>();
 
-reviewsRouter.post('/', authMiddleware('user'), async (c) => {
+reviewsRouter.post('/', authMiddleware('reviewer'), async (c) => {
   const rawBody: unknown = await c.req.json();
   const parsed = submitReviewBodySchema.safeParse(rawBody);
 

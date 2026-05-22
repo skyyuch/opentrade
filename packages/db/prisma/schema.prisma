@@ -104,11 +104,12 @@ model Tenant {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  users        User[]
-  brokers      Broker[]
-  licenses     BrokerLicense[]
-  reviews      Review[]
-  outboxEvents OutboxEvent[]
+  users                   User[]
+  brokers                 Broker[]
+  licenses                BrokerLicense[]
+  reviews                 Review[]
+  outboxEvents            OutboxEvent[]
+  sbtVerificationRequests SbtVerificationRequest[]
 
   @@map("tenants")
 }
@@ -131,13 +132,16 @@ model User {
   preferredLocale String?
   role            UserRole @default(USER)
   sbtTier         SbtTier  @default(L1)
+  sbtTokenId      Int?
+  sbtMintTxHash   String?
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  tenant  Tenant   @relation(fields: [tenantId], references: [id])
-  reviews Review[]
+  tenant                Tenant                 @relation(fields: [tenantId], references: [id])
+  reviews               Review[]
+  sbtVerificationRequests SbtVerificationRequest[]
 
   @@unique([tenantId, privyId])
   @@index([tenantId, role])
@@ -205,6 +209,37 @@ model BrokerLicense {
   @@index([tenantId, status])
   @@index([tenantId, regulator, licenseType])
   @@map("broker_licenses")
+}
+
+/// Status of an SBT verification request (L2 identity proof).
+enum VerificationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+/// A request from a user to verify their broker account for L2 SBT.
+/// Per ADR-0022: the server never receives raw account data. Instead it
+/// stores a commitment hash computed client-side and an encrypted evidence
+/// IPFS CID that only an admin can decrypt.
+model SbtVerificationRequest {
+  id               String             @id @default(uuid()) @db.Uuid
+  tenantId         String             @db.Uuid
+  userId           String             @db.Uuid
+  brokerSlug       String
+  commitment       String
+  evidenceIpfsCid  String
+  status           VerificationStatus @default(PENDING)
+  adminNote        String?            @db.Text
+  createdAt        DateTime           @default(now())
+  reviewedAt       DateTime?
+
+  user   User   @relation(fields: [userId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, status])
+  @@index([tenantId, userId])
+  @@map("sbt_verification_requests")
 }
 
 /// Lifecycle status of a review as it moves through the submission pipeline.

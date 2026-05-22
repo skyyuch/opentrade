@@ -29,6 +29,8 @@ export const ErrorCode = {
   SERVICE_UNAVAILABLE: 'SERVICE_UNAVAILABLE',
   /** Rate limit exceeded; surfaced as 429. */
   RATE_LIMIT_EXCEEDED: 'RATE_LIMIT_EXCEEDED',
+  /** Resource conflict (duplicate, already exists); surfaced as 409. */
+  CONFLICT: 'CONFLICT',
 } as const;
 
 export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode];
