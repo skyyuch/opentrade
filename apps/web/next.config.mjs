@@ -37,6 +37,15 @@ const nextConfig = {
   experimental: {
     typedRoutes: true,
   },
+  webpack: (config) => {
+    config.resolve.fallback = {
+      ...config.resolve.fallback,
+      '@farcaster/mini-app-solana': false,
+      '@metamask/connect-evm': false,
+      accounts: false,
+    };
+    return config;
+  },
 };
 
 export default withNextIntl(nextConfig);
