@@ -60,6 +60,7 @@ brokersRouter.get('/', async (c) => {
     orderBy: [{ displayName: 'asc' as const }],
     take: limit + 1,
     include: {
+      licenses: { where: { deletedAt: null }, orderBy: { licenseType: 'asc' as const } },
       _count: { select: { reviews: true } },
     },
   };
@@ -84,6 +85,9 @@ brokersRouter.get('/', async (c) => {
       logoUrl: b.logoUrl,
       isClaimed: b.isClaimed,
       reviewCount: (b as unknown as { _count: { reviews: number } })._count.reviews,
+      licenseTypes: (b as unknown as { licenses: { licenseType: string }[] }).licenses.map(
+        (l) => l.licenseType,
+      ),
     })),
     nextCursor,
   });

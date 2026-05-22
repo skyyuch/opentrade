@@ -14,6 +14,7 @@ type BrokerListItem = {
   legalName: string;
   isClaimed: boolean;
   reviewCount: number;
+  licenseTypes: string[];
 };
 
 type BrokersApiResponse = {
@@ -26,7 +27,14 @@ type Props = {
   initialCursor: string | null;
 };
 
-const CATEGORIES = ['All', 'Crypto Exchange', 'Traditional Broker', 'Bank Broker', 'Global Broker'];
+const SFC_LICENSE_FILTERS = [
+  { key: 'all', types: [] },
+  { key: 'type1', types: ['HK_SFC_TYPE_1'] },
+  { key: 'type2', types: ['HK_SFC_TYPE_2'] },
+  { key: 'type4', types: ['HK_SFC_TYPE_4'] },
+  { key: 'type7', types: ['HK_SFC_TYPE_7'] },
+  { key: 'type9', types: ['HK_SFC_TYPE_9'] },
+] as const;
 
 function getInitials(name: string): string {
   const words = name.split(/[\s()（）]+/).filter(Boolean);
@@ -36,6 +44,16 @@ function getInitials(name: string): string {
     return (first + second).toUpperCase();
   }
   return name.slice(0, 2).toUpperCase();
+}
+
+function formatLicenseTypes(types: string[]): string {
+  const nums = types
+    .map((t) => {
+      const match = /TYPE_(\d+)/.exec(t);
+      return match ? match[1] : null;
+    })
+    .filter(Boolean);
+  return nums.length > 0 ? `SFC Type ${nums.join(', ')}` : 'SFC Licensed';
 }
 
 function resolveBrokerName(
@@ -56,7 +74,7 @@ export const BrokerDirectory = ({ initialBrokers, initialCursor }: Props) => {
   const locale = useLocale();
 
   const [query, setQuery] = useState('');
-  const [activeCategory, setActiveCategory] = useState('All');
+  const [activeFilter, setActiveFilter] = useState('all');
   const [brokers, setBrokers] = useState<BrokerListItem[]>(initialBrokers);
   const [cursor, setCursor] = useState<string | null>(initialCursor);
   const [isSearching, startSearchTransition] = useTransition();
@@ -104,14 +122,11 @@ export const BrokerDirectory = ({ initialBrokers, initialCursor }: Props) => {
     }
   }, [cursor, isLoadingMore, query, fetchFromApi]);
 
+  const activeFilterDef = SFC_LICENSE_FILTERS.find((f) => f.key === activeFilter);
   const filteredBrokers =
-    activeCategory === 'All'
+    activeFilter === 'all' || !activeFilterDef
       ? brokers
-      : brokers.filter(
-          (b) =>
-            b.displayName.toLowerCase().includes(activeCategory.toLowerCase()) ||
-            b.legalName.toLowerCase().includes(activeCategory.toLowerCase()),
-        );
+      : brokers.filter((b) => activeFilterDef.types.some((t) => b.licenseTypes.includes(t)));
 
   return (
     <div className="flex flex-col gap-6">
@@ -141,20 +156,20 @@ export const BrokerDirectory = ({ initialBrokers, initialCursor }: Props) => {
         </button>
       </div>
 
-      {/* Category pills */}
+      {/* Category pills — SFC license types */}
       <div className="flex flex-wrap gap-2 pt-2">
-        {CATEGORIES.map((category) => (
+        {SFC_LICENSE_FILTERS.map(({ key }) => (
           <button
-            key={category}
+            key={key}
             type="button"
-            onClick={() => setActiveCategory(category)}
+            onClick={() => setActiveFilter(key)}
             className={`rounded-full border px-4 py-1.5 text-xs font-medium transition-colors ${
-              activeCategory === category
+              activeFilter === key
                 ? 'border-[#00FF88]/50 bg-[#00FF88]/20 text-[#00FF88]'
                 : 'border-white/10 bg-white/5 text-white/60 hover:bg-white/10 hover:text-white'
             }`}
           >
-            {category === 'All' ? t('categoryAll') : category}
+            {t(`filter_${key}`)}
           </button>
         ))}
       </div>
@@ -182,7 +197,7 @@ export const BrokerDirectory = ({ initialBrokers, initialCursor }: Props) => {
             type="button"
             onClick={() => {
               setQuery('');
-              setActiveCategory('All');
+              setActiveFilter('all');
             }}
             className="mt-6 rounded-lg bg-white/10 px-4 py-2 text-sm text-white transition-colors hover:bg-white/20"
           >
@@ -240,11 +255,11 @@ const BrokerCard = ({ broker, locale }: { broker: BrokerListItem; locale: string
       </div>
 
       {/* License badge */}
-      {broker.isClaimed && (
+      {broker.licenseTypes.length > 0 && (
         <div className="mb-4 inline-flex w-fit items-center gap-1.5 rounded border border-white/5 bg-white/5 px-2.5 py-1">
           <ShieldCheck size={14} className="text-[#00FF88]" />
           <span className="text-[10px] font-medium tracking-wide text-white/70">
-            {t('claimed')}
+            {formatLicenseTypes(broker.licenseTypes)}
           </span>
         </div>
       )}
