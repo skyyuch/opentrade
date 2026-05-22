@@ -59,8 +59,35 @@ export const Header = (): ReactNode => {
           })}
         </nav>
 
-        {/* Right side: auth */}
-        <div className="hidden items-center gap-3 md:flex">
+        {/* Right side: locale switcher + auth */}
+        <div className="hidden items-center gap-4 md:flex">
+          {/* Locale switcher */}
+          <div className="flex items-center gap-1.5 border-r border-border pr-4">
+            <Link
+              href={pathname}
+              locale="zh-Hant"
+              className="text-xs text-muted-foreground transition-colors hover:text-foreground"
+            >
+              繁
+            </Link>
+            <span className="text-xs text-muted-foreground/40">/</span>
+            <Link
+              href={pathname}
+              locale="zh-Hans"
+              className="text-xs text-muted-foreground transition-colors hover:text-foreground"
+            >
+              简
+            </Link>
+            <span className="text-xs text-muted-foreground/40">/</span>
+            <Link
+              href={pathname}
+              locale="en"
+              className="text-xs text-muted-foreground transition-colors hover:text-foreground"
+            >
+              EN
+            </Link>
+          </div>
+
           {authenticated ? (
             <div className="flex items-center gap-3">
               {walletAddress && (
@@ -124,6 +151,20 @@ export const Header = (): ReactNode => {
               );
             })}
           </nav>
+          {/* Mobile locale switcher */}
+          <div className="mt-4 flex items-center gap-3 border-t border-border pt-4">
+            <Link href={pathname} locale="zh-Hant" className="text-xs text-muted-foreground">
+              繁中
+            </Link>
+            <Link href={pathname} locale="zh-Hans" className="text-xs text-muted-foreground">
+              简中
+            </Link>
+            <Link href={pathname} locale="en" className="text-xs text-muted-foreground">
+              EN
+            </Link>
+          </div>
+
+          {/* Mobile auth */}
           <div className="mt-4 border-t border-border pt-4">
             {authenticated ? (
               <div className="flex flex-col gap-2">

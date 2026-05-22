@@ -60,33 +60,7 @@ export const Footer = (): ReactNode => {
 
         {/* Bottom section */}
         <div className="mt-10 border-t border-border pt-6">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-xs text-muted-foreground">{t('copyright')}</p>
-            {/* Locale switcher */}
-            <div className="flex items-center gap-3">
-              <Link
-                href="/"
-                locale="zh-Hant"
-                className="text-xs text-muted-foreground hover:text-foreground"
-              >
-                繁中
-              </Link>
-              <Link
-                href="/"
-                locale="zh-Hans"
-                className="text-xs text-muted-foreground hover:text-foreground"
-              >
-                简中
-              </Link>
-              <Link
-                href="/"
-                locale="en"
-                className="text-xs text-muted-foreground hover:text-foreground"
-              >
-                EN
-              </Link>
-            </div>
-          </div>
+          <p className="text-xs text-muted-foreground">{t('copyright')}</p>
           <p className="mt-3 text-xs leading-relaxed text-muted-foreground/70">
             {t('regulatoryNotice')}
           </p>
