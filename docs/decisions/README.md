@@ -108,6 +108,7 @@ YYYY-MM-DD
 | 0017 | Terraform IaC structure + Phase-0 full apply scope    | Accepted | 2026-05-21 |
 | 0018 | CI/CD GitHub Actions architecture (Phase 0 scope)     | Accepted | 2026-05-21 |
 | 0019 | ReviewRegistry contract design (Phase 1)              | Accepted | 2026-05-21 |
+| 0020 | Scheduled SFC broker sync (ECS + EventBridge weekly)  | Accepted | 2026-05-22 |
 
 ---
 

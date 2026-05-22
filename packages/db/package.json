@@ -10,6 +10,10 @@
     ".": {
       "types": "./src/index.ts",
       "default": "./src/index.ts"
+    },
+    "./sfc": {
+      "types": "./src/sfc/index.ts",
+      "default": "./src/sfc/index.ts"
     }
   },
   "files": [
