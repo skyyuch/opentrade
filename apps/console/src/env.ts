@@ -36,10 +36,16 @@ const envSchema = z.object({
   NEXT_PUBLIC_API_URL: z
     .string()
     .url({ message: 'NEXT_PUBLIC_API_URL must be a fully-qualified URL' }),
+  NEXT_PUBLIC_PRIVY_APP_ID: z
+    .string()
+    .min(1, { message: 'NEXT_PUBLIC_PRIVY_APP_ID is required for Privy auth (ADR-0005)' }),
+  NEXT_PUBLIC_CHAIN_ID: z.coerce.number().int().positive().default(84532),
 });
 
 const parsed = envSchema.safeParse({
   NEXT_PUBLIC_API_URL: process.env['NEXT_PUBLIC_API_URL'],
+  NEXT_PUBLIC_PRIVY_APP_ID: process.env['NEXT_PUBLIC_PRIVY_APP_ID'],
+  NEXT_PUBLIC_CHAIN_ID: process.env['NEXT_PUBLIC_CHAIN_ID'],
 });
 
 if (!parsed.success) {

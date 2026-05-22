@@ -1,9 +1,41 @@
 {
+  "nav": {
+    "dashboard": "Dashboard",
+    "brokers": "Broker management",
+    "logout": "Log out"
+  },
+  "auth": {
+    "loginTitle": "Merchant console login",
+    "loginSubtitle": "Log in to manage your broker profile and view on-chain reviews.",
+    "loginButton": "Log in",
+    "loggingIn": "Logging in…"
+  },
+  "brokerList": {
+    "title": "Broker directory",
+    "subtitle": "Browse broker profiles available for claiming.",
+    "reviewCount": "{count, plural, one {# review} other {# reviews}}",
+    "noReviews": "No reviews yet",
+    "claimed": "Claimed",
+    "unclaimed": "Claimable",
+    "empty": "No brokers found.",
+    "viewDetails": "View details"
+  },
+  "brokerManage": {
+    "backToList": "Back to list",
+    "licenses": "Licence information",
+    "licenseNumber": "Licence no.",
+    "reviews": "User reviews",
+    "noReviews": "No reviews yet.",
+    "verified": "Verified on chain",
+    "pending": "Pending on-chain",
+    "failed": "On-chain failed",
+    "disclaimer": "All reviews are immutable once anchored on chain."
+  },
   "dashboard": {
     "eyebrow": "OpenTrade Console",
     "title": "OpenTrade merchant back office",
     "subtitle": "Claim profiles, track on-chain reviews, and publish strategy signals. The full feature set ships in Phase 1.",
-    "phaseNotice": "Phase 0 — foundation in progress",
+    "phaseNotice": "Phase 1 — MVP in progress",
     "shellTitle": "Merchant back office",
     "shellDescription": "Built for brokers, KOLs, and platform admins; desktop-first. All workflows are previews until Phase 1 launches.",
     "sectionsTitle": "What you will manage here",
