@@ -28,6 +28,7 @@ const BrokersPage = async ({ params }: Props): Promise<ReactNode> => {
     slug: string;
     displayName: string;
     legalName: string;
+    logoUrl: string | null;
     isClaimed: boolean;
     reviewCount: number;
     positiveRate: number | null;

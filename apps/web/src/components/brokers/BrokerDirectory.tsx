@@ -12,6 +12,7 @@ type BrokerListItem = {
   slug: string;
   displayName: string;
   legalName: string;
+  logoUrl: string | null;
   isClaimed: boolean;
   reviewCount: number;
   positiveRate: number | null;
@@ -244,8 +245,16 @@ const BrokerCard = ({ broker, locale }: { broker: BrokerListItem; locale: string
     >
       {/* Top: avatar + name */}
       <div className="mb-4 flex items-start gap-4">
-        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-gradient-to-br from-zinc-800 to-zinc-950 text-xl font-bold text-white shadow-inner transition-colors group-hover:border-[#00FF88]/30">
-          {initials}
+        <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-white/10 bg-gradient-to-br from-zinc-800 to-zinc-950 text-xl font-bold text-white shadow-inner transition-colors group-hover:border-[#00FF88]/30">
+          {broker.logoUrl ? (
+            <img
+              src={broker.logoUrl}
+              alt={primary}
+              className="h-full w-full object-contain p-1.5"
+            />
+          ) : (
+            initials
+          )}
         </div>
         <div className="min-w-0">
           <h3 className="truncate text-lg font-bold text-white transition-colors group-hover:text-[#00FF88]">
