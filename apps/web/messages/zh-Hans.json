@@ -5,9 +5,28 @@
     "phaseNotice": "Phase 1 — MVP 搭建中"
   },
   "nav": {
+    "home": "首页",
     "brokers": "券商",
+    "verify": "身份验证",
     "settings": "账号设置",
-    "status": "系统状态"
+    "status": "系统状态",
+    "login": "登录",
+    "logout": "退出"
+  },
+  "footer": {
+    "mission": "区块链让金融服务评论回归公正 — 不可删除，不可篡改。",
+    "platform": "平台",
+    "brokers": "券商",
+    "verify": "身份验证",
+    "settings": "账号设置",
+    "company": "公司",
+    "systemStatus": "系统状态",
+    "legal": "法律",
+    "disclaimer": "免责声明",
+    "privacy": "隐私政策",
+    "terms": "使用条款",
+    "copyright": "© 2026 OpenTrade. All rights reserved.",
+    "regulatoryNotice": "本平台不提供任何投资建议。所有评论一经上链即不可删除、不可篡改。平台不会因任何原因删除评论。"
   },
   "brokers": {
     "eyebrow": "券商目录",

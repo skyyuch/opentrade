@@ -5,9 +5,28 @@
     "phaseNotice": "Phase 1 — MVP in progress"
   },
   "nav": {
+    "home": "Home",
     "brokers": "Brokers",
+    "verify": "Verify",
     "settings": "Settings",
-    "status": "System status"
+    "status": "System status",
+    "login": "Sign in",
+    "logout": "Sign out"
+  },
+  "footer": {
+    "mission": "Bringing fairness back to financial-service reviews — immutable, on chain.",
+    "platform": "Platform",
+    "brokers": "Brokers",
+    "verify": "Verify",
+    "settings": "Settings",
+    "company": "Company",
+    "systemStatus": "System status",
+    "legal": "Legal",
+    "disclaimer": "Disclaimer",
+    "privacy": "Privacy policy",
+    "terms": "Terms of use",
+    "copyright": "© 2026 OpenTrade. All rights reserved.",
+    "regulatoryNotice": "This platform does not provide investment advice. All reviews are permanently stored on-chain — they cannot be deleted or tampered with."
   },
   "brokers": {
     "eyebrow": "Broker directory",

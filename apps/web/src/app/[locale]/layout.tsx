@@ -29,6 +29,8 @@ import { notFound } from 'next/navigation';
 import { NextIntlClientProvider, hasLocale } from 'next-intl';
 import { getMessages, getTranslations } from 'next-intl/server';
 
+import { Footer } from '../../components/layout/Footer';
+import { Header } from '../../components/layout/Header';
 import { ThemeProvider } from '../../components/providers/ThemeProvider';
 import { Web3Providers } from '../../components/providers/Web3Providers';
 import { routing } from '../../i18n/routing';
@@ -80,7 +82,11 @@ const LocaleLayout = async ({ children, params }: Props): Promise<ReactNode> => 
       <body className={`${inter.className} min-h-screen bg-background text-foreground antialiased`}>
         <ThemeProvider>
           <NextIntlClientProvider locale={locale} messages={messages}>
-            <Web3Providers>{children}</Web3Providers>
+            <Web3Providers>
+              <Header />
+              <main className="min-h-[calc(100vh-8rem)]">{children}</main>
+              <Footer />
+            </Web3Providers>
           </NextIntlClientProvider>
         </ThemeProvider>
       </body>

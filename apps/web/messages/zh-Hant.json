@@ -5,9 +5,28 @@
     "phaseNotice": "Phase 1 — MVP 搭建中"
   },
   "nav": {
+    "home": "首頁",
     "brokers": "證券商",
+    "verify": "身份驗證",
     "settings": "帳號設定",
-    "status": "系統狀態"
+    "status": "系統狀態",
+    "login": "登入",
+    "logout": "登出"
+  },
+  "footer": {
+    "mission": "區塊鏈讓金融服務評論回歸公正 — 不可刪除，不可篡改。",
+    "platform": "平台",
+    "brokers": "證券商",
+    "verify": "身份驗證",
+    "settings": "帳號設定",
+    "company": "公司",
+    "systemStatus": "系統狀態",
+    "legal": "法律",
+    "disclaimer": "免責聲明",
+    "privacy": "隱私政策",
+    "terms": "使用條款",
+    "copyright": "© 2026 OpenTrade. All rights reserved.",
+    "regulatoryNotice": "本平台不提供任何投資建議。所有評論一經上鏈即不可刪除、不可篡改。平台不會因任何原因刪除評論。"
   },
   "brokers": {
     "eyebrow": "證券商目錄",
