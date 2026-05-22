@@ -110,6 +110,7 @@ model Tenant {
   reviews                 Review[]
   outboxEvents            OutboxEvent[]
   sbtVerificationRequests SbtVerificationRequest[]
+  brokerClaimRequests     BrokerClaimRequest[]
 
   @@map("tenants")
 }
@@ -156,24 +157,26 @@ model User {
 /// `isClaimed` flips to true once an L4 KYC has completed for a custodial
 /// staff user. Pre-claim, `description` / `logoUrl` come from the seed.
 model Broker {
-  id          String    @id @default(uuid()) @db.Uuid
-  tenantId    String    @db.Uuid
-  slug        String
-  legalName   String
-  displayName String
-  websiteUrl  String?
-  description String?   @db.Text
-  logoUrl     String?
-  isClaimed   Boolean   @default(false)
-  claimedAt   DateTime?
+  id              String    @id @default(uuid()) @db.Uuid
+  tenantId        String    @db.Uuid
+  slug            String
+  legalName       String
+  displayName     String
+  websiteUrl      String?
+  description     String?   @db.Text
+  logoUrl         String?
+  isClaimed       Boolean   @default(false)
+  claimedAt       DateTime?
+  claimedByUserId String?   @db.Uuid
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  tenant   Tenant          @relation(fields: [tenantId], references: [id])
-  licenses BrokerLicense[]
-  reviews  Review[]
+  tenant        Tenant             @relation(fields: [tenantId], references: [id])
+  licenses      BrokerLicense[]
+  reviews       Review[]
+  claimRequests BrokerClaimRequest[]
 
   @@unique([tenantId, slug])
   @@index([tenantId, isClaimed])
@@ -211,6 +214,13 @@ model BrokerLicense {
   @@map("broker_licenses")
 }
 
+/// Status of a claim or verification request.
+enum ClaimStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 /// Status of an SBT verification request (L2 identity proof).
 enum VerificationStatus {
   PENDING
@@ -240,6 +250,29 @@ model SbtVerificationRequest {
   @@index([tenantId, status])
   @@index([tenantId, userId])
   @@map("sbt_verification_requests")
+}
+
+/// A request from a merchant to claim ownership of a broker profile.
+/// Manual KYC: user provides CE ref number and a company authorization letter
+/// (uploaded to IPFS). Admin reviews and approves/rejects.
+model BrokerClaimRequest {
+  id                    String      @id @default(uuid()) @db.Uuid
+  tenantId              String      @db.Uuid
+  brokerId              String      @db.Uuid
+  userId                String      @db.Uuid
+  ceRefNumber           String
+  companyLetterIpfsCid  String
+  status                ClaimStatus @default(PENDING)
+  adminNote             String?     @db.Text
+  createdAt             DateTime    @default(now())
+  reviewedAt            DateTime?
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  broker Broker @relation(fields: [brokerId], references: [id])
+
+  @@index([tenantId, status])
+  @@index([tenantId, brokerId])
+  @@map("broker_claim_requests")
 }
 
 /// Lifecycle status of a review as it moves through the submission pipeline.
