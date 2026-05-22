@@ -9,24 +9,18 @@
 ## 最後更新
 
 - **日期**：2026-05-22
-- **更新者**：Phase 1 MVP-B session（Claude Opus 4.6）— Block 8-14 完成
-- **本次更新摘要**：Phase 1 MVP-B 全 7 blocks 完成。Block 8 修復 auth 管道（Privy → OpenTrade JWT exchange hook）。Block 9 outbox worker + deploy script。Block 10 user profile API + settings page。Block 11 ReviewerSBT 合約（17 tests）+ ADR-0021。Block 12 L2 commitment-hash 驗證 + admin approve + SBT mint + review gate + ADR-0022。Block 13 merchant claim flow + manual KYC。Block 14 UGC translation via DeepL + ADR-0023。PR #16 MVP-A squash merged to main. 舊摘要：Block 6（merchant console basics）完成。Prisma Review model + migration（ReviewStatus enum, contentHash, ipfsCid, chainReviewId, txHash）+ Pinata IPFS 整合（PinataIpfsService via official SDK v2.5.6）+ reviews domain DDD 四層（domain types + IReviewRepository port + SubmitReviewUseCase with keccak256 via viem + GetBrokerReviewsUseCase cursor pagination + PrismaReviewRepository with outbox event transaction）+ REST endpoints（POST /v1/reviews auth gated + GET /v1/reviews/broker/:slug public + GET /v1/reviews/:id public）+ server.ts wiring。三個 commit 拆分各 < 300 行 diff，已 push。下一步是 Block 5（reviews UI）。舊摘要：Commit number-ten 真實 ship — 三個獨立 GitHub Actions workflow（`ci.yml` 4-job matrix lint/typecheck/test/format + `contracts.yml` forge build/test/fmt + solhint warning-only + `terraform.yml` fmt -check + per-workspace `init -backend=false` + validate；**完全沒有 AWS 認證、完全沒有 `terraform apply`、完全沒有 `terraform plan`**，per ADR-0018 D7+D8 + rule 80 + rule 81）+ ADR-0018（11 個 coordinated decisions：三 workflow file 拆分、Corepack pnpm 9.15.4、Foundry pin v1.7.1、Terraform pin 1.15.4 validate-only、Dependabot 而非 Renovate、branch protection 為 UI follow-up、Phase 1+/4+ deferral 表）+ `.terraform.lock.hcl` 從 .gitignore 解禁 + 兩 workspace 跑 `terraform providers lock -platform=linux_amd64 -platform=darwin_arm64 -platform=darwin_amd64`，每 workspace 三平台 hash 都進 commit，讓 CI Linux runner 不對外連網就能 resolve provider + rule 81 加新章節「Provider lock file 紀律」+ commitlint scope-enum 加 `conversations`（修正前 session `docs(conversations):` commit 的 warning）+ ESLint `@typescript-eslint/no-restricted-imports` rule 限定 `apps/{web,console}/src/**/*.{ts,tsx}`，runtime import `@opentrade/db` / `@prisma/client` → error，`import type` → allowed（用 smoke fixture 驗證後刪 fixture）+ `.github/dependabot.yml` weekly Monday 09:00 HKT npm + github-actions 兩 ecosystem；ignore `prisma`/`@prisma/client` 大版（per ADR-0013）+ ignore `next`/`react`/`react-dom`/`@types/react`/`storybook` 大版（per docs/03-status.md 開放問題）+ group `@types/*`/`eslint*`/`@storybook/*`/`next*`/`hono+@hono/*`/`pino+pino-*` 為 batched PRs + `.github/CODEOWNERS`（Phase 0 全 `@skyyuch`，但 contracts/security rule/ADRs/cursor rules/infra/.github/db prisma 各自分欄為將來第二位 contributor 預留 fast-onboarding）+ `.github/pull_request_template.md`（per rule 70 「What/Why/How/Tests/Checklist/Refs」格式，Checklist 內嵌 rule 50/70/81 + ADR-0015 D5 各 gate）。GitHub PR #1 `feature/commit-10-ci-cd` 開好，第一輪 CI 9 個 check（fmt -check 8s + forge 42s + format 26s + lint 41s + solhint 28s + test 20s + typecheck 33s + validate bootstrap 17s + validate dev 17s）全綠，無 yaml typo、無 cache miss、submodule recursive 拉成功、Terraform `-backend=false` 跑通。本機驗證 `gh` 2.92.0 從 GitHub release tarball 裝到 `~/.local/bin/`（與 Terraform 同 pattern，免 brew、免 sudo、零污染）。Phase 0 進度真正 100%，下個 session 啟 Phase 1 MVP-A 鏈上評論。
-
-ADR-0018（CI/CD GitHub Actions architecture）紀錄 11 個 coordinated decisions：D1 三 workflow file 拆（runner shape 異質、path filter 異質、concurrency cancellation 不互相波及、Phase 4+ OIDC 權限可窄到單一 workflow）、D2 share trigger shape + concurrency.group=workflow+ref+cancel-in-progress + path filter 配 D1、D3 `actions/setup-node@v4` + Corepack（reads `packageManager` from root package.json，single source of truth；rejected `pnpm/action-setup`）、D4 Turborepo remote cache 在 Phase 0 暫不啟用（pure local `actions/cache@v4` 已夠用，Vercel remote cache 要 SaaS account，self-hosted 要 OIDC，留 Phase 1+ 評估）、D5 Foundry `v1.7.1` pin via `foundry-rs/foundry-toolchain@v1`（pin 只在 workflow，當 ADR-0015 bump trigger fire 時一行改+成 successor ADR）、D6 solhint 留 warning-only（per ADR-0015 D5）+ forge build/test/fmt 為 hard gate、D7 Terraform `v1.15.4` pin via `hashicorp/setup-terraform@v3` + `init -backend=false -input=false` + `validate` only（**NO plan, NO apply**；providers 從 committed lock file resolve，完全 offline，supply chain blast radius 零）、D8 CI Phase 0 zero AWS credentials（per ADR-0017 D11 + rule 80；Phase 4+ ADR-0019 才加 OIDC + ECR push + ECS deploy）、D9 Dependabot 而非 Renovate（GitHub-native + grouping 對 9 package monorepo 已足；ignore rules encode ADR-0013 Prisma 6 + docs/03-status.md Next 14→15 open question）、D10 branch protection UI follow-up（GitHub 沒給工作流 API 設定 branch protection 的辦法；列表記在 ADR）、D11 Phase 0 explicitly NOT in CI：bundle size / Snyk / license / Playwright E2E / Chromatic / Slither / Mythril / Prisma migration safety / coverage / perf budget 全部成 deferral table，標明各自 land 在哪個 Phase。7 個 alternatives considered（單 mega ci.yml、`pnpm/action-setup`、Phase 0 `terraform plan` with OIDC、Renovate、env-block version pin、GHCR for ECR、`act` 為 primary）全 rejected with reasoning。Implementation notes 列 11 個 follow-up（Phase 1 加 Playwright E2E workflow、Phase 1 第一個 business contract PR 同時切 solhint 為 error-level + 加 Slither、Phase 1 Vitest 真實 test 加 Postgres service container、Phase 4+ ADR-0019 OIDC + `terraform plan` PR comment + ECS deploy + S3/CloudFront frontend deploy、Phase 4+ Snyk + license check + bundle size check）。
-
-rule 81-terraform-iac.mdc 加新章節「Provider lock file 紀律」：應該 commit `.terraform.lock.hcl` per ADR-0018；bump `versions.tf` 必同步跑 `terraform providers lock -platform=linux_amd64 -platform=darwin_arm64 -platform=darwin_amd64` 確保 Mac+Linux+Intel Mac 三平台 hash；紅線：不可 `.gitignore` 排除 lock file、不可 bump `versions.tf` 不 refresh lock file、不可只 lock 單一 platform。「嚴禁」段加兩條 + 「與 ADR / 其他 rules 的關連」表加 ADR-0018 行。`docs/decisions/README.md` ADR index 加 ADR-0018。`commitlint.config.mjs` scope-enum 加 `conversations` + docblock 說明 + rule 70 scope 清單同步。
-
-端到端驗證：本機 `pnpm format:check` + `pnpm turbo run lint --filter='!@opentrade/contracts'` + typecheck + test:unit 全綠；本機 `pnpm --filter @opentrade/contracts build / test:ci / fmt:check` 全綠；本機 `terraform init -backend=false -input=false && terraform validate` 兩 workspace 全綠；ESLint runtime-import guard 用 smoke fixture（`apps/web/src/lint-smoke.test-fixture.ts` 同時 import value 與 type）驗證 runtime import 出 error（custom message reference rule 10 + ADR-0006/ADR-0014）+ `import type` allowed，fixture 刪除前不入任何 commit。GitHub PR #1 (`https://github.com/skyyuch/opentrade/pull/1`) 開好，9 個 CI check 第一輪即綠（最慢 forge 42s，並行 wall clock < 1 min），無 yaml typo、無 cache miss、submodule recursive 拉成功、`-backend=false` 走通、`@typescript-eslint/no-restricted-imports` 不影響既有源碼。剩 branch protection 在 GitHub Settings UI 設定（per ADR-0018 D10 follow-up）+ squash merge。
+- **更新者**：Phase 1 Deployment session（Claude Opus 4.6）
+- **本次更新摘要**：PR #17 MVP-B merge（CI lint/forge 修復後 squash merge）。Base Sepolia testnet 部署完成：ReviewRegistry proxy `0x8aB5f61Cd0817BE0B9f09Ec09d28de302aDAf187` + ReviewerSBT proxy `0x31D8e863ce71c90d399Ff69eeACeC84226b3e61b`。MINTER_ROLE 授權。手動驗證 review 上鏈（reviewCount=1）+ SBT mint（tokenCount=1）+ soulbound transfer block revert。Deployer/Relayer wallet `0xD221cE091E364D24029B92bC89a3f9831e3e5d01`。
 
 ---
 
 ## 當前 Phase
 
-**Phase 1 MVP-B：Identity, Translation, Merchant Claim — COMPLETE**
+**Phase 1：Testnet 部署完成，進入 UI Polish + E2E 測試階段**
 
-進度：100%（Block 8-14 / 7 全部完成）
+進度：~85%（code 100% done, deployment done, E2E + UI polish remaining）
 
-MVP-A 已 merge (PR #16)，MVP-B branch `feature/phase-1-mvp-b` 7 commits ready。
+MVP-A merged (PR #16), MVP-B merged (PR #17). Base Sepolia 合約已部署並驗證。
 
 ---
 
@@ -325,7 +319,8 @@ Branch: `feature/phase-1-mvp-a`（first 4 commits + 1 handoff docs commit）
 
 ## 進行中
 
-- **Phase 1 MVP-B**：全 7 blocks 完成。Branch `feature/phase-1-mvp-b` ready for PR + merge。
+- **Phase 1 E2E 測試**：需手動設定 Privy dashboard + 跑完整流程
+- **Phase 1 UI polish**：verify page, SBT badge, search bar, console claim form
 
 ---
 
@@ -333,15 +328,15 @@ Branch: `feature/phase-1-mvp-a`（first 4 commits + 1 handoff docs commit）
 
 ### 立即
 
-1. **Phase 1 MVP-B PR** — 開 PR 將 `feature/phase-1-mvp-b` merge 到 main
-2. **Base Sepolia 部署** — Deploy ReviewRegistry + ReviewerSBT to testnet + set env vars
-3. **端到端測試** — Privy login → exchange → verify broker → mint SBT → submit review → outbox → on-chain
+1. **Privy Dashboard 設定** — enable Google/Apple/Email login + Smart Wallets on Base Sepolia + Gas Sponsorship
+2. **端到端測試** — 瀏覽器跑完整流程：Privy login → exchange JWT → verify broker → mint SBT → submit review → outbox → on-chain
+3. **UI polish** — verify page, SBT badge component, search bar, console claim form, ReviewCard upgrade
 
 ### 短期
 
+- Dependabot PRs 批次 merge（15 個 pending）
 - 評估 Next.js 14 → 15/16 升級
 - 評估 Prisma 6 → 7 升級時機
-- Phase 1 剩餘 polish: verify UI page, SBT badge component, search bar, console claim form
 
 ---
 
@@ -544,3 +539,4 @@ aws sso login --profile opentrade-dev
 | 2026-05-22 | Phase 1 MVP-A：Block 7（SFC broker seed + sync pipeline）      | Claude Opus 4.6 | SFC 離線 fetcher（360 requests → 3482 法團 + 6982 牌照 JSON）+ idempotent sync-brokers.ts upsert + seed.ts 整合 + standalone sync:sfc + ADR-0020（ECS + EventBridge weekly）+ apps/api sync entry point（tsup second entry）+ Terraform module sfc-sync-task + dev/main.tf wiring。五個 commit，已 push（branch total: 23 commits）。Phase 1 MVP-A 所有 blocks 完成。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 
 | 2026-05-22 | Phase 1 MVP-B：Block 8-14（Identity, Translation, Merchant Claim） | Claude Opus 4.6 | PR #16 MVP-A squash merged (bypass_actors ruleset fix). Block 8 auth bridge (useOpenTradeAuth hook web+console, ReviewForm fix). Block 9 outbox worker (DB poll + viem on-chain + deploy script). Block 10 L1 profile (GET/PATCH me + settings page + author display). Block 11 ReviewerSBT (ADR-0021 + ERC721 soulbound + 17 tests + evm cancun). Block 12 L2 verify (ADR-0022 + commitment-hash + admin approve + review gate). Block 13 merchant claim (BrokerClaimRequest + API + owner edit). Block 14 UGC translation (ADR-0023 + DeepL + ReviewTranslation + Accept-Language). 7 commits on feature/phase-1-mvp-b. |
+| 2026-05-22 | Phase 1: PR #17 merge + Base Sepolia deployment | Claude Opus 4.6 | PR #17 CI fix (fuzz test exclude contract addrs + lint prefer-optional-chain/import-order/array-type/no-floating-promises) + squash merge. Base Sepolia deploy: ReviewRegistry `0x8aB5f61Cd0817BE0B9f09Ec09d28de302aDAf187` + ReviewerSBT `0x31D8e863ce71c90d399Ff69eeACeC84226b3e61b`. MINTER_ROLE granted. Manual verification: review on-chain (reviewCount=1), SBT mint (tokenCount=1), soulbound transfer block confirmed. Deployer `0xD221cE091E364D24029B92bC89a3f9831e3e5d01`. | |
