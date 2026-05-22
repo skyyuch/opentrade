@@ -2,9 +2,10 @@
  * Client-side review submission form.
  *
  * Gated behind Privy auth — unauthenticated visitors see a CTA to log in.
- * On submission calls POST /v1/reviews with the user's Privy access token.
- * The API handles IPFS pinning, keccak256 hashing, and outbox event
- * creation; chain anchoring happens asynchronously via the outbox worker.
+ * On submission exchanges the Privy token for an OpenTrade ES256 JWT
+ * (via useOpenTradeAuth) then calls POST /v1/reviews. The API handles
+ * IPFS pinning, keccak256 hashing, and outbox event creation; chain
+ * anchoring happens asynchronously via the outbox worker.
  */
 
 'use client';
@@ -14,6 +15,7 @@ import { Star } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useCallback, useState } from 'react';
 
+import { useOpenTradeAuth } from '../../hooks/useOpenTradeAuth';
 import { ApiClientError, submitReview } from '../../lib/api/client';
 
 import type { FormEvent, ReactNode } from 'react';
@@ -31,7 +33,8 @@ type FormState =
 
 export const ReviewForm = ({ brokerId, brokerName }: Props): ReactNode => {
   const t = useTranslations('reviewForm');
-  const { authenticated, login, getAccessToken } = usePrivy();
+  const { authenticated, login } = usePrivy();
+  const { getAccessToken } = useOpenTradeAuth();
 
   const [state, setState] = useState<FormState>({ kind: 'idle' });
   const [rating, setRating] = useState(0);

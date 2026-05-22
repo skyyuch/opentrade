@@ -57,6 +57,58 @@ const buildHeaders = (options: FetchOptions): Record<string, string> => {
   return headers;
 };
 
+const apiPost = async <T>(
+  path: string,
+  body: unknown,
+  options: FetchOptions = {},
+): Promise<T> => {
+  const url = `${env.NEXT_PUBLIC_API_URL}${path}`;
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { ...buildHeaders(options), 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+    ...(options.signal !== undefined ? { signal: options.signal } : {}),
+  });
+
+  if (!res.ok) {
+    let parsed: unknown = undefined;
+    try {
+      parsed = await res.json();
+    } catch {
+      // Non-JSON error body.
+    }
+    if (isApiErrorBody(parsed)) {
+      throw new ApiClientError(
+        res.status,
+        parsed.error.code,
+        parsed.error.message,
+        parsed.error.requestId,
+      );
+    }
+    throw new ApiClientError(
+      res.status,
+      'INTERNAL_ERROR',
+      `Upstream POST ${path} returned ${res.status}`,
+    );
+  }
+
+  return (await res.json()) as T;
+};
+
+// ---------------------------------------------------------------------------
+// Auth — Privy → OpenTrade JWT exchange
+// ---------------------------------------------------------------------------
+
+export type ExchangeTokenResponse = {
+  accessToken: string;
+  expiresIn: number;
+  userId: string;
+};
+
+export const exchangeAuthToken = (privyToken: string): Promise<ExchangeTokenResponse> =>
+  apiPost<ExchangeTokenResponse>('/v1/auth/exchange', { accessToken: privyToken });
+
 export const apiGet = async <T>(path: string, options: FetchOptions = {}): Promise<T> => {
   const url = `${env.NEXT_PUBLIC_API_URL}${path}`;
 

@@ -149,6 +149,19 @@ export const apiPost = async <T>(
 };
 
 // ---------------------------------------------------------------------------
+// Auth — Privy → OpenTrade JWT exchange
+// ---------------------------------------------------------------------------
+
+export type ExchangeTokenResponse = {
+  accessToken: string;
+  expiresIn: number;
+  userId: string;
+};
+
+export const exchangeAuthToken = (privyToken: string): Promise<ExchangeTokenResponse> =>
+  apiPost<ExchangeTokenResponse>('/v1/auth/exchange', { accessToken: privyToken });
+
+// ---------------------------------------------------------------------------
 // Domain-specific typed fetchers
 // ---------------------------------------------------------------------------
 
