@@ -14,6 +14,7 @@ type BrokerListItem = {
   legalName: string;
   isClaimed: boolean;
   reviewCount: number;
+  positiveRate: number | null;
   licenseTypes: string[];
 };
 
@@ -267,19 +268,19 @@ const BrokerCard = ({ broker, locale }: { broker: BrokerListItem; locale: string
       {/* Spacer */}
       <div className="flex-1" />
 
-      {/* Bottom: consensus / reviews */}
+      {/* Bottom: positive rate / reviews */}
       <div className="mt-4 flex items-end justify-between border-t border-white/10 pt-4">
         <div>
           <div className="mb-1 text-[10px] uppercase tracking-widest text-white/40">
-            {t('consensus')}
+            {t('positiveRateLabel')}
           </div>
           <div className="flex items-baseline gap-1">
             <span className="text-xl font-bold text-[#00FF88]">
-              {broker.reviewCount > 0 ? '95.0%' : '—'}
+              {broker.positiveRate !== null ? `${broker.positiveRate}%` : '—'}
             </span>
             {broker.reviewCount > 0 && (
               <span className="text-xs text-white/40">
-                / {broker.reviewCount} {t('reviews')}
+                / {t('reviewCount', { count: broker.reviewCount })}
               </span>
             )}
           </div>

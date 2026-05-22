@@ -61,6 +61,7 @@ brokersRouter.get('/', async (c) => {
     take: limit + 1,
     include: {
       licenses: { where: { deletedAt: null }, orderBy: { licenseType: 'asc' as const } },
+      reviews: { select: { rating: true } },
       _count: { select: { reviews: true } },
     },
   };
@@ -77,18 +78,26 @@ brokersRouter.get('/', async (c) => {
   const nextCursor = hasMore ? (items[items.length - 1]?.id ?? null) : null;
 
   return c.json({
-    brokers: items.map((b) => ({
-      id: b.id,
-      slug: b.slug,
-      displayName: b.displayName,
-      legalName: b.legalName,
-      logoUrl: b.logoUrl,
-      isClaimed: b.isClaimed,
-      reviewCount: (b as unknown as { _count: { reviews: number } })._count.reviews,
-      licenseTypes: (b as unknown as { licenses: { licenseType: string }[] }).licenses.map(
-        (l) => l.licenseType,
-      ),
-    })),
+    brokers: items.map((b) => {
+      const reviews = (b as unknown as { reviews: { rating: number }[] }).reviews;
+      const reviewCount = (b as unknown as { _count: { reviews: number } })._count.reviews;
+      const positiveCount = reviews.filter((r) => r.rating >= 4).length;
+      const positiveRate = reviewCount > 0 ? Math.round((positiveCount / reviewCount) * 100) : null;
+
+      return {
+        id: b.id,
+        slug: b.slug,
+        displayName: b.displayName,
+        legalName: b.legalName,
+        logoUrl: b.logoUrl,
+        isClaimed: b.isClaimed,
+        reviewCount,
+        positiveRate,
+        licenseTypes: (b as unknown as { licenses: { licenseType: string }[] }).licenses.map(
+          (l) => l.licenseType,
+        ),
+      };
+    }),
     nextCursor,
   });
 });

@@ -176,6 +176,7 @@ export type BrokerListItem = {
   logoUrl: string | null;
   isClaimed: boolean;
   reviewCount: number;
+  positiveRate: number | null;
   licenseTypes: string[];
 };
 
