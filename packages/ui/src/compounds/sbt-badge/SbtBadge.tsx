@@ -91,8 +91,10 @@ export const SbtBadge = ({
 }: SbtBadgeProps): ReactNode => {
   const config = TIER_CONFIG[tier];
   const Icon = config.icon;
-  const label =
-    TIER_LABELS[tier][locale as keyof (typeof TIER_LABELS)[typeof tier]] ?? TIER_LABELS[tier]['en'];
+  const tierLabels = TIER_LABELS[tier];
+  const label = (
+    locale in tierLabels ? tierLabels[locale as keyof typeof tierLabels] : tierLabels.en
+  ) as string;
 
   const iconSize = size === 'sm' ? 'size-3' : size === 'lg' ? 'size-4' : 'size-3.5';
 
