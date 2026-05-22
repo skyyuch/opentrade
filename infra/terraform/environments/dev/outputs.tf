@@ -77,3 +77,13 @@ output "app_secret_arns" {
   description = "ARNs of every Secrets Manager slot apps/api reads. Values are written outside Terraform per rule 50."
   value       = module.app_secrets.secret_arns
 }
+
+output "assets_cdn_url" {
+  description = "CloudFront URL for static assets (logos, avatars). Used by the logo crawl script."
+  value       = module.assets_cdn.cloudfront_url
+}
+
+output "assets_bucket_name" {
+  description = "S3 bucket holding static assets like broker logos."
+  value       = module.assets_cdn.bucket_name
+}

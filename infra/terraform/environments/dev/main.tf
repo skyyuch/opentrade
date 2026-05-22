@@ -144,3 +144,18 @@ module "console_cdn" {
   bucket_name = "${var.name_prefix}-console-${var.account_id}"
   noindex     = true # Console is robots-disallow per ADR-0010
 }
+
+# --------------------------------------------------------------------------
+# Static assets CDN (logos, avatars, etc.)
+# --------------------------------------------------------------------------
+# Unlike frontend-cdn, this has no SPA fallback — missing keys return 404.
+# Logos are uploaded here by the broker logo crawl script.
+
+module "assets_cdn" {
+  source = "../../modules/static-assets"
+
+  name        = "assets"
+  name_prefix = var.name_prefix
+  bucket_name = "${var.name_prefix}-assets-${var.account_id}"
+  price_class = "PriceClass_200"
+}

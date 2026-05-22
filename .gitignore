@@ -133,3 +133,7 @@ logs/
 # Local development overrides
 docker-compose.override.yml
 local.config.*
+
+# Crawl state files (resumable, not committed)
+crawl-progress.json
+crawl-failures.json
