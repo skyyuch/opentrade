@@ -8,6 +8,7 @@
   "scripts": {
     "build": "tsup",
     "dev": "dotenv -e ../../.env -- tsx watch src/main.ts",
+    "dev:outbox": "dotenv -e ../../.env -- tsx src/tasks/outbox-worker.ts",
     "start": "node dist/main.js",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",

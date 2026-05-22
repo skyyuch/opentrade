@@ -6,7 +6,8 @@
  * override: `["node", "dist/tasks/outbox-worker.js"]`.
  *
  * Currently handles:
- *   - `review.submitted` → calls ReviewRegistry.submitReview() on-chain
+ *   - `review.submitted`    → calls ReviewRegistry.submitReview() on-chain
+ *   - `sbt.mint_requested`  → calls ReviewerSBT.mint() on-chain (per ADR-0021/0022)
  *
  * Per ADR-0006 outbox pattern: the API writes events to the DB in the same
  * transaction as the business entity. This worker reads them and submits the
@@ -37,6 +38,19 @@ const REVIEW_REGISTRY_ABI = [
   },
 ] as const;
 
+const REVIEWER_SBT_ABI = [
+  {
+    type: 'function',
+    name: 'mint',
+    inputs: [
+      { name: 'to', type: 'address' },
+      { name: 'uri', type: 'string' },
+    ],
+    outputs: [{ name: 'tokenId', type: 'uint256' }],
+    stateMutability: 'nonpayable',
+  },
+] as const;
+
 function log(level: string, msg: string, data?: Record<string, unknown>) {
   const entry = { level, msg, time: new Date().toISOString(), ...data };
   process.stdout.write(JSON.stringify(entry) + '\n');
@@ -48,6 +62,7 @@ async function main() {
   const rpcUrl = process.env['CHAIN_RPC_URL'] ?? '';
   const relayerKey = process.env['CHAIN_RELAYER_PRIVATE_KEY'] ?? '';
   const registryAddress = process.env['REVIEW_REGISTRY_ADDRESS'] ?? '';
+  const sbtAddress = process.env['REVIEWER_SBT_ADDRESS'] ?? '';
 
   if (!rpcUrl || !relayerKey || !registryAddress) {
     log('fatal', 'Missing required env vars', {
@@ -56,6 +71,10 @@ async function main() {
       hasRegistryAddress: !!registryAddress,
     });
     process.exit(1);
+  }
+
+  if (!sbtAddress) {
+    log('warn', 'REVIEWER_SBT_ADDRESS not set — sbt.mint_requested events will be skipped');
   }
 
   const chainId = Number(process.env['CHAIN_ID'] ?? '84532');
@@ -129,6 +148,48 @@ async function main() {
     });
   }
 
+  async function processSbtMintRequested(event: {
+    id: string;
+    aggregateId: string;
+    payload: unknown;
+  }) {
+    if (!sbtAddress) {
+      log('warn', 'Skipping sbt.mint_requested — REVIEWER_SBT_ADDRESS not configured');
+      return;
+    }
+
+    const payload = event.payload as { userId: string; verificationId: string };
+
+    const user = await prisma.user.findUnique({ where: { id: payload.userId } });
+    if (!user?.walletAddress) {
+      throw new Error(`User ${payload.userId} has no wallet address for SBT mint`);
+    }
+
+    const tokenUri = `ipfs://verification/${event.aggregateId}`;
+
+    const { request: mintRequest } = await publicClient.simulateContract({
+      address: sbtAddress as `0x${string}`,
+      abi: REVIEWER_SBT_ABI,
+      functionName: 'mint',
+      args: [user.walletAddress as `0x${string}`, tokenUri],
+      account,
+    });
+
+    const txHash = await walletClient.writeContract(mintRequest);
+    const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash });
+
+    if (receipt.status !== 'success') {
+      throw new Error(`SBT mint transaction reverted: ${txHash}`);
+    }
+
+    log('info', 'SBT minted on-chain', {
+      verificationId: event.aggregateId,
+      userId: payload.userId,
+      wallet: user.walletAddress,
+      txHash,
+    });
+  }
+
   async function pollOnce() {
     const events = await prisma.outboxEvent.findMany({
       where: { processedAt: null },
@@ -144,6 +205,8 @@ async function main() {
       try {
         if (event.eventType === 'review.submitted') {
           await processReviewSubmitted(event);
+        } else if (event.eventType === 'sbt.mint_requested') {
+          await processSbtMintRequested(event);
         } else {
           log('warn', `Unknown event type: ${event.eventType}`, {
             eventId: event.id,
