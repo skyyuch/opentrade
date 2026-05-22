@@ -61,7 +61,7 @@ const BrokerDetailPage = async ({ params }: Props): Promise<ReactNode> => {
         {t('backToBrokers')}
       </Link>
 
-      <BrokerHeader broker={broker} />
+      <BrokerHeader broker={broker} locale={params.locale} />
 
       {broker.licenses.length > 0 ? <LicensesSection broker={broker} t={t} /> : null}
 
@@ -114,36 +114,49 @@ const fetchBrokerData = async (
 
 type DetailTranslator = Awaited<ReturnType<typeof getTranslations<'brokerDetail'>>>;
 
-const BrokerHeader = ({ broker }: { broker: BrokerDetail }): ReactNode => (
-  <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-    <div className="flex items-start gap-4">
-      <div className="flex size-14 items-center justify-center rounded-xl bg-muted">
-        <Building2 className="size-7 text-muted-foreground" aria-hidden />
+const BrokerHeader = ({ broker, locale }: { broker: BrokerDetail; locale: string }): ReactNode => {
+  const isChineseLocale = locale.startsWith('zh');
+  const hasChinese = broker.displayName !== broker.legalName;
+  const primaryName = isChineseLocale ? broker.displayName : broker.legalName;
+  const secondaryName = isChineseLocale
+    ? hasChinese
+      ? broker.legalName
+      : null
+    : hasChinese
+      ? broker.displayName
+      : null;
+
+  return (
+    <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+      <div className="flex items-start gap-4">
+        <div className="flex size-14 items-center justify-center rounded-xl bg-primary/10">
+          <Building2 className="size-7 text-primary" aria-hidden />
+        </div>
+        <div className="flex flex-col gap-1">
+          <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">{primaryName}</h1>
+          {secondaryName ? <p className="text-sm text-muted-foreground">{secondaryName}</p> : null}
+          {broker.isClaimed ? (
+            <span className="inline-flex items-center gap-1 text-xs text-success">
+              <ShieldCheck className="size-3.5" aria-hidden />
+              Claimed
+            </span>
+          ) : null}
+        </div>
       </div>
-      <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">{broker.displayName}</h1>
-        <p className="text-sm text-muted-foreground">{broker.legalName}</p>
-        {broker.isClaimed ? (
-          <span className="inline-flex items-center gap-1 text-xs text-success">
-            <ShieldCheck className="size-3.5" aria-hidden />
-            Claimed
-          </span>
-        ) : null}
-      </div>
-    </div>
-    {broker.websiteUrl ? (
-      <a
-        href={broker.websiteUrl}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm transition-colors hover:bg-muted"
-      >
-        <ExternalLink className="size-3.5" aria-hidden />
-        Website
-      </a>
-    ) : null}
-  </header>
-);
+      {broker.websiteUrl ? (
+        <a
+          href={broker.websiteUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm transition-colors hover:bg-muted"
+        >
+          <ExternalLink className="size-3.5" aria-hidden />
+          Website
+        </a>
+      ) : null}
+    </header>
+  );
+};
 
 const LicensesSection = ({
   broker,

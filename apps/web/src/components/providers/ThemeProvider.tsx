@@ -1,8 +1,9 @@
 /**
  * Client-side wrapper around `next-themes` so the rest of the app stays
- * in Server Component land. Per ADR-0011 `apps/web` defaults to LIGHT
- * (SEO + retail reading habit), with system preference enabled as an
- * opt-in third state for users who toggle from the eventual UI control.
+ * in Server Component land.
+ *
+ * Phase 1: forced dark mode to align with crypto exchange aesthetics
+ * (Binance, OKX). A theme toggle can be re-introduced in Phase 2+.
  *
  * `attribute="class"` toggles `.dark` on `<html>` — the design token CSS
  * variables in `@opentrade/ui/styles/globals.css` swap atomically.
@@ -22,7 +23,12 @@ type Props = {
 };
 
 export const ThemeProvider = ({ children }: Props) => (
-  <NextThemesProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
+  <NextThemesProvider
+    attribute="class"
+    defaultTheme="dark"
+    forcedTheme="dark"
+    disableTransitionOnChange
+  >
     {children}
   </NextThemesProvider>
 );
