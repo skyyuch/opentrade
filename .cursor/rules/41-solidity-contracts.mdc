@@ -69,7 +69,8 @@ contract ReviewRegistry is
     PausableUpgradeable
 {
     function initialize(address admin) public initializer {
-        __UUPSUpgradeable_init();
+        // NOTE: __UUPSUpgradeable_init() was removed in OZ v5;
+        // UUPSUpgradeable no longer requires explicit init.
         __AccessControl_init();
         __Pausable_init();
 

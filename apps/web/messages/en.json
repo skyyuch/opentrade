@@ -2,7 +2,51 @@
   "home": {
     "title": "OpenTrade",
     "tagline": "Bringing fairness back to financial-service reviews — on chain.",
-    "phaseNotice": "Phase 0 — foundation in progress"
+    "phaseNotice": "Phase 1 — MVP in progress"
+  },
+  "nav": {
+    "brokers": "Brokers",
+    "status": "System status"
+  },
+  "brokers": {
+    "eyebrow": "Broker directory",
+    "title": "HK licensed brokers",
+    "subtitle": "Browse all SFC-licensed brokers in Hong Kong and read authentic user reviews.",
+    "searchPlaceholder": "Search broker name…",
+    "reviewCount": "{count, plural, one {# review} other {# reviews}}",
+    "noReviews": "No reviews yet",
+    "claimed": "Claimed",
+    "empty": "No brokers found.",
+    "viewDetails": "View details",
+    "disclaimer": "Listings are sourced from the SFC public register. This does not constitute investment advice."
+  },
+  "brokerDetail": {
+    "backToBrokers": "Back to brokers",
+    "licenses": "Licence information",
+    "licenseNumber": "Licence no.",
+    "reviews": "User reviews",
+    "noReviews": "No reviews yet — be the first to leave one.",
+    "writeReview": "Write a review",
+    "verified": "Verified on chain",
+    "pending": "Pending on-chain",
+    "failed": "On-chain failed",
+    "disclaimer": "All reviews are immutable once anchored on chain. The platform will never delete reviews for any reason."
+  },
+  "reviewForm": {
+    "title": "Write a review",
+    "loginRequired": "Please log in to write a review.",
+    "login": "Log in",
+    "ratingLabel": "Rating",
+    "titleLabel": "Title",
+    "titlePlaceholder": "Summarise your experience in one sentence",
+    "bodyLabel": "Review",
+    "bodyPlaceholder": "Describe your experience in detail (at least 10 characters)",
+    "submit": "Submit review",
+    "submitting": "Submitting…",
+    "successTitle": "Review submitted!",
+    "successMessage": "Your review is being anchored on chain. Once confirmed, it cannot be deleted or modified.",
+    "errorTitle": "Submission failed",
+    "stars": "{count, plural, one {# star} other {# stars}}"
   },
   "status": {
     "eyebrow": "System status",

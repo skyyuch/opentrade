@@ -1,9 +1,41 @@
 {
+  "nav": {
+    "dashboard": "總覽",
+    "brokers": "證券商管理",
+    "logout": "登出"
+  },
+  "auth": {
+    "loginTitle": "商戶後台登入",
+    "loginSubtitle": "登入後管理你的證券商專頁及查看鏈上評論。",
+    "loginButton": "登入",
+    "loggingIn": "登入中…"
+  },
+  "brokerList": {
+    "title": "證券商列表",
+    "subtitle": "瀏覽可認領的證券商專頁。",
+    "reviewCount": "{count} 則評論",
+    "noReviews": "尚無評論",
+    "claimed": "已認領",
+    "unclaimed": "可認領",
+    "empty": "目前沒有證券商資料。",
+    "viewDetails": "查看詳情"
+  },
+  "brokerManage": {
+    "backToList": "返回列表",
+    "licenses": "持牌資訊",
+    "licenseNumber": "牌照號碼",
+    "reviews": "用戶評論",
+    "noReviews": "尚無評論。",
+    "verified": "鏈上已驗證",
+    "pending": "等待上鏈中",
+    "failed": "上鏈失敗",
+    "disclaimer": "所有評論一經上鏈即不可刪除、不可篡改。"
+  },
   "dashboard": {
     "eyebrow": "OpenTrade Console",
     "title": "OpenTrade 商戶後台",
     "subtitle": "認領專頁、追蹤鏈上評論、發布策略訊號的工作空間。Phase 1 上線後將開放完整功能。",
-    "phaseNotice": "Phase 0 — 地基搭建中",
+    "phaseNotice": "Phase 1 — MVP 搭建中",
     "shellTitle": "商戶後台",
     "shellDescription": "本後台為商戶、KOL 與管理員設計，桌面優先。所有功能在 Phase 1 上線前皆為預覽。",
     "sectionsTitle": "功能總覽",

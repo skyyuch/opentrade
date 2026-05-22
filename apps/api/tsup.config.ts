@@ -1,7 +1,9 @@
 /**
  * tsup build configuration for `@opentrade/api`.
  *
- * Output is a single `dist/main.js` ESM bundle for a Node 22 container.
+ * Produces two entry points:
+ *   - `dist/main.js`     — Hono API server (default CMD in Dockerfile)
+ *   - `dist/sync-sfc.js` — SFC broker sync task (ECS CMD override, ADR-0020)
  *
  * Bundling strategy:
  *   - Workspace packages (`@opentrade/*`) are inlined into the bundle.
@@ -21,7 +23,7 @@
 import { defineConfig } from 'tsup';
 
 export default defineConfig({
-  entry: ['src/main.ts'],
+  entry: ['src/main.ts', 'src/tasks/sync-sfc.ts'],
   format: ['esm'],
   target: 'node22',
   outDir: 'dist',

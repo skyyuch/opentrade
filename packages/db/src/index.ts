@@ -23,7 +23,14 @@ export { getDbEnv, type DbEnv } from './env.js';
 // Re-export enum runtime values + the Prisma namespace types for consumers.
 // Frontend code MUST consume these via `import type` (verified by
 // tsconfig.base.json's `verbatimModuleSyntax: true`).
-export { LicenseStatus, LicenseType, Regulator, SbtTier, UserRole } from '@prisma/client';
+export {
+  LicenseStatus,
+  LicenseType,
+  Regulator,
+  ReviewStatus,
+  SbtTier,
+  UserRole,
+} from '@prisma/client';
 
 export type {
   Broker,
@@ -31,6 +38,7 @@ export type {
   OutboxEvent,
   Prisma,
   PrismaClient,
+  Review,
   Tenant,
   User,
 } from '@prisma/client';

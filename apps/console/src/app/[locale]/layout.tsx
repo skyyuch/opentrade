@@ -35,7 +35,9 @@ import { notFound } from 'next/navigation';
 import { NextIntlClientProvider, hasLocale } from 'next-intl';
 import { getMessages, getTranslations } from 'next-intl/server';
 
+import { AuthGate } from '../../components/layout/AuthGate';
 import { ThemeProvider } from '../../components/providers/ThemeProvider';
+import { Web3Providers } from '../../components/providers/Web3Providers';
 import { routing } from '../../i18n/routing';
 
 import type { Metadata } from 'next';
@@ -78,7 +80,9 @@ const LocaleLayout = async ({ children, params }: Props): Promise<ReactNode> => 
       <body className={`${inter.className} min-h-screen bg-background text-foreground antialiased`}>
         <ThemeProvider>
           <NextIntlClientProvider locale={locale} messages={messages}>
-            {children}
+            <Web3Providers>
+              <AuthGate locale={locale}>{children}</AuthGate>
+            </Web3Providers>
           </NextIntlClientProvider>
         </ThemeProvider>
       </body>

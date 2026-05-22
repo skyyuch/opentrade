@@ -2,7 +2,51 @@
   "home": {
     "title": "OpenTrade",
     "tagline": "区块链让金融服务评论回归公正",
-    "phaseNotice": "Phase 0 — 基础搭建中"
+    "phaseNotice": "Phase 1 — MVP 搭建中"
+  },
+  "nav": {
+    "brokers": "券商",
+    "status": "系统状态"
+  },
+  "brokers": {
+    "eyebrow": "券商目录",
+    "title": "香港持牌券商",
+    "subtitle": "浏览所有香港 SFC 持牌券商，查看真实用户评论。",
+    "searchPlaceholder": "搜索券商名称…",
+    "reviewCount": "{count} 条评论",
+    "noReviews": "暂无评论",
+    "claimed": "已认领",
+    "empty": "目前没有券商资料。",
+    "viewDetails": "查看详情",
+    "disclaimer": "本页所列资料来源为香港证监会公开记录，不构成任何投资建议。"
+  },
+  "brokerDetail": {
+    "backToBrokers": "返回券商列表",
+    "licenses": "持牌信息",
+    "licenseNumber": "牌照号码",
+    "reviews": "用户评论",
+    "noReviews": "暂无评论，成为第一个留下评论的人。",
+    "writeReview": "撰写评论",
+    "verified": "链上已验证",
+    "pending": "等待上链中",
+    "failed": "上链失败",
+    "disclaimer": "所有评论一经上链即不可删除、不可篡改。平台不会因任何原因删除评论。"
+  },
+  "reviewForm": {
+    "title": "撰写评论",
+    "loginRequired": "请先登录才能撰写评论。",
+    "login": "登录",
+    "ratingLabel": "评分",
+    "titleLabel": "标题",
+    "titlePlaceholder": "用一句话概括你的体验",
+    "bodyLabel": "评论内容",
+    "bodyPlaceholder": "详细描述你的使用体验（至少 10 个字符）",
+    "submit": "提交评论",
+    "submitting": "提交中…",
+    "successTitle": "评论已提交！",
+    "successMessage": "你的评论正在上链中，完成后将无法删除或修改。",
+    "errorTitle": "提交失败",
+    "stars": "{count} 颗星"
   },
   "status": {
     "eyebrow": "系统状态",

@@ -62,16 +62,32 @@ export const supportedChains = [base, baseSepolia] as const;
 
 ## 與 API 整合
 
-當需要登入態下呼叫 API：
+OpenTrade 使用兩步驟 auth flow（per rule 50 + ADR-0005）：
+
+1. 前端用 Privy access token 換取 OpenTrade JWT：`POST /v1/auth/exchange`
+2. 後續 API 呼叫用 OpenTrade JWT（ES256）
 
 ```ts
 import { usePrivy } from '@privy-io/react-auth';
 
 function useApi() {
   const { getAccessToken } = usePrivy();
+  const [otJwt, setOtJwt] = useState<string | null>(null);
+
+  async function exchangeToken() {
+    const privyToken = await getAccessToken();
+    const res = await fetch(`${env.NEXT_PUBLIC_API_URL}/v1/auth/exchange`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ privyAccessToken: privyToken }),
+    });
+    const { data } = await res.json();
+    setOtJwt(data.accessToken);
+    return data.accessToken;
+  }
 
   return async function api<T>(path: string, init?: RequestInit) {
-    const token = await getAccessToken();
+    const token = otJwt ?? await exchangeToken();
     const res = await fetch(`${env.NEXT_PUBLIC_API_URL}${path}`, {
       ...init,
       headers: {

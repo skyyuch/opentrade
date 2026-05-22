@@ -10,6 +10,10 @@
     ".": {
       "types": "./src/index.ts",
       "default": "./src/index.ts"
+    },
+    "./sfc": {
+      "types": "./src/sfc/index.ts",
+      "default": "./src/sfc/index.ts"
     }
   },
   "files": [
@@ -30,6 +34,8 @@
     "db:migrate:reset": "dotenv -e ../../.env -- prisma migrate reset",
     "db:migrate:status": "dotenv -e ../../.env -- prisma migrate status",
     "db:seed": "dotenv -e ../../.env -- tsx scripts/seed.ts",
+    "fetch:sfc": "tsx scripts/fetch-sfc-brokers.ts",
+    "sync:sfc": "dotenv -e ../../.env -- tsx scripts/sync-sfc-brokers.ts",
     "db:studio": "dotenv -e ../../.env -- prisma studio",
     "postinstall": "prisma generate"
   },

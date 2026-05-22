@@ -1,9 +1,41 @@
 {
+  "nav": {
+    "dashboard": "总览",
+    "brokers": "券商管理",
+    "logout": "退出登录"
+  },
+  "auth": {
+    "loginTitle": "商户后台登录",
+    "loginSubtitle": "登录后管理你的券商主页及查看链上评论。",
+    "loginButton": "登录",
+    "loggingIn": "登录中…"
+  },
+  "brokerList": {
+    "title": "券商列表",
+    "subtitle": "浏览可认领的券商主页。",
+    "reviewCount": "{count} 条评论",
+    "noReviews": "暂无评论",
+    "claimed": "已认领",
+    "unclaimed": "可认领",
+    "empty": "目前没有券商资料。",
+    "viewDetails": "查看详情"
+  },
+  "brokerManage": {
+    "backToList": "返回列表",
+    "licenses": "持牌信息",
+    "licenseNumber": "牌照号码",
+    "reviews": "用户评论",
+    "noReviews": "暂无评论。",
+    "verified": "链上已验证",
+    "pending": "等待上链中",
+    "failed": "上链失败",
+    "disclaimer": "所有评论一经上链即不可删除、不可篡改。"
+  },
   "dashboard": {
     "eyebrow": "OpenTrade Console",
     "title": "OpenTrade 商户后台",
     "subtitle": "认领主页、追踪链上评论、发布策略信号的工作空间。Phase 1 上线后将开放完整功能。",
-    "phaseNotice": "Phase 0 — 基础搭建中",
+    "phaseNotice": "Phase 1 — MVP 搭建中",
     "shellTitle": "商户后台",
     "shellDescription": "本后台为商户、KOL 与管理员设计，桌面优先。所有功能在 Phase 1 上线前皆为预览。",
     "sectionsTitle": "功能总览",

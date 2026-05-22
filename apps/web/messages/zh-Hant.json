@@ -2,7 +2,51 @@
   "home": {
     "title": "OpenTrade",
     "tagline": "區塊鏈讓金融服務評論回歸公正",
-    "phaseNotice": "Phase 0 — 地基搭建中"
+    "phaseNotice": "Phase 1 — MVP 搭建中"
+  },
+  "nav": {
+    "brokers": "證券商",
+    "status": "系統狀態"
+  },
+  "brokers": {
+    "eyebrow": "證券商目錄",
+    "title": "香港持牌證券商",
+    "subtitle": "瀏覽所有香港 SFC 持牌證券商，查看真實用戶評論。",
+    "searchPlaceholder": "搜尋證券商名稱…",
+    "reviewCount": "{count} 則評論",
+    "noReviews": "尚無評論",
+    "claimed": "已認領",
+    "empty": "目前沒有證券商資料。",
+    "viewDetails": "查看詳情",
+    "disclaimer": "本頁所列資料來源為香港證監會公開紀錄，不構成任何投資建議。"
+  },
+  "brokerDetail": {
+    "backToBrokers": "返回證券商列表",
+    "licenses": "持牌資訊",
+    "licenseNumber": "牌照號碼",
+    "reviews": "用戶評論",
+    "noReviews": "尚無評論，成為第一個留下評論的人。",
+    "writeReview": "撰寫評論",
+    "verified": "鏈上已驗證",
+    "pending": "等待上鏈中",
+    "failed": "上鏈失敗",
+    "disclaimer": "所有評論一經上鏈即不可刪除、不可篡改。平台不會因任何原因刪除評論。"
+  },
+  "reviewForm": {
+    "title": "撰寫評論",
+    "loginRequired": "請先登入才能撰寫評論。",
+    "login": "登入",
+    "ratingLabel": "評分",
+    "titleLabel": "標題",
+    "titlePlaceholder": "用一句話概括你的體驗",
+    "bodyLabel": "評論內容",
+    "bodyPlaceholder": "詳細描述你的使用體驗（至少 10 個字元）",
+    "submit": "提交評論",
+    "submitting": "提交中…",
+    "successTitle": "評論已提交！",
+    "successMessage": "你的評論正在上鏈中，完成後將無法刪除或修改。",
+    "errorTitle": "提交失敗",
+    "stars": "{count} 顆星"
   },
   "status": {
     "eyebrow": "系統狀態",

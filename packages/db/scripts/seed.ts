@@ -9,20 +9,22 @@
  * `prisma.upsert` keyed on the model's natural unique column (`Tenant.code`,
  * `Broker.slug + tenantId`, ...).
  *
- * Why hardcode the HK tenant here instead of reading from JSON:
- *   - It is bootstrap data, not domain data; there is exactly one row in V1
- *     and it is required for any subsequent insert to satisfy the tenant FK.
- *   - Reading from JSON would push the value into a file that is itself
- *     hardcoded in the same repo — adding indirection without flexibility.
- *   - When Phase 2 adds `tw` / `sg`, the addition is a one-line change here
- *     plus an entry in the {@link tenants} array.
- *
- * Phase 1 will add a second seed (broker list scraped from SFC public data)
- * that DOES read from `seed/data/sfc-brokers.json` — that's the right
- * pattern for domain data.
+ * Seed order matters due to FK constraints:
+ *   1. Tenants (bootstrap data, required for all subsequent inserts)
+ *   2. Brokers + BrokerLicenses (SFC data from seed/data/sfc-brokers.json)
  */
 
+import { readFileSync } from 'node:fs';
+import { resolve, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
 import { PrismaClient } from '@prisma/client';
+
+import { syncBrokers } from '../src/sfc/sync-brokers.js';
+
+import type { SfcBrokerData } from '../src/sfc/types.js';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const prisma = new PrismaClient();
 
@@ -46,9 +48,6 @@ const seedTenants = async (): Promise<void> => {
   for (const tenant of tenants) {
     const result = await prisma.tenant.upsert({
       where: { code: tenant.code },
-      // `update` is intentionally narrow: a seed re-run should NOT clobber
-      // values an operator changed via admin tooling. Only name/locale/tz
-      // (the bootstrap defaults) get refreshed; `isActive` is left untouched.
       update: {
         name: tenant.name,
         defaultLocale: tenant.defaultLocale,
@@ -66,10 +65,28 @@ const seedTenants = async (): Promise<void> => {
   }
 };
 
+const seedBrokers = async (): Promise<void> => {
+  const jsonPath = resolve(__dirname, '../seed/data/sfc-brokers.json');
+  let data: SfcBrokerData[];
+  try {
+    data = JSON.parse(readFileSync(jsonPath, 'utf-8')) as SfcBrokerData[];
+  } catch {
+    console.log('  ⚠ seed/data/sfc-brokers.json not found. Run `pnpm fetch:sfc` first.');
+    return;
+  }
+
+  console.log(`  Loading ${data.length} corporations from sfc-brokers.json...`);
+  const result = await syncBrokers(prisma, data);
+  console.log(`  ✔ brokers: ${result.brokersCreated} created, ${result.brokersUpdated} updated`);
+  console.log(`  ✔ licenses: ${result.licensesCreated} created, ${result.licensesRevoked} revoked`);
+};
+
 const main = async (): Promise<void> => {
   console.log('Seeding @opentrade/db...');
   console.log('• Tenants');
   await seedTenants();
+  console.log('• SFC Brokers');
+  await seedBrokers();
   console.log('Done.');
 };
 
