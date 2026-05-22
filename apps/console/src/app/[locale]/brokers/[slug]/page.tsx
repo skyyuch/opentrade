@@ -18,6 +18,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 
+import { ClaimForm } from '../../../../components/brokers/ClaimForm';
 import { ApiClientError, fetchBroker, fetchBrokerReviews } from '../../../../lib/api/client';
 
 import type { BrokerDetail, ReviewItem } from '../../../../lib/api/client';
@@ -44,6 +45,8 @@ const BrokerDetailPage = async ({ params }: Props): Promise<ReactNode> => {
       </Link>
 
       <BrokerHeader broker={broker} />
+
+      <ClaimForm brokerSlug={broker.slug} isClaimed={broker.isClaimed} />
 
       {broker.licenses.length > 0 ? <LicensesSection broker={broker} t={t} /> : null}
 

@@ -57,7 +57,7 @@ const buildHeaders = (options: FetchOptions): Record<string, string> => {
   return headers;
 };
 
-const apiPost = async <T>(
+export const apiPost = async <T>(
   path: string,
   body: unknown,
   options: FetchOptions = {},
