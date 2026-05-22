@@ -9,18 +9,18 @@
 ## 最後更新
 
 - **日期**：2026-05-22
-- **更新者**：Phase 1 Deployment session（Claude Opus 4.6）
-- **本次更新摘要**：PR #17 MVP-B merge（CI lint/forge 修復後 squash merge）。Base Sepolia testnet 部署完成：ReviewRegistry proxy `0x8aB5f61Cd0817BE0B9f09Ec09d28de302aDAf187` + ReviewerSBT proxy `0x31D8e863ce71c90d399Ff69eeACeC84226b3e61b`。MINTER_ROLE 授權。手動驗證 review 上鏈（reviewCount=1）+ SBT mint（tokenCount=1）+ soulbound transfer block revert。Deployer/Relayer wallet `0xD221cE091E364D24029B92bC89a3f9831e3e5d01`。
+- **更新者**：Phase 1 UI polish + dark mode session（Claude Opus 4.6）
+- **本次更新摘要**：Privy Dashboard 設定指引完成。本地三服務啟動驗證通過（API:4000 + Web:3000 + Console:3001）。修復 Privy/wagmi optional peer deps webpack 問題。DB seed 3,482 SFC 券商。BrokerDirectory 重寫（API-side search + cursor pagination + Load More）。強制 Dark Mode（crypto exchange 風格）。Broker 名稱 i18n 邏輯（中文 locale 顯示中文名、英文 locale 顯示英文名）。Hydration mismatch 修復。ADR-0021/0022 補完。UI 組件：SbtBadge、ReviewCard upgrade、VerifyForm、SearchBar、Console ClaimForm。
 
 ---
 
 ## 當前 Phase
 
-**Phase 1：Testnet 部署完成，進入 UI Polish + E2E 測試階段**
+**Phase 1：UI polish 進行中，E2E 測試待完成**
 
-進度：~85%（code 100% done, deployment done, E2E + UI polish remaining）
+進度：~92%（code done, contracts deployed, UI polish mostly done, E2E testing remaining）
 
-MVP-A merged (PR #16), MVP-B merged (PR #17). Base Sepolia 合約已部署並驗證。
+MVP-A merged (PR #16), MVP-B merged (PR #17). Base Sepolia 合約已部署並驗證。Privy Dashboard 已設定。Dark mode 強制啟用。Broker name i18n 完成。
 
 ---
 
@@ -319,8 +319,8 @@ Branch: `feature/phase-1-mvp-a`（first 4 commits + 1 handoff docs commit）
 
 ## 進行中
 
-- **Phase 1 E2E 測試**：需手動設定 Privy dashboard + 跑完整流程
-- **Phase 1 UI polish**：verify page, SBT badge, search bar, console claim form
+- **Phase 1 E2E 測試**：Privy dashboard 已設定完成，需瀏覽器跑完整流程（login → JWT exchange → verify broker → SBT mint → submit review → outbox → on-chain confirm）
+- **UI 最終調整**：用戶要求完成全部功能後再統一調 UI 佈局（參考加密貨幣交易所風格）
 
 ---
 
@@ -328,9 +328,9 @@ Branch: `feature/phase-1-mvp-a`（first 4 commits + 1 handoff docs commit）
 
 ### 立即
 
-1. **Privy Dashboard 設定** — enable Google/Apple/Email login + Smart Wallets on Base Sepolia + Gas Sponsorship
-2. **端到端測試** — 瀏覽器跑完整流程：Privy login → exchange JWT → verify broker → mint SBT → submit review → outbox → on-chain
-3. **UI polish** — verify page, SBT badge component, search bar, console claim form, ReviewCard upgrade
+1. **端到端瀏覽器測試** — Privy login → exchange JWT → browse brokers → submit review → verify broker (L2) → admin approve → SBT mint → outbox worker → on-chain confirm
+2. **Outbox worker 本地跑通** — 確認 review 提交後 worker 能 poll → submit on-chain → update status CONFIRMED
+3. **UI 最終統一** — 完成功能後再統一調整佈局（用戶要求最後再做，參考 Binance/OKX 風格）
 
 ### 短期
 
@@ -540,3 +540,4 @@ aws sso login --profile opentrade-dev
 
 | 2026-05-22 | Phase 1 MVP-B：Block 8-14（Identity, Translation, Merchant Claim） | Claude Opus 4.6 | PR #16 MVP-A squash merged (bypass_actors ruleset fix). Block 8 auth bridge (useOpenTradeAuth hook web+console, ReviewForm fix). Block 9 outbox worker (DB poll + viem on-chain + deploy script). Block 10 L1 profile (GET/PATCH me + settings page + author display). Block 11 ReviewerSBT (ADR-0021 + ERC721 soulbound + 17 tests + evm cancun). Block 12 L2 verify (ADR-0022 + commitment-hash + admin approve + review gate). Block 13 merchant claim (BrokerClaimRequest + API + owner edit). Block 14 UGC translation (ADR-0023 + DeepL + ReviewTranslation + Accept-Language). 7 commits on feature/phase-1-mvp-b. |
 | 2026-05-22 | Phase 1: PR #17 merge + Base Sepolia deployment | Claude Opus 4.6 | PR #17 CI fix (fuzz test exclude contract addrs + lint prefer-optional-chain/import-order/array-type/no-floating-promises) + squash merge. Base Sepolia deploy: ReviewRegistry `0x8aB5f61Cd0817BE0B9f09Ec09d28de302aDAf187` + ReviewerSBT `0x31D8e863ce71c90d399Ff69eeACeC84226b3e61b`. MINTER_ROLE granted. Manual verification: review on-chain (reviewCount=1), SBT mint (tokenCount=1), soulbound transfer block confirmed. Deployer `0xD221cE091E364D24029B92bC89a3f9831e3e5d01`. | |
+| 2026-05-22 | Phase 1: UI polish + dark mode + Privy setup | Claude Opus 4.6 | ADR-0021/0022 補完。UI 組件實作（SbtBadge, ReviewCard upgrade, VerifyForm, SearchBar, Console ClaimForm）。Privy Dashboard 設定指引。本地三服務啟動驗證。Webpack Privy/wagmi peer deps fix。DB seed 3,482 brokers。BrokerDirectory overhaul (API search + cursor pagination)。強制 dark mode (crypto exchange style)。Broker name i18n logic。Hydration fix。 | |
