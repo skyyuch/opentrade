@@ -132,20 +132,34 @@ reviewsRouter.get('/broker/:slug', async (c) => {
     limit: query.data.limit,
   });
 
+  const userIds = [...new Set(result.items.map((r) => r.userId))];
+  const users = await prisma.user.findMany({
+    where: { id: { in: userIds } },
+    select: { id: true, displayName: true, sbtTier: true },
+  });
+  const userMap = new Map(users.map((u) => [u.id, u]));
+
   return c.json({
-    reviews: result.items.map((r) => ({
-      id: r.id,
-      brokerId: r.brokerId,
-      contentHash: r.contentHash,
-      ipfsCid: r.ipfsCid,
-      chainReviewId: r.chainReviewId,
-      txHash: r.txHash,
-      title: r.title,
-      body: r.body,
-      rating: r.rating,
-      status: r.status,
-      createdAt: r.createdAt.toISOString(),
-    })),
+    reviews: result.items.map((r) => {
+      const author = userMap.get(r.userId);
+      return {
+        id: r.id,
+        brokerId: r.brokerId,
+        contentHash: r.contentHash,
+        ipfsCid: r.ipfsCid,
+        chainReviewId: r.chainReviewId,
+        txHash: r.txHash,
+        title: r.title,
+        body: r.body,
+        rating: r.rating,
+        status: r.status,
+        createdAt: r.createdAt.toISOString(),
+        author: {
+          displayName: author?.displayName ?? null,
+          sbtTier: author?.sbtTier ?? 'L1',
+        },
+      };
+    }),
     nextCursor: result.nextCursor,
     broker: {
       id: broker.id,

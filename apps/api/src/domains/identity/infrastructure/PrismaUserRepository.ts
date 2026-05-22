@@ -6,7 +6,11 @@
  * no duplicate user rows for the same Privy identity within a tenant.
  */
 
-import type { IUserRepository, UpsertUserInput } from '../domain/IUserRepository.js';
+import type {
+  IUserRepository,
+  UpdateProfileInput,
+  UpsertUserInput,
+} from '../domain/IUserRepository.js';
 import type { PrismaClient, SbtTier, User, UserRole } from '@opentrade/db';
 
 export class PrismaUserRepository implements IUserRepository {
@@ -50,5 +54,15 @@ export class PrismaUserRepository implements IUserRepository {
 
   async updateSbtTier(id: string, sbtTier: SbtTier): Promise<User> {
     return this.prisma.user.update({ where: { id }, data: { sbtTier } });
+  }
+
+  async updateProfile(id: string, input: UpdateProfileInput): Promise<User> {
+    return this.prisma.user.update({
+      where: { id },
+      data: {
+        ...(input.displayName !== undefined ? { displayName: input.displayName } : {}),
+        ...(input.preferredLocale !== undefined ? { preferredLocale: input.preferredLocale } : {}),
+      },
+    });
   }
 }

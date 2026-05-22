@@ -6,6 +6,7 @@
   },
   "nav": {
     "brokers": "Brokers",
+    "settings": "Settings",
     "status": "System status"
   },
   "brokers": {
@@ -47,6 +48,25 @@
     "successMessage": "Your review is being anchored on chain. Once confirmed, it cannot be deleted or modified.",
     "errorTitle": "Submission failed",
     "stars": "{count, plural, one {# star} other {# stars}}"
+  },
+  "settings": {
+    "title": "Account settings",
+    "subtitle": "Manage your display name, language preference, and account information.",
+    "displayName": "Display name",
+    "displayNamePlaceholder": "Enter your display name",
+    "preferredLocale": "Preferred language",
+    "localeZhHant": "繁體中文",
+    "localeZhHans": "简体中文",
+    "localeEn": "English",
+    "walletAddress": "Wallet address",
+    "email": "Email",
+    "sbtTier": "Identity tier",
+    "role": "Role",
+    "memberSince": "Member since",
+    "save": "Save changes",
+    "saving": "Saving…",
+    "saved": "Changes saved",
+    "loginRequired": "Please log in to view settings."
   },
   "status": {
     "eyebrow": "System status",
