@@ -115,6 +115,31 @@ const envSchema = z.object({
    * hash on-chain). Obtain from https://app.pinata.cloud/developers/api-keys.
    */
   PINATA_JWT: z.string().min(1, 'PINATA_JWT is required for IPFS review pinning'),
+
+  /**
+   * RPC URL for the target chain. Used by the outbox worker to submit
+   * on-chain transactions. Defaults to Base Sepolia public RPC.
+   */
+  CHAIN_RPC_URL: z.string().url().optional(),
+
+  /**
+   * Private key of the relayer wallet that submits on-chain transactions
+   * (review anchoring, SBT minting). Must be a hex string with 0x prefix.
+   * Only required when running the outbox worker task.
+   */
+  CHAIN_RELAYER_PRIVATE_KEY: z
+    .string()
+    .regex(/^0x[0-9a-fA-F]{64}$/)
+    .optional(),
+
+  /**
+   * Address of the deployed ReviewRegistry proxy contract. Required for
+   * the outbox worker to anchor reviews on-chain.
+   */
+  REVIEW_REGISTRY_ADDRESS: z
+    .string()
+    .regex(/^0x[0-9a-fA-F]{40}$/)
+    .optional(),
 });
 
 export type ApiEnv = z.infer<typeof envSchema>;
