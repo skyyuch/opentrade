@@ -1,13 +1,19 @@
 'use client';
 
 import { usePrivy } from '@privy-io/react-auth';
-import { Menu, X } from 'lucide-react';
+import { Globe, Menu, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { Link, usePathname } from '../../i18n/navigation';
 
 import type { ReactNode } from 'react';
+
+const LOCALES = [
+  { code: 'zh-Hant', label: '繁體中文' },
+  { code: 'zh-Hans', label: '简体中文' },
+  { code: 'en', label: 'English' },
+] as const;
 
 const NAV_LINKS = [
   { href: '/brokers', key: 'brokers' },
@@ -23,11 +29,23 @@ export const Header = (): ReactNode => {
   const pathname = usePathname();
   const { authenticated, login, logout, user } = usePrivy();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [localeOpen, setLocaleOpen] = useState(false);
+  const localeRef = useRef<HTMLDivElement>(null);
 
   const walletAddress = user?.wallet?.address;
 
   const toggleMobile = useCallback(() => {
     setMobileOpen((prev) => !prev);
+  }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (localeRef.current && !localeRef.current.contains(e.target as Node)) {
+        setLocaleOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   return (
@@ -61,31 +79,31 @@ export const Header = (): ReactNode => {
 
         {/* Right side: locale switcher + auth */}
         <div className="hidden items-center gap-4 md:flex">
-          {/* Locale switcher */}
-          <div className="flex items-center gap-1.5 border-r border-border pr-4">
-            <Link
-              href={pathname}
-              locale="zh-Hant"
-              className="text-xs text-muted-foreground transition-colors hover:text-foreground"
+          {/* Locale switcher (globe icon + dropdown) */}
+          <div ref={localeRef} className="relative">
+            <button
+              type="button"
+              onClick={() => setLocaleOpen((prev) => !prev)}
+              className="rounded-md p-2 text-muted-foreground transition-colors hover:text-foreground"
+              aria-label="Switch language"
             >
-              繁
-            </Link>
-            <span className="text-xs text-muted-foreground/40">/</span>
-            <Link
-              href={pathname}
-              locale="zh-Hans"
-              className="text-xs text-muted-foreground transition-colors hover:text-foreground"
-            >
-              简
-            </Link>
-            <span className="text-xs text-muted-foreground/40">/</span>
-            <Link
-              href={pathname}
-              locale="en"
-              className="text-xs text-muted-foreground transition-colors hover:text-foreground"
-            >
-              EN
-            </Link>
+              <Globe className="size-4" />
+            </button>
+            {localeOpen && (
+              <div className="absolute right-0 top-full mt-1 min-w-[140px] rounded-md border border-border bg-background py-1 shadow-lg">
+                {LOCALES.map(({ code, label }) => (
+                  <Link
+                    key={code}
+                    href={pathname}
+                    locale={code}
+                    onClick={() => setLocaleOpen(false)}
+                    className="block px-4 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  >
+                    {label}
+                  </Link>
+                ))}
+              </div>
+            )}
           </div>
 
           {authenticated ? (
@@ -153,15 +171,18 @@ export const Header = (): ReactNode => {
           </nav>
           {/* Mobile locale switcher */}
           <div className="mt-4 flex items-center gap-3 border-t border-border pt-4">
-            <Link href={pathname} locale="zh-Hant" className="text-xs text-muted-foreground">
-              繁中
-            </Link>
-            <Link href={pathname} locale="zh-Hans" className="text-xs text-muted-foreground">
-              简中
-            </Link>
-            <Link href={pathname} locale="en" className="text-xs text-muted-foreground">
-              EN
-            </Link>
+            <Globe className="size-4 text-muted-foreground" />
+            {LOCALES.map(({ code, label }) => (
+              <Link
+                key={code}
+                href={pathname}
+                locale={code}
+                onClick={() => setMobileOpen(false)}
+                className="text-xs text-muted-foreground"
+              >
+                {label}
+              </Link>
+            ))}
           </div>
 
           {/* Mobile auth */}
