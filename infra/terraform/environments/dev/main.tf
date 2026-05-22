@@ -55,7 +55,7 @@ module "rds" {
   deletion_protection          = false
   skip_final_snapshot          = true
   performance_insights_enabled = false
-  client_security_group_ids    = []
+  client_security_group_ids    = [module.sfc_sync.security_group_id]
 }
 
 # --------------------------------------------------------------------------
@@ -101,6 +101,26 @@ module "ecs" {
     module.app_secrets.secret_arn_list,
     [module.rds.master_password_secret_arn],
   )
+}
+
+# --------------------------------------------------------------------------
+# SFC broker sync scheduled task (ADR-0020)
+# --------------------------------------------------------------------------
+
+module "sfc_sync" {
+  source = "../../modules/sfc-sync-task"
+
+  name_prefix             = var.name_prefix
+  cluster_arn             = module.ecs.cluster_arn
+  task_execution_role_arn = module.ecs.task_execution_role_arn
+  task_role_arn           = module.ecs.task_role_arn
+  log_group_name          = module.ecs.log_group_name
+  vpc_id                  = module.vpc.vpc_id
+  private_subnet_ids      = module.vpc.private_subnet_ids
+  ecr_image               = "${module.ecr_api.repository_url}:dev"
+  rds_security_group_id   = module.rds.security_group_id
+  db_secret_arn           = module.rds.master_password_secret_arn
+  enabled                 = false # Enable when API image with sync entry point is pushed
 }
 
 # --------------------------------------------------------------------------

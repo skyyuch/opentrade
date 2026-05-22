@@ -63,6 +63,16 @@ output "console_bucket_name" {
   value       = module.console_cdn.bucket_name
 }
 
+output "sfc_sync_task_definition_arn" {
+  description = "ARN of the SFC broker sync ECS task definition (ADR-0020)."
+  value       = module.sfc_sync.task_definition_arn
+}
+
+output "sfc_sync_eventbridge_rule_arn" {
+  description = "ARN of the weekly EventBridge rule for SFC sync."
+  value       = module.sfc_sync.eventbridge_rule_arn
+}
+
 output "app_secret_arns" {
   description = "ARNs of every Secrets Manager slot apps/api reads. Values are written outside Terraform per rule 50."
   value       = module.app_secrets.secret_arns
