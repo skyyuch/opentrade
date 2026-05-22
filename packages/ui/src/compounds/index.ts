@@ -10,3 +10,5 @@ export {
   type ImmutableMarkProps,
   type ImmutableMarkChain,
 } from './immutable-mark/ImmutableMark';
+
+export { SbtBadge, type SbtBadgeProps, type SbtTier } from './sbt-badge/SbtBadge';
