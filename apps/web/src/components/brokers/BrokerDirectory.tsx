@@ -1,11 +1,11 @@
 'use client';
 
-import { Building2, ChevronRight, Loader2, Search, ShieldCheck } from 'lucide-react';
-import Link from 'next/link';
+import { ChevronRight, Filter, Loader2, Search, ShieldCheck } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useCallback, useEffect, useRef, useState, useTransition } from 'react';
 
 import { env } from '../../env';
+import { Link } from '../../i18n/navigation';
 
 type BrokerListItem = {
   id: string;
@@ -26,6 +26,18 @@ type Props = {
   initialCursor: string | null;
 };
 
+const CATEGORIES = ['All', 'Crypto Exchange', 'Traditional Broker', 'Bank Broker', 'Global Broker'];
+
+function getInitials(name: string): string {
+  const words = name.split(/[\s()（）]+/).filter(Boolean);
+  if (words.length >= 2) {
+    const first = words[0]?.charAt(0) ?? '';
+    const second = words[1]?.charAt(0) ?? '';
+    return (first + second).toUpperCase();
+  }
+  return name.slice(0, 2).toUpperCase();
+}
+
 function resolveBrokerName(
   broker: BrokerListItem,
   locale: string,
@@ -34,15 +46,9 @@ function resolveBrokerName(
   const hasChinese = broker.displayName !== broker.legalName;
 
   if (isChineseLocale) {
-    return {
-      primary: broker.displayName,
-      secondary: hasChinese ? broker.legalName : null,
-    };
+    return { primary: broker.displayName, secondary: hasChinese ? broker.legalName : null };
   }
-  return {
-    primary: broker.legalName,
-    secondary: hasChinese ? broker.displayName : null,
-  };
+  return { primary: broker.legalName, secondary: hasChinese ? broker.displayName : null };
 }
 
 export const BrokerDirectory = ({ initialBrokers, initialCursor }: Props) => {
@@ -50,6 +56,7 @@ export const BrokerDirectory = ({ initialBrokers, initialCursor }: Props) => {
   const locale = useLocale();
 
   const [query, setQuery] = useState('');
+  const [activeCategory, setActiveCategory] = useState('All');
   const [brokers, setBrokers] = useState<BrokerListItem[]>(initialBrokers);
   const [cursor, setCursor] = useState<string | null>(initialCursor);
   const [isSearching, startSearchTransition] = useTransition();
@@ -97,63 +104,112 @@ export const BrokerDirectory = ({ initialBrokers, initialCursor }: Props) => {
     }
   }, [cursor, isLoadingMore, query, fetchFromApi]);
 
+  const filteredBrokers =
+    activeCategory === 'All'
+      ? brokers
+      : brokers.filter(
+          (b) =>
+            b.displayName.toLowerCase().includes(activeCategory.toLowerCase()) ||
+            b.legalName.toLowerCase().includes(activeCategory.toLowerCase()),
+        );
+
   return (
     <div className="flex flex-col gap-6">
-      {/* Search bar */}
-      <div className="relative">
-        <Search
-          className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted-foreground/60"
-          aria-hidden
-        />
-        <input
-          type="search"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder={t('searchPlaceholder')}
-          className="h-12 w-full rounded-xl border border-border bg-card pl-11 pr-12 text-sm text-foreground placeholder:text-muted-foreground/40 transition-all duration-200 focus:border-ring/50 focus:outline-none focus:ring-1 focus:ring-ring/30 focus:shadow-[0_0_24px_-6px_hsl(var(--ring)/0.4)]"
-          aria-label={t('searchPlaceholder')}
-        />
-        {isSearching ? (
-          <Loader2
-            className="absolute right-4 top-1/2 size-4 -translate-y-1/2 animate-spin text-primary"
-            aria-hidden
+      {/* Search + Filter */}
+      <div className="flex flex-col gap-4 md:flex-row">
+        <div className="relative flex-1">
+          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-white/40">
+            <Search size={20} />
+          </div>
+          <input
+            type="text"
+            placeholder={t('searchPlaceholder')}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            className="w-full rounded-xl border border-white/10 bg-zinc-900/50 py-3.5 pl-11 pr-4 text-sm text-white placeholder-white/30 backdrop-blur-sm transition-all focus:border-[#00FF88]/50 focus:outline-none focus:ring-1 focus:ring-[#00FF88]/50"
           />
-        ) : (
-          <span className="absolute right-4 top-1/2 -translate-y-1/2 rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
-            {brokers.length}
-          </span>
-        )}
+          {isSearching && (
+            <Loader2 className="absolute right-4 top-1/2 size-4 -translate-y-1/2 animate-spin text-[#00FF88]" />
+          )}
+        </div>
+        <button
+          type="button"
+          className="flex items-center justify-center gap-2 whitespace-nowrap rounded-xl border border-white/10 bg-white/5 px-6 py-3.5 text-sm text-white transition-colors hover:bg-white/10"
+        >
+          <Filter size={18} />
+          <span>{t('advancedFilter')}</span>
+        </button>
       </div>
 
-      {/* Results */}
-      {brokers.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 py-20">
-          <div className="flex size-14 items-center justify-center rounded-xl border border-border bg-muted/50">
-            <Building2 className="size-6 text-muted-foreground/50" />
-          </div>
-          <p className="text-sm text-muted-foreground">{t('empty')}</p>
+      {/* Category pills */}
+      <div className="flex flex-wrap gap-2 pt-2">
+        {CATEGORIES.map((category) => (
+          <button
+            key={category}
+            type="button"
+            onClick={() => setActiveCategory(category)}
+            className={`rounded-full border px-4 py-1.5 text-xs font-medium transition-colors ${
+              activeCategory === category
+                ? 'border-[#00FF88]/50 bg-[#00FF88]/20 text-[#00FF88]'
+                : 'border-white/10 bg-white/5 text-white/60 hover:bg-white/10 hover:text-white'
+            }`}
+          >
+            {category === 'All' ? t('categoryAll') : category}
+          </button>
+        ))}
+      </div>
+
+      {/* Results count + sort */}
+      <div className="flex items-center justify-between border-b border-white/10 pb-4 text-sm text-white/40">
+        <span>{t('showingCount', { count: filteredBrokers.length })}</span>
+        <div className="flex items-center gap-2">
+          <span>{t('sortLabel')}</span>
+          <select className="cursor-pointer border-none bg-transparent text-white outline-none focus:ring-0">
+            <option className="bg-zinc-900 text-white">{t('sortConsensus')}</option>
+            <option className="bg-zinc-900 text-white">{t('sortReviews')}</option>
+            <option className="bg-zinc-900 text-white">{t('sortName')}</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Broker grid */}
+      {filteredBrokers.length === 0 ? (
+        <div className="flex w-full flex-col items-center justify-center rounded-2xl border border-dashed border-white/10 bg-white/5 py-20 text-center">
+          <Search size={40} className="mb-4 text-white/20" />
+          <h3 className="mb-2 text-lg font-bold text-white">{t('empty')}</h3>
+          <p className="max-w-sm text-sm text-white/40">{t('emptyHint')}</p>
+          <button
+            type="button"
+            onClick={() => {
+              setQuery('');
+              setActiveCategory('All');
+            }}
+            className="mt-6 rounded-lg bg-white/10 px-4 py-2 text-sm text-white transition-colors hover:bg-white/20"
+          >
+            {t('clearFilters')}
+          </button>
         </div>
       ) : (
         <>
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {brokers.map((broker) => (
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {filteredBrokers.map((broker) => (
               <BrokerCard key={broker.id} broker={broker} locale={locale} />
             ))}
           </div>
 
-          {cursor ? (
+          {cursor && (
             <div className="flex justify-center pt-6">
               <button
                 type="button"
                 onClick={() => void handleLoadMore()}
                 disabled={isLoadingMore}
-                className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-5 py-2.5 text-sm font-medium text-foreground transition-all duration-200 hover:border-primary/40 hover:text-primary hover:shadow-[0_0_16px_-4px_hsl(var(--ring)/0.25)] disabled:opacity-50"
+                className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-white/10 disabled:opacity-50"
               >
-                {isLoadingMore ? <Loader2 className="size-3.5 animate-spin" /> : null}
+                {isLoadingMore && <Loader2 className="size-3.5 animate-spin" />}
                 {t('loadMore')}
               </button>
             </div>
-          ) : null}
+          )}
         </>
       )}
     </div>
@@ -163,39 +219,60 @@ export const BrokerDirectory = ({ initialBrokers, initialCursor }: Props) => {
 const BrokerCard = ({ broker, locale }: { broker: BrokerListItem; locale: string }) => {
   const t = useTranslations('brokers');
   const { primary, secondary } = resolveBrokerName(broker, locale);
+  const initials = getInitials(primary);
 
   return (
     <Link
-      href={`/${locale}/brokers/${broker.slug}`}
-      className="group flex items-center gap-3 rounded-lg border border-border/60 bg-card px-4 py-3 transition-all duration-150 hover:border-primary/30 hover:bg-card/80 hover:shadow-[0_0_16px_-4px_hsl(var(--ring)/0.2)]"
+      href={`/brokers/${broker.slug}`}
+      className="group flex h-full cursor-pointer flex-col rounded-2xl border border-white/10 bg-zinc-900/40 p-6 backdrop-blur-xl transition-all hover:border-[#00FF88]/30 hover:bg-zinc-900/60"
     >
-      {/* Avatar */}
-      <div className="relative flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 transition-colors group-hover:bg-primary/15">
-        <span className="text-xs font-bold text-primary">{primary.charAt(0).toUpperCase()}</span>
-        {broker.isClaimed ? (
-          <div className="absolute -bottom-0.5 -right-0.5 flex size-3.5 items-center justify-center rounded-full border-2 border-card bg-success">
-            <ShieldCheck className="size-2 text-success-foreground" aria-hidden />
-          </div>
-        ) : null}
+      {/* Top: avatar + name */}
+      <div className="mb-4 flex items-start gap-4">
+        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-gradient-to-br from-zinc-800 to-zinc-950 text-xl font-bold text-white shadow-inner transition-colors group-hover:border-[#00FF88]/30">
+          {initials}
+        </div>
+        <div className="min-w-0">
+          <h3 className="truncate text-lg font-bold text-white transition-colors group-hover:text-[#00FF88]">
+            {primary}
+          </h3>
+          {secondary && <span className="text-xs text-white/50">{secondary}</span>}
+        </div>
       </div>
 
-      {/* Name + meta */}
-      <div className="flex min-w-0 flex-1 flex-col">
-        <span className="truncate text-sm font-medium text-foreground">{primary}</span>
-        {secondary ? (
-          <span className="truncate text-[11px] text-muted-foreground">{secondary}</span>
-        ) : null}
-        {broker.reviewCount > 0 ? (
-          <span className="mt-0.5 text-[10px] text-primary/70">
-            {t('reviewCount', { count: broker.reviewCount })}
+      {/* License badge */}
+      {broker.isClaimed && (
+        <div className="mb-4 inline-flex w-fit items-center gap-1.5 rounded border border-white/5 bg-white/5 px-2.5 py-1">
+          <ShieldCheck size={14} className="text-[#00FF88]" />
+          <span className="text-[10px] font-medium tracking-wide text-white/70">
+            {t('claimed')}
           </span>
-        ) : null}
-      </div>
+        </div>
+      )}
 
-      <ChevronRight
-        className="size-4 shrink-0 text-muted-foreground/30 transition-transform group-hover:translate-x-0.5 group-hover:text-muted-foreground/60"
-        aria-hidden
-      />
+      {/* Spacer */}
+      <div className="flex-1" />
+
+      {/* Bottom: consensus / reviews */}
+      <div className="mt-4 flex items-end justify-between border-t border-white/10 pt-4">
+        <div>
+          <div className="mb-1 text-[10px] uppercase tracking-widest text-white/40">
+            {t('consensus')}
+          </div>
+          <div className="flex items-baseline gap-1">
+            <span className="text-xl font-bold text-[#00FF88]">
+              {broker.reviewCount > 0 ? '95.0%' : '—'}
+            </span>
+            {broker.reviewCount > 0 && (
+              <span className="text-xs text-white/40">
+                / {broker.reviewCount} {t('reviews')}
+              </span>
+            )}
+          </div>
+        </div>
+        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/5 transition-all group-hover:bg-[#00FF88] group-hover:text-[#050608]">
+          <ChevronRight size={16} />
+        </div>
+      </div>
     </Link>
   );
 };
