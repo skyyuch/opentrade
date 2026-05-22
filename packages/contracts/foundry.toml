@@ -20,11 +20,11 @@ script = "script"
 # Pinned per rule 41 — every upgrade to the pragma needs an ADR.
 solc_version = "0.8.24"
 
-# Paris is the lowest common denominator across Base Sepolia / Base Mainnet
-# today. Cancun (PUSH0 + TLOAD/TSTORE) is supported on OP Stack but pinning
-# Paris keeps Phase 0 contracts portable across every OP Stack rollup.
-# When (and only when) we need transient storage, write an ADR and flip.
-evm_version = "paris"
+# Cancun is required by OpenZeppelin v5.6+ (uses mcopy opcode).
+# Base Sepolia and Base Mainnet both support Cancun. Previously pinned
+# to Paris for OP Stack portability, but OZ library compatibility
+# forces the upgrade.
+evm_version = "cancun"
 
 optimizer = true
 optimizer_runs = 200
