@@ -38,9 +38,7 @@ const HomePage = async (): Promise<ReactNode> => {
 
           {/* Description */}
           <p className="max-w-lg text-lg leading-relaxed text-muted-foreground">
-            {t.rich('heroDesc', {
-              immutable: (chunks) => <span className="font-medium text-foreground">{chunks}</span>,
-            })}
+            {t('heroDesc', { immutable: t('immutable') })}
           </p>
 
           {/* CTAs */}
