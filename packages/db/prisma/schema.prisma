@@ -319,19 +319,38 @@ model Review {
   rating        Int          @db.SmallInt
 
   status        ReviewStatus @default(PENDING)
+  sourceLocale  String?
 
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
   deletedAt     DateTime?
 
-  tenant Tenant @relation(fields: [tenantId], references: [id])
-  user   User   @relation(fields: [userId], references: [id])
-  broker Broker @relation(fields: [brokerId], references: [id])
+  tenant       Tenant              @relation(fields: [tenantId], references: [id])
+  user         User                @relation(fields: [userId], references: [id])
+  broker       Broker              @relation(fields: [brokerId], references: [id])
+  translations ReviewTranslation[]
 
   @@index([tenantId, brokerId, createdAt])
   @@index([tenantId, userId])
   @@index([tenantId, status])
   @@map("reviews")
+}
+
+/// Machine-translated version of a review in a specific locale.
+/// Per ADR-0023: translations are additive siblings of the original
+/// Review content, stored per locale for instant serving.
+model ReviewTranslation {
+  id           String   @id @default(uuid()) @db.Uuid
+  reviewId     String   @db.Uuid
+  locale       String
+  title        String   @db.VarChar(200)
+  body         String   @db.Text
+  translatedAt DateTime @default(now())
+
+  review Review @relation(fields: [reviewId], references: [id])
+
+  @@unique([reviewId, locale])
+  @@map("review_translations")
 }
 
 /// Transactional outbox for cross-domain domain events (per ADR-0006 outbox

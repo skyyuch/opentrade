@@ -140,6 +140,12 @@ const envSchema = z.object({
     .string()
     .regex(/^0x[0-9a-fA-F]{40}$/)
     .optional(),
+
+  /**
+   * DeepL API key for UGC translation (per ADR-0023). Free tier provides
+   * 500k chars/month. Only required when translation is enabled.
+   */
+  DEEPL_API_KEY: z.string().optional(),
 });
 
 export type ApiEnv = z.infer<typeof envSchema>;
