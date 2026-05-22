@@ -31,6 +31,8 @@
     "verified": "Verified on chain",
     "pending": "Pending on-chain",
     "failed": "On-chain failed",
+    "anonymous": "Anonymous",
+    "onChain": "Immutable on-chain",
     "disclaimer": "All reviews are immutable once anchored on chain. The platform will never delete reviews for any reason."
   },
   "reviewForm": {

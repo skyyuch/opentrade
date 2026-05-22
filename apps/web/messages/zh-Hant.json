@@ -31,6 +31,8 @@
     "verified": "鏈上已驗證",
     "pending": "等待上鏈中",
     "failed": "上鏈失敗",
+    "anonymous": "匿名用戶",
+    "onChain": "鏈上不可篡改",
     "disclaimer": "所有評論一經上鏈即不可刪除、不可篡改。平台不會因任何原因刪除評論。"
   },
   "reviewForm": {

@@ -31,6 +31,8 @@
     "verified": "链上已验证",
     "pending": "等待上链中",
     "failed": "上链失败",
+    "anonymous": "匿名用户",
+    "onChain": "链上不可篡改",
     "disclaimer": "所有评论一经上链即不可删除、不可篡改。平台不会因任何原因删除评论。"
   },
   "reviewForm": {

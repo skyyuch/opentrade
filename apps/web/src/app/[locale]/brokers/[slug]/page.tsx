@@ -12,6 +12,7 @@ import {
   Clock,
   ExternalLink,
   ShieldCheck,
+  Stamp,
   Star,
   XCircle,
 } from 'lucide-react';
@@ -75,7 +76,7 @@ const BrokerDetailPage = async ({ params }: Props): Promise<ReactNode> => {
         {reviews.length === 0 ? (
           <p className="py-8 text-center text-sm text-muted-foreground">{t('noReviews')}</p>
         ) : (
-          <div className="flex flex-col divide-y divide-border">
+          <div className="grid gap-4">
             {reviews.map((review) => (
               <ReviewCard key={review.id} review={review} t={t} />
             ))}
@@ -180,26 +181,81 @@ const LicensesSection = ({
 );
 
 const ReviewCard = ({ review, t }: { review: ReviewItem; t: DetailTranslator }): ReactNode => (
-  <article className="flex flex-col gap-2 py-5 first:pt-0 last:pb-0">
+  <article className="group relative flex flex-col gap-3 rounded-lg border border-border/60 bg-card p-5 transition-all duration-150 hover:border-primary/20 hover:shadow-[0_0_12px_-4px_hsl(var(--ring)/0.15)]">
+    {/* Author row */}
     <div className="flex items-center justify-between">
-      <div className="flex items-center gap-2">
-        <div className="flex gap-0.5">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <Star
-              key={i}
-              className={`size-4 ${i < review.rating ? 'fill-warning text-warning' : 'text-muted-foreground/30'}`}
-              aria-hidden
-            />
-          ))}
+      <div className="flex items-center gap-2.5">
+        <div className="flex size-8 items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary">
+          {review.author?.displayName?.charAt(0).toUpperCase() ?? '?'}
         </div>
-        <StatusBadge status={review.status} t={t} />
+        <div className="flex flex-col gap-0.5">
+          <div className="flex items-center gap-1.5">
+            <span className="text-sm font-medium">
+              {review.author?.displayName ?? t('anonymous')}
+            </span>
+            {review.author?.sbtTier && review.author.sbtTier !== 'L1' ? (
+              <span
+                className={`inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 font-mono text-[10px] font-medium ${
+                  review.author.sbtTier === 'L2'
+                    ? 'border-primary/30 bg-primary/5 text-primary shadow-[0_0_6px_-2px_hsl(var(--ring)/0.2)]'
+                    : review.author.sbtTier === 'L3'
+                      ? 'border-accent/40 bg-accent/5 text-accent shadow-[0_0_8px_-2px_hsl(var(--accent)/0.3)]'
+                      : 'border-accent/60 bg-accent/10 text-accent shadow-[0_0_10px_-3px_hsl(var(--accent)/0.4)]'
+                }`}
+                title={`Identity Tier: ${review.author.sbtTier}`}
+              >
+                <ShieldCheck className="size-3" aria-hidden />
+                {review.author.sbtTier}
+              </span>
+            ) : null}
+          </div>
+          <time className="text-[11px] text-muted-foreground" dateTime={review.createdAt}>
+            {new Date(review.createdAt).toLocaleDateString()}
+          </time>
+        </div>
       </div>
-      <time className="text-xs text-muted-foreground" dateTime={review.createdAt}>
-        {new Date(review.createdAt).toLocaleDateString()}
-      </time>
+      <StatusBadge status={review.status} t={t} />
     </div>
-    <h3 className="font-semibold">{review.title}</h3>
-    <p className="text-sm leading-relaxed text-muted-foreground">{review.body}</p>
+
+    {/* Rating */}
+    <div className="flex gap-0.5">
+      {Array.from({ length: 5 }).map((_, i) => (
+        <Star
+          key={i}
+          className={`size-3.5 ${i < review.rating ? 'fill-warning text-warning' : 'text-muted-foreground/20'}`}
+          aria-hidden
+        />
+      ))}
+    </div>
+
+    {/* Content */}
+    <div className="flex flex-col gap-1.5">
+      <h3 className="text-sm font-semibold leading-snug">{review.title}</h3>
+      <p className="text-sm leading-relaxed text-muted-foreground">{review.body}</p>
+    </div>
+
+    {/* On-chain proof footer */}
+    {review.txHash ? (
+      <div className="mt-1 flex items-center gap-2 border-t border-border/40 pt-3">
+        <a
+          href={`https://sepolia.basescan.org/tx/${review.txHash}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="group/link inline-flex items-center gap-1.5 rounded-md border border-chain-border bg-chain-bg px-2 py-1 font-mono text-[10px] font-medium text-chain-ink transition-colors hover:border-primary/40 hover:text-foreground"
+          title={`Verify on-chain: ${review.txHash}`}
+        >
+          <Stamp className="size-3" aria-hidden />
+          <span className="tabular-nums">
+            {review.txHash.slice(0, 6)}…{review.txHash.slice(-4)}
+          </span>
+          <ExternalLink
+            className="size-2.5 opacity-0 transition-opacity group-hover/link:opacity-100"
+            aria-hidden
+          />
+        </a>
+        <span className="text-[10px] text-muted-foreground/60">{t('onChain')}</span>
+      </div>
+    ) : null}
   </article>
 );
 
