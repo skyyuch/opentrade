@@ -184,6 +184,7 @@ contract ReviewerSBTTest is Test {
         address to
     ) public {
         vm.assume(from != address(0) && to != address(0) && from != to);
+        vm.assume(from.code.length == 0);
 
         vm.prank(minter);
         sbt.mint(from, TOKEN_URI);

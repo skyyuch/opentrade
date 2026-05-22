@@ -26,10 +26,10 @@ const LOCALE_TO_DEEPL_TARGET: Record<string, string> = {
 const ALL_LOCALES = ['zh-Hant', 'zh-Hans', 'en'] as const;
 
 type TranslateResult = {
-  translations: Array<{
+  translations: {
     detected_source_language: string;
     text: string;
-  }>;
+  }[];
 };
 
 export class DeepLTranslationService {

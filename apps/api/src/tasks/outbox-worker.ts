@@ -202,6 +202,7 @@ async function main() {
   process.on('SIGTERM', shutdown);
   process.on('SIGINT', shutdown);
 
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   while (running) {
     try {
       await pollOnce();

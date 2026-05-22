@@ -17,9 +17,9 @@ import { keccak256, toBytes } from 'viem';
 
 import { AppError, ErrorCode } from '../../../shared/errors/index.js';
 
-import type { DeepLTranslationService } from '../infrastructure/DeepLTranslationService.js';
 import type { IReviewRepository } from '../domain/IReviewRepository.js';
 import type { ReviewRecord, SubmitReviewInput } from '../domain/ReviewEntity.js';
+import type { DeepLTranslationService } from '../infrastructure/DeepLTranslationService.js';
 import type { IIpfsService } from '../infrastructure/IIpfsService.js';
 
 export type SubmitReviewOutput = {

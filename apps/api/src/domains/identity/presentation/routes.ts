@@ -246,7 +246,7 @@ identityRouter.post('/admin/verifications/:id/approve', authMiddleware('admin'),
   const parsed = adminVerifyActionSchema.safeParse(body);
 
   const request = await prisma.sbtVerificationRequest.findUnique({ where: { id } });
-  if (!request || request.status !== 'PENDING') {
+  if (request?.status !== 'PENDING') {
     throw new AppError(ErrorCode.NOT_FOUND, 'Pending verification not found', 404);
   }
 
@@ -286,7 +286,7 @@ identityRouter.post('/admin/verifications/:id/reject', authMiddleware('admin'), 
   const parsed = adminVerifyActionSchema.safeParse(body);
 
   const request = await prisma.sbtVerificationRequest.findUnique({ where: { id } });
-  if (!request || request.status !== 'PENDING') {
+  if (request?.status !== 'PENDING') {
     throw new AppError(ErrorCode.NOT_FOUND, 'Pending verification not found', 404);
   }
 

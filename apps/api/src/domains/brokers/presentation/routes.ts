@@ -275,7 +275,7 @@ brokersRouter.post('/admin/claims/:id/approve', authMiddleware('admin'), async (
   const parsed = adminClaimActionSchema.safeParse(body);
 
   const claim = await prisma.brokerClaimRequest.findUnique({ where: { id } });
-  if (!claim || claim.status !== 'PENDING') {
+  if (claim?.status !== 'PENDING') {
     throw new AppError(ErrorCode.NOT_FOUND, 'Pending claim not found', 404);
   }
 
@@ -314,7 +314,7 @@ brokersRouter.post('/admin/claims/:id/reject', authMiddleware('admin'), async (c
   const parsed = adminClaimActionSchema.safeParse(body);
 
   const claim = await prisma.brokerClaimRequest.findUnique({ where: { id } });
-  if (!claim || claim.status !== 'PENDING') {
+  if (claim?.status !== 'PENDING') {
     throw new AppError(ErrorCode.NOT_FOUND, 'Pending claim not found', 404);
   }
 
