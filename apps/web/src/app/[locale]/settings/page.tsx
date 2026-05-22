@@ -31,7 +31,7 @@ export default function SettingsPage(): ReactNode {
     }
 
     let cancelled = false;
-    (async () => {
+    void (async () => {
       const token = await getAccessToken();
       if (!token || cancelled) return;
       try {
