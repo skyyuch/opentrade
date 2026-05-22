@@ -51,18 +51,7 @@ type SfcResponse = {
   items: SfcItem[];
 };
 
-export type SfcBrokerLicense = {
-  type: number;
-  description: string;
-};
-
-export type SfcBrokerData = {
-  ceNumber: string;
-  legalNameEn: string;
-  legalNameZh: string;
-  slug: string;
-  licenses: SfcBrokerLicense[];
-};
+import type { SfcBrokerData } from '../src/sfc/types.js';
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
