@@ -11,7 +11,7 @@ const HomePage = async (): Promise<ReactNode> => {
   const t = await getTranslations('home');
 
   return (
-    <div className="-mt-16 relative bg-[#050608] pt-16">
+    <div className="-mt-16 relative pt-16">
       {/* Background atmospheric glows — fixed to viewport so they bleed through the transparent header */}
       <div className="pointer-events-none fixed right-[-5%] top-[-10%] z-0 h-[600px] w-[600px] rounded-full bg-[#00FF88]/10 blur-[120px]" />
       <div className="pointer-events-none fixed bottom-[-10%] left-[-5%] z-0 h-[500px] w-[500px] rounded-full bg-blue-600/10 blur-[100px]" />
