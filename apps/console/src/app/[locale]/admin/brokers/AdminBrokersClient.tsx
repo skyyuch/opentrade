@@ -74,9 +74,7 @@ export function AdminBrokersClient(): React.ReactNode {
                     <td className="px-4 py-3 font-bold">{b.displayName}</td>
                     <td className="px-4 py-3 font-mono text-xs">{b.slug}</td>
                     <td className="px-4 py-3 text-white/80">
-                      {(b as Record<string, unknown>)['licenseType']
-                        ? String((b as Record<string, unknown>)['licenseType'])
-                        : '—'}
+                      {b.licenseTypes.length > 0 ? b.licenseTypes.join(', ') : '—'}
                     </td>
                     <td className="px-4 py-3">
                       {b.isClaimed ? (

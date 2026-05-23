@@ -234,6 +234,7 @@ export type BrokerListItem = {
   logoUrl: string | null;
   isClaimed: boolean;
   reviewCount: number;
+  licenseTypes: string[];
 };
 
 export type BrokersResponse = {
