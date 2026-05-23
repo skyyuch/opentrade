@@ -24,8 +24,8 @@ import {
   Users,
 } from 'lucide-react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
+import { usePathname } from '../../i18n/navigation';
 
 import { useCurrentUser } from '../../hooks/useCurrentUser';
 
@@ -40,6 +40,7 @@ type Props = {
 
 type NavItem = {
   href: string;
+  path: string;
   icon: typeof LayoutGrid;
   label: string;
   end?: boolean;
@@ -49,7 +50,7 @@ export const AuthGate = ({ children, locale }: Props): ReactNode => {
   const { ready, authenticated, login, logout } = usePrivy();
   const { user, isAdmin, isBrokerOwner, claimedBroker, isLoading } = useCurrentUser();
   const t = useTranslations();
-  const pathname = usePathname();
+  const localePath = usePathname();
 
   if (!ready || (authenticated && isLoading)) {
     return (
@@ -84,29 +85,71 @@ export const AuthGate = ({ children, locale }: Props): ReactNode => {
   }
 
   const adminNav: NavItem[] = [
-    { href: `/${locale}/admin`, icon: LayoutGrid, label: t('nav.adminDashboard'), end: true },
-    { href: `/${locale}/admin/claims`, icon: BadgeCheck, label: t('nav.claims') },
-    { href: `/${locale}/admin/verifications`, icon: Fingerprint, label: t('nav.verifications') },
-    { href: `/${locale}/admin/users`, icon: Users, label: t('nav.users') },
-    { href: `/${locale}/admin/reviews`, icon: Star, label: t('nav.reviews') },
-    { href: `/${locale}/admin/brokers`, icon: Building2, label: t('nav.brokers') },
-    { href: `/${locale}/admin/system`, icon: Activity, label: t('nav.system') },
+    {
+      href: `/${locale}/admin`,
+      path: '/admin',
+      icon: LayoutGrid,
+      label: t('nav.adminDashboard'),
+      end: true,
+    },
+    {
+      href: `/${locale}/admin/claims`,
+      path: '/admin/claims',
+      icon: BadgeCheck,
+      label: t('nav.claims'),
+    },
+    {
+      href: `/${locale}/admin/verifications`,
+      path: '/admin/verifications',
+      icon: Fingerprint,
+      label: t('nav.verifications'),
+    },
+    { href: `/${locale}/admin/users`, path: '/admin/users', icon: Users, label: t('nav.users') },
+    {
+      href: `/${locale}/admin/reviews`,
+      path: '/admin/reviews',
+      icon: Star,
+      label: t('nav.reviews'),
+    },
+    {
+      href: `/${locale}/admin/brokers`,
+      path: '/admin/brokers',
+      icon: Building2,
+      label: t('nav.brokers'),
+    },
+    {
+      href: `/${locale}/admin/system`,
+      path: '/admin/system',
+      icon: Activity,
+      label: t('nav.system'),
+    },
   ];
 
   const brokerNav: NavItem[] = [
     {
       href: `/${locale}/broker`,
+      path: '/broker',
       icon: LayoutGrid,
       label: t('nav.brokerDashboard'),
       end: true,
     },
-    { href: `/${locale}/broker/profile`, icon: Store, label: t('nav.profile') },
-    { href: `/${locale}/broker/reviews`, icon: MessageSquareText, label: t('nav.brokerReviews') },
+    {
+      href: `/${locale}/broker/profile`,
+      path: '/broker/profile',
+      icon: Store,
+      label: t('nav.profile'),
+    },
+    {
+      href: `/${locale}/broker/reviews`,
+      path: '/broker/reviews',
+      icon: MessageSquareText,
+      label: t('nav.brokerReviews'),
+    },
   ];
 
   const defaultNav: NavItem[] = [
-    { href: `/${locale}`, icon: LayoutGrid, label: t('nav.dashboard'), end: true },
-    { href: `/${locale}/brokers`, icon: Building2, label: t('nav.brokers') },
+    { href: `/${locale}`, path: '/', icon: LayoutGrid, label: t('nav.dashboard'), end: true },
+    { href: `/${locale}/brokers`, path: '/brokers', icon: Building2, label: t('nav.brokers') },
   ];
 
   let navItems: NavItem[];
@@ -146,17 +189,17 @@ export const AuthGate = ({ children, locale }: Props): ReactNode => {
         <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-6">
           {navItems.map((item) => {
             const isActive = item.end
-              ? pathname === item.href
-              : pathname === item.href || pathname.startsWith(`${item.href}/`);
+              ? localePath === item.path
+              : localePath === item.path || localePath.startsWith(`${item.path}/`);
             return (
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex items-center gap-3 rounded-lg px-4 py-2.5 transition-colors ${
-                  isActive ? 'font-bold' : 'text-white/60 hover:bg-white/5 hover:text-white'
+                className={`flex items-center gap-3 rounded-lg px-4 py-3 transition-colors ${
+                  isActive ? 'font-medium' : 'text-white/60 hover:bg-white/5 hover:text-white'
                 }`}
                 style={
-                  isActive ? { backgroundColor: `${accentColor}26`, color: accentColor } : undefined
+                  isActive ? { backgroundColor: `${accentColor}1A`, color: accentColor } : undefined
                 }
               >
                 <item.icon size={18} aria-hidden />
