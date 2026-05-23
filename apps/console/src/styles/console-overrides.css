@@ -3,26 +3,27 @@
  *
  * Loaded AFTER @opentrade/ui/styles/globals.css to override the shared
  * theme system with Google's custom dark design for the console app.
+ * Rules here are intentionally NOT inside @layer so they win over
+ * the base-layer rules from globals.css.
  */
 
-@layer base {
-  :root,
-  .dark {
-    --background: 0 0% 2%;
-    --foreground: 0 0% 100%;
-    --card: 0 0% 100%;
-    --card-foreground: 0 0% 100%;
-    --border: 0 0% 100%;
-    --input: 0 0% 100%;
-    --muted: 0 0% 100%;
-    --muted-foreground: 0 0% 100%;
-  }
+:root,
+.dark {
+  --background: 0 0% 2%;
+  --foreground: 0 0% 100%;
+  --card: 0 0% 5%;
+  --card-foreground: 0 0% 100%;
+  --border: 0 0% 100%;
+  --input: 0 0% 100%;
+}
 
-  body {
-    @apply bg-[#050608] text-white;
-  }
+body {
+  background-color: #050608 !important;
+  color: #ffffff !important;
+}
 
-  * {
-    border-color: transparent;
-  }
+*,
+*::before,
+*::after {
+  border-color: transparent;
 }
