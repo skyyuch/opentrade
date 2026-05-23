@@ -223,6 +223,77 @@ adminRouter.get('/users/:id', authMiddleware('admin'), async (c) => {
 });
 
 // ---------------------------------------------------------------------------
+// POST /users — Manually create user (for operational staff)
+// ---------------------------------------------------------------------------
+
+const createUserSchema = z.object({
+  displayName: z.string().min(1).max(100),
+  email: z.string().email().optional(),
+  walletAddress: z
+    .string()
+    .regex(/^0x[a-fA-F0-9]{40}$/)
+    .optional(),
+  role: z.enum(['USER', 'REVIEWER', 'JURY', 'ADMIN']),
+});
+
+adminRouter.post('/users', authMiddleware('admin'), async (c) => {
+  const body: unknown = await c.req.json();
+  const parsed = createUserSchema.safeParse(body);
+  if (!parsed.success) {
+    throw new AppError(ErrorCode.VALIDATION_ERROR, 'Invalid user data', 400, {
+      details: { issues: parsed.error.issues },
+    });
+  }
+
+  const { displayName, email, walletAddress, role } = parsed.data;
+
+  if (walletAddress) {
+    const existing = await prisma.user.findFirst({
+      where: { walletAddress, deletedAt: null },
+    });
+    if (existing) {
+      throw new AppError(ErrorCode.CONFLICT, 'Wallet address already in use', 409);
+    }
+  }
+
+  if (email) {
+    const existing = await prisma.user.findFirst({
+      where: { email, tenantId: DEFAULT_TENANT_ID, deletedAt: null },
+    });
+    if (existing) {
+      throw new AppError(ErrorCode.CONFLICT, 'Email already in use', 409);
+    }
+  }
+
+  const placeholderPrivyId = `manual:${crypto.randomUUID()}`;
+
+  const user = await prisma.user.create({
+    data: {
+      tenantId: DEFAULT_TENANT_ID,
+      privyId: placeholderPrivyId,
+      displayName,
+      email: email ?? null,
+      walletAddress: walletAddress ?? null,
+      role,
+    },
+  });
+
+  return c.json(
+    {
+      user: {
+        id: user.id,
+        displayName: user.displayName,
+        email: user.email,
+        walletAddress: user.walletAddress,
+        role: user.role,
+        createdAt: user.createdAt.toISOString(),
+      },
+    },
+    201,
+  );
+});
+
+// ---------------------------------------------------------------------------
 // PATCH /users/:id/role — Update user role
 // ---------------------------------------------------------------------------
 

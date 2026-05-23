@@ -345,6 +345,30 @@ export const updateUserRole = (
 ): Promise<{ user: { id: string; role: string } }> =>
   apiPatch<{ user: { id: string; role: string } }>(`/v1/admin/users/${id}/role`, { role }, options);
 
+export type CreateUserPayload = {
+  displayName: string;
+  email?: string | undefined;
+  walletAddress?: string | undefined;
+  role: string;
+};
+
+export type CreateUserResponse = {
+  user: {
+    id: string;
+    displayName: string;
+    email: string | null;
+    walletAddress: string | null;
+    role: string;
+    createdAt: string;
+  };
+};
+
+export const createAdminUser = (
+  payload: CreateUserPayload,
+  options?: FetchOptions,
+): Promise<CreateUserResponse> =>
+  apiPost<CreateUserResponse>('/v1/admin/users', payload, options);
+
 // ---------------------------------------------------------------------------
 // Admin — Reviews
 // ---------------------------------------------------------------------------

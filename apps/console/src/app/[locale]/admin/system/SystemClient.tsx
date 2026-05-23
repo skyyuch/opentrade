@@ -50,41 +50,39 @@ export function SystemClient(): React.ReactNode {
 
   return (
     <div className="animate-in fade-in space-y-6 duration-300">
-      <h1 className="text-2xl font-bold">{t('system')}</h1>
+      <h1 className="text-2xl font-bold">{t('systemTitle')}</h1>
 
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-        {/* API Status */}
         <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
           <div className="mb-4 flex items-center gap-3">
             <Server size={20} className="text-[#00FF88]" />
-            <h2 className="text-lg font-bold">API 服務狀態</h2>
+            <h2 className="text-lg font-bold">{t('apiHealth')}</h2>
           </div>
           <div className="space-y-3">
             <StatusRow
               label="API"
-              value={health?.status ?? 'Unknown'}
+              value={health?.status === 'ok' ? t('healthy') : t('unhealthy')}
               ok={health?.status === 'ok'}
             />
             <StatusRow label="Uptime" value={health ? formatUptime(health.uptime) : '—'} ok />
             <StatusRow
-              label="Pending Outbox"
+              label={t('outboxPending')}
               value={pendingOutbox !== null ? String(pendingOutbox) : '—'}
               ok={pendingOutbox !== null && pendingOutbox < 10}
             />
           </div>
         </div>
 
-        {/* Database */}
         <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
           <div className="mb-4 flex items-center gap-3">
             <Database size={20} className="text-blue-400" />
-            <h2 className="text-lg font-bold">資料庫連接狀態</h2>
+            <h2 className="text-lg font-bold">{t('dbStatus')}</h2>
           </div>
           <div className="space-y-3">
             <StatusRow
               label="Database"
-              value={health?.db?.status ?? 'Unknown'}
-              ok={health?.db?.status === 'ok'}
+              value={health?.db.status === 'ok' ? t('healthy') : t('unhealthy')}
+              ok={health?.db.status === 'ok'}
             />
             <div className="flex items-center justify-between text-sm">
               <span className="text-white/50">Provider</span>
@@ -97,11 +95,10 @@ export function SystemClient(): React.ReactNode {
           </div>
         </div>
 
-        {/* Contract Addresses - full width */}
         <div className="rounded-2xl border border-white/10 bg-white/5 p-6 md:col-span-2">
           <div className="mb-4 flex items-center gap-3">
             <Link2 size={20} className="text-purple-400" />
-            <h2 className="text-lg font-bold">鏈上合約資訊</h2>
+            <h2 className="text-lg font-bold">{t('chainInfo')}</h2>
           </div>
           <div className="space-y-3 rounded-lg bg-black/30 p-4">
             <ContractRow label="ReviewRegistry" envKey="NEXT_PUBLIC_REVIEW_REGISTRY_ADDRESS" />

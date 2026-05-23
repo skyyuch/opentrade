@@ -1,11 +1,16 @@
 'use client';
 
-import { MoreVertical, Search } from 'lucide-react';
+import { MoreVertical, Plus, Search, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useState } from 'react';
 
 import { useOpenTradeAuth } from '../../../../hooks/useOpenTradeAuth';
-import { fetchAdminUserDetail, fetchAdminUsers, updateUserRole } from '../../../../lib/api/client';
+import {
+  createAdminUser,
+  fetchAdminUserDetail,
+  fetchAdminUsers,
+  updateUserRole,
+} from '../../../../lib/api/client';
 
 import type { AdminUserDetailResponse, AdminUserItem } from '../../../../lib/api/client';
 
@@ -20,6 +25,7 @@ export function UsersClient(): React.ReactNode {
   const [roleFilter, setRoleFilter] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<AdminUserDetailResponse | null>(null);
+  const [showCreate, setShowCreate] = useState(false);
 
   const loadUsers = useCallback(async () => {
     setLoading(true);
@@ -66,16 +72,28 @@ export function UsersClient(): React.ReactNode {
     void loadUsers();
   };
 
+  const handleCreated = () => {
+    setShowCreate(false);
+    void loadUsers();
+  };
+
   return (
     <div className="animate-in fade-in space-y-6 duration-300">
       <div className="flex flex-wrap items-center gap-4">
-        <h1 className="text-2xl font-bold">{t('users')}</h1>
+        <h1 className="text-2xl font-bold">{t('usersTitle')}</h1>
         <div className="ml-auto flex items-center gap-3">
+          <button
+            onClick={() => setShowCreate(true)}
+            className="flex items-center gap-2 rounded-lg bg-[#00FF88]/20 px-4 py-2 text-sm font-bold text-[#00FF88] transition-colors hover:bg-[#00FF88]/30"
+          >
+            <Plus size={16} />
+            {t('addUser')}
+          </button>
           <div className="relative">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" />
             <input
               type="text"
-              placeholder="Search..."
+              placeholder={t('searchPlaceholder')}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="rounded-lg border border-white/10 bg-white/5 py-2 pl-10 pr-4 text-sm focus:border-[#00FF88]/50 focus:outline-none"
@@ -86,7 +104,7 @@ export function UsersClient(): React.ReactNode {
             onChange={(e) => setRoleFilter(e.target.value)}
             className="rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-sm focus:outline-none"
           >
-            <option value="">All roles</option>
+            <option value="">{t('allRoles')}</option>
             {ROLES.map((r) => (
               <option key={`role-${r}`} value={r}>
                 {r}
@@ -106,12 +124,12 @@ export function UsersClient(): React.ReactNode {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-white/10 bg-black/40 text-left text-xs uppercase tracking-wider text-white/50">
-                  <th className="px-4 py-3">Name</th>
-                  <th className="px-4 py-3">Email</th>
-                  <th className="px-4 py-3">Wallet</th>
-                  <th className="px-4 py-3">Role</th>
-                  <th className="px-4 py-3">SBT</th>
-                  <th className="px-4 py-3">Date</th>
+                  <th className="px-4 py-3">{t('thDisplayName')}</th>
+                  <th className="px-4 py-3">{t('thEmail')}</th>
+                  <th className="px-4 py-3">{t('thWallet')}</th>
+                  <th className="px-4 py-3">{t('thRole')}</th>
+                  <th className="px-4 py-3">{t('thSbt')}</th>
+                  <th className="px-4 py-3">{t('thDate')}</th>
                   <th className="px-4 py-3" />
                 </tr>
               </thead>
@@ -158,6 +176,7 @@ export function UsersClient(): React.ReactNode {
                             <UserDetailPanel
                               detail={detail}
                               onRoleChange={(role) => void handleRoleChange(u.id, role)}
+                              changeRoleLabel={t('changeRole')}
                             />
                           </td>
                         </tr>
@@ -170,22 +189,166 @@ export function UsersClient(): React.ReactNode {
           </div>
         </div>
       )}
+
+      {showCreate && (
+        <CreateUserModal onClose={() => setShowCreate(false)} onCreated={handleCreated} />
+      )}
     </div>
   );
 }
 
+// ---------------------------------------------------------------------------
+// Create User Modal
+// ---------------------------------------------------------------------------
+
+function CreateUserModal({
+  onClose,
+  onCreated,
+}: {
+  onClose: () => void;
+  onCreated: () => void;
+}): React.ReactNode {
+  const { getAccessToken } = useOpenTradeAuth();
+  const t = useTranslations('admin');
+  const [displayName, setDisplayName] = useState('');
+  const [email, setEmail] = useState('');
+  const [walletAddress, setWalletAddress] = useState('');
+  const [role, setRole] = useState<string>('USER');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!displayName.trim()) return;
+
+    setSaving(true);
+    setError('');
+    try {
+      const token = await getAccessToken();
+      if (!token) return;
+      await createAdminUser(
+        {
+          displayName: displayName.trim(),
+          email: email.trim() || undefined,
+          walletAddress: walletAddress.trim() || undefined,
+          role,
+        },
+        { accessToken: token },
+      );
+      onCreated();
+    } catch {
+      setError(t('createError'));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+      <div className="relative w-full max-w-md rounded-2xl border border-white/10 bg-[#0a0c10] p-8 shadow-2xl">
+        <button
+          onClick={onClose}
+          className="absolute right-4 top-4 rounded-lg p-1 text-white/40 transition-colors hover:bg-white/10 hover:text-white"
+        >
+          <X size={20} />
+        </button>
+
+        <h2 className="mb-2 text-xl font-bold">{t('addUserTitle')}</h2>
+        <p className="mb-6 text-sm text-white/50">{t('addUserDesc')}</p>
+
+        <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4">
+          <div>
+            <label className="mb-1.5 block text-sm text-white/60">{t('fieldDisplayName')}</label>
+            <input
+              type="text"
+              required
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+              className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-2.5 text-sm focus:border-[#00FF88]/50 focus:outline-none"
+            />
+          </div>
+
+          <div>
+            <label className="mb-1.5 block text-sm text-white/60">{t('fieldEmail')}</label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-2.5 text-sm focus:border-[#00FF88]/50 focus:outline-none"
+              placeholder="user@example.com"
+            />
+          </div>
+
+          <div>
+            <label className="mb-1.5 block text-sm text-white/60">{t('fieldWallet')}</label>
+            <input
+              type="text"
+              value={walletAddress}
+              onChange={(e) => setWalletAddress(e.target.value)}
+              className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-2.5 font-mono text-sm focus:border-[#00FF88]/50 focus:outline-none"
+              placeholder="0x..."
+            />
+          </div>
+
+          <div>
+            <label className="mb-1.5 block text-sm text-white/60">{t('fieldRole')}</label>
+            <select
+              value={role}
+              onChange={(e) => setRole(e.target.value)}
+              className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-2.5 text-sm focus:outline-none"
+            >
+              {ROLES.map((r) => (
+                <option key={`create-role-${r}`} value={r}>
+                  {r}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {error && (
+            <p className="rounded-lg bg-red-500/10 px-4 py-2 text-sm text-red-400">{error}</p>
+          )}
+
+          <div className="flex justify-end gap-3 pt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-lg px-4 py-2 text-sm font-medium text-white/60 transition-colors hover:bg-white/5 hover:text-white"
+            >
+              {t('cancel')}
+            </button>
+            <button
+              type="submit"
+              disabled={saving || !displayName.trim()}
+              className="rounded-lg bg-[#00FF88]/20 px-6 py-2 text-sm font-bold text-[#00FF88] transition-colors hover:bg-[#00FF88]/30 disabled:opacity-50"
+            >
+              {saving ? t('creating') : t('create')}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Sub-components
+// ---------------------------------------------------------------------------
+
 function UserDetailPanel({
   detail,
   onRoleChange,
+  changeRoleLabel,
 }: {
   detail: AdminUserDetailResponse;
   onRoleChange: (role: string) => void;
+  changeRoleLabel: string;
 }): React.ReactNode {
   const u = detail.user;
   return (
     <div className="space-y-3 rounded-xl bg-white/[0.03] p-4 text-sm">
       <div className="flex items-center gap-4">
-        <span className="text-white/50">Change role:</span>
+        <span className="text-white/50">{changeRoleLabel}:</span>
         <select
           value={u.role}
           onChange={(e) => onRoleChange(e.target.value)}

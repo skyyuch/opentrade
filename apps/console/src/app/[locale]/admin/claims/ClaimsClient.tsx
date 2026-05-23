@@ -11,6 +11,12 @@ import type { ClaimItem } from '../../../../lib/api/client';
 
 type TabStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 
+const TAB_KEYS: Record<TabStatus, string> = {
+  PENDING: 'tabPending',
+  APPROVED: 'tabApproved',
+  REJECTED: 'tabRejected',
+};
+
 export function ClaimsClient(): React.ReactNode {
   const { getAccessToken } = useOpenTradeAuth();
   const t = useTranslations('admin');
@@ -53,7 +59,7 @@ export function ClaimsClient(): React.ReactNode {
 
   return (
     <div className="animate-in fade-in space-y-6 duration-300">
-      <h1 className="text-2xl font-bold">{t('claims')}</h1>
+      <h1 className="text-2xl font-bold">{t('claimsTitle')}</h1>
 
       <div className="flex items-center gap-4 border-b border-white/10 pb-4">
         {tabs.map((s) => (
@@ -66,7 +72,7 @@ export function ClaimsClient(): React.ReactNode {
                 : 'text-white/50 hover:text-white'
             }`}
           >
-            {s}
+            {t(TAB_KEYS[s])}
           </button>
         ))}
       </div>
@@ -81,11 +87,11 @@ export function ClaimsClient(): React.ReactNode {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-white/10 bg-black/40 text-left text-xs uppercase tracking-wider text-white/50">
-                  <th className="px-4 py-3">券商名</th>
-                  <th className="px-4 py-3">CE 號碼</th>
-                  <th className="px-4 py-3">公司授權書</th>
-                  <th className="px-4 py-3">提交日期</th>
-                  {tab === 'PENDING' && <th className="px-4 py-3">操作</th>}
+                  <th className="px-4 py-3">{t('thBrokerName')}</th>
+                  <th className="px-4 py-3">{t('thCeNumber')}</th>
+                  <th className="px-4 py-3">{t('thLetterLink')}</th>
+                  <th className="px-4 py-3">{t('thSubmittedDate')}</th>
+                  {tab === 'PENDING' && <th className="px-4 py-3">{t('thActions')}</th>}
                 </tr>
               </thead>
               <tbody>
@@ -111,7 +117,7 @@ export function ClaimsClient(): React.ReactNode {
                             rel="noopener noreferrer"
                             className="inline-flex items-center gap-1 text-blue-400 hover:underline"
                           >
-                            查看 IPFS 證據
+                            {t('viewIpfs')}
                             <ExternalLink size={12} />
                           </a>
                         ) : (
@@ -127,13 +133,13 @@ export function ClaimsClient(): React.ReactNode {
                             onClick={() => void handleApprove(claim.id)}
                             className="rounded bg-[#00FF88]/20 px-3 py-1.5 text-xs font-bold text-[#00FF88] transition-colors hover:bg-[#00FF88]/30"
                           >
-                            Approve
+                            {t('approve')}
                           </button>
                           <button
                             onClick={() => void handleReject(claim.id)}
                             className="rounded bg-red-500/20 px-3 py-1.5 text-xs font-bold text-red-400 transition-colors hover:bg-red-500/30"
                           >
-                            Reject
+                            {t('reject')}
                           </button>
                         </td>
                       )}

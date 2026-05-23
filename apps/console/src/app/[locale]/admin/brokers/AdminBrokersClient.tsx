@@ -40,18 +40,18 @@ export function AdminBrokersClient(): React.ReactNode {
 
   return (
     <div className="animate-in fade-in space-y-6 duration-300">
-      <h1 className="text-2xl font-bold">{t('brokers')}</h1>
+      <h1 className="text-2xl font-bold">{t('brokersTitle')}</h1>
 
       <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/5">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-white/10 bg-black/40 text-left text-xs uppercase tracking-wider text-white/50">
-                <th className="px-4 py-3">券商名</th>
-                <th className="px-4 py-3">CE 號碼</th>
-                <th className="px-4 py-3">牌照類型</th>
-                <th className="px-4 py-3">認領狀態</th>
-                <th className="px-4 py-3 text-right">評論數</th>
+                <th className="px-4 py-3">{t('thBrokerName')}</th>
+                <th className="px-4 py-3">{t('thCeNumber')}</th>
+                <th className="px-4 py-3">{t('thLicenseType')}</th>
+                <th className="px-4 py-3">{t('thClaimStatus')}</th>
+                <th className="px-4 py-3 text-right">{t('thReviewCount')}</th>
               </tr>
             </thead>
             <tbody>
@@ -77,11 +77,11 @@ export function AdminBrokersClient(): React.ReactNode {
                     <td className="px-4 py-3">
                       {b.isClaimed ? (
                         <span className="rounded-full bg-blue-500/20 px-2.5 py-1 text-xs font-bold text-blue-400">
-                          已認領
+                          {t('statusClaimed')}
                         </span>
                       ) : (
                         <span className="rounded-full bg-white/10 px-2.5 py-1 text-xs font-bold text-white/50">
-                          未認領
+                          {t('statusUnclaimed')}
                         </span>
                       )}
                     </td>

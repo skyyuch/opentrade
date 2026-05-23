@@ -14,6 +14,7 @@ const STATUSES = ['', 'PENDING', 'PUBLISHED', 'REJECTED'] as const;
 export function ReviewsClient(): React.ReactNode {
   const { getAccessToken } = useOpenTradeAuth();
   const t = useTranslations('admin');
+  const tc = useTranslations('common');
   const [reviews, setReviews] = useState<AdminReviewItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -40,16 +41,25 @@ export function ReviewsClient(): React.ReactNode {
     void loadReviews();
   }, [loadReviews]);
 
+  const statusLabel = (status: string): string => {
+    const map: Record<string, string> = {
+      PENDING: tc('pending'),
+      PUBLISHED: tc('confirmed'),
+      REJECTED: tc('rejected'),
+    };
+    return map[status] ?? status;
+  };
+
   return (
     <div className="animate-in fade-in space-y-6 duration-300">
       <div className="flex flex-wrap items-center gap-4">
-        <h1 className="text-2xl font-bold">{t('reviews')}</h1>
+        <h1 className="text-2xl font-bold">{t('reviewsTitle')}</h1>
         <div className="ml-auto flex items-center gap-3">
           <div className="relative">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" />
             <input
               type="text"
-              placeholder="Search..."
+              placeholder={t('searchReviews')}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="rounded-lg border border-white/10 bg-white/5 py-2 pl-10 pr-4 text-sm focus:border-[#00FF88]/50 focus:outline-none"
@@ -60,10 +70,10 @@ export function ReviewsClient(): React.ReactNode {
             onChange={(e) => setStatusFilter(e.target.value)}
             className="rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-sm focus:outline-none"
           >
-            <option value="">All statuses</option>
+            <option value="">{t('allStatuses')}</option>
             {STATUSES.filter(Boolean).map((s) => (
               <option key={`status-${s}`} value={s}>
-                {s}
+                {statusLabel(s)}
               </option>
             ))}
           </select>
@@ -80,13 +90,13 @@ export function ReviewsClient(): React.ReactNode {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-white/10 bg-black/40 text-left text-xs uppercase tracking-wider text-white/50">
-                  <th className="px-4 py-3">Title</th>
-                  <th className="px-4 py-3">Broker</th>
-                  <th className="px-4 py-3">Author</th>
-                  <th className="px-4 py-3">Rating</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3">Tx Hash</th>
-                  <th className="px-4 py-3">Date</th>
+                  <th className="px-4 py-3">{t('thTitle')}</th>
+                  <th className="px-4 py-3">{t('thBroker')}</th>
+                  <th className="px-4 py-3">{t('thAuthor')}</th>
+                  <th className="px-4 py-3">{t('thRating')}</th>
+                  <th className="px-4 py-3">{t('thStatus')}</th>
+                  <th className="px-4 py-3">{t('thTxHash')}</th>
+                  <th className="px-4 py-3">{t('thDate')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -116,7 +126,7 @@ export function ReviewsClient(): React.ReactNode {
                         </span>
                       </td>
                       <td className="px-4 py-3">
-                        <StatusBadge status={r.status} />
+                        <StatusBadge status={r.status} label={statusLabel(r.status)} />
                       </td>
                       <td className="px-4 py-3 font-mono text-xs">
                         {r.txHash ? (
@@ -146,7 +156,7 @@ export function ReviewsClient(): React.ReactNode {
           <div className="border-t border-white/10 px-4 py-3">
             <p className="inline-flex items-center gap-2 text-xs font-bold text-red-500/80">
               <ShieldAlert size={14} />
-              請注意：鏈上評論無法在平台端刪除
+              {t('reviewsDisclaimer')}
             </p>
           </div>
         </div>
@@ -155,7 +165,7 @@ export function ReviewsClient(): React.ReactNode {
   );
 }
 
-function StatusBadge({ status }: { status: string }): React.ReactNode {
+function StatusBadge({ status, label }: { status: string; label: string }): React.ReactNode {
   const colors: Record<string, string> = {
     PENDING: 'bg-yellow-500/20 text-yellow-400',
     PUBLISHED: 'bg-[#00FF88]/20 text-[#00FF88]',
@@ -165,7 +175,7 @@ function StatusBadge({ status }: { status: string }): React.ReactNode {
     <span
       className={`rounded-full px-2.5 py-1 text-xs font-bold ${colors[status] ?? 'bg-white/10 text-white/50'}`}
     >
-      {status}
+      {label}
     </span>
   );
 }

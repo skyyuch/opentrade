@@ -98,7 +98,7 @@ export function BrokerReviewsClient(): React.ReactNode {
 
       <div className="text-xs text-red-500/80 font-bold flex items-center justify-end gap-1">
         <ShieldAlert size={14} />
-        請注意：鏈上評論無法在平台端刪除
+        {t('reviewsDisclaimer')}
       </div>
     </div>
   );

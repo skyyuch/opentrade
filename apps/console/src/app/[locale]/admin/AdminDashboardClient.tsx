@@ -62,7 +62,7 @@ export function AdminDashboardClient(): React.ReactNode {
           label: t('pendingApprovals'),
           value: String(stats.pendingApprovals),
           icon: <ShieldAlert size={20} className="text-yellow-400" />,
-          change: t('pendingApprovals'),
+          change: t('needsAttention'),
         },
         {
           label: t('claimedBrokers'),
