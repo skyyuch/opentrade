@@ -148,6 +148,7 @@
     "filterAll": "所有状态",
     "filterLicenseAll": "所有牌照",
     "clearFilter": "清除筛选",
+    "paginationInfo": "显示第 {start} - {end} 条，共 {total} 条",
     "viewIpfs": "查看 IPFS 证据",
     "reviewsDisclaimer": "请注意：链上评论无法在平台端删除",
     "needsAttention": "需注意",

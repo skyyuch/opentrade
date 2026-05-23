@@ -1,6 +1,6 @@
 'use client';
 
-import { Search } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Search } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
@@ -9,6 +9,8 @@ import { useOpenTradeAuth } from '../../../../hooks/useOpenTradeAuth';
 import { fetchAllBrokers } from '../../../../lib/api/client';
 
 import type { BrokerListItem } from '../../../../lib/api/client';
+
+const PAGE_SIZE = 50;
 
 function formatLicenseType(raw: string): string {
   const match = raw.match(/HK_SFC_TYPE_(\d+)/);
@@ -26,6 +28,7 @@ export function AdminBrokersClient(): React.ReactNode {
   const [claimFilter, setClaimFilter] = useState<'all' | 'claimed' | 'unclaimed'>('all');
   const [licenseFilter, setLicenseFilter] = useState<Set<string>>(new Set());
   const [showLicenseDropdown, setShowLicenseDropdown] = useState(false);
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
     const load = async () => {
@@ -76,6 +79,13 @@ export function AdminBrokersClient(): React.ReactNode {
     }
     return list;
   }, [brokers, search, claimFilter, licenseFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, claimFilter, licenseFilter]);
 
   if (loading) {
     return (
@@ -164,14 +174,14 @@ export function AdminBrokersClient(): React.ReactNode {
               </tr>
             </thead>
             <tbody>
-              {filtered.length === 0 ? (
+              {paged.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="p-8 text-center text-white/40">
                     {t('noResults')}
                   </td>
                 </tr>
               ) : (
-                filtered.map((b) => (
+                paged.map((b) => (
                   <tr
                     key={`broker-${b.id}`}
                     className="cursor-pointer border-b border-white/5 transition-colors hover:bg-white/[0.04]"
@@ -203,6 +213,38 @@ export function AdminBrokersClient(): React.ReactNode {
           </table>
         </div>
       </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between text-sm text-white/50">
+          <span>
+            {t('paginationInfo', {
+              start: (page - 1) * PAGE_SIZE + 1,
+              end: Math.min(page * PAGE_SIZE, filtered.length),
+              total: filtered.length,
+            })}
+          </span>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page === 1}
+              className="rounded-lg border border-white/10 p-2 transition-colors hover:bg-white/5 disabled:opacity-30"
+            >
+              <ChevronLeft size={16} />
+            </button>
+            <span className="px-2 text-white/80">
+              {page} / {totalPages}
+            </span>
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page === totalPages}
+              className="rounded-lg border border-white/10 p-2 transition-colors hover:bg-white/5 disabled:opacity-30"
+            >
+              <ChevronRight size={16} />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

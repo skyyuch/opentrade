@@ -1,9 +1,9 @@
 'use client';
 
-import { ArrowLeft, Save, ShieldCheck, Upload } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, Save, ShieldCheck, Upload } from 'lucide-react';
 import Link from 'next/link';
 import { useLocale, useTranslations } from 'next-intl';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { useOpenTradeAuth } from '../../../../../hooks/useOpenTradeAuth';
 import { fetchBroker, updateBrokerLogo, uploadBrokerLogo } from '../../../../../lib/api/client';
@@ -35,6 +35,35 @@ export function AdminBrokerDetailClient({ slug }: Props): ReactNode {
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
   const [activeLicenseTab, setActiveLicenseTab] = useState<LicenseTab>('details');
+  const tabsRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+
+  const updateScrollIndicators = useCallback(() => {
+    const el = tabsRef.current;
+    if (!el) return;
+    setCanScrollLeft(el.scrollLeft > 0);
+    setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 1);
+  }, []);
+
+  useEffect(() => {
+    const el = tabsRef.current;
+    if (!el) return;
+    updateScrollIndicators();
+    el.addEventListener('scroll', updateScrollIndicators, { passive: true });
+    const ro = new ResizeObserver(updateScrollIndicators);
+    ro.observe(el);
+    return () => {
+      el.removeEventListener('scroll', updateScrollIndicators);
+      ro.disconnect();
+    };
+  }, [updateScrollIndicators, loading]);
+
+  const scrollTabs = (direction: 'left' | 'right') => {
+    const el = tabsRef.current;
+    if (!el) return;
+    el.scrollBy({ left: direction === 'left' ? -150 : 150, behavior: 'smooth' });
+  };
 
   useEffect(() => {
     const load = async () => {
@@ -244,22 +273,43 @@ export function AdminBrokerDetailClient({ slug }: Props): ReactNode {
         </h2>
 
         {/* License tabs */}
-        <div className="no-scrollbar flex items-center gap-x-2 overflow-x-auto whitespace-nowrap border-b border-white/10 pb-4 text-sm font-bold">
-          {licenseTabs.map((tab, idx) => (
-            <span key={tab.id} className="flex items-center gap-x-2">
-              <button
-                onClick={() => setActiveLicenseTab(tab.id)}
-                className={`pb-1 transition-colors ${
-                  activeLicenseTab === tab.id
-                    ? 'border-b-2 border-[#00FF88] text-[#00FF88]'
-                    : 'text-white/60 hover:text-white'
-                }`}
-              >
-                {tab.label}
-              </button>
-              {idx < licenseTabs.length - 1 && <span className="px-1 pb-1 text-white/20">|</span>}
-            </span>
-          ))}
+        <div className="relative flex items-center border-b border-white/10 pb-4">
+          {canScrollLeft && (
+            <button
+              onClick={() => scrollTabs('left')}
+              className="absolute -left-1 z-10 flex size-7 shrink-0 items-center justify-center rounded-full bg-[#0a0a0a]/90 text-white/60 shadow-lg transition-colors hover:text-white"
+            >
+              <ChevronLeft size={16} />
+            </button>
+          )}
+          <div
+            ref={tabsRef}
+            className="no-scrollbar flex items-center gap-x-2 overflow-x-auto whitespace-nowrap px-2 text-sm font-bold"
+          >
+            {licenseTabs.map((tab, idx) => (
+              <span key={tab.id} className="flex items-center gap-x-2">
+                <button
+                  onClick={() => setActiveLicenseTab(tab.id)}
+                  className={`pb-1 transition-colors ${
+                    activeLicenseTab === tab.id
+                      ? 'border-b-2 border-[#00FF88] text-[#00FF88]'
+                      : 'text-white/60 hover:text-white'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+                {idx < licenseTabs.length - 1 && <span className="px-1 pb-1 text-white/20">|</span>}
+              </span>
+            ))}
+          </div>
+          {canScrollRight && (
+            <button
+              onClick={() => scrollTabs('right')}
+              className="absolute -right-1 z-10 flex size-7 shrink-0 items-center justify-center rounded-full bg-[#0a0a0a]/90 text-white/60 shadow-lg transition-colors hover:text-white"
+            >
+              <ChevronRight size={16} />
+            </button>
+          )}
         </div>
 
         {/* Tab content */}

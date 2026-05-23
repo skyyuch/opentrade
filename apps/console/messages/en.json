@@ -148,6 +148,7 @@
     "filterAll": "All statuses",
     "filterLicenseAll": "All licenses",
     "clearFilter": "Clear filter",
+    "paginationInfo": "Showing {start} - {end} of {total}",
     "viewIpfs": "View IPFS evidence",
     "reviewsDisclaimer": "Note: On-chain reviews cannot be deleted by the platform",
     "needsAttention": "Needs attention",
