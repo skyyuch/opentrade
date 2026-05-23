@@ -9,8 +9,8 @@
 ## 最後更新
 
 - **日期**：2026-05-23
-- **更新者**：Console role-based rebuild + Google UI integration session（Claude Opus 4.6）
-- **本次更新摘要**：Console 後台全面重建：新增 admin domain API（stats/users/reviews/activity）+ broker owner-stats endpoint + GET /v1/auth/me 擴充 claimedBroker。Console 前端實作 role-based routing（AdminGuard/BrokerGuard）+ useCurrentUser hook + AuthGate role-based sidebar。建立 Admin 全部骨架頁面（dashboard/claims/verifications/users/reviews/brokers/system）+ Broker 骨架頁面（dashboard/profile/reviews）+ Settings。融合 Google AI Studio 設計的 UI（暗色主題 #050608 + #00FF88 綠色主色 + 圓角卡片 + atmospheric glow）。CSS 主題衝突修復進行中。
+- **更新者**：Console i18n completion + manual user creation session（Claude Opus 4.6）
+- **本次更新摘要**：修復 Console CSS 主題衝突（新增 console-globals.css 取代共用 globals.css）+ 加入 LocaleSwitcher 語言切換組件 + 全面修復 admin/broker 所有內頁 i18n（25+ 個 key 補齊，表頭/Tab/按鈕/placeholder 全部使用翻譯 key）+ 新增 POST /v1/admin/users API（手動建立用戶）+ 前端新增「新增用戶」按鈕和 Modal 表單。VerificationsClient 也完整改寫匹配 Google 暗色風格。
 
 ---
 
@@ -319,7 +319,7 @@ Branch: `feature/phase-1-mvp-a`（first 4 commits + 1 handoff docs commit）
 
 ## 進行中
 
-- **Console Google UI 修復**：Google AI Studio 設計的 UI 已融合到代碼中，但 `@opentrade/ui/styles/globals.css` 主題系統（CSS variables + body 規則 + wildcard border-color）與 Google 的硬編碼暗色風格衝突，導致實際渲染與設計稿差距較大。已加 `console-overrides.css` 嘗試修復但仍需進一步調整。
+- **Console Google UI 微調**：CSS 主題衝突已修復（console-globals.css 取代共用 globals.css），i18n 完善，手動新增用戶已上線。仍有部分頁面視覺與 Google 原始設計可能有微小差異，需用戶驗收。
 - **Phase 1 E2E 測試**：Privy dashboard 已設定完成，需瀏覽器跑完整流程
 
 ---
@@ -542,3 +542,4 @@ aws sso login --profile opentrade-dev
 | 2026-05-22 | Phase 1: PR #17 merge + Base Sepolia deployment | Claude Opus 4.6 | PR #17 CI fix (fuzz test exclude contract addrs + lint prefer-optional-chain/import-order/array-type/no-floating-promises) + squash merge. Base Sepolia deploy: ReviewRegistry `0x8aB5f61Cd0817BE0B9f09Ec09d28de302aDAf187` + ReviewerSBT `0x31D8e863ce71c90d399Ff69eeACeC84226b3e61b`. MINTER_ROLE granted. Manual verification: review on-chain (reviewCount=1), SBT mint (tokenCount=1), soulbound transfer block confirmed. Deployer `0xD221cE091E364D24029B92bC89a3f9831e3e5d01`. | |
 | 2026-05-22 | Phase 1: UI polish + dark mode + Privy setup | Claude Opus 4.6 | ADR-0021/0022 補完。UI 組件實作（SbtBadge, ReviewCard upgrade, VerifyForm, SearchBar, Console ClaimForm）。Privy Dashboard 設定指引。本地三服務啟動驗證。Webpack Privy/wagmi peer deps fix。DB seed 3,482 brokers。BrokerDirectory overhaul (API search + cursor pagination)。強制 dark mode (crypto exchange style)。Broker name i18n logic。Hydration fix。 | |
 | 2026-05-23 | Console role-based rebuild + Google UI integration | Claude Opus 4.6 | Admin domain API (stats/users/reviews/activity) + broker owner-stats + auth/me claimedBroker. Console role-based routing (AdminGuard/BrokerGuard/useCurrentUser). Admin skeleton pages (dashboard/claims/verifications/users/reviews/brokers/system). Broker pages (dashboard/profile/reviews). Settings page. Google AI Studio UI integration (dark #050608 + #00FF88 accent + rounded cards). CSS theme conflict partially fixed (console-overrides.css). | |
+| 2026-05-23 | Console i18n completion + manual user creation | Claude Opus 4.6 | CSS theme conflict resolved (console-globals.css replaces shared globals.css). LocaleSwitcher component (globe icon + dropdown). Full i18n for all admin/broker pages (25+ keys: table headers, tabs, filters, placeholders, status badges). POST /v1/admin/users API for manual user creation. "Add User" button + modal in UsersClient. VerificationsClient rewritten to match dark theme. 2 commits (fix + feat). | |
