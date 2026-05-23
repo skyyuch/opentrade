@@ -1,12 +1,12 @@
 'use client';
 
-import { ArrowLeft, Save, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, Save, ShieldCheck, Upload } from 'lucide-react';
 import Link from 'next/link';
 import { useLocale, useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
 
 import { useOpenTradeAuth } from '../../../../../hooks/useOpenTradeAuth';
-import { fetchBroker, updateBrokerLogo } from '../../../../../lib/api/client';
+import { fetchBroker, updateBrokerLogo, uploadBrokerLogo } from '../../../../../lib/api/client';
 
 import type { BrokerDetail } from '../../../../../lib/api/client';
 import type { ReactNode } from 'react';
@@ -32,6 +32,8 @@ export function AdminBrokerDetailClient({ slug }: Props): ReactNode {
   const [loading, setLoading] = useState(true);
   const [logoUrl, setLogoUrl] = useState('');
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState('');
   const [activeLicenseTab, setActiveLicenseTab] = useState<LicenseTab>('details');
 
   useEffect(() => {
@@ -60,6 +62,31 @@ export function AdminBrokerDetailClient({ slug }: Props): ReactNode {
       setBroker({ ...broker, logoUrl: logoUrl || null });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleFileUpload = async (file: File) => {
+    setUploadError('');
+    const allowedTypes = ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'];
+    if (!allowedTypes.includes(file.type)) {
+      setUploadError(t('uploadInvalidType'));
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setUploadError(t('uploadTooLarge'));
+      return;
+    }
+    const token = await getAccessToken();
+    if (!token || !broker) return;
+    setUploading(true);
+    try {
+      const res = await uploadBrokerLogo(slug, file, { accessToken: token });
+      setBroker({ ...broker, logoUrl: res.logoUrl });
+      setLogoUrl(res.logoUrl);
+    } catch {
+      setUploadError(t('uploadFailed'));
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -177,6 +204,34 @@ export function AdminBrokerDetailClient({ slug }: Props): ReactNode {
               <Save size={16} />
               {saving ? t('saving') : t('saveSettings')}
             </button>
+          </div>
+
+          {/* File upload */}
+          <div className="mt-6 max-w-3xl border-t border-white/5 pt-6">
+            <label className="mb-2 block text-sm font-medium text-white/50">
+              {t('uploadLabel')}
+            </label>
+            <label
+              className={`flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-white/10 bg-black/20 px-6 py-8 transition-colors hover:border-[#00FF88]/30 hover:bg-black/30 ${uploading ? 'pointer-events-none opacity-50' : ''}`}
+            >
+              <Upload size={28} className="mb-2 text-white/30" />
+              <span className="text-sm font-medium text-white/60">
+                {uploading ? t('uploadUploading') : t('uploadClickOrDrag')}
+              </span>
+              <span className="mt-1 text-xs text-white/30">{t('uploadAccepted')}</span>
+              <input
+                type="file"
+                accept=".png,.jpg,.jpeg,.webp,.svg"
+                className="hidden"
+                disabled={uploading}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) void handleFileUpload(file);
+                  e.target.value = '';
+                }}
+              />
+            </label>
+            {uploadError && <p className="mt-2 text-xs font-medium text-red-400">{uploadError}</p>}
           </div>
         </div>
       </div>

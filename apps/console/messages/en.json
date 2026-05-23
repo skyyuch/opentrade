@@ -252,7 +252,14 @@
     "formerNames": "Former Names",
     "licenseCategory": "License Category",
     "validPeriod": "Valid Period",
-    "from": "From"
+    "from": "From",
+    "uploadLabel": "Or upload logo file directly",
+    "uploadClickOrDrag": "Click to select file or drag & drop here",
+    "uploadAccepted": "Accepted formats: PNG, JPEG, WebP, SVG — Max 5MB",
+    "uploadUploading": "Uploading…",
+    "uploadInvalidType": "Unsupported file format. Please use PNG, JPEG, WebP, or SVG.",
+    "uploadTooLarge": "File size exceeds the 5MB limit.",
+    "uploadFailed": "Upload failed. Please try again later."
   },
   "common": {
     "pending": "Pending",

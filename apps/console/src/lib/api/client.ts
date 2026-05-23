@@ -96,6 +96,49 @@ export const apiPost = async <T>(
   return (await res.json()) as T;
 };
 
+export const apiPostFormData = async <T>(
+  path: string,
+  formData: FormData,
+  options: FetchOptions = {},
+): Promise<T> => {
+  const url = `${env.NEXT_PUBLIC_API_URL}${path}`;
+  const headers: Record<string, string> = {};
+  if (options.accessToken) {
+    headers['Authorization'] = `Bearer ${options.accessToken}`;
+  }
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers,
+    body: formData,
+    ...(options.signal !== undefined ? { signal: options.signal } : {}),
+  });
+
+  if (!res.ok) {
+    let parsed: unknown = undefined;
+    try {
+      parsed = await res.json();
+    } catch {
+      // Non-JSON error body.
+    }
+    if (isApiErrorBody(parsed)) {
+      throw new ApiClientError(
+        res.status,
+        parsed.error.code,
+        parsed.error.message,
+        parsed.error.requestId,
+      );
+    }
+    throw new ApiClientError(
+      res.status,
+      'INTERNAL_ERROR',
+      `Upstream POST ${path} returned ${res.status}`,
+    );
+  }
+
+  return (await res.json()) as T;
+};
+
 export const apiPatch = async <T>(
   path: string,
   body: unknown,
@@ -252,6 +295,20 @@ export const updateBrokerLogo = (
   apiPatch<{
     broker: { id: string; slug: string; displayName: string; logoUrl: string | null };
   }>(`/v1/brokers/admin/${slug}/logo`, { logoUrl }, options);
+
+export const uploadBrokerLogo = (
+  slug: string,
+  file: File,
+  options?: FetchOptions,
+): Promise<{ logoUrl: string }> => {
+  const formData = new FormData();
+  formData.append('file', file);
+  return apiPostFormData<{ logoUrl: string }>(
+    `/v1/brokers/admin/${slug}/logo/upload`,
+    formData,
+    options ?? {},
+  );
+};
 
 export type ReviewItem = {
   id: string;

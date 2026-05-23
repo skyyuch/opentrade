@@ -59,6 +59,9 @@ importers:
 
   apps/api:
     dependencies:
+      '@aws-sdk/client-s3':
+        specifier: ^3.1052.0
+        version: 3.1052.0
       '@hono/node-server':
         specifier: ^2.0.2
         version: 2.0.2(hono@4.12.19)

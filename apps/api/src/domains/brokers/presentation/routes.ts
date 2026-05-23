@@ -13,6 +13,7 @@
  * Mounted under `/v1/brokers` by `http/server.ts`.
  */
 
+import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { Hono } from 'hono';
 import { z } from 'zod';
 
@@ -393,6 +394,76 @@ brokersRouter.patch('/admin/:slug/logo', authMiddleware('admin'), async (c) => {
       logoUrl: updated.logoUrl,
     },
   });
+});
+
+// ---------------------------------------------------------------------------
+// Admin: upload broker logo file (max 5 MB, images only)
+// ---------------------------------------------------------------------------
+
+const ALLOWED_MIME_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'] as const;
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
+
+brokersRouter.post('/admin/:slug/logo/upload', authMiddleware('admin'), async (c) => {
+  if (!env.AWS_S3_ASSETS_BUCKET || !env.ASSETS_CDN_URL) {
+    throw new AppError(ErrorCode.INTERNAL_ERROR, 'S3 assets storage is not configured', 500);
+  }
+
+  const slug = c.req.param('slug');
+
+  const broker = await prisma.broker.findFirst({
+    where: { slug, tenantId: DEFAULT_TENANT_ID, deletedAt: null },
+  });
+  if (!broker) {
+    throw new AppError(ErrorCode.NOT_FOUND, 'Broker not found', 404);
+  }
+
+  const body = await c.req.parseBody();
+  const file = body['file'];
+
+  if (!file || !(file instanceof File)) {
+    throw new AppError(ErrorCode.VALIDATION_ERROR, 'No file provided', 400);
+  }
+
+  if (!ALLOWED_MIME_TYPES.includes(file.type as (typeof ALLOWED_MIME_TYPES)[number])) {
+    throw new AppError(
+      ErrorCode.VALIDATION_ERROR,
+      `Invalid file type: ${file.type}. Accepted: PNG, JPEG, WebP, SVG`,
+      400,
+    );
+  }
+
+  if (file.size > MAX_FILE_SIZE) {
+    throw new AppError(
+      ErrorCode.VALIDATION_ERROR,
+      `File too large (${Math.round(file.size / 1024 / 1024)}MB). Maximum: 5MB`,
+      400,
+    );
+  }
+
+  const ext = file.name?.split('.').pop() ?? 'png';
+  const key = `logos/${slug}/${Date.now()}.${ext}`;
+
+  const s3 = new S3Client({ region: env.AWS_REGION });
+  const buffer = Buffer.from(await file.arrayBuffer());
+
+  await s3.send(
+    new PutObjectCommand({
+      Bucket: env.AWS_S3_ASSETS_BUCKET,
+      Key: key,
+      Body: buffer,
+      ContentType: file.type,
+      CacheControl: 'public, max-age=31536000, immutable',
+    }),
+  );
+
+  const cdnUrl = `${env.ASSETS_CDN_URL}/${key}`;
+
+  await prisma.broker.update({
+    where: { id: broker.id },
+    data: { logoUrl: cdnUrl },
+  });
+
+  return c.json({ logoUrl: cdnUrl }, 201);
 });
 
 // ---------------------------------------------------------------------------

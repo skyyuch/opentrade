@@ -146,6 +146,23 @@ const envSchema = z.object({
    * 500k chars/month. Only required when translation is enabled.
    */
   DEEPL_API_KEY: z.string().optional(),
+
+  /**
+   * S3 bucket for static assets (logos, avatars). Used by admin upload
+   * endpoints. Bucket is `opentrade-dev-assets-{account_id}` per terraform.
+   */
+  AWS_S3_ASSETS_BUCKET: z.string().optional(),
+
+  /**
+   * CloudFront CDN URL for the assets bucket. Returned as the public URL
+   * after uploading to S3. Example: `https://d1234.cloudfront.net`.
+   */
+  ASSETS_CDN_URL: z.string().url().optional(),
+
+  /**
+   * AWS region for S3 operations. Defaults to ap-southeast-1 per rule 80.
+   */
+  AWS_REGION: z.string().default('ap-southeast-1'),
 });
 
 export type ApiEnv = z.infer<typeof envSchema>;

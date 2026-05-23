@@ -252,7 +252,14 @@
     "formerNames": "前称记录",
     "licenseCategory": "牌照类别",
     "validPeriod": "有效时期",
-    "from": "由"
+    "from": "由",
+    "uploadLabel": "或直接上传 Logo 文件",
+    "uploadClickOrDrag": "点击选择文件或拖放至此",
+    "uploadAccepted": "接受格式：PNG、JPEG、WebP、SVG，上限 5MB",
+    "uploadUploading": "上传中…",
+    "uploadInvalidType": "不支持的文件格式。请使用 PNG、JPEG、WebP 或 SVG。",
+    "uploadTooLarge": "文件大小超过上限 5MB。",
+    "uploadFailed": "上传失败，请稍后再试。"
   },
   "common": {
     "pending": "待审批",
