@@ -1,29 +1,19 @@
 /**
- * `/brokers/:slug` — Broker detail page with reviews.
+ * `/brokers/:slug` — Broker detail page with tabs (reviews / license / arbitration).
  *
- * Server Component that fetches broker details and reviews in parallel.
- * The review submission form is a Client Component island imported below.
+ * Server Component that fetches broker details and reviews in parallel,
+ * then passes data to the BrokerDetailTabs client component.
  */
 
-import {
-  ArrowLeft,
-  Building2,
-  CheckCircle2,
-  Clock,
-  ExternalLink,
-  ShieldCheck,
-  Stamp,
-  Star,
-  XCircle,
-} from 'lucide-react';
-import Link from 'next/link';
+import { ArrowLeft, CheckCircle, ExternalLink, ShieldAlert, ShieldCheck } from 'lucide-react';
 import { notFound } from 'next/navigation';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 
-import { ReviewForm } from '../../../../components/reviews/ReviewForm';
-import { ApiClientError, fetchBroker, fetchBrokerReviews } from '../../../../lib/api/client';
+import { BrokerDetailTabs } from '@/components/brokers/BrokerDetailTabs';
+import { Link } from '@/i18n/navigation';
+import { ApiClientError, fetchBroker, fetchBrokerReviews } from '@/lib/api/client';
 
-import type { BrokerDetail, ReviewItem } from '../../../../lib/api/client';
+import type { BrokerDetail, ReviewItem } from '@/lib/api/client';
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 
@@ -50,41 +40,129 @@ const BrokerDetailPage = async ({ params }: Props): Promise<ReactNode> => {
   const t = await getTranslations('brokerDetail');
 
   const { broker, reviews } = await fetchBrokerData(params.slug);
+  const isChineseLocale = params.locale.startsWith('zh');
+
+  const primaryName = isChineseLocale ? broker.displayName : broker.legalName;
+  const secondaryName = isChineseLocale
+    ? broker.displayName !== broker.legalName
+      ? broker.legalName
+      : null
+    : broker.displayName !== broker.legalName
+      ? broker.displayName
+      : null;
+
+  const hasDisciplinary =
+    broker.sfcDetailJson?.disciplinaryActions &&
+    broker.sfcDetailJson.disciplinaryActions.length > 0;
 
   return (
-    <main className="container mx-auto flex flex-col gap-8 px-4 py-12 md:py-16">
-      <Link
-        href={`/${params.locale}/brokers`}
-        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
-      >
-        <ArrowLeft className="size-4" aria-hidden />
-        {t('backToBrokers')}
-      </Link>
+    <main className="min-h-screen bg-[#050608] text-white relative overflow-x-hidden">
+      {/* Background Atmospheric Glows */}
+      <div className="pointer-events-none fixed right-[-5%] top-[-10%] z-0 h-[600px] w-[600px] rounded-full bg-[#00FF88]/10 blur-[120px]" />
+      <div className="pointer-events-none fixed bottom-[-10%] left-[-5%] z-0 h-[500px] w-[500px] rounded-full bg-blue-600/10 blur-[100px]" />
 
-      <BrokerHeader broker={broker} locale={params.locale} />
+      <div className="relative z-10 mx-auto max-w-[1440px] px-6 lg:px-10 py-8">
+        <Link
+          href="/brokers"
+          className="inline-flex items-center gap-2 text-sm text-white/50 hover:text-[#00FF88] transition-colors mb-8 font-medium w-fit group"
+        >
+          <ArrowLeft
+            className="size-4 group-hover:-translate-x-1 transition-transform"
+            aria-hidden
+          />
+          {t('backToBrokers')}
+        </Link>
 
-      {broker.licenses.length > 0 ? <LicensesSection broker={broker} t={t} /> : null}
+        <header className="mb-10 block lg:flex items-start justify-between gap-8 bg-zinc-900/40 border border-white/10 rounded-2xl p-6 md:p-8 backdrop-blur-xl">
+          <div className="flex items-start gap-6">
+            {broker.logoUrl ? (
+              <img
+                src={broker.logoUrl}
+                alt={primaryName}
+                className="w-20 h-20 md:w-24 md:h-24 shrink-0 rounded-2xl object-contain bg-white p-2 border border-white/10"
+              />
+            ) : (
+              <div className="w-20 h-20 md:w-24 md:h-24 shrink-0 rounded-2xl bg-gradient-to-br from-zinc-800 to-zinc-950 flex items-center justify-center font-bold text-3xl md:text-4xl border border-white/10 shadow-inner">
+                {primaryName.substring(0, 2).toUpperCase()}
+              </div>
+            )}
 
-      <section className="flex flex-col gap-6">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold tracking-tight">{t('reviews')}</h2>
-          <span className="text-sm text-muted-foreground">{broker.reviewCount}</span>
-        </div>
-
-        <ReviewForm brokerId={broker.id} brokerName={broker.displayName} />
-
-        {reviews.length === 0 ? (
-          <p className="py-8 text-center text-sm text-muted-foreground">{t('noReviews')}</p>
-        ) : (
-          <div className="grid gap-4">
-            {reviews.map((review) => (
-              <ReviewCard key={review.id} review={review} t={t} />
-            ))}
+            <div className="flex flex-col justify-center">
+              <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">{primaryName}</h1>
+              <div className="flex flex-wrap items-center gap-3">
+                {secondaryName && (
+                  <span className="text-white/60 font-medium">{secondaryName}</span>
+                )}
+                {secondaryName && (
+                  <div className="w-1 h-1 rounded-full bg-white/20 hidden sm:block" />
+                )}
+                {broker.isClaimed ? (
+                  <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[11px] font-bold">
+                    <CheckCircle size={12} />
+                    {t('claimed')}
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-white/5 border border-white/10 text-white/40 text-[11px] font-bold">
+                    {t('unclaimed')}
+                  </div>
+                )}
+                {hasDisciplinary && (
+                  <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-red-500/10 border border-red-500/20 text-red-400 text-[11px] font-bold">
+                    <ShieldAlert size={12} />
+                    {t('hasDisciplinary')}
+                  </div>
+                )}
+              </div>
+              <div className="flex items-center gap-4 mt-4">
+                {broker.websiteUrl && (
+                  <a
+                    href={broker.websiteUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 text-sm text-[#00FF88] hover:underline"
+                  >
+                    <ExternalLink size={14} />
+                    {broker.websiteUrl.replace(/^https?:\/\//, '').replace(/\/$/, '')}
+                  </a>
+                )}
+                {broker.activeYears != null && broker.activeYears > 0 && (
+                  <div className="flex items-center gap-1.5 text-sm text-white/50">
+                    <ShieldCheck size={14} />
+                    {t('activeYears', { years: broker.activeYears })}
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
-        )}
-      </section>
 
-      <footer className="text-xs text-muted-foreground">{t('disclaimer')}</footer>
+          <div className="mt-8 lg:mt-0 flex gap-4 lg:flex-col lg:items-end">
+            {broker.ceNumber && (
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#00FF88]/10 border border-[#00FF88]/30">
+                <ShieldCheck size={16} className="text-[#00FF88]" />
+                <span className="text-xs font-bold text-[#00FF88]">{t('sfcLicensed')}</span>
+              </div>
+            )}
+            {broker.licenses.length > 0 && (
+              <div className="flex gap-2 flex-wrap lg:justify-end mt-2">
+                {broker.licenses.map((lic, i) => (
+                  <span
+                    key={i}
+                    className="text-[10px] uppercase font-bold px-2 py-1 bg-white/5 border border-white/10 rounded text-white/70"
+                  >
+                    {lic.licenseType.replace('HK_SFC_TYPE_', 'SFC Type ')}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        </header>
+
+        <BrokerDetailTabs broker={broker} reviews={reviews} locale={params.locale} />
+
+        <footer className="mt-16 pt-8 border-t border-white/5 text-xs text-white/30">
+          {t('disclaimer')}
+        </footer>
+      </div>
     </main>
   );
 };
@@ -106,193 +184,4 @@ const fetchBrokerData = async (
     }
     throw err;
   }
-};
-
-// ---------------------------------------------------------------------------
-// Sub-components
-// ---------------------------------------------------------------------------
-
-type DetailTranslator = Awaited<ReturnType<typeof getTranslations<'brokerDetail'>>>;
-
-const BrokerHeader = ({ broker, locale }: { broker: BrokerDetail; locale: string }): ReactNode => {
-  const isChineseLocale = locale.startsWith('zh');
-  const hasChinese = broker.displayName !== broker.legalName;
-  const primaryName = isChineseLocale ? broker.displayName : broker.legalName;
-  const secondaryName = isChineseLocale
-    ? hasChinese
-      ? broker.legalName
-      : null
-    : hasChinese
-      ? broker.displayName
-      : null;
-
-  return (
-    <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-      <div className="flex items-start gap-4">
-        <div className="flex size-14 items-center justify-center rounded-xl bg-primary/10">
-          <Building2 className="size-7 text-primary" aria-hidden />
-        </div>
-        <div className="flex flex-col gap-1">
-          <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">{primaryName}</h1>
-          {secondaryName ? <p className="text-sm text-muted-foreground">{secondaryName}</p> : null}
-          {broker.isClaimed ? (
-            <span className="inline-flex items-center gap-1 text-xs text-success">
-              <ShieldCheck className="size-3.5" aria-hidden />
-              Claimed
-            </span>
-          ) : null}
-        </div>
-      </div>
-      {broker.websiteUrl ? (
-        <a
-          href={broker.websiteUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm transition-colors hover:bg-muted"
-        >
-          <ExternalLink className="size-3.5" aria-hidden />
-          Website
-        </a>
-      ) : null}
-    </header>
-  );
-};
-
-const LicensesSection = ({
-  broker,
-  t,
-}: {
-  broker: BrokerDetail;
-  t: DetailTranslator;
-}): ReactNode => (
-  <section className="flex flex-col gap-3">
-    <h2 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">
-      {t('licenses')}
-    </h2>
-    <div className="grid gap-3 sm:grid-cols-2">
-      {broker.licenses.map((lic) => (
-        <article
-          key={`${lic.regulator}-${lic.licenseNumber}`}
-          className="rounded-lg border border-border bg-card p-4"
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              {lic.regulator}
-            </span>
-            <span className="rounded-full bg-success/10 px-2 py-0.5 text-xs font-medium text-success">
-              {lic.status}
-            </span>
-          </div>
-          <p className="mt-1 font-medium">{lic.licenseType}</p>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            {t('licenseNumber')}: {lic.licenseNumber}
-          </p>
-        </article>
-      ))}
-    </div>
-  </section>
-);
-
-const ReviewCard = ({ review, t }: { review: ReviewItem; t: DetailTranslator }): ReactNode => (
-  <article className="group relative flex flex-col gap-3 rounded-lg border border-border/60 bg-card p-5 transition-all duration-150 hover:border-primary/20 hover:shadow-[0_0_12px_-4px_hsl(var(--ring)/0.15)]">
-    {/* Author row */}
-    <div className="flex items-center justify-between">
-      <div className="flex items-center gap-2.5">
-        <div className="flex size-8 items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary">
-          {review.author?.displayName?.charAt(0).toUpperCase() ?? '?'}
-        </div>
-        <div className="flex flex-col gap-0.5">
-          <div className="flex items-center gap-1.5">
-            <span className="text-sm font-medium">
-              {review.author?.displayName ?? t('anonymous')}
-            </span>
-            {review.author?.sbtTier && review.author.sbtTier !== 'L1' ? (
-              <span
-                className={`inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 font-mono text-[10px] font-medium ${
-                  review.author.sbtTier === 'L2'
-                    ? 'border-primary/30 bg-primary/5 text-primary shadow-[0_0_6px_-2px_hsl(var(--ring)/0.2)]'
-                    : review.author.sbtTier === 'L3'
-                      ? 'border-accent/40 bg-accent/5 text-accent shadow-[0_0_8px_-2px_hsl(var(--accent)/0.3)]'
-                      : 'border-accent/60 bg-accent/10 text-accent shadow-[0_0_10px_-3px_hsl(var(--accent)/0.4)]'
-                }`}
-                title={`Identity Tier: ${review.author.sbtTier}`}
-              >
-                <ShieldCheck className="size-3" aria-hidden />
-                {review.author.sbtTier}
-              </span>
-            ) : null}
-          </div>
-          <time className="text-[11px] text-muted-foreground" dateTime={review.createdAt}>
-            {new Date(review.createdAt).toLocaleDateString()}
-          </time>
-        </div>
-      </div>
-      <StatusBadge status={review.status} t={t} />
-    </div>
-
-    {/* Rating */}
-    <div className="flex gap-0.5">
-      {Array.from({ length: 5 }).map((_, i) => (
-        <Star
-          key={i}
-          className={`size-3.5 ${i < review.rating ? 'fill-warning text-warning' : 'text-muted-foreground/20'}`}
-          aria-hidden
-        />
-      ))}
-    </div>
-
-    {/* Content */}
-    <div className="flex flex-col gap-1.5">
-      <h3 className="text-sm font-semibold leading-snug">{review.title}</h3>
-      <p className="text-sm leading-relaxed text-muted-foreground">{review.body}</p>
-    </div>
-
-    {/* On-chain proof footer */}
-    {review.txHash ? (
-      <div className="mt-1 flex items-center gap-2 border-t border-border/40 pt-3">
-        <a
-          href={`https://sepolia.basescan.org/tx/${review.txHash}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="group/link inline-flex items-center gap-1.5 rounded-md border border-chain-border bg-chain-bg px-2 py-1 font-mono text-[10px] font-medium text-chain-ink transition-colors hover:border-primary/40 hover:text-foreground"
-          title={`Verify on-chain: ${review.txHash}`}
-        >
-          <Stamp className="size-3" aria-hidden />
-          <span className="tabular-nums">
-            {review.txHash.slice(0, 6)}…{review.txHash.slice(-4)}
-          </span>
-          <ExternalLink
-            className="size-2.5 opacity-0 transition-opacity group-hover/link:opacity-100"
-            aria-hidden
-          />
-        </a>
-        <span className="text-[10px] text-muted-foreground/60">{t('onChain')}</span>
-      </div>
-    ) : null}
-  </article>
-);
-
-const StatusBadge = ({ status, t }: { status: string; t: DetailTranslator }): ReactNode => {
-  if (status === 'CONFIRMED') {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-xs font-medium text-success">
-        <CheckCircle2 className="size-3" aria-hidden />
-        {t('verified')}
-      </span>
-    );
-  }
-  if (status === 'FAILED') {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-danger/10 px-2 py-0.5 text-xs font-medium text-danger">
-        <XCircle className="size-3" aria-hidden />
-        {t('failed')}
-      </span>
-    );
-  }
-  return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
-      <Clock className="size-3" aria-hidden />
-      {t('pending')}
-    </span>
-  );
 };
