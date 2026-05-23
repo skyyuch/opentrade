@@ -151,7 +151,7 @@ const envSchema = z.object({
    * S3 bucket for static assets (logos, avatars). Used by admin upload
    * endpoints. Bucket is `opentrade-dev-assets-{account_id}` per terraform.
    */
-  AWS_S3_ASSETS_BUCKET: z.string().optional(),
+  ASSETS_BUCKET_NAME: z.string().optional(),
 
   /**
    * CloudFront CDN URL for the assets bucket. Returned as the public URL

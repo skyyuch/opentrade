@@ -404,7 +404,7 @@ const ALLOWED_MIME_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/svg+
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
 
 brokersRouter.post('/admin/:slug/logo/upload', authMiddleware('admin'), async (c) => {
-  if (!env.AWS_S3_ASSETS_BUCKET || !env.ASSETS_CDN_URL) {
+  if (!env.ASSETS_BUCKET_NAME || !env.ASSETS_CDN_URL) {
     throw new AppError(ErrorCode.INTERNAL_ERROR, 'S3 assets storage is not configured', 500);
   }
 
@@ -448,7 +448,7 @@ brokersRouter.post('/admin/:slug/logo/upload', authMiddleware('admin'), async (c
 
   await s3.send(
     new PutObjectCommand({
-      Bucket: env.AWS_S3_ASSETS_BUCKET,
+      Bucket: env.ASSETS_BUCKET_NAME,
       Key: key,
       Body: buffer,
       ContentType: file.type,
