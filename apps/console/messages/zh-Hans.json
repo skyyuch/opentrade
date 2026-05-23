@@ -264,7 +264,9 @@
     "uploadUploading": "上传中…",
     "uploadInvalidType": "不支持的文件格式。请使用 PNG、JPEG、WebP 或 SVG。",
     "uploadTooLarge": "文件大小超过上限 5MB。",
-    "uploadFailed": "上传失败，请稍后再试。"
+    "uploadFailed": "上传失败，请稍后再试。",
+    "uploadConfirm": "确认上传",
+    "cancel": "取消"
   },
   "common": {
     "pending": "待审批",

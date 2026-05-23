@@ -264,7 +264,9 @@
     "uploadUploading": "Uploading…",
     "uploadInvalidType": "Unsupported file format. Please use PNG, JPEG, WebP, or SVG.",
     "uploadTooLarge": "File size exceeds the 5MB limit.",
-    "uploadFailed": "Upload failed. Please try again later."
+    "uploadFailed": "Upload failed. Please try again later.",
+    "uploadConfirm": "Confirm Upload",
+    "cancel": "Cancel"
   },
   "common": {
     "pending": "Pending",

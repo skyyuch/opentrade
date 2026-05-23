@@ -34,6 +34,8 @@ export function AdminBrokerDetailClient({ slug }: Props): ReactNode {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [pendingPreview, setPendingPreview] = useState<string | null>(null);
   const [activeLicenseTab, setActiveLicenseTab] = useState<LicenseTab>('details');
   const tabsRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
@@ -94,7 +96,7 @@ export function AdminBrokerDetailClient({ slug }: Props): ReactNode {
     }
   };
 
-  const handleFileUpload = async (file: File) => {
+  const handleFileSelect = (file: File) => {
     setUploadError('');
     const allowedTypes = ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'];
     if (!allowedTypes.includes(file.type)) {
@@ -105,13 +107,27 @@ export function AdminBrokerDetailClient({ slug }: Props): ReactNode {
       setUploadError(t('uploadTooLarge'));
       return;
     }
+    setPendingFile(file);
+    setPendingPreview(URL.createObjectURL(file));
+  };
+
+  const handleCancelUpload = () => {
+    if (pendingPreview) URL.revokeObjectURL(pendingPreview);
+    setPendingFile(null);
+    setPendingPreview(null);
+    setUploadError('');
+  };
+
+  const handleConfirmUpload = async () => {
+    if (!pendingFile) return;
     const token = await getAccessToken();
     if (!token || !broker) return;
     setUploading(true);
     try {
-      const res = await uploadBrokerLogo(slug, file, { accessToken: token });
+      const res = await uploadBrokerLogo(slug, pendingFile, { accessToken: token });
       setBroker({ ...broker, logoUrl: res.logoUrl });
       setLogoUrl(res.logoUrl);
+      handleCancelUpload();
     } catch {
       setUploadError(t('uploadFailed'));
     } finally {
@@ -240,26 +256,61 @@ export function AdminBrokerDetailClient({ slug }: Props): ReactNode {
             <label className="mb-2 block text-sm font-medium text-white/50">
               {t('uploadLabel')}
             </label>
-            <label
-              className={`flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-white/10 bg-black/20 px-6 py-8 transition-colors hover:border-[#00FF88]/30 hover:bg-black/30 ${uploading ? 'pointer-events-none opacity-50' : ''}`}
-            >
-              <Upload size={28} className="mb-2 text-white/30" />
-              <span className="text-sm font-medium text-white/60">
-                {uploading ? t('uploadUploading') : t('uploadClickOrDrag')}
-              </span>
-              <span className="mt-1 text-xs text-white/30">{t('uploadAccepted')}</span>
-              <input
-                type="file"
-                accept=".png,.jpg,.jpeg,.webp,.svg"
-                className="hidden"
-                disabled={uploading}
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) void handleFileUpload(file);
-                  e.target.value = '';
-                }}
-              />
-            </label>
+
+            {pendingPreview ? (
+              <div className="space-y-4">
+                <div className="flex items-center gap-4 rounded-lg border border-white/10 bg-black/20 p-4">
+                  <div className="flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-white/10 bg-white/5">
+                    <img
+                      src={pendingPreview}
+                      alt="Preview"
+                      className="size-full object-contain p-1"
+                    />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-white/80">
+                      {pendingFile?.name}
+                    </p>
+                    <p className="text-xs text-white/40">
+                      {pendingFile && `${(pendingFile.size / 1024).toFixed(1)} KB`}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => void handleConfirmUpload()}
+                    disabled={uploading}
+                    className="flex items-center gap-2 rounded-lg border border-[#00FF88]/20 bg-[#00FF88]/10 px-5 py-2 text-sm font-bold text-[#00FF88] transition-colors hover:bg-[#00FF88]/20 disabled:opacity-50"
+                  >
+                    <Save size={14} />
+                    {uploading ? t('uploadUploading') : t('uploadConfirm')}
+                  </button>
+                  <button
+                    onClick={handleCancelUpload}
+                    disabled={uploading}
+                    className="rounded-lg border border-white/10 px-5 py-2 text-sm font-medium text-white/50 transition-colors hover:bg-white/5 hover:text-white disabled:opacity-50"
+                  >
+                    {t('cancel')}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <label className="flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-white/10 bg-black/20 px-6 py-8 transition-colors hover:border-[#00FF88]/30 hover:bg-black/30">
+                <Upload size={28} className="mb-2 text-white/30" />
+                <span className="text-sm font-medium text-white/60">{t('uploadClickOrDrag')}</span>
+                <span className="mt-1 text-xs text-white/30">{t('uploadAccepted')}</span>
+                <input
+                  type="file"
+                  accept=".png,.jpg,.jpeg,.webp,.svg"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleFileSelect(file);
+                    e.target.value = '';
+                  }}
+                />
+              </label>
+            )}
             {uploadError && <p className="mt-2 text-xs font-medium text-red-400">{uploadError}</p>}
           </div>
         </div>
