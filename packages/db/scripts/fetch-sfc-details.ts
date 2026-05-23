@@ -110,6 +110,19 @@ const headers: Record<string, string> = {
   Accept: 'text/html,application/xhtml+xml',
 };
 
+function stripNullChars(obj: unknown): unknown {
+  if (typeof obj === 'string') return obj.replace(/\0/g, '').replace(/\u0000/g, '');
+  if (Array.isArray(obj)) return obj.map(stripNullChars);
+  if (obj && typeof obj === 'object') {
+    const result: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(obj)) {
+      result[k] = stripNullChars(v);
+    }
+    return result;
+  }
+  return obj;
+}
+
 function extractJsVar(html: string, varName: string): unknown {
   const regex = new RegExp(`var\\s+${varName}\\s*=\\s*(\\[.*?\\]);`, 's');
   const match = regex.exec(html);
@@ -121,8 +134,11 @@ function extractJsVar(html: string, varName: string): unknown {
       .replace(/\\u003e/g, '>')
       .replace(/\\u0026/g, '&')
       .replace(/\\""/g, '"')
+      .replace(/\u0000/g, '')
+      .replace(/\\u0000/g, '')
       .replace(/\0/g, '');
-    return JSON.parse(jsonStr);
+    const parsed = JSON.parse(jsonStr);
+    return stripNullChars(parsed);
   } catch {
     return null;
   }
