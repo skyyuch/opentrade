@@ -56,7 +56,7 @@ const BrokerDetailPage = async ({ params }: Props): Promise<ReactNode> => {
     broker.sfcDetailJson.disciplinaryActions.length > 0;
 
   return (
-    <main className="min-h-screen bg-[#050608] text-white relative overflow-x-hidden">
+    <div className="-mt-16 relative pt-16 text-white">
       {/* Background Atmospheric Glows */}
       <div className="pointer-events-none fixed right-[-5%] top-[-10%] z-0 h-[600px] w-[600px] rounded-full bg-[#00FF88]/10 blur-[120px]" />
       <div className="pointer-events-none fixed bottom-[-10%] left-[-5%] z-0 h-[500px] w-[500px] rounded-full bg-blue-600/10 blur-[100px]" />
@@ -163,7 +163,7 @@ const BrokerDetailPage = async ({ params }: Props): Promise<ReactNode> => {
           {t('disclaimer')}
         </footer>
       </div>
-    </main>
+    </div>
   );
 };
 

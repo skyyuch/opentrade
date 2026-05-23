@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { usePrivy } from '@privy-io/react-auth';
 import {
+  CheckCircle,
   Edit3,
   Info,
   Link as LinkIcon,
@@ -16,8 +17,10 @@ import {
   TrendingUp,
 } from 'lucide-react';
 import { Link } from '@/i18n/navigation';
-import { ReviewForm } from '@/components/reviews/ReviewForm';
+import { useOpenTradeAuth } from '@/hooks/useOpenTradeAuth';
+import { ApiClientError, submitReview } from '@/lib/api/client';
 
+import type { FormEvent } from 'react';
 import type { BrokerDetail, BrokerLicense, ReviewItem } from '@/lib/api/client';
 
 type Tab = 'reviews' | 'license' | 'arbitration';
@@ -196,32 +199,166 @@ function RatingSummary({ broker }: { broker: BrokerDetail }) {
   );
 }
 
+type ReviewFormState =
+  | { kind: 'idle' }
+  | { kind: 'submitting' }
+  | { kind: 'success' }
+  | { kind: 'error'; message: string };
+
 function SubmitReviewCta({ brokerId, brokerName }: { brokerId: string; brokerName: string }) {
   const t = useTranslations('brokerDetail');
+  const tf = useTranslations('reviewForm');
   const { authenticated, login } = usePrivy();
+  const { getAccessToken } = useOpenTradeAuth();
 
-  if (authenticated) {
-    return <ReviewForm brokerId={brokerId} brokerName={brokerName} />;
+  const [formState, setFormState] = useState<ReviewFormState>({ kind: 'idle' });
+  const [rating, setRating] = useState(0);
+  const [hoverRating, setHoverRating] = useState(0);
+  const [body, setBody] = useState('');
+  const [title, setTitle] = useState('');
+
+  const handleSubmit = useCallback(
+    async (e: FormEvent) => {
+      e.preventDefault();
+      if (rating === 0 || body.trim().length < 10) return;
+      setFormState({ kind: 'submitting' });
+      try {
+        const accessToken = await getAccessToken();
+        if (!accessToken) {
+          setFormState({ kind: 'error', message: tf('loginRequired') });
+          return;
+        }
+        await submitReview(
+          { brokerId, title: title.trim() || brokerName, body: body.trim(), rating },
+          { accessToken },
+        );
+        setFormState({ kind: 'success' });
+        setRating(0);
+        setTitle('');
+        setBody('');
+      } catch (err) {
+        const message = err instanceof ApiClientError ? err.message : 'Unexpected error';
+        setFormState({ kind: 'error', message });
+      }
+    },
+    [brokerId, brokerName, rating, title, body, getAccessToken, tf],
+  );
+
+  if (!authenticated) {
+    return (
+      <div className="flex items-center justify-between p-4 px-6 bg-gradient-to-r from-[#00FF88]/10 to-transparent border border-[#00FF88]/20 rounded-xl">
+        <div className="flex items-center gap-4">
+          <div className="w-10 h-10 rounded-full bg-[#00FF88]/20 flex items-center justify-center text-[#00FF88]">
+            <Edit3 size={18} />
+          </div>
+          <div>
+            <div className="font-bold text-sm text-[#00FF88]">{t('writeCta')}</div>
+            <div className="text-xs text-white/50">{t('writeCtaDesc')}</div>
+          </div>
+        </div>
+        <button
+          onClick={() => void login()}
+          className="px-5 py-2.5 bg-[#00FF88] text-[#050608] font-bold text-sm rounded-full hover:shadow-[0_0_15px_#00FF8840] transition-all whitespace-nowrap"
+        >
+          {t('loginAndReview')}
+        </button>
+      </div>
+    );
+  }
+
+  if (formState.kind === 'success') {
+    return (
+      <div className="p-6 rounded-xl bg-[#00FF88]/5 border border-[#00FF88]/20">
+        <h3 className="font-bold text-[#00FF88]">{tf('successTitle')}</h3>
+        <p className="mt-1 text-sm text-white/50">{tf('successMessage')}</p>
+      </div>
+    );
   }
 
   return (
-    <div className="flex items-center justify-between p-4 px-6 bg-gradient-to-r from-[#00FF88]/10 to-transparent border border-[#00FF88]/20 rounded-xl">
-      <div className="flex items-center gap-4">
+    <form
+      onSubmit={(e) => void handleSubmit(e)}
+      className="rounded-xl bg-zinc-900/60 border border-white/10 overflow-hidden"
+    >
+      <div className="flex items-center gap-4 p-4 px-6 bg-gradient-to-r from-[#00FF88]/10 to-transparent border-b border-[#00FF88]/20">
         <div className="w-10 h-10 rounded-full bg-[#00FF88]/20 flex items-center justify-center text-[#00FF88]">
           <Edit3 size={18} />
         </div>
+        <div className="font-bold text-sm text-[#00FF88]">{t('writeCta')}</div>
+      </div>
+
+      <div className="p-6 space-y-4">
+        {formState.kind === 'error' && (
+          <div className="rounded-lg bg-red-500/10 border border-red-500/20 px-4 py-2 text-sm text-red-400">
+            {tf('errorTitle')}: {formState.message}
+          </div>
+        )}
+
         <div>
-          <div className="font-bold text-sm text-[#00FF88]">{t('writeCta')}</div>
-          <div className="text-xs text-white/50">{t('writeCtaDesc')}</div>
+          <div className="text-sm font-medium text-white/60 mb-2">{tf('ratingLabel')}</div>
+          <div className="flex gap-1.5">
+            {[1, 2, 3, 4, 5].map((value) => (
+              <button
+                key={value}
+                type="button"
+                onMouseEnter={() => setHoverRating(value)}
+                onMouseLeave={() => setHoverRating(0)}
+                onClick={() => setRating(value)}
+                className="p-0.5 transition-transform hover:scale-110"
+              >
+                <Star
+                  size={24}
+                  className={
+                    value <= (hoverRating || rating)
+                      ? 'fill-[#00FF88] text-[#00FF88]'
+                      : 'fill-white/10 text-white/10'
+                  }
+                />
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <div className="text-sm font-medium text-white/60 mb-2">{tf('titleLabel')}</div>
+          <input
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder={tf('titlePlaceholder')}
+            maxLength={200}
+            className="w-full rounded-lg border border-white/10 bg-black/30 px-4 py-2.5 text-sm text-white outline-none placeholder:text-white/30 focus:border-[#00FF88]/40 transition-colors"
+          />
+        </div>
+
+        <div>
+          <div className="text-sm font-medium text-white/60 mb-2">{tf('bodyLabel')}</div>
+          <textarea
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            placeholder={tf('bodyPlaceholder')}
+            required
+            minLength={10}
+            rows={4}
+            className="w-full resize-y rounded-lg border border-white/10 bg-black/30 px-4 py-2.5 text-sm text-white outline-none placeholder:text-white/30 focus:border-[#00FF88]/40 transition-colors"
+          />
         </div>
       </div>
-      <button
-        onClick={() => void login()}
-        className="px-5 py-2.5 bg-[#00FF88] text-[#050608] font-bold text-sm rounded-full hover:shadow-[0_0_15px_#00FF8840] transition-all whitespace-nowrap"
-      >
-        {t('loginAndReview')}
-      </button>
-    </div>
+
+      <div className="flex items-center justify-between px-6 py-4 border-t border-white/5">
+        <div className="flex items-center gap-2 text-xs text-white/40">
+          <CheckCircle size={14} className="text-[#00FF88]" />
+          {t('writeCtaDesc')}
+        </div>
+        <button
+          type="submit"
+          disabled={formState.kind === 'submitting' || rating === 0}
+          className="px-5 py-2.5 bg-[#00FF88] text-[#050608] font-bold text-sm rounded-full hover:shadow-[0_0_15px_#00FF8840] transition-all whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {formState.kind === 'submitting' ? tf('submitting') : t('signAndPublish')}
+        </button>
+      </div>
+    </form>
   );
 }
 
