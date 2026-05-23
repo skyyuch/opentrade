@@ -1,12 +1,13 @@
 'use client';
 
+import { MoreVertical, Search } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useState } from 'react';
 
 import { useOpenTradeAuth } from '../../../../hooks/useOpenTradeAuth';
-import { fetchAdminUsers, fetchAdminUserDetail, updateUserRole } from '../../../../lib/api/client';
+import { fetchAdminUserDetail, fetchAdminUsers, updateUserRole } from '../../../../lib/api/client';
 
-import type { AdminUserItem, AdminUserDetailResponse } from '../../../../lib/api/client';
+import type { AdminUserDetailResponse, AdminUserItem } from '../../../../lib/api/client';
 
 const ROLES = ['USER', 'REVIEWER', 'JURY', 'ADMIN'] as const;
 
@@ -66,91 +67,107 @@ export function UsersClient(): React.ReactNode {
   };
 
   return (
-    <div className="space-y-6 p-6">
-      <h1 className="text-2xl font-semibold tracking-tight">{t('users')}</h1>
-
-      <div className="flex flex-wrap gap-3">
-        <input
-          type="text"
-          placeholder="Search..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="rounded-md border border-border bg-card px-3 py-1.5 text-sm"
-        />
-        <select
-          value={roleFilter}
-          onChange={(e) => setRoleFilter(e.target.value)}
-          className="rounded-md border border-border bg-card px-3 py-1.5 text-sm"
-        >
-          <option value="">All roles</option>
-          {ROLES.map((r) => (
-            <option key={r} value={r}>
-              {r}
-            </option>
-          ))}
-        </select>
+    <div className="animate-in fade-in space-y-6 duration-300">
+      <div className="flex flex-wrap items-center gap-4">
+        <h1 className="text-2xl font-bold">{t('users')}</h1>
+        <div className="ml-auto flex items-center gap-3">
+          <div className="relative">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" />
+            <input
+              type="text"
+              placeholder="Search..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="rounded-lg border border-white/10 bg-white/5 py-2 pl-10 pr-4 text-sm focus:border-[#00FF88]/50 focus:outline-none"
+            />
+          </div>
+          <select
+            value={roleFilter}
+            onChange={(e) => setRoleFilter(e.target.value)}
+            className="rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-sm focus:outline-none"
+          >
+            <option value="">All roles</option>
+            {ROLES.map((r) => (
+              <option key={`role-${r}`} value={r}>
+                {r}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {loading ? (
         <div className="flex min-h-[30vh] items-center justify-center">
-          <div className="size-6 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
+          <div className="size-6 animate-spin rounded-full border-2 border-white/20 border-t-[#00FF88]" />
         </div>
-      ) : users.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No users found.</p>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border text-left text-xs uppercase tracking-wider text-muted-foreground">
-                <th className="px-3 py-2">Name</th>
-                <th className="px-3 py-2">Email</th>
-                <th className="px-3 py-2">Wallet</th>
-                <th className="px-3 py-2">Role</th>
-                <th className="px-3 py-2">SBT</th>
-                <th className="px-3 py-2">Date</th>
-              </tr>
-            </thead>
-            <tbody>
-              {users.map((u) => (
-                <>
-                  <tr
-                    key={u.id}
-                    className="cursor-pointer border-b border-border hover:bg-muted/50"
-                    onClick={() => void handleExpand(u.id)}
-                  >
-                    <td className="px-3 py-2">{u.displayName ?? '—'}</td>
-                    <td className="px-3 py-2 text-muted-foreground">
-                      {u.email ? maskEmail(u.email) : '—'}
-                    </td>
-                    <td className="px-3 py-2 font-mono text-xs">
-                      {u.walletAddress ? shortenAddress(u.walletAddress) : '—'}
-                    </td>
-                    <td className="px-3 py-2">
-                      <RoleBadge role={u.role} />
-                    </td>
-                    <td className="px-3 py-2">
-                      <span className="rounded bg-muted px-2 py-0.5 text-xs font-medium">
-                        {u.sbtTier}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2 text-muted-foreground">
-                      {new Date(u.createdAt).toLocaleDateString()}
+        <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/5">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-white/10 bg-black/40 text-left text-xs uppercase tracking-wider text-white/50">
+                  <th className="px-4 py-3">Name</th>
+                  <th className="px-4 py-3">Email</th>
+                  <th className="px-4 py-3">Wallet</th>
+                  <th className="px-4 py-3">Role</th>
+                  <th className="px-4 py-3">SBT</th>
+                  <th className="px-4 py-3">Date</th>
+                  <th className="px-4 py-3" />
+                </tr>
+              </thead>
+              <tbody>
+                {users.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="p-8 text-center text-white/40">
+                      {t('noResults')}
                     </td>
                   </tr>
-                  {expandedId === u.id && detail && (
-                    <tr key={`${u.id}-detail`} className="border-b border-border bg-muted/30">
-                      <td colSpan={6} className="px-6 py-4">
-                        <UserDetailPanel
-                          detail={detail}
-                          onRoleChange={(role) => void handleRoleChange(u.id, role)}
-                        />
-                      </td>
-                    </tr>
-                  )}
-                </>
-              ))}
-            </tbody>
-          </table>
+                ) : (
+                  users.map((u) => (
+                    <>
+                      <tr
+                        key={`user-${u.id}`}
+                        className="cursor-pointer border-b border-white/5 transition-colors hover:bg-white/[0.02]"
+                        onClick={() => void handleExpand(u.id)}
+                      >
+                        <td className="px-4 py-3 font-bold">{u.displayName ?? '—'}</td>
+                        <td className="px-4 py-3 text-white/60">
+                          {u.email ? maskEmail(u.email) : '—'}
+                        </td>
+                        <td className="px-4 py-3 font-mono text-xs text-blue-400">
+                          {u.walletAddress ? shortenAddress(u.walletAddress) : '—'}
+                        </td>
+                        <td className="px-4 py-3">
+                          <RoleBadge role={u.role} />
+                        </td>
+                        <td className="px-4 py-3">
+                          <SbtBadge tier={u.sbtTier} />
+                        </td>
+                        <td className="px-4 py-3 text-white/60">
+                          {new Date(u.createdAt).toLocaleDateString()}
+                        </td>
+                        <td className="px-4 py-3">
+                          <button className="rounded-lg p-1 text-white/40 transition-colors hover:bg-white/10 hover:text-white">
+                            <MoreVertical size={16} />
+                          </button>
+                        </td>
+                      </tr>
+                      {expandedId === u.id && detail && (
+                        <tr key={`detail-${u.id}`} className="border-b border-white/5">
+                          <td colSpan={7} className="px-6 py-4">
+                            <UserDetailPanel
+                              detail={detail}
+                              onRoleChange={(role) => void handleRoleChange(u.id, role)}
+                            />
+                          </td>
+                        </tr>
+                      )}
+                    </>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>
@@ -166,37 +183,37 @@ function UserDetailPanel({
 }): React.ReactNode {
   const u = detail.user;
   return (
-    <div className="space-y-3 text-sm">
+    <div className="space-y-3 rounded-xl bg-white/[0.03] p-4 text-sm">
       <div className="flex items-center gap-4">
-        <span className="text-muted-foreground">Change role:</span>
+        <span className="text-white/50">Change role:</span>
         <select
           value={u.role}
           onChange={(e) => onRoleChange(e.target.value)}
-          className="rounded-md border border-border bg-card px-2 py-1 text-xs"
+          className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs focus:outline-none"
         >
           {ROLES.map((r) => (
-            <option key={r} value={r}>
+            <option key={`select-${r}`} value={r}>
               {r}
             </option>
           ))}
         </select>
       </div>
       <div>
-        <span className="text-muted-foreground">Reviews: </span>
+        <span className="text-white/50">Reviews: </span>
         {detail.reviews.length}
       </div>
       <div>
-        <span className="text-muted-foreground">Verifications: </span>
+        <span className="text-white/50">Verifications: </span>
         {detail.verifications.length}
       </div>
       <div>
-        <span className="text-muted-foreground">Claims: </span>
+        <span className="text-white/50">Claims: </span>
         {detail.claims.length}
       </div>
       {u.sbtTokenId !== null && (
         <div>
-          <span className="text-muted-foreground">SBT Token ID: </span>
-          {u.sbtTokenId}
+          <span className="text-white/50">SBT Token ID: </span>
+          <span className="font-mono text-[#00FF88]">{u.sbtTokenId}</span>
         </div>
       )}
     </div>
@@ -205,16 +222,31 @@ function UserDetailPanel({
 
 function RoleBadge({ role }: { role: string }): React.ReactNode {
   const colors: Record<string, string> = {
-    ADMIN: 'bg-purple-100 text-purple-800',
-    JURY: 'bg-blue-100 text-blue-800',
-    REVIEWER: 'bg-green-100 text-green-800',
-    USER: 'bg-muted text-muted-foreground',
+    ADMIN: 'bg-purple-500/20 text-purple-400',
+    JURY: 'bg-blue-500/20 text-blue-400',
+    REVIEWER: 'bg-blue-500/20 text-blue-400',
+    USER: 'bg-white/10 text-white/70',
   };
   return (
     <span
-      className={`rounded-full px-2 py-0.5 text-xs font-medium ${colors[role] ?? 'bg-muted text-muted-foreground'}`}
+      className={`rounded-full px-2.5 py-1 text-xs font-bold ${colors[role] ?? 'bg-white/10 text-white/70'}`}
     >
       {role}
+    </span>
+  );
+}
+
+function SbtBadge({ tier }: { tier: string }): React.ReactNode {
+  if (!tier || tier === 'NONE') {
+    return (
+      <span className="rounded-full bg-white/5 px-2.5 py-1 text-xs font-bold text-white/30">
+        NONE
+      </span>
+    );
+  }
+  return (
+    <span className="rounded-full bg-[#00FF88]/20 px-2.5 py-1 text-xs font-bold text-[#00FF88]">
+      {tier}
     </span>
   );
 }

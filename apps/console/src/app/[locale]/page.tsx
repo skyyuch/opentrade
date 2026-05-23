@@ -1,23 +1,8 @@
 /**
- * Phase 0 placeholder dashboard for `apps/console`.
+ * Default dashboard for `apps/console`.
  *
- * Renders the localised back-office overview so the i18n + Tailwind +
- * dark-default pipelines can be smoke-tested end to end (`/`,
- * `/zh-Hans`, `/en`) before the real KYC-gated dashboard lands. Every
- * surface here is intentionally read-only and locally rendered:
- *
- *   - No API call (auth + KYC + RBAC arrive in Phase 1; the network
- *     contract for those endpoints is still on the design board).
- *   - No `<ImmutableMark>` — per ADR-0011 §5.1 the on-chain stamp is
- *     only ever shown over real chain data, never on Phase 0 mock copy.
- *     ImmutableMark's first non-Storybook home is the first real review
- *     card in Phase 1 MVP-A.
- *   - No personal user content yet, so PDPO + log redaction concerns
- *     (rule 50) are inert; we still keep the page free of any
- *     hard-coded broker/KOL identifiers.
- *
- * Per cursor rule 22 every utility class is a Tailwind token; no raw
- * hex / px values appear here.
+ * Shows feature overview cards for non-admin, non-broker users.
+ * UI design by Google — dark theme.
  */
 
 import { Gavel, Megaphone, ShieldCheck, Sparkles, Star, TrendingUp } from 'lucide-react';
@@ -38,45 +23,45 @@ const DashboardPage = async (): Promise<ReactNode> => {
   const t = await getTranslations('dashboard');
 
   return (
-    <main className="container mx-auto flex min-h-screen flex-col gap-12 px-6 py-16">
-      <header className="flex flex-col gap-3">
-        <p className="inline-flex items-center gap-2 text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
+    <div className="space-y-10 animate-in fade-in duration-300">
+      <header className="space-y-3">
+        <p className="inline-flex items-center gap-2 text-xs font-medium uppercase tracking-[0.2em] text-[#00FF88]">
           <Sparkles aria-hidden className="h-3.5 w-3.5" />
           {t('eyebrow')}
         </p>
-        <h1 className="text-3xl font-semibold tracking-tight text-foreground md:text-4xl">
-          {t('shellTitle')}
-        </h1>
-        <p className="max-w-3xl text-base leading-relaxed text-muted-foreground md:text-lg">
+        <h1 className="text-3xl font-bold tracking-tight md:text-4xl">{t('shellTitle')}</h1>
+        <p className="max-w-3xl text-base leading-relaxed text-white/50 md:text-lg">
           {t('shellDescription')}
         </p>
-        <p className="text-xs uppercase tracking-wider text-muted-foreground">{t('phaseNotice')}</p>
+        <p className="inline-block rounded-full bg-[#00FF88]/10 border border-[#00FF88]/20 px-4 py-1.5 text-xs font-bold text-[#00FF88]">
+          {t('phaseNotice')}
+        </p>
       </header>
 
-      <section className="flex flex-col gap-6">
-        <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+      <section className="space-y-6">
+        <h2 className="text-sm font-bold uppercase tracking-[0.18em] text-white/40">
           {t('sectionsTitle')}
         </h2>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
           {SECTION_KEYS.map((key) => {
             const Icon = SECTION_ICONS[key];
             return (
               <article
                 key={key}
-                className="flex flex-col gap-3 rounded-lg border border-border bg-card p-6 text-card-foreground"
+                className="bg-white/5 border border-white/10 rounded-2xl p-6 group hover:border-[#00FF88]/20 transition-colors"
               >
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 mb-4">
                   <span
                     aria-hidden
-                    className="flex h-9 w-9 items-center justify-center rounded-md border border-border bg-muted text-muted-foreground"
+                    className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 group-hover:bg-[#00FF88]/20 transition-colors"
                   >
-                    <Icon className="h-4 w-4" />
+                    <Icon className="h-5 w-5" />
                   </span>
-                  <h3 className="text-base font-semibold tracking-tight text-foreground">
+                  <h3 className="text-base font-bold tracking-tight">
                     {t(`sections.${key}.title`)}
                   </h3>
                 </div>
-                <p className="text-sm leading-relaxed text-muted-foreground">
+                <p className="text-sm leading-relaxed text-white/50">
                   {t(`sections.${key}.description`)}
                 </p>
               </article>
@@ -85,18 +70,18 @@ const DashboardPage = async (): Promise<ReactNode> => {
         </div>
       </section>
 
-      <aside className="flex flex-col gap-3 rounded-lg border border-dashed border-border bg-muted/40 p-6 text-sm text-muted-foreground">
-        <div className="flex items-center gap-2 text-foreground">
+      <aside className="rounded-2xl border border-dashed border-white/10 bg-white/5 p-6 text-sm text-white/50">
+        <div className="flex items-center gap-2 text-white mb-2">
           <Megaphone aria-hidden className="h-4 w-4" />
-          <span className="font-medium">{t('phaseHint')}</span>
+          <span className="font-bold">{t('phaseHint')}</span>
         </div>
         <p>{t('subtitle')}</p>
       </aside>
 
-      <footer className="border-t border-border pt-6 text-xs leading-relaxed text-muted-foreground">
+      <footer className="border-t border-white/10 pt-6 text-xs leading-relaxed text-white/40">
         {t('disclaimer')}
       </footer>
-    </main>
+    </div>
   );
 };
 

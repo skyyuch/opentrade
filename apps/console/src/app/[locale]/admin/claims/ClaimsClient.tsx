@@ -1,10 +1,11 @@
 'use client';
 
+import { ExternalLink } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
 
 import { useOpenTradeAuth } from '../../../../hooks/useOpenTradeAuth';
-import { fetchAdminClaims, approveClaim, rejectClaim } from '../../../../lib/api/client';
+import { approveClaim, fetchAdminClaims, rejectClaim } from '../../../../lib/api/client';
 
 import type { ClaimItem } from '../../../../lib/api/client';
 
@@ -51,16 +52,18 @@ export function ClaimsClient(): React.ReactNode {
   const tabs: TabStatus[] = ['PENDING', 'APPROVED', 'REJECTED'];
 
   return (
-    <div className="space-y-6 p-6">
-      <h1 className="text-2xl font-semibold tracking-tight">{t('claims')}</h1>
+    <div className="animate-in fade-in space-y-6 duration-300">
+      <h1 className="text-2xl font-bold">{t('claims')}</h1>
 
-      <div className="flex gap-2">
+      <div className="flex items-center gap-4 border-b border-white/10 pb-4">
         {tabs.map((s) => (
           <button
-            key={s}
+            key={`tab-${s}`}
             onClick={() => setTab(s)}
-            className={`rounded-md px-3 py-1.5 text-sm font-medium ${
-              tab === s ? 'bg-foreground text-background' : 'bg-muted text-muted-foreground'
+            className={`-mb-[17px] pb-4 font-bold ${
+              tab === s
+                ? 'border-b-2 border-[#00FF88] text-[#00FF88]'
+                : 'text-white/50 hover:text-white'
             }`}
           >
             {s}
@@ -70,70 +73,78 @@ export function ClaimsClient(): React.ReactNode {
 
       {loading ? (
         <div className="flex min-h-[30vh] items-center justify-center">
-          <div className="size-6 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
+          <div className="size-6 animate-spin rounded-full border-2 border-white/20 border-t-[#00FF88]" />
         </div>
-      ) : claims.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No claims found.</p>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border text-left text-xs uppercase tracking-wider text-muted-foreground">
-                <th className="px-3 py-2">Broker</th>
-                <th className="px-3 py-2">CE Ref</th>
-                <th className="px-3 py-2">Status</th>
-                <th className="px-3 py-2">Date</th>
-                {tab === 'PENDING' && <th className="px-3 py-2">Actions</th>}
-              </tr>
-            </thead>
-            <tbody>
-              {claims.map((claim) => (
-                <tr key={claim.id} className="border-b border-border">
-                  <td className="px-3 py-2">{claim.broker.displayName}</td>
-                  <td className="px-3 py-2 font-mono text-xs">{claim.ceRefNumber}</td>
-                  <td className="px-3 py-2">
-                    <StatusBadge status={claim.status} />
-                  </td>
-                  <td className="px-3 py-2 text-muted-foreground">
-                    {new Date(claim.createdAt).toLocaleDateString()}
-                  </td>
-                  {tab === 'PENDING' && (
-                    <td className="flex gap-2 px-3 py-2">
-                      <button
-                        onClick={() => void handleApprove(claim.id)}
-                        className="rounded bg-green-600 px-2 py-1 text-xs text-white hover:bg-green-700"
-                      >
-                        Approve
-                      </button>
-                      <button
-                        onClick={() => void handleReject(claim.id)}
-                        className="rounded bg-red-600 px-2 py-1 text-xs text-white hover:bg-red-700"
-                      >
-                        Reject
-                      </button>
-                    </td>
-                  )}
+        <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/5">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-white/10 bg-black/40 text-left text-xs uppercase tracking-wider text-white/50">
+                  <th className="px-4 py-3">券商名</th>
+                  <th className="px-4 py-3">CE 號碼</th>
+                  <th className="px-4 py-3">公司授權書</th>
+                  <th className="px-4 py-3">提交日期</th>
+                  {tab === 'PENDING' && <th className="px-4 py-3">操作</th>}
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {claims.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="p-8 text-center text-white/40">
+                      {t('noResults')}
+                    </td>
+                  </tr>
+                ) : (
+                  claims.map((claim) => (
+                    <tr
+                      key={`claim-${claim.id}`}
+                      className="border-b border-white/5 transition-colors hover:bg-white/[0.02]"
+                    >
+                      <td className="px-4 py-3 font-bold">{claim.broker.displayName}</td>
+                      <td className="px-4 py-3 font-mono text-xs">{claim.ceRefNumber}</td>
+                      <td className="px-4 py-3">
+                        {claim.companyLetterIpfsCid ? (
+                          <a
+                            href={`https://ipfs.io/ipfs/${claim.companyLetterIpfsCid}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-blue-400 hover:underline"
+                          >
+                            查看 IPFS 證據
+                            <ExternalLink size={12} />
+                          </a>
+                        ) : (
+                          <span className="text-white/30">—</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-white/60">
+                        {new Date(claim.createdAt).toLocaleDateString()}
+                      </td>
+                      {tab === 'PENDING' && (
+                        <td className="flex gap-2 px-4 py-3">
+                          <button
+                            onClick={() => void handleApprove(claim.id)}
+                            className="rounded bg-[#00FF88]/20 px-3 py-1.5 text-xs font-bold text-[#00FF88] transition-colors hover:bg-[#00FF88]/30"
+                          >
+                            Approve
+                          </button>
+                          <button
+                            onClick={() => void handleReject(claim.id)}
+                            className="rounded bg-red-500/20 px-3 py-1.5 text-xs font-bold text-red-400 transition-colors hover:bg-red-500/30"
+                          >
+                            Reject
+                          </button>
+                        </td>
+                      )}
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>
-  );
-}
-
-function StatusBadge({ status }: { status: string }): React.ReactNode {
-  const colors: Record<string, string> = {
-    PENDING: 'bg-yellow-100 text-yellow-800',
-    APPROVED: 'bg-green-100 text-green-800',
-    REJECTED: 'bg-red-100 text-red-800',
-  };
-  return (
-    <span
-      className={`rounded-full px-2 py-0.5 text-xs font-medium ${colors[status] ?? 'bg-muted text-muted-foreground'}`}
-    >
-      {status}
-    </span>
   );
 }

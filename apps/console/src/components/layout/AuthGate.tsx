@@ -3,6 +3,7 @@
  *
  * After authentication, determines what sidebar nav to show based on
  * the user's role (admin vs broker owner vs regular user).
+ * UI design by Google — dark theme with atmospheric glows.
  */
 
 'use client';
@@ -12,13 +13,13 @@ import {
   Activity,
   Building2,
   CheckCircle,
-  FileText,
   LayoutDashboard,
   LogOut,
+  MessageSquareText,
   Settings,
   Shield,
-  ShieldCheck,
   Star,
+  Store,
   Users,
 } from 'lucide-react';
 import Link from 'next/link';
@@ -37,144 +38,167 @@ type Props = {
 type NavItem = {
   href: string;
   icon: typeof LayoutDashboard;
-  labelKey: string;
+  label: string;
+  end?: boolean;
 };
 
 export const AuthGate = ({ children, locale }: Props): ReactNode => {
-  const { ready, authenticated, login, logout, user: privyUser } = usePrivy();
+  const { ready, authenticated, login, logout } = usePrivy();
   const { user, isAdmin, isBrokerOwner, claimedBroker, isLoading } = useCurrentUser();
   const t = useTranslations();
   const pathname = usePathname();
 
   if (!ready || (authenticated && isLoading)) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="size-6 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
+      <div className="flex min-h-screen items-center justify-center bg-[#050608]">
+        <div className="size-6 animate-spin rounded-full border-2 border-white/20 border-t-[#00FF88]" />
       </div>
     );
   }
 
   if (!authenticated) {
     return (
-      <main className="flex min-h-screen flex-col items-center justify-center gap-6 px-4">
-        <div className="flex flex-col items-center gap-3 text-center">
-          <div className="flex size-16 items-center justify-center rounded-2xl bg-muted">
-            <ShieldCheck className="size-8 text-muted-foreground" aria-hidden />
+      <div className="relative flex min-h-screen flex-col items-center justify-center bg-[#050608] px-4 text-white overflow-hidden">
+        <div className="fixed right-[-5%] top-[-10%] h-[600px] w-[600px] rounded-full bg-[#00FF88]/10 blur-[120px] pointer-events-none" />
+        <div className="fixed bottom-[-10%] left-[-5%] h-[500px] w-[500px] rounded-full bg-blue-600/10 blur-[100px] pointer-events-none" />
+
+        <div className="relative z-10 flex flex-col items-center gap-6 text-center">
+          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white/5 border border-white/10">
+            <Shield className="size-8 text-[#00FF88]" aria-hidden />
           </div>
-          <h1 className="text-2xl font-semibold tracking-tight">{t('auth.loginTitle')}</h1>
-          <p className="max-w-md text-sm text-muted-foreground">{t('auth.loginSubtitle')}</p>
+          <h1 className="text-2xl font-bold tracking-tight">{t('auth.loginTitle')}</h1>
+          <p className="max-w-md text-sm text-white/50">{t('auth.loginSubtitle')}</p>
+          <button
+            type="button"
+            onClick={() => void login()}
+            className="rounded-lg bg-[#00FF88] px-6 py-2.5 text-sm font-bold text-[#050608] transition-all hover:bg-[#00FF88]/90 hover:shadow-lg hover:shadow-[#00FF88]/20"
+          >
+            {t('auth.loginButton')}
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={() => void login()}
-          className="rounded-lg bg-foreground px-6 py-2.5 text-sm font-medium text-background transition-opacity hover:opacity-90"
-        >
-          {t('auth.loginButton')}
-        </button>
-      </main>
+      </div>
     );
   }
 
   const adminNav: NavItem[] = [
-    { href: `/${locale}/admin`, icon: LayoutDashboard, labelKey: 'nav.adminDashboard' },
-    { href: `/${locale}/admin/claims`, icon: CheckCircle, labelKey: 'nav.claims' },
-    { href: `/${locale}/admin/verifications`, icon: Shield, labelKey: 'nav.verifications' },
-    { href: `/${locale}/admin/users`, icon: Users, labelKey: 'nav.users' },
-    { href: `/${locale}/admin/reviews`, icon: Star, labelKey: 'nav.reviews' },
-    { href: `/${locale}/admin/brokers`, icon: Building2, labelKey: 'nav.brokers' },
-    { href: `/${locale}/admin/system`, icon: Activity, labelKey: 'nav.system' },
+    { href: `/${locale}/admin`, icon: LayoutDashboard, label: t('nav.adminDashboard'), end: true },
+    { href: `/${locale}/admin/claims`, icon: CheckCircle, label: t('nav.claims') },
+    { href: `/${locale}/admin/verifications`, icon: Shield, label: t('nav.verifications') },
+    { href: `/${locale}/admin/users`, icon: Users, label: t('nav.users') },
+    { href: `/${locale}/admin/reviews`, icon: Star, label: t('nav.reviews') },
+    { href: `/${locale}/admin/brokers`, icon: Building2, label: t('nav.brokers') },
+    { href: `/${locale}/admin/system`, icon: Activity, label: t('nav.system') },
   ];
 
   const brokerNav: NavItem[] = [
-    { href: `/${locale}/broker`, icon: LayoutDashboard, labelKey: 'nav.brokerDashboard' },
-    { href: `/${locale}/broker/profile`, icon: FileText, labelKey: 'nav.profile' },
-    { href: `/${locale}/broker/reviews`, icon: Star, labelKey: 'nav.brokerReviews' },
+    {
+      href: `/${locale}/broker`,
+      icon: LayoutDashboard,
+      label: t('nav.brokerDashboard'),
+      end: true,
+    },
+    { href: `/${locale}/broker/profile`, icon: Store, label: t('nav.profile') },
+    { href: `/${locale}/broker/reviews`, icon: MessageSquareText, label: t('nav.brokerReviews') },
   ];
 
   const defaultNav: NavItem[] = [
-    { href: `/${locale}`, icon: LayoutDashboard, labelKey: 'nav.dashboard' },
-    { href: `/${locale}/brokers`, icon: Building2, labelKey: 'nav.brokers' },
+    { href: `/${locale}`, icon: LayoutDashboard, label: t('nav.dashboard'), end: true },
+    { href: `/${locale}/brokers`, icon: Building2, label: t('nav.brokers') },
   ];
 
   let navItems: NavItem[];
+  let accentColor: string;
+  let roleBadge: { text: string; color: string };
+
   if (isAdmin) {
     navItems = adminNav;
+    accentColor = '#00FF88';
+    roleBadge = { text: 'ADMIN', color: 'bg-[#00FF88]/20 text-[#00FF88]' };
   } else if (isBrokerOwner) {
     navItems = brokerNav;
+    accentColor = '#3b82f6';
+    roleBadge = { text: 'BROKER', color: 'bg-blue-500/20 text-blue-400' };
   } else {
     navItems = defaultNav;
+    accentColor = '#00FF88';
+    roleBadge = { text: 'USER', color: 'bg-white/10 text-white/70' };
   }
 
-  const displayEmail = privyUser?.email?.address
-    ? `${privyUser.email.address.slice(0, 3)}***`
-    : undefined;
-  const displayRole = user?.role ?? '';
+  const displayName = user?.displayName ?? user?.walletAddress?.slice(0, 8) ?? '';
 
   return (
-    <div className="flex min-h-screen">
-      <aside className="flex w-56 flex-col border-r border-border bg-card">
-        <div className="border-b border-border px-4 py-4">
-          <p className="text-sm font-semibold tracking-tight">OpenTrade</p>
-          <p className="text-xs text-muted-foreground">Console</p>
+    <div className="flex h-screen w-full bg-[#050608] text-white">
+      {/* Sidebar */}
+      <aside className="flex w-64 shrink-0 flex-col border-r border-white/5 bg-black/40 z-10">
+        <div className="flex items-center gap-3 border-b border-white/5 p-6">
+          <div className="flex h-8 w-8 items-center justify-center rounded bg-[#00FF88] font-black text-xl text-[#050608]">
+            O
+          </div>
+          <span className="font-bold tracking-widest text-lg">OpenTrade</span>
+          <span className={`ml-auto rounded px-2 py-0.5 text-[10px] font-bold ${roleBadge.color}`}>
+            {roleBadge.text}
+          </span>
         </div>
 
-        <nav className="flex flex-1 flex-col gap-1 p-2">
+        <nav className="flex-1 space-y-2 overflow-y-auto px-4 py-6">
           {navItems.map((item) => {
-            const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
+            const isActive = item.end
+              ? pathname === item.href
+              : pathname === item.href || pathname.startsWith(`${item.href}/`);
             return (
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex items-center gap-2.5 rounded-md px-3 py-2 text-sm transition-colors ${
+                className={`flex items-center gap-3 rounded-lg px-4 py-3 transition-colors ${
                   isActive
-                    ? 'bg-muted font-medium text-foreground'
-                    : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
+                    ? `bg-[${accentColor}]/10 text-[${accentColor}]`
+                    : 'text-white/60 hover:bg-white/5 hover:text-white'
                 }`}
+                style={
+                  isActive ? { backgroundColor: `${accentColor}1a`, color: accentColor } : undefined
+                }
               >
-                <item.icon className="size-4" aria-hidden />
-                {t(item.labelKey)}
+                <item.icon size={20} aria-hidden />
+                <span className="text-sm font-medium">{item.label}</span>
               </Link>
             );
           })}
         </nav>
 
-        <div className="border-t border-border p-3">
-          <div className="mb-2 flex items-center justify-between">
-            {displayEmail ? (
-              <p className="truncate text-xs text-muted-foreground">{displayEmail}</p>
-            ) : null}
-            {displayRole ? (
-              <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
-                {displayRole}
-              </span>
-            ) : null}
-          </div>
+        <div className="space-y-2 border-t border-white/5 p-4">
           {claimedBroker ? (
-            <p className="mb-2 truncate text-xs text-muted-foreground">
-              {claimedBroker.displayName}
-            </p>
+            <div className="mb-2 px-4">
+              <p className="truncate text-xs text-white/40">{claimedBroker.displayName}</p>
+            </div>
           ) : null}
-          <div className="flex gap-1">
-            <Link
-              href={`/${locale}/settings`}
-              className="flex flex-1 items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            >
-              <Settings className="size-3.5" aria-hidden />
-              {t('nav.settings')}
-            </Link>
-            <button
-              type="button"
-              onClick={() => void logout()}
-              className="flex flex-1 items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            >
-              <LogOut className="size-3.5" aria-hidden />
-              {t('nav.logout')}
-            </button>
-          </div>
+          <Link
+            href={`/${locale}/settings`}
+            className="flex items-center gap-3 rounded-lg px-4 py-3 text-white/50 transition-colors hover:bg-white/5 hover:text-white"
+          >
+            <Settings size={20} aria-hidden />
+            <span className="text-sm font-medium">{t('nav.settings')}</span>
+          </Link>
+          <button
+            type="button"
+            onClick={() => void logout()}
+            className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-white/50 transition-colors hover:bg-white/5 hover:text-white"
+          >
+            <LogOut size={20} aria-hidden />
+            <span className="text-sm font-medium">{t('nav.logout')}</span>
+          </button>
+          {displayName ? (
+            <div className="px-4 pt-2">
+              <p className="truncate text-xs text-white/30">{displayName}</p>
+            </div>
+          ) : null}
         </div>
       </aside>
 
-      <main className="flex-1 overflow-y-auto">{children}</main>
+      {/* Main Content */}
+      <main className="relative flex-1 overflow-y-auto z-0">
+        <div className="fixed right-[-5%] top-[-10%] h-[600px] w-[600px] rounded-full bg-[#00FF88]/5 blur-[120px] pointer-events-none z-0" />
+        <div className="relative z-10 p-8">{children}</div>
+      </main>
     </div>
   );
 };

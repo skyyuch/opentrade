@@ -1,5 +1,6 @@
 'use client';
 
+import { Bell, MessageSquareText, Star, TrendingUp } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
 
@@ -42,7 +43,7 @@ export function BrokerDashboardClient(): React.ReactNode {
   if (userLoading || loading) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center">
-        <div className="size-6 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
+        <div className="size-6 animate-spin rounded-full border-2 border-white/20 border-t-blue-400" />
       </div>
     );
   }
@@ -50,78 +51,80 @@ export function BrokerDashboardClient(): React.ReactNode {
   if (!claimedBroker) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center">
-        <p className="text-muted-foreground">{t('noBrokerClaimed')}</p>
+        <p className="text-white/50">{t('noBrokerClaimed')}</p>
       </div>
     );
   }
 
+  const statCards = stats
+    ? [
+        {
+          label: t('totalReviews'),
+          value: String(stats.totalReviews),
+          icon: <MessageSquareText size={20} />,
+        },
+        {
+          label: t('avgRating'),
+          value: stats.avgRating?.toFixed(1) ?? '-',
+          icon: <Star size={20} className="fill-blue-400 text-blue-400" />,
+        },
+        {
+          label: t('positiveRate'),
+          value: stats.positiveRate != null ? `${Math.round(stats.positiveRate * 100)}%` : '-',
+          icon: <TrendingUp size={20} />,
+        },
+        { label: t('monthReviews'), value: `+${stats.monthReviews}`, icon: <Bell size={20} /> },
+      ]
+    : [];
+
   return (
-    <div className="space-y-8 p-6">
-      <h1 className="text-2xl font-semibold tracking-tight">{t('dashboardTitle')}</h1>
+    <div className="space-y-8 animate-in fade-in duration-300">
+      <h1 className="text-2xl font-bold">{t('dashboardTitle')}</h1>
 
-      {stats ? (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <StatCard label={t('totalReviews')} value={stats.totalReviews} />
-          <StatCard label={t('avgRating')} value={stats.avgRating?.toFixed(1) ?? '—'} />
-          <StatCard
-            label={t('positiveRate')}
-            value={stats.positiveRate != null ? `${Math.round(stats.positiveRate * 100)}%` : '—'}
-          />
-          <StatCard label={t('monthReviews')} value={stats.monthReviews} />
-        </div>
-      ) : null}
-
-      <section>
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-          {t('recentReviews')}
-        </h2>
-        <div className="space-y-2">
-          {reviews.map((review) => (
-            <div key={review.id} className="rounded-md border border-border px-4 py-3">
-              <div className="flex items-center justify-between">
-                <span className="font-medium">{review.title}</span>
-                <StatusBadge status={review.status} />
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {statCards.map((stat, i) => (
+          <div
+            key={`stat-${i}`}
+            className="bg-white/5 border border-white/10 rounded-2xl p-6 relative overflow-hidden group"
+          >
+            <div className="flex items-start justify-between mb-4">
+              <div className="p-3 bg-white/10 rounded-xl group-hover:bg-blue-500/20 transition-colors">
+                {stat.icon}
               </div>
-              <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
-                <span>
-                  {'★'.repeat(review.rating)}
-                  {'☆'.repeat(5 - review.rating)}
-                </span>
-                <span>{new Date(review.createdAt).toLocaleDateString()}</span>
+            </div>
+            <div>
+              <div className="text-3xl font-black mb-1">{stat.value}</div>
+              <div className="text-sm text-white/50">{stat.label}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+        <h2 className="text-lg font-bold mb-4">{t('recentReviews')}</h2>
+        <div className="space-y-4">
+          {reviews.map((review) => (
+            <div
+              key={review.id}
+              className="flex items-center justify-between pb-4 border-b border-white/5 last:border-0 last:pb-0"
+            >
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-1 text-blue-400 font-bold bg-blue-500/10 px-2 py-1 rounded">
+                  <Star size={12} className="fill-blue-400" />
+                  {review.rating}
+                </div>
+                <div>
+                  <div className="text-sm font-bold">{review.title}</div>
+                  <div className="text-xs text-white/50">
+                    {new Date(review.createdAt).toLocaleDateString()}
+                  </div>
+                </div>
               </div>
             </div>
           ))}
-          {reviews.length === 0 ? (
-            <p className="text-sm text-muted-foreground">{t('noReviews')}</p>
-          ) : null}
+          {reviews.length === 0 ? <p className="text-sm text-white/40">{t('noReviews')}</p> : null}
         </div>
-      </section>
+      </div>
     </div>
-  );
-}
-
-function StatCard({ label, value }: { label: string; value: string | number }): React.ReactNode {
-  return (
-    <div className="rounded-lg border border-border bg-card p-4">
-      <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{label}</p>
-      <p className="mt-1 text-2xl font-semibold text-foreground">{value}</p>
-    </div>
-  );
-}
-
-function StatusBadge({ status }: { status: string }): React.ReactNode {
-  const colors: Record<string, string> = {
-    PENDING: 'bg-yellow-100 text-yellow-800',
-    APPROVED: 'bg-green-100 text-green-800',
-    CONFIRMED: 'bg-green-100 text-green-800',
-    REJECTED: 'bg-red-100 text-red-800',
-    FAILED: 'bg-red-100 text-red-800',
-  };
-  return (
-    <span
-      className={`rounded px-2 py-0.5 text-xs font-medium ${colors[status] ?? 'bg-muted text-muted-foreground'}`}
-    >
-      {status}
-    </span>
   );
 }

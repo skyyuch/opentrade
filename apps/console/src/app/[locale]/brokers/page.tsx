@@ -3,9 +3,10 @@
  *
  * Server Component that fetches all brokers. Merchants browse this
  * list to find and eventually claim their broker profile.
+ * UI design by Google.
  */
 
-import { Building2, ChevronRight, ShieldCheck } from 'lucide-react';
+import { ChevronRight, Search, ShieldCheck } from 'lucide-react';
 import Link from 'next/link';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 
@@ -34,22 +35,38 @@ const BrokersPage = async ({ params }: Props): Promise<ReactNode> => {
   }
 
   return (
-    <div className="flex flex-col gap-6 p-6 md:p-8">
-      <header className="flex flex-col gap-1">
-        <h1 className="text-2xl font-semibold tracking-tight">{t('title')}</h1>
-        <p className="text-sm text-muted-foreground">{t('subtitle')}</p>
-      </header>
+    <div className="flex-1 w-full max-w-[1440px] mx-auto relative z-10 animate-in fade-in duration-300">
+      {/* Header & Search */}
+      <div className="mb-10 space-y-6">
+        <div>
+          <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-2">
+            {t('title')} <span className="text-[#00FF88]">Broker Directory</span>
+          </h1>
+          <p className="text-white/50 text-sm max-w-2xl">{t('subtitle')}</p>
+        </div>
+      </div>
 
+      {/* Results Count */}
+      <div className="mb-6 flex items-center justify-between text-sm text-white/40 border-b border-white/10 pb-4">
+        <span>
+          {brokers.length} {t('title')}
+        </span>
+      </div>
+
+      {/* Error State */}
       {error !== null ? (
-        <div className="rounded-lg border border-danger/40 bg-danger/5 p-4 text-sm text-danger">
+        <div className="rounded-2xl border border-red-500/20 bg-red-500/5 p-6 text-sm text-red-400">
           {error}
         </div>
       ) : brokers.length === 0 ? (
-        <p className="text-sm text-muted-foreground">{t('empty')}</p>
+        <div className="w-full py-20 flex flex-col items-center justify-center text-center border border-white/5 rounded-2xl bg-white/5 border-dashed">
+          <Search size={40} className="text-white/20 mb-4" />
+          <h3 className="text-lg font-bold text-white mb-2">{t('empty')}</h3>
+        </div>
       ) : (
-        <div className="flex flex-col divide-y divide-border rounded-lg border border-border">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {brokers.map((broker) => (
-            <BrokerRow key={broker.id} broker={broker} locale={params.locale} t={t} />
+            <BrokerCard key={broker.id} broker={broker} locale={params.locale} t={t} />
           ))}
         </div>
       )}
@@ -61,7 +78,7 @@ export default BrokersPage;
 
 type BrokerTranslator = Awaited<ReturnType<typeof getTranslations<'brokerList'>>>;
 
-const BrokerRow = ({
+const BrokerCard = ({
   broker,
   locale,
   t,
@@ -72,33 +89,46 @@ const BrokerRow = ({
 }): ReactNode => (
   <Link
     href={`/${locale}/brokers/${broker.slug}`}
-    className="group flex items-center justify-between gap-4 px-4 py-3 transition-colors hover:bg-muted/50"
+    className="bg-zinc-900/40 border border-white/10 rounded-2xl p-6 backdrop-blur-xl hover:border-[#00FF88]/30 hover:bg-zinc-900/60 transition-all group cursor-pointer flex flex-col h-full"
   >
-    <div className="flex items-center gap-3">
-      <div className="flex size-9 items-center justify-center rounded-lg bg-muted">
-        <Building2 className="size-4 text-muted-foreground" aria-hidden />
-      </div>
-      <div className="flex flex-col">
-        <span className="text-sm font-medium">{broker.displayName}</span>
-        <span className="text-xs text-muted-foreground">{broker.legalName}</span>
+    <div className="flex items-start justify-between mb-4">
+      <div className="flex items-center gap-4">
+        <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-zinc-800 to-zinc-950 flex items-center justify-center font-bold text-xl border border-white/10 group-hover:border-[#00FF88]/30 transition-colors shadow-inner">
+          {broker.displayName.charAt(0).toUpperCase()}
+        </div>
+        <div>
+          <h3 className="text-lg font-bold text-white group-hover:text-[#00FF88] transition-colors line-clamp-1">
+            {broker.displayName}
+          </h3>
+          <span className="text-xs text-white/50">{broker.legalName}</span>
+        </div>
       </div>
     </div>
-    <div className="flex items-center gap-3">
-      {broker.isClaimed ? (
-        <span className="flex items-center gap-1 text-xs text-success">
-          <ShieldCheck className="size-3.5" aria-hidden />
-          {t('claimed')}
-        </span>
-      ) : (
-        <span className="text-xs text-muted-foreground">{t('unclaimed')}</span>
-      )}
-      <span className="text-xs text-muted-foreground">
-        {broker.reviewCount > 0 ? t('reviewCount', { count: broker.reviewCount }) : t('noReviews')}
+
+    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-white/5 border border-white/5 w-fit mb-4">
+      <ShieldCheck size={14} className="text-[#00FF88]" />
+      <span className="text-[10px] text-white/70 font-medium tracking-wide">
+        {broker.isClaimed ? t('claimed') : t('unclaimed')}
       </span>
-      <ChevronRight
-        className="size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5"
-        aria-hidden
-      />
+    </div>
+
+    <div className="flex-1" />
+
+    <div className="flex items-end justify-between pt-4 border-t border-white/10 mt-auto">
+      <div>
+        <div className="text-[10px] text-white/40 uppercase tracking-widest mb-1">Reviews</div>
+        <div className="flex items-baseline gap-1">
+          <span className="text-xl font-bold text-[#00FF88]">{broker.reviewCount}</span>
+          <span className="text-xs text-white/40">
+            {broker.reviewCount > 0
+              ? t('reviewCount', { count: broker.reviewCount })
+              : t('noReviews')}
+          </span>
+        </div>
+      </div>
+      <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-[#00FF88] group-hover:text-[#050608] transition-all">
+        <ChevronRight size={16} />
+      </div>
     </div>
   </Link>
 );

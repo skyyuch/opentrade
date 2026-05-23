@@ -1,5 +1,6 @@
 'use client';
 
+import { Database, Link2, Server } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
 
@@ -42,49 +43,78 @@ export function SystemClient(): React.ReactNode {
   if (loading) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center">
-        <div className="size-6 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
+        <div className="size-6 animate-spin rounded-full border-2 border-white/20 border-t-[#00FF88]" />
       </div>
     );
   }
 
   return (
-    <div className="space-y-6 p-6">
-      <h1 className="text-2xl font-semibold tracking-tight">{t('system')}</h1>
+    <div className="animate-in fade-in space-y-6 duration-300">
+      <h1 className="text-2xl font-bold">{t('system')}</h1>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-        <StatusCard
-          label="API Status"
-          value={health?.status ?? 'Unknown'}
-          ok={health?.status === 'ok'}
-        />
-        <StatusCard
-          label="Database"
-          value={health?.db?.status ?? 'Unknown'}
-          ok={health?.db?.status === 'ok'}
-        />
-        <StatusCard label="Uptime" value={health ? formatUptime(health.uptime) : '—'} ok={true} />
-        <StatusCard
-          label="Pending Outbox"
-          value={pendingOutbox !== null ? String(pendingOutbox) : '—'}
-          ok={pendingOutbox !== null && pendingOutbox < 10}
-        />
-      </div>
-
-      <section className="mt-8">
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-          Contract Addresses
-        </h2>
-        <div className="space-y-2 rounded-lg border border-border bg-card p-4 text-sm">
-          <ContractRow label="ReviewRegistry" envKey="NEXT_PUBLIC_REVIEW_REGISTRY_ADDRESS" />
-          <ContractRow label="SoulboundToken" envKey="NEXT_PUBLIC_SBT_ADDRESS" />
-          <ContractRow label="JuryPool" envKey="NEXT_PUBLIC_JURY_POOL_ADDRESS" />
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+        {/* API Status */}
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
+          <div className="mb-4 flex items-center gap-3">
+            <Server size={20} className="text-[#00FF88]" />
+            <h2 className="text-lg font-bold">API 服務狀態</h2>
+          </div>
+          <div className="space-y-3">
+            <StatusRow
+              label="API"
+              value={health?.status ?? 'Unknown'}
+              ok={health?.status === 'ok'}
+            />
+            <StatusRow label="Uptime" value={health ? formatUptime(health.uptime) : '—'} ok />
+            <StatusRow
+              label="Pending Outbox"
+              value={pendingOutbox !== null ? String(pendingOutbox) : '—'}
+              ok={pendingOutbox !== null && pendingOutbox < 10}
+            />
+          </div>
         </div>
-      </section>
+
+        {/* Database */}
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
+          <div className="mb-4 flex items-center gap-3">
+            <Database size={20} className="text-blue-400" />
+            <h2 className="text-lg font-bold">資料庫連接狀態</h2>
+          </div>
+          <div className="space-y-3">
+            <StatusRow
+              label="Database"
+              value={health?.db?.status ?? 'Unknown'}
+              ok={health?.db?.status === 'ok'}
+            />
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-white/50">Provider</span>
+              <span className="font-mono text-xs">PostgreSQL (RDS)</span>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-white/50">Region</span>
+              <span className="font-mono text-xs">ap-southeast-1</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Contract Addresses - full width */}
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-6 md:col-span-2">
+          <div className="mb-4 flex items-center gap-3">
+            <Link2 size={20} className="text-purple-400" />
+            <h2 className="text-lg font-bold">鏈上合約資訊</h2>
+          </div>
+          <div className="space-y-3 rounded-lg bg-black/30 p-4">
+            <ContractRow label="ReviewRegistry" envKey="NEXT_PUBLIC_REVIEW_REGISTRY_ADDRESS" />
+            <ContractRow label="SoulboundToken" envKey="NEXT_PUBLIC_SBT_ADDRESS" />
+            <ContractRow label="JuryPool" envKey="NEXT_PUBLIC_JURY_POOL_ADDRESS" />
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
 
-function StatusCard({
+function StatusRow({
   label,
   value,
   ok,
@@ -94,12 +124,12 @@ function StatusCard({
   ok: boolean;
 }): React.ReactNode {
   return (
-    <div className="rounded-lg border border-border bg-card p-4">
-      <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{label}</p>
-      <p className="mt-1 text-lg font-semibold text-foreground">{value}</p>
-      <div
-        className={`mt-2 inline-block size-2 rounded-full ${ok ? 'bg-green-500' : 'bg-red-500'}`}
-      />
+    <div className="flex items-center justify-between text-sm">
+      <div className="flex items-center gap-2">
+        <div className={`h-2 w-2 rounded-full ${ok ? 'bg-[#00FF88]' : 'bg-yellow-400'}`} />
+        <span className="text-white/50">{label}</span>
+      </div>
+      <span className="font-medium">{value}</span>
     </div>
   );
 }
@@ -110,9 +140,9 @@ function ContractRow({ label, envKey }: { label: string; envKey: string }): Reac
       ? (process.env[envKey] ?? 'configured via env')
       : 'configured via env';
   return (
-    <div className="flex items-center justify-between">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="font-mono text-xs">{value}</span>
+    <div className="flex items-center justify-between text-sm">
+      <span className="text-white/50">{label}</span>
+      <span className="font-mono text-purple-400">{value}</span>
     </div>
   );
 }

@@ -77,7 +77,7 @@ const LocaleLayout = async ({ children, params }: Props): Promise<ReactNode> => 
 
   return (
     <html lang={locale} suppressHydrationWarning>
-      <body className={`${inter.className} min-h-screen bg-background text-foreground antialiased`}>
+      <body className={`${inter.className} min-h-screen bg-[#050608] text-white antialiased`}>
         <ThemeProvider>
           <NextIntlClientProvider locale={locale} messages={messages}>
             <Web3Providers>

@@ -1,16 +1,13 @@
-/**
- * Admin Dashboard — platform KPI overview.
- */
-
 'use client';
 
+import { Building, MessageSquareText, ShieldAlert, Users } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
 
 import { useOpenTradeAuth } from '../../../hooks/useOpenTradeAuth';
-import { fetchAdminStats, fetchAdminActivity } from '../../../lib/api/client';
+import { fetchAdminActivity, fetchAdminStats } from '../../../lib/api/client';
 
-import type { AdminStatsResponse, AdminActivityResponse } from '../../../lib/api/client';
+import type { AdminActivityResponse, AdminStatsResponse } from '../../../lib/api/client';
 
 export function AdminDashboardClient(): React.ReactNode {
   const { getAccessToken } = useOpenTradeAuth();
@@ -42,77 +39,91 @@ export function AdminDashboardClient(): React.ReactNode {
   if (loading) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center">
-        <div className="size-6 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
+        <div className="size-6 animate-spin rounded-full border-2 border-white/20 border-t-[#00FF88]" />
       </div>
     );
   }
 
+  const statCards = stats
+    ? [
+        {
+          label: t('totalUsers'),
+          value: stats.totalUsers.toLocaleString(),
+          icon: <Users size={20} />,
+          change: `+${stats.usersGrowth}`,
+        },
+        {
+          label: t('totalReviews'),
+          value: stats.totalReviews.toLocaleString(),
+          icon: <MessageSquareText size={20} />,
+          change: `+${stats.reviewsGrowth}`,
+        },
+        {
+          label: t('pendingApprovals'),
+          value: String(stats.pendingApprovals),
+          icon: <ShieldAlert size={20} className="text-yellow-400" />,
+          change: t('pendingApprovals'),
+        },
+        {
+          label: t('claimedBrokers'),
+          value: `${stats.claimedBrokers}`,
+          icon: <Building size={20} />,
+          change: `/ ${stats.totalBrokers}`,
+        },
+      ]
+    : [];
+
   return (
-    <div className="space-y-8 p-6">
-      <h1 className="text-2xl font-semibold tracking-tight">{t('dashboardTitle')}</h1>
+    <div className="animate-in fade-in space-y-8 duration-300">
+      <h1 className="text-2xl font-bold">{t('dashboardTitle')}</h1>
 
-      {stats ? (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <StatCard label={t('totalUsers')} value={stats.totalUsers} growth={stats.usersGrowth} />
-          <StatCard
-            label={t('totalReviews')}
-            value={stats.totalReviews}
-            growth={stats.reviewsGrowth}
-          />
-          <StatCard label={t('pendingApprovals')} value={stats.pendingApprovals} />
-          <StatCard
-            label={t('claimedBrokers')}
-            value={`${stats.claimedBrokers} / ${stats.totalBrokers}`}
-          />
-        </div>
-      ) : null}
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+        {statCards.map((stat, i) => (
+          <div
+            key={`stat-${i}`}
+            className="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-6"
+          >
+            <div className="mb-4 flex items-start justify-between">
+              <div className="rounded-xl bg-white/10 p-3 transition-colors group-hover:bg-[#00FF88]/20">
+                {stat.icon}
+              </div>
+              <span className="rounded bg-white/5 px-2 py-1 text-xs font-bold text-white/40">
+                {stat.change}
+              </span>
+            </div>
+            <div>
+              <div className="mb-1 text-3xl font-black">{stat.value}</div>
+              <div className="text-sm text-white/50">{stat.label}</div>
+            </div>
+          </div>
+        ))}
+      </div>
 
-      <section>
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-          {t('recentActivity')}
-        </h2>
-        <div className="space-y-2">
+      <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
+        <h2 className="mb-4 text-lg font-bold">{t('recentActivity')}</h2>
+        <div className="space-y-4">
           {activities.map((item, i) => (
             <div
               key={`activity-${i}`}
-              className="flex items-center justify-between rounded-md border border-border px-4 py-2 text-sm"
+              className="flex items-center justify-between border-b border-white/5 pb-4 last:border-0 last:pb-0"
             >
-              <div className="flex items-center gap-3">
-                <span className="rounded bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
-                  {item.type.replace('_', ' ')}
-                </span>
-                <span>{item.description}</span>
+              <div className="flex items-center gap-4">
+                <div className="h-2 w-2 rounded-full bg-[#00FF88]" />
+                <div>
+                  <div className="text-sm font-medium">{item.description}</div>
+                  <div className="text-xs text-white/50">{item.type.replace(/_/g, ' ')}</div>
+                </div>
               </div>
-              <span className="text-xs text-muted-foreground">
+              <div className="text-xs text-white/40">
                 {new Date(item.timestamp).toLocaleDateString()}
-              </span>
+              </div>
             </div>
           ))}
           {activities.length === 0 ? (
-            <p className="text-sm text-muted-foreground">{t('noActivity')}</p>
+            <p className="text-sm text-white/40">{t('noActivity')}</p>
           ) : null}
         </div>
-      </section>
-    </div>
-  );
-}
-
-function StatCard({
-  label,
-  value,
-  growth,
-}: {
-  label: string;
-  value: string | number;
-  growth?: number;
-}): React.ReactNode {
-  return (
-    <div className="rounded-lg border border-border bg-card p-4">
-      <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{label}</p>
-      <p className="mt-1 text-2xl font-semibold text-foreground">{value}</p>
-      {growth !== undefined ? (
-        <p className="mt-1 text-xs text-muted-foreground">+{growth} this week</p>
-      ) : null}
+      </div>
     </div>
   );
 }

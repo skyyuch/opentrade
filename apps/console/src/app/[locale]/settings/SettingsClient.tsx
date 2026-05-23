@@ -1,5 +1,6 @@
 'use client';
 
+import { CheckCircle2, Shield, User } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
 
@@ -39,7 +40,7 @@ export function SettingsClient(): React.ReactNode {
   if (userLoading) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center">
-        <div className="size-6 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
+        <div className="size-6 animate-spin rounded-full border-2 border-white/20 border-t-blue-400" />
       </div>
     );
   }
@@ -47,92 +48,86 @@ export function SettingsClient(): React.ReactNode {
   if (!user) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center">
-        <p className="text-muted-foreground">{t('notLoggedIn')}</p>
+        <p className="text-white/50">{t('notLoggedIn')}</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-8 p-6">
-      <h1 className="text-2xl font-semibold tracking-tight">{t('title')}</h1>
+    <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in duration-300">
+      <h1 className="text-3xl font-bold mb-8">{t('title')}</h1>
 
-      {/* Readonly info */}
-      <section className="space-y-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-          {t('accountInfo')}
-        </h2>
-        <div className="rounded-lg border border-border bg-card p-4 space-y-2 text-sm">
+      {/* Section 1: Basic Info */}
+      <div className="bg-black/40 border border-white/5 rounded-2xl p-8 backdrop-blur-xl">
+        <h2 className="text-xl font-bold mb-6">{t('accountInfo')}</h2>
+        <div className="space-y-5 max-w-lg">
           <div>
-            <span className="font-medium text-muted-foreground">{t('email')}:</span>{' '}
-            {user.email ?? '—'}
+            <label className="block text-sm text-white/50 mb-2">{t('displayName')}</label>
+            <input
+              className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-white focus:outline-none focus:border-[#00FF88]"
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+            />
           </div>
+
           <div>
-            <span className="font-medium text-muted-foreground">{t('wallet')}:</span>{' '}
-            {user.walletAddress ?? '—'}
+            <label className="block text-sm text-white/50 mb-2">{t('email')}</label>
+            <div className="w-full bg-black/50 border border-white/5 text-white/50 rounded-lg p-3 cursor-not-allowed">
+              {user.email ?? '—'}
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="font-medium text-muted-foreground">{t('role')}:</span>
-            <RoleBadge role={user.role} />
+
+          <div>
+            <label className="block text-sm text-white/50 mb-2">{t('preferredLocale')}</label>
+            <select
+              className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-white focus:outline-none focus:border-[#00FF88]"
+              value={preferredLocale}
+              onChange={(e) => setPreferredLocale(e.target.value)}
+            >
+              <option value="zh-Hant">繁體中文</option>
+              <option value="zh-Hans">简体中文</option>
+              <option value="en">English</option>
+            </select>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="font-medium text-muted-foreground">{t('sbtTier')}:</span>
-            <span className="rounded bg-muted px-2 py-0.5 text-xs font-medium">{user.sbtTier}</span>
-          </div>
-        </div>
-      </section>
 
-      {/* Editable fields */}
-      <section className="space-y-4">
-        <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-          {t('preferences')}
-        </h2>
-
-        <div>
-          <label className="mb-1 block text-sm font-medium">{t('displayName')}</label>
-          <input
-            className="w-full rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground"
-            value={displayName}
-            onChange={(e) => setDisplayName(e.target.value)}
-          />
-        </div>
-
-        <div>
-          <label className="mb-1 block text-sm font-medium">{t('preferredLocale')}</label>
-          <select
-            className="w-full rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground"
-            value={preferredLocale}
-            onChange={(e) => setPreferredLocale(e.target.value)}
+          <button
+            onClick={() => void handleSave()}
+            disabled={saving}
+            className="px-6 py-2 bg-blue-500 text-white font-bold rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50"
           >
-            <option value="zh-Hant">繁體中文</option>
-            <option value="zh-Hans">简体中文</option>
-            <option value="en">English</option>
-          </select>
+            {saving ? t('saving') : t('save')}
+          </button>
         </div>
+      </div>
 
-        <button
-          onClick={() => void handleSave()}
-          disabled={saving}
-          className="rounded-md bg-foreground px-4 py-2 text-sm font-medium text-background hover:opacity-90 disabled:opacity-50"
-        >
-          {saving ? t('saving') : t('save')}
-        </button>
-      </section>
+      {/* Section 2: Decentralized Identity */}
+      <div className="bg-black/40 border border-white/5 rounded-2xl p-8 backdrop-blur-xl">
+        <h2 className="text-xl font-bold mb-6">{t('decentralizedIdentity')}</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Wallet card */}
+          <div className="bg-white/5 border border-white/10 rounded-xl p-6">
+            <div className="bg-blue-500/20 text-blue-400 rounded p-2 w-fit mb-4">
+              <User size={20} />
+            </div>
+            <div className="text-sm font-mono text-white/80 mb-3 break-all">
+              {user.walletAddress ?? '—'}
+            </div>
+            <span className="px-3 py-1 bg-white/10 rounded text-xs font-bold">{user.role}</span>
+          </div>
+
+          {/* SBT card */}
+          <div className="bg-gradient-to-br from-[#00FF88]/5 to-transparent border border-[#00FF88]/20 rounded-xl p-6">
+            <div className="bg-[#00FF88]/20 text-[#00FF88] rounded p-2 w-fit mb-4">
+              <Shield size={20} />
+            </div>
+            <div className="flex items-center gap-2 mb-3">
+              <CheckCircle2 size={16} className="text-[#00FF88]" />
+              <span className="font-bold">{user.sbtTier}</span>
+            </div>
+            <p className="text-xs text-white/50 mt-4 leading-relaxed">{t('sbtDescription')}</p>
+          </div>
+        </div>
+      </div>
     </div>
-  );
-}
-
-function RoleBadge({ role }: { role: string }): React.ReactNode {
-  const colors: Record<string, string> = {
-    ADMIN: 'bg-purple-100 text-purple-800',
-    JURY: 'bg-blue-100 text-blue-800',
-    REVIEWER: 'bg-green-100 text-green-800',
-    USER: 'bg-muted text-muted-foreground',
-  };
-  return (
-    <span
-      className={`rounded px-2 py-0.5 text-xs font-medium ${colors[role] ?? 'bg-muted text-muted-foreground'}`}
-    >
-      {role}
-    </span>
   );
 }
