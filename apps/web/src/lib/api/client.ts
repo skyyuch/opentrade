@@ -215,12 +215,67 @@ export type SimilarBroker = {
   reviewCount: number;
 };
 
+export type SfcAddress = {
+  addressEn: string;
+  addressZh?: string;
+  isPrimary: boolean;
+};
+
+export type SfcPerson = {
+  nameEn: string;
+  nameZh?: string;
+  ceRef?: string;
+  raTypes: number[];
+};
+
+export type SfcComplaintsOfficer = {
+  tel?: string;
+  fax?: string;
+  email?: string;
+  address?: string;
+  entityName?: string;
+  entityNameChi?: string;
+  ceRef?: string;
+};
+
+export type SfcCondition = {
+  text: string;
+  textZh?: string;
+  effectiveDate?: string;
+};
+
+export type SfcDisciplinaryAction = {
+  description: string;
+  descriptionZh?: string;
+  date?: string;
+  url?: string;
+};
+
+export type SfcFormerName = {
+  nameEn?: string;
+  nameZh?: string;
+  effectiveUntil?: string;
+};
+
+export type SfcLicenceRecord = {
+  lcType: string;
+  actType: number;
+  actDesc: string;
+  actDescZh: string;
+  periods: Array<{ from: string; to?: string }>;
+};
+
 export type SfcDetailJson = {
-  principals?: Array<{ nameEn: string; nameZh?: string; role?: string }>;
-  representatives?: Array<{ nameEn: string; nameZh?: string; raTypes?: string[] }>;
-  conditions?: Array<{ text: string; effectiveDate?: string }>;
-  disciplinaryActions?: Array<{ description: string; date?: string; url?: string }>;
-  formerNames?: Array<{ name: string; effectiveUntil?: string }>;
+  addresses?: SfcAddress[];
+  principals?: SfcPerson[];
+  representatives?: SfcPerson[];
+  complaintsOfficer?: SfcComplaintsOfficer;
+  conditionsSfo?: SfcCondition[];
+  conditionsAmlo?: SfcCondition[];
+  disciplinaryActions?: SfcDisciplinaryAction[];
+  formerNames?: SfcFormerName[];
+  licenseRecordsSfo?: SfcLicenceRecord[];
+  licenseRecordsAmlo?: SfcLicenceRecord[];
 };
 
 export type BrokerDetail = {

@@ -21,7 +21,16 @@ import { useOpenTradeAuth } from '@/hooks/useOpenTradeAuth';
 import { ApiClientError, submitReview } from '@/lib/api/client';
 
 import type { FormEvent } from 'react';
-import type { BrokerDetail, BrokerLicense, ReviewItem } from '@/lib/api/client';
+import type {
+  BrokerDetail,
+  ReviewItem,
+  SfcPerson,
+  SfcComplaintsOfficer,
+  SfcCondition,
+  SfcDisciplinaryAction,
+  SfcFormerName,
+  SfcLicenceRecord,
+} from '@/lib/api/client';
 
 type Tab = 'reviews' | 'license' | 'arbitration';
 type LicenseSubTab =
@@ -29,6 +38,7 @@ type LicenseSubTab =
   | 'address'
   | 'principals'
   | 'reps'
+  | 'complaints'
   | 'conditions'
   | 'disciplinary'
   | 'formerNames'
@@ -454,6 +464,7 @@ function LicenseTab({ broker }: { broker: BrokerDetail }) {
     { key: 'address', label: t('licenseSubTabAddress') },
     { key: 'principals', label: t('licenseSubTabPrincipals') },
     { key: 'reps', label: t('licenseSubTabReps') },
+    { key: 'complaints', label: t('licenseSubTabComplaints') },
     { key: 'conditions', label: t('licenseSubTabConditions') },
     { key: 'disciplinary', label: t('licenseSubTabDisciplinary') },
     { key: 'formerNames', label: t('licenseSubTabFormerNames') },
@@ -468,48 +479,52 @@ function LicenseTab({ broker }: { broker: BrokerDetail }) {
         <ShieldCheck className="text-[#00FF88]" /> {t('sfcPublicRecord')}
       </h3>
 
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-3 pb-4 border-b border-white/10 text-sm font-bold">
-        {subTabs.map((tab, idx) => (
-          <span key={tab.key} className="flex items-center gap-3">
-            {idx > 0 && <span className="text-white/20">|</span>}
-            <button
-              onClick={() => setSubTab(tab.key)}
-              className={
-                subTab === tab.key
-                  ? 'text-[#00FF88] border-b-2 border-[#00FF88] pb-1'
-                  : 'text-white/60 hover:text-white pb-1'
-              }
-            >
-              {tab.label}
-            </button>
-          </span>
-        ))}
-      </div>
+      <div className="space-y-6">
+        <div className="flex overflow-x-auto whitespace-nowrap items-center gap-x-2 pb-4 border-b border-white/10 text-sm font-bold no-scrollbar">
+          {subTabs.map((tab, idx, arr) => (
+            <span key={tab.key} className="flex items-center">
+              <button
+                onClick={() => setSubTab(tab.key)}
+                className={`pb-1 transition-colors ${
+                  subTab === tab.key
+                    ? 'text-[#00FF88] border-b-2 border-[#00FF88]'
+                    : 'text-white/60 hover:text-white'
+                }`}
+              >
+                {tab.label}
+              </button>
+              {idx < arr.length - 1 && <span className="text-white/20 pb-1 px-2">|</span>}
+            </span>
+          ))}
+        </div>
 
-      <div className="mt-6 space-y-4">
-        {subTab === 'details' && <LicenseDetails broker={broker} />}
-        {subTab === 'address' && (
-          <InfoRow label={t('licenseSubTabAddress')} value={broker.addressEn || broker.addressZh} />
-        )}
-        {subTab === 'principals' && (
-          <PersonList items={detail?.principals} emptyText={t('noData')} />
-        )}
-        {subTab === 'reps' && (
-          <PersonList items={detail?.representatives} emptyText={t('noData')} />
-        )}
-        {subTab === 'conditions' && (
-          <TextList items={detail?.conditions?.map((c) => c.text)} emptyText={t('noData')} />
-        )}
-        {subTab === 'disciplinary' && (
-          <TextList
-            items={detail?.disciplinaryActions?.map((d) => d.description)}
-            emptyText={t('noData')}
-          />
-        )}
-        {subTab === 'formerNames' && (
-          <TextList items={detail?.formerNames?.map((f) => f.name)} emptyText={t('noData')} />
-        )}
-        {subTab === 'history' && <LicenseHistory licenses={broker.licenses} />}
+        <div className="space-y-4 text-sm animate-in fade-in duration-300">
+          {subTab === 'details' && <LicenseDetails broker={broker} />}
+          {subTab === 'address' && <AddressesView addresses={detail?.addresses} />}
+          {subTab === 'principals' && (
+            <PersonTable
+              persons={detail?.principals}
+              headerLabel={t('licenseSubTabPrincipals')}
+              emptyText={t('noData')}
+            />
+          )}
+          {subTab === 'reps' && (
+            <PersonTable
+              persons={detail?.representatives}
+              headerLabel={t('licenseSubTabReps')}
+              emptyText={t('noData')}
+            />
+          )}
+          {subTab === 'complaints' && <ComplaintsOfficerView officer={detail?.complaintsOfficer} />}
+          {subTab === 'conditions' && (
+            <ConditionsView sfo={detail?.conditionsSfo} amlo={detail?.conditionsAmlo} />
+          )}
+          {subTab === 'disciplinary' && <DisciplinaryView actions={detail?.disciplinaryActions} />}
+          {subTab === 'formerNames' && <FormerNamesView names={detail?.formerNames} />}
+          {subTab === 'history' && (
+            <LicenseRecordsView sfo={detail?.licenseRecordsSfo} amlo={detail?.licenseRecordsAmlo} />
+          )}
+        </div>
       </div>
 
       <div className="mt-8 bg-blue-500/10 border border-blue-500/20 p-4 rounded-xl flex items-start gap-3">
@@ -524,115 +539,475 @@ function LicenseDetails({ broker }: { broker: BrokerDetail }) {
   const t = useTranslations('brokerDetail');
   return (
     <>
-      <InfoRow label={t('ceNumber')} value={broker.ceNumber} mono />
-      <InfoRow
-        label={t('regulatedActivities')}
-        value={broker.licenses
-          .map((l) => l.licenseType.replace('HK_SFC_TYPE_', 'Type '))
-          .join(', ')}
-      />
+      <div className="grid grid-cols-3 py-3 border-b border-white/5">
+        <span className="text-white/40">{t('corpName')}</span>
+        <span className="col-span-2 font-bold">
+          {broker.legalName} {broker.displayName}
+        </span>
+      </div>
+      <div className="grid grid-cols-3 py-3 border-b border-white/5">
+        <span className="text-white/40">{t('ceNumber')}</span>
+        <span className="col-span-2 font-mono">{broker.ceNumber ?? t('noData')}</span>
+      </div>
+      <div className="grid grid-cols-3 py-3 border-b border-white/5">
+        <span className="text-white/40">{t('regulatedActivities')}</span>
+        <span className="col-span-2">
+          {broker.licenses.map((l) => l.licenseType.replace('HK_SFC_TYPE_', 'Type ')).join(', ') ||
+            t('noData')}
+        </span>
+      </div>
       {broker.licenses[0]?.issuedAt && (
-        <InfoRow
-          label={t('effectiveDate')}
-          value={new Date(broker.licenses[0].issuedAt).toLocaleDateString()}
-        />
+        <div className="grid grid-cols-3 py-3 border-b border-white/5">
+          <span className="text-white/40">{t('effectiveDate')}</span>
+          <span className="col-span-2">
+            {new Date(broker.licenses[0].issuedAt).toLocaleDateString()}
+          </span>
+        </div>
       )}
     </>
   );
 }
 
-function InfoRow({
-  label,
-  value,
-  mono,
+function AddressesView({
+  addresses,
 }: {
-  label: string;
-  value: string | null | undefined;
-  mono?: boolean;
+  addresses: NonNullable<BrokerDetail['sfcDetailJson']>['addresses'] | undefined;
+}) {
+  const t = useTranslations('brokerDetail');
+  if (!addresses || addresses.length === 0) {
+    return <p className="text-white/40 py-4">{t('noData')}</p>;
+  }
+  return (
+    <div className="space-y-4 bg-black/20 rounded-xl border border-white/5 overflow-hidden">
+      <div className="font-bold text-white px-4 py-3 bg-white/5">{t('businessAddresses')}</div>
+      <div className="px-4 pb-4 space-y-4">
+        {addresses.map((addr, i) => (
+          <div
+            key={i}
+            className="p-3 bg-white/5 rounded-lg border border-white/5 hover:border-white/10 transition-colors"
+          >
+            <p className="text-white/80">{addr.addressEn}</p>
+            {addr.addressZh && addr.addressZh !== addr.addressEn && (
+              <p className="text-white/50 mt-1">{addr.addressZh}</p>
+            )}
+            {addr.isPrimary && (
+              <span className="inline-block mt-2 text-[10px] px-2 py-0.5 rounded bg-[#00FF88]/10 text-[#00FF88] border border-[#00FF88]/20">
+                {t('primaryAddress')}
+              </span>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+const RA_LABELS = ['RA1', 'RA2', 'RA3', 'RA4', 'RA5', 'RA6', 'RA7', 'RA8', 'RA9'];
+
+function PersonTable({
+  persons,
+  headerLabel,
+  emptyText,
+}: {
+  persons: SfcPerson[] | undefined;
+  headerLabel: string;
+  emptyText: string;
+}) {
+  const t = useTranslations('brokerDetail');
+  if (!persons || persons.length === 0) {
+    return <p className="text-white/40 py-4">{emptyText}</p>;
+  }
+  return (
+    <div className="space-y-4">
+      <div className="font-bold mb-2">{t('underSfo')}</div>
+      <div className="overflow-x-auto rounded-xl border border-white/10">
+        <table className="w-full text-left text-xs whitespace-nowrap">
+          <thead className="bg-[#00FF88]/10 text-[#00FF88] border-b border-white/10">
+            <tr>
+              <th className="p-3 font-bold">
+                {headerLabel}
+                {t('nameLabel')}
+              </th>
+              <th className="p-3 font-bold border-r border-[#00FF88]/10">{t('ceNumber')}</th>
+              {RA_LABELS.map((ra) => (
+                <th key={ra} className="p-3 font-normal text-center">
+                  {ra}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-white/5 bg-black/20">
+            {persons.map((person, i) => (
+              <tr key={i} className="hover:bg-white/5 transition-colors">
+                <td className="p-3 text-white/80 underline decoration-[#00FF88]/30 underline-offset-4">
+                  {person.nameEn}
+                  {person.nameZh && <span className="text-white/40 ml-1">{person.nameZh}</span>}
+                </td>
+                <td className="p-3 text-white/50 border-r border-white/5 font-mono">
+                  {person.ceRef ?? '-'}
+                </td>
+                {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((raNum) => (
+                  <td key={raNum} className="p-3 text-center text-white/30">
+                    {person.raTypes.includes(raNum) ? 'X' : ''}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function ComplaintsOfficerView({ officer }: { officer: SfcComplaintsOfficer | undefined }) {
+  const t = useTranslations('brokerDetail');
+  if (!officer) {
+    return <p className="text-white/40 py-4">{t('noData')}</p>;
+  }
+
+  return (
+    <div className="space-y-4">
+      {(officer.entityName || officer.entityNameChi) && (
+        <div className="text-center space-y-1">
+          <div className="text-white/50">{t('corporation')}</div>
+          <div className="font-bold">
+            {officer.entityName}
+            {officer.entityNameChi && ` ${officer.entityNameChi}`}
+            {officer.ceRef && <span className="text-white/40 ml-1">({officer.ceRef})</span>}
+          </div>
+        </div>
+      )}
+      <div className="font-bold text-white">{t('contactDetails')}</div>
+      <div className="overflow-x-auto rounded-xl border border-white/10">
+        <table className="w-full text-left text-sm">
+          <thead className="bg-teal-900/40 text-[#00FF88] border-b border-white/10">
+            <tr>
+              <th className="p-4 font-bold border-r border-white/5">{t('telephone')}</th>
+              <th className="p-4 font-bold border-r border-white/5">{t('fax')}</th>
+              <th className="p-4 font-bold border-r border-white/5">{t('email')}</th>
+              <th className="p-4 font-bold">{t('postalAddress')}</th>
+            </tr>
+          </thead>
+          <tbody className="bg-black/20">
+            <tr className="hover:bg-white/5 transition-colors">
+              <td className="p-4 text-white/80 border-r border-white/5">{officer.tel ?? '-'}</td>
+              <td className="p-4 text-white/80 border-r border-white/5">{officer.fax ?? '-'}</td>
+              <td className="p-4 border-r border-white/5">
+                {officer.email ? (
+                  <a href={`mailto:${officer.email}`} className="text-[#00FF88] hover:underline">
+                    {officer.email}
+                  </a>
+                ) : (
+                  '-'
+                )}
+              </td>
+              <td className="p-4 text-white/80">{officer.address ?? '-'}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function ConditionsView({
+  sfo,
+  amlo,
+}: {
+  sfo: SfcCondition[] | undefined;
+  amlo: SfcCondition[] | undefined;
 }) {
   const t = useTranslations('brokerDetail');
   return (
-    <div className="grid grid-cols-3 py-3 border-b border-white/5 text-sm">
-      <span className="text-white/40">{label}</span>
-      <span className={`col-span-2 ${mono ? 'font-mono' : ''}`}>{value || t('noData')}</span>
+    <div className="space-y-6">
+      <div className="space-y-2">
+        <div className="font-bold text-white">{t('underSfo')}</div>
+        <div className="overflow-x-auto rounded-xl border border-white/10">
+          <table className="w-full text-left text-sm whitespace-nowrap">
+            <thead className="bg-[#00FF88]/10 text-[#00FF88] border-b border-white/10">
+              <tr>
+                <th className="p-4 font-bold w-1/4 border-r border-[#00FF88]/10">
+                  {t('effectiveDate')}
+                </th>
+                <th className="p-4 font-bold">{t('licenseConditions')}</th>
+              </tr>
+            </thead>
+            <tbody className="bg-black/20">
+              {sfo && sfo.length > 0 ? (
+                sfo.map((c, i) => (
+                  <tr key={i} className="hover:bg-white/5 transition-colors">
+                    <td className="p-4 text-white/50 border-r border-white/5">
+                      {c.effectiveDate ?? '-'}
+                    </td>
+                    <td className="p-4 text-white/80 whitespace-normal">{c.text}</td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td className="p-4 text-white/50 border-r border-white/5">-</td>
+                  <td className="p-4 text-white/80">{t('none')}</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <div className="font-bold text-white">{t('underAmlo')}</div>
+        <div className="overflow-x-auto rounded-xl border border-white/10">
+          <table className="w-full text-left text-sm whitespace-nowrap">
+            <thead className="bg-[#00FF88]/10 text-[#00FF88] border-b border-white/10">
+              <tr>
+                <th className="p-4 font-bold w-1/4 border-r border-[#00FF88]/10">
+                  {t('effectiveDate')}
+                </th>
+                <th className="p-4 font-bold">{t('licenseConditions')}</th>
+              </tr>
+            </thead>
+            <tbody className="bg-black/20">
+              {amlo && amlo.length > 0 ? (
+                amlo.map((c, i) => (
+                  <tr key={i} className="hover:bg-white/5 transition-colors">
+                    <td className="p-4 text-white/50 border-r border-white/5">
+                      {c.effectiveDate ?? '-'}
+                    </td>
+                    <td className="p-4 text-white/80 whitespace-normal">{c.text}</td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td className="p-4 text-white/50 border-r border-white/5">-</td>
+                  <td className="p-4 text-white/80">{t('noLicenseRecord')}</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   );
 }
 
-function PersonList({
-  items,
-  emptyText,
+function DisciplinaryView({ actions }: { actions: SfcDisciplinaryAction[] | undefined }) {
+  const t = useTranslations('brokerDetail');
+  return (
+    <div className="space-y-4">
+      <div className="overflow-x-auto rounded-xl border border-white/10">
+        <table className="w-full text-left text-sm whitespace-nowrap">
+          <thead className="bg-red-500/10 text-red-400 border-b border-white/10">
+            <tr>
+              <th className="p-4 font-bold border-r border-red-500/10">{t('actionDate')}</th>
+              <th className="p-4 font-bold border-r border-red-500/10">{t('actionTaken')}</th>
+              <th className="p-4 font-bold">{t('pressRelease')}</th>
+            </tr>
+          </thead>
+          <tbody className="bg-black/20">
+            {actions && actions.length > 0 ? (
+              actions.map((a, i) => (
+                <tr key={i} className="hover:bg-white/5 transition-colors">
+                  <td className="p-4 text-white/80 border-r border-white/5">{a.date ?? '-'}</td>
+                  <td className="p-4 text-white/80 border-r border-white/5 whitespace-normal">
+                    {a.description}
+                  </td>
+                  <td className="p-4">
+                    {a.url ? (
+                      <a
+                        href={a.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[#00FF88] hover:underline"
+                      >
+                        {t('viewPressRelease')}
+                      </a>
+                    ) : (
+                      '-'
+                    )}
+                  </td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan={3} className="p-4 text-white/60 text-center">
+                  {t('none')}
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+      <div className="text-xs text-white/40 italic">{t('disciplinaryNote')}</div>
+    </div>
+  );
+}
+
+function FormerNamesView({ names }: { names: SfcFormerName[] | undefined }) {
+  const t = useTranslations('brokerDetail');
+  return (
+    <div className="space-y-4">
+      <div className="font-bold mb-2">{t('formerNamesRecord')}</div>
+      <div className="overflow-x-auto rounded-xl border border-white/10">
+        <table className="w-full text-left text-sm whitespace-nowrap">
+          <thead className="bg-[#00FF88]/10 text-[#00FF88] border-b border-white/10">
+            <tr>
+              <th className="p-4 font-bold border-r border-[#00FF88]/10">{t('effectiveUntil')}</th>
+              <th className="p-4 font-bold border-r border-[#00FF88]/10">{t('englishName')}</th>
+              <th className="p-4 font-bold">{t('chineseName')}</th>
+            </tr>
+          </thead>
+          <tbody className="bg-black/20">
+            {names && names.length > 0 ? (
+              names.map((n, i) => (
+                <tr key={i} className="hover:bg-white/5 transition-colors">
+                  <td className="p-4 text-white/80 border-r border-white/5">
+                    {n.effectiveUntil ?? '-'}
+                  </td>
+                  <td className="p-4 text-white/80 border-r border-white/5">{n.nameEn ?? '-'}</td>
+                  <td className="p-4 text-white/80">{n.nameZh ?? '-'}</td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan={3} className="p-4 text-white/60 text-center">
+                  {t('noFormerNames')}
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function formatLicRecordDate(dateStr: string): string {
+  if (!dateStr) return '-';
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return dateStr;
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}年${m}月${day}日`;
+  } catch {
+    return dateStr;
+  }
+}
+
+function LicenseRecordsView({
+  sfo,
+  amlo,
 }: {
-  items: Array<{ nameEn: string; nameZh?: string; role?: string; raTypes?: string[] }> | undefined;
-  emptyText: string;
+  sfo: SfcLicenceRecord[] | undefined;
+  amlo: SfcLicenceRecord[] | undefined;
 }) {
-  if (!items || items.length === 0) {
-    return <p className="text-sm text-white/40 py-4">{emptyText}</p>;
-  }
-  return (
-    <div className="space-y-2">
-      {items.map((p, i) => (
-        <div
-          key={i}
-          className="flex items-center justify-between p-3 bg-black/20 rounded-lg border border-white/5"
-        >
-          <div>
-            <div className="text-sm font-medium">{p.nameEn}</div>
-            {p.nameZh && <div className="text-xs text-white/40">{p.nameZh}</div>}
-          </div>
-          {p.role && <span className="text-xs text-white/50">{p.role}</span>}
-          {p.raTypes && <span className="text-xs text-white/50">{p.raTypes.join(', ')}</span>}
-        </div>
-      ))}
-    </div>
-  );
-}
+  const t = useTranslations('brokerDetail');
+  const lcTypeMap: Record<string, string> = { C: t('licensedCorp'), I: t('licensedIndividual') };
 
-function TextList({ items, emptyText }: { items: string[] | undefined; emptyText: string }) {
-  if (!items || items.length === 0) {
-    return <p className="text-sm text-white/40 py-4">{emptyText}</p>;
-  }
   return (
-    <div className="space-y-2">
-      {items.map((text, i) => (
-        <div key={i} className="p-3 bg-black/20 rounded-lg border border-white/5 text-sm">
-          {text}
+    <div className="space-y-6">
+      <div className="space-y-2">
+        <div className="font-bold text-white mb-2 flex items-center gap-2">
+          <div className="w-2 h-2 rounded-full bg-[#00FF88]" />
+          {t('underSfo')}
         </div>
-      ))}
-    </div>
-  );
-}
+        <div className="overflow-x-auto rounded-xl border border-white/10">
+          <table className="w-full text-left text-sm">
+            <thead className="bg-[#00FF88]/10 text-[#00FF88] border-b border-white/10">
+              <tr>
+                <th className="p-4 font-bold border-r border-[#00FF88]/10 w-1/4">
+                  {t('licenseCategory')}
+                </th>
+                <th className="p-4 font-bold border-r border-[#00FF88]/10 w-1/3">
+                  {t('regulatedActivities')}
+                </th>
+                <th className="p-4 font-bold">{t('effectivePeriod')}</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-white/5 bg-black/20">
+              {sfo && sfo.length > 0 ? (
+                sfo.map((rec, i) => (
+                  <tr key={i} className="hover:bg-white/5 transition-colors">
+                    <td className="p-4 text-white/80 border-r border-white/5">
+                      {lcTypeMap[rec.lcType] ?? rec.lcType}
+                    </td>
+                    <td className="p-4 text-white/80 border-r border-white/5">
+                      {rec.actDescZh || rec.actDesc}
+                    </td>
+                    <td className="p-4 text-white/60">
+                      {rec.periods.map((p, j) => (
+                        <div key={j}>
+                          {p.to
+                            ? `${formatLicRecordDate(p.from)} - ${formatLicRecordDate(p.to)}`
+                            : `由 ${formatLicRecordDate(p.from)}`}
+                        </div>
+                      ))}
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={3} className="p-4 text-white/60 text-left">
+                    {t('noLicenseRecord')}
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
 
-function LicenseHistory({ licenses }: { licenses: BrokerLicense[] }) {
-  return (
-    <div className="space-y-2">
-      {licenses.map((lic, i) => (
-        <div
-          key={i}
-          className="flex items-center justify-between p-3 bg-black/20 rounded-lg border border-white/5"
-        >
-          <div>
-            <div className="text-sm font-medium">
-              {lic.licenseType.replace('HK_SFC_TYPE_', 'Type ')}
-            </div>
-            <div className="text-xs text-white/40">#{lic.licenseNumber}</div>
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="text-xs text-white/40">
-              {new Date(lic.issuedAt).toLocaleDateString()}
-            </span>
-            <span
-              className={`text-[10px] px-2 py-0.5 rounded ${
-                lic.status === 'ACTIVE'
-                  ? 'bg-[#00FF88]/10 text-[#00FF88]'
-                  : 'bg-red-500/10 text-red-400'
-              }`}
-            >
-              {lic.status}
-            </span>
-          </div>
+      <div className="space-y-2">
+        <div className="font-bold text-white mb-2 flex items-center gap-2">
+          <div className="w-2 h-2 rounded-full bg-white/20" />
+          {t('underAmlo')}
         </div>
-      ))}
+        <div className="overflow-x-auto rounded-xl border border-white/10">
+          <table className="w-full text-left text-sm">
+            <thead className="bg-[#00FF88]/10 text-[#00FF88] border-b border-white/10">
+              <tr>
+                <th className="p-4 font-bold border-r border-[#00FF88]/10 w-1/4">
+                  {t('licenseCategory')}
+                </th>
+                <th className="p-4 font-bold border-r border-[#00FF88]/10 w-1/3">
+                  {t('vaServices')}
+                </th>
+                <th className="p-4 font-bold">{t('effectivePeriod')}</th>
+              </tr>
+            </thead>
+            <tbody className="bg-black/20">
+              {amlo && amlo.length > 0 ? (
+                amlo.map((rec, i) => (
+                  <tr key={i} className="hover:bg-white/5 transition-colors">
+                    <td className="p-4 text-white/80 border-r border-white/5">
+                      {lcTypeMap[rec.lcType] ?? rec.lcType}
+                    </td>
+                    <td className="p-4 text-white/80 border-r border-white/5">
+                      {rec.actDescZh || rec.actDesc}
+                    </td>
+                    <td className="p-4 text-white/60">
+                      {rec.periods.map((p, j) => (
+                        <div key={j}>
+                          {p.to
+                            ? `${formatLicRecordDate(p.from)} - ${formatLicRecordDate(p.to)}`
+                            : `由 ${formatLicRecordDate(p.from)}`}
+                        </div>
+                      ))}
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={3} className="p-4 text-white/60 text-left">
+                    {t('noLicenseRecord')}
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   );
 }
