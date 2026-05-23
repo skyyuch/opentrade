@@ -144,6 +144,8 @@
     "allStatuses": "所有状态",
     "statusClaimed": "已认领",
     "statusUnclaimed": "未认领",
+    "searchBrokerPlaceholder": "搜索券商名称…",
+    "filterAll": "所有状态",
     "viewIpfs": "查看 IPFS 证据",
     "reviewsDisclaimer": "请注意：链上评论无法在平台端删除",
     "needsAttention": "需注意",

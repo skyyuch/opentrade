@@ -144,6 +144,8 @@
     "allStatuses": "All statuses",
     "statusClaimed": "Claimed",
     "statusUnclaimed": "Unclaimed",
+    "searchBrokerPlaceholder": "Search broker name…",
+    "filterAll": "All statuses",
     "viewIpfs": "View IPFS evidence",
     "reviewsDisclaimer": "Note: On-chain reviews cannot be deleted by the platform",
     "needsAttention": "Needs attention",
