@@ -187,7 +187,9 @@ export function AdminBrokersClient(): React.ReactNode {
                     className="cursor-pointer border-b border-white/5 transition-colors hover:bg-white/[0.04]"
                     onClick={() => router.push(`/${locale}/admin/brokers/${b.slug}`)}
                   >
-                    <td className="px-4 py-3 font-bold">{b.displayName}</td>
+                    <td className="px-4 py-3 font-bold">
+                      {locale === 'en' ? b.legalName : b.displayName}
+                    </td>
                     <td className="px-4 py-3 font-mono text-xs">{b.slug}</td>
                     <td className="px-4 py-3 text-white/80">
                       {b.licenseTypes.length > 0

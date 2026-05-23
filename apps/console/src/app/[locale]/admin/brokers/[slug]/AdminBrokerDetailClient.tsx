@@ -168,7 +168,7 @@ export function AdminBrokerDetailClient({ slug }: Props): ReactNode {
           </div>
           <div>
             <h1 className="mb-2 flex items-center gap-3 text-2xl font-bold">
-              {broker.displayName}
+              {locale === 'en' ? broker.legalName : broker.displayName}
               {broker.ceNumber && (
                 <span className="rounded border border-white/10 bg-white/5 px-2 py-1 font-mono text-xs text-white/50">
                   {broker.ceNumber}
