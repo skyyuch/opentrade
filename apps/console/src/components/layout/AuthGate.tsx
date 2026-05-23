@@ -1,17 +1,31 @@
 /**
- * Auth gate for the merchant console.
+ * Auth gate for the merchant console — role-based layout.
  *
- * Wraps all console content — unauthenticated visitors see a login CTA
- * instead. Once logged in, the sidebar nav + content layout renders.
+ * After authentication, determines what sidebar nav to show based on
+ * the user's role (admin vs broker owner vs regular user).
  */
 
 'use client';
 
 import { usePrivy } from '@privy-io/react-auth';
-import { Building2, LayoutDashboard, LogOut, ShieldCheck } from 'lucide-react';
+import {
+  Activity,
+  Building2,
+  CheckCircle,
+  FileText,
+  LayoutDashboard,
+  LogOut,
+  Settings,
+  Shield,
+  ShieldCheck,
+  Star,
+  Users,
+} from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
+
+import { useCurrentUser } from '../../hooks/useCurrentUser';
 
 import type { ReactNode } from 'react';
 
@@ -20,12 +34,19 @@ type Props = {
   locale: string;
 };
 
+type NavItem = {
+  href: string;
+  icon: typeof LayoutDashboard;
+  labelKey: string;
+};
+
 export const AuthGate = ({ children, locale }: Props): ReactNode => {
-  const { ready, authenticated, login, logout, user } = usePrivy();
+  const { ready, authenticated, login, logout, user: privyUser } = usePrivy();
+  const { user, isAdmin, isBrokerOwner, claimedBroker, isLoading } = useCurrentUser();
   const t = useTranslations();
   const pathname = usePathname();
 
-  if (!ready) {
+  if (!ready || (authenticated && isLoading)) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="size-6 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
@@ -54,12 +75,40 @@ export const AuthGate = ({ children, locale }: Props): ReactNode => {
     );
   }
 
-  const navItems = [
-    { href: `/${locale}`, icon: LayoutDashboard, label: t('nav.dashboard') },
-    { href: `/${locale}/brokers`, icon: Building2, label: t('nav.brokers') },
+  const adminNav: NavItem[] = [
+    { href: `/${locale}/admin`, icon: LayoutDashboard, labelKey: 'nav.adminDashboard' },
+    { href: `/${locale}/admin/claims`, icon: CheckCircle, labelKey: 'nav.claims' },
+    { href: `/${locale}/admin/verifications`, icon: Shield, labelKey: 'nav.verifications' },
+    { href: `/${locale}/admin/users`, icon: Users, labelKey: 'nav.users' },
+    { href: `/${locale}/admin/reviews`, icon: Star, labelKey: 'nav.reviews' },
+    { href: `/${locale}/admin/brokers`, icon: Building2, labelKey: 'nav.brokers' },
+    { href: `/${locale}/admin/system`, icon: Activity, labelKey: 'nav.system' },
   ];
 
-  const displayEmail = user?.email?.address ? `${user.email.address.slice(0, 3)}***` : undefined;
+  const brokerNav: NavItem[] = [
+    { href: `/${locale}/broker`, icon: LayoutDashboard, labelKey: 'nav.brokerDashboard' },
+    { href: `/${locale}/broker/profile`, icon: FileText, labelKey: 'nav.profile' },
+    { href: `/${locale}/broker/reviews`, icon: Star, labelKey: 'nav.brokerReviews' },
+  ];
+
+  const defaultNav: NavItem[] = [
+    { href: `/${locale}`, icon: LayoutDashboard, labelKey: 'nav.dashboard' },
+    { href: `/${locale}/brokers`, icon: Building2, labelKey: 'nav.brokers' },
+  ];
+
+  let navItems: NavItem[];
+  if (isAdmin) {
+    navItems = adminNav;
+  } else if (isBrokerOwner) {
+    navItems = brokerNav;
+  } else {
+    navItems = defaultNav;
+  }
+
+  const displayEmail = privyUser?.email?.address
+    ? `${privyUser.email.address.slice(0, 3)}***`
+    : undefined;
+  const displayRole = user?.role ?? '';
 
   return (
     <div className="flex min-h-screen">
@@ -83,24 +132,45 @@ export const AuthGate = ({ children, locale }: Props): ReactNode => {
                 }`}
               >
                 <item.icon className="size-4" aria-hidden />
-                {item.label}
+                {t(item.labelKey)}
               </Link>
             );
           })}
         </nav>
 
         <div className="border-t border-border p-3">
-          {displayEmail ? (
-            <p className="mb-2 truncate text-xs text-muted-foreground">{displayEmail}</p>
+          <div className="mb-2 flex items-center justify-between">
+            {displayEmail ? (
+              <p className="truncate text-xs text-muted-foreground">{displayEmail}</p>
+            ) : null}
+            {displayRole ? (
+              <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                {displayRole}
+              </span>
+            ) : null}
+          </div>
+          {claimedBroker ? (
+            <p className="mb-2 truncate text-xs text-muted-foreground">
+              {claimedBroker.displayName}
+            </p>
           ) : null}
-          <button
-            type="button"
-            onClick={() => void logout()}
-            className="flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          >
-            <LogOut className="size-3.5" aria-hidden />
-            {t('nav.logout')}
-          </button>
+          <div className="flex gap-1">
+            <Link
+              href={`/${locale}/settings`}
+              className="flex flex-1 items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              <Settings className="size-3.5" aria-hidden />
+              {t('nav.settings')}
+            </Link>
+            <button
+              type="button"
+              onClick={() => void logout()}
+              className="flex flex-1 items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              <LogOut className="size-3.5" aria-hidden />
+              {t('nav.logout')}
+            </button>
+          </div>
         </div>
       </aside>
 

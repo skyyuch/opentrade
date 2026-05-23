@@ -81,12 +81,17 @@ identityRouter.post('/exchange', async (c) => {
 });
 
 identityRouter.get('/me', authMiddleware('user'), async (c) => {
-  const { userId } = c.get('user');
+  const { userId, tenantId } = c.get('user');
   const user = await userRepo.findById(userId);
 
   if (!user) {
     throw new AppError(ErrorCode.NOT_FOUND, 'User not found', 404);
   }
+
+  const claimedBroker = await prisma.broker.findFirst({
+    where: { claimedByUserId: userId, tenantId, deletedAt: null },
+    select: { slug: true, displayName: true },
+  });
 
   return c.json({
     user: {
@@ -100,6 +105,9 @@ identityRouter.get('/me', authMiddleware('user'), async (c) => {
       sbtTier: user.sbtTier,
       createdAt: user.createdAt.toISOString(),
     },
+    claimedBroker: claimedBroker
+      ? { slug: claimedBroker.slug, displayName: claimedBroker.displayName }
+      : null,
   });
 });
 

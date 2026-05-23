@@ -96,6 +96,45 @@ export const apiPost = async <T>(
   return (await res.json()) as T;
 };
 
+export const apiPatch = async <T>(
+  path: string,
+  body: unknown,
+  options: FetchOptions = {},
+): Promise<T> => {
+  const url = `${env.NEXT_PUBLIC_API_URL}${path}`;
+
+  const res = await fetch(url, {
+    method: 'PATCH',
+    headers: { ...buildHeaders(options), 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+    ...(options.signal !== undefined ? { signal: options.signal } : {}),
+  });
+
+  if (!res.ok) {
+    let parsed: unknown = undefined;
+    try {
+      parsed = await res.json();
+    } catch {
+      // Non-JSON error body.
+    }
+    if (isApiErrorBody(parsed)) {
+      throw new ApiClientError(
+        res.status,
+        parsed.error.code,
+        parsed.error.message,
+        parsed.error.requestId,
+      );
+    }
+    throw new ApiClientError(
+      res.status,
+      'INTERNAL_ERROR',
+      `Upstream PATCH ${path} returned ${res.status}`,
+    );
+  }
+
+  return (await res.json()) as T;
+};
+
 // ---------------------------------------------------------------------------
 // Auth — Privy → OpenTrade JWT exchange
 // ---------------------------------------------------------------------------
@@ -209,3 +248,230 @@ export const fetchBrokerReviews = (
   options?: FetchOptions,
 ): Promise<BrokerReviewsResponse> =>
   apiGet<BrokerReviewsResponse>(`/v1/reviews/broker/${slug}`, options);
+
+// ---------------------------------------------------------------------------
+// Auth — current user profile
+// ---------------------------------------------------------------------------
+
+export type CurrentUserResponse = {
+  user: {
+    id: string;
+    displayName: string | null;
+    email: string | null;
+    walletAddress: string | null;
+    walletAddressFull: string | null;
+    preferredLocale: string | null;
+    role: 'USER' | 'REVIEWER' | 'JURY' | 'ADMIN';
+    sbtTier: 'L1' | 'L2' | 'L3' | 'L4';
+    createdAt: string;
+  };
+  claimedBroker: { slug: string; displayName: string } | null;
+};
+
+export const fetchCurrentUser = (options?: FetchOptions): Promise<CurrentUserResponse> =>
+  apiGet<CurrentUserResponse>('/v1/auth/me', options);
+
+// ---------------------------------------------------------------------------
+// Admin — Platform stats
+// ---------------------------------------------------------------------------
+
+export type AdminStatsResponse = {
+  stats: {
+    totalUsers: number;
+    usersGrowth: number;
+    totalReviews: number;
+    reviewsGrowth: number;
+    pendingApprovals: number;
+    pendingClaims: number;
+    pendingVerifications: number;
+    claimedBrokers: number;
+    totalBrokers: number;
+  };
+};
+
+export const fetchAdminStats = (options?: FetchOptions): Promise<AdminStatsResponse> =>
+  apiGet<AdminStatsResponse>('/v1/admin/stats', options);
+
+// ---------------------------------------------------------------------------
+// Admin — Users
+// ---------------------------------------------------------------------------
+
+export type AdminUserItem = {
+  id: string;
+  displayName: string | null;
+  email: string | null;
+  walletAddress: string | null;
+  role: string;
+  sbtTier: string;
+  createdAt: string;
+};
+
+export type AdminUsersResponse = {
+  users: AdminUserItem[];
+  nextCursor: string | null;
+};
+
+export const fetchAdminUsers = (
+  params?: { search?: string; role?: string; sbtTier?: string; cursor?: string },
+  options?: FetchOptions,
+): Promise<AdminUsersResponse> => {
+  const query = new URLSearchParams();
+  if (params?.search) query.set('search', params.search);
+  if (params?.role) query.set('role', params.role);
+  if (params?.sbtTier) query.set('sbtTier', params.sbtTier);
+  if (params?.cursor) query.set('cursor', params.cursor);
+  const qs = query.toString();
+  return apiGet<AdminUsersResponse>(`/v1/admin/users${qs ? `?${qs}` : ''}`, options);
+};
+
+export type AdminUserDetailResponse = {
+  user: AdminUserItem & {
+    walletAddress: string | null;
+    sbtTokenId: number | null;
+    sbtMintTxHash: string | null;
+  };
+  reviews: { id: string; title: string; rating: number; status: string; broker: { slug: string; displayName: string }; createdAt: string }[];
+  verifications: { id: string; brokerSlug: string; status: string; createdAt: string }[];
+  claims: { id: string; broker: { slug: string; displayName: string }; status: string; createdAt: string }[];
+};
+
+export const fetchAdminUserDetail = (id: string, options?: FetchOptions): Promise<AdminUserDetailResponse> =>
+  apiGet<AdminUserDetailResponse>(`/v1/admin/users/${id}`, options);
+
+export const updateUserRole = (
+  id: string,
+  role: string,
+  options?: FetchOptions,
+): Promise<{ user: { id: string; role: string } }> =>
+  apiPatch<{ user: { id: string; role: string } }>(`/v1/admin/users/${id}/role`, { role }, options);
+
+// ---------------------------------------------------------------------------
+// Admin — Reviews
+// ---------------------------------------------------------------------------
+
+export type AdminReviewItem = {
+  id: string;
+  title: string;
+  body: string;
+  rating: number;
+  status: string;
+  txHash: string | null;
+  ipfsCid: string | null;
+  contentHash: string;
+  chainReviewId: number | null;
+  broker: { slug: string; displayName: string };
+  author: { id: string; displayName: string | null };
+  createdAt: string;
+};
+
+export type AdminReviewsResponse = {
+  reviews: AdminReviewItem[];
+  nextCursor: string | null;
+};
+
+export const fetchAdminReviews = (
+  params?: { search?: string; status?: string; brokerSlug?: string; cursor?: string },
+  options?: FetchOptions,
+): Promise<AdminReviewsResponse> => {
+  const query = new URLSearchParams();
+  if (params?.search) query.set('search', params.search);
+  if (params?.status) query.set('status', params.status);
+  if (params?.brokerSlug) query.set('brokerSlug', params.brokerSlug);
+  if (params?.cursor) query.set('cursor', params.cursor);
+  const qs = query.toString();
+  return apiGet<AdminReviewsResponse>(`/v1/admin/reviews${qs ? `?${qs}` : ''}`, options);
+};
+
+// ---------------------------------------------------------------------------
+// Admin — Activity feed
+// ---------------------------------------------------------------------------
+
+export type ActivityItem = {
+  type: string;
+  description: string;
+  timestamp: string;
+};
+
+export type AdminActivityResponse = {
+  activities: ActivityItem[];
+};
+
+export const fetchAdminActivity = (options?: FetchOptions): Promise<AdminActivityResponse> =>
+  apiGet<AdminActivityResponse>('/v1/admin/activity', options);
+
+// ---------------------------------------------------------------------------
+// Admin — Claims & Verifications (existing endpoints, typed fetchers)
+// ---------------------------------------------------------------------------
+
+export type ClaimItem = {
+  id: string;
+  brokerId: string;
+  broker: { id: string; slug: string; displayName: string };
+  userId: string;
+  ceRefNumber: string;
+  companyLetterIpfsCid: string;
+  status: string;
+  adminNote: string | null;
+  createdAt: string;
+};
+
+export type AdminClaimsResponse = { claims: ClaimItem[] };
+
+export const fetchAdminClaims = (status = 'PENDING', options?: FetchOptions): Promise<AdminClaimsResponse> =>
+  apiGet<AdminClaimsResponse>(`/v1/brokers/admin/claims?status=${status}`, options);
+
+export const approveClaim = (id: string, adminNote?: string, options?: FetchOptions) =>
+  apiPost<{ status: string }>(`/v1/brokers/admin/claims/${id}/approve`, { adminNote }, options);
+
+export const rejectClaim = (id: string, adminNote?: string, options?: FetchOptions) =>
+  apiPost<{ status: string }>(`/v1/brokers/admin/claims/${id}/reject`, { adminNote }, options);
+
+export type VerificationItem = {
+  id: string;
+  userId: string;
+  user: { id: string; displayName: string | null; walletAddress: string | null; sbtTier: string };
+  brokerSlug: string;
+  commitment: string;
+  evidenceIpfsCid: string;
+  status: string;
+  adminNote: string | null;
+  createdAt: string;
+};
+
+export type AdminVerificationsResponse = { verifications: VerificationItem[] };
+
+export const fetchAdminVerifications = (status = 'PENDING', options?: FetchOptions): Promise<AdminVerificationsResponse> =>
+  apiGet<AdminVerificationsResponse>(`/v1/auth/admin/verifications?status=${status}`, options);
+
+export const approveVerification = (id: string, adminNote?: string, options?: FetchOptions) =>
+  apiPost<{ status: string }>(`/v1/auth/admin/verifications/${id}/approve`, { adminNote }, options);
+
+export const rejectVerification = (id: string, adminNote?: string, options?: FetchOptions) =>
+  apiPost<{ status: string }>(`/v1/auth/admin/verifications/${id}/reject`, { adminNote }, options);
+
+// ---------------------------------------------------------------------------
+// Broker owner — stats
+// ---------------------------------------------------------------------------
+
+export type BrokerOwnerStatsResponse = {
+  stats: {
+    totalReviews: number;
+    monthReviews: number;
+    avgRating: number | null;
+    positiveRate: number | null;
+  };
+};
+
+export const fetchBrokerOwnerStats = (slug: string, options?: FetchOptions): Promise<BrokerOwnerStatsResponse> =>
+  apiGet<BrokerOwnerStatsResponse>(`/v1/brokers/${slug}/owner-stats`, options);
+
+// ---------------------------------------------------------------------------
+// Broker owner — update profile
+// ---------------------------------------------------------------------------
+
+export const updateBrokerProfile = (
+  slug: string,
+  data: { description?: string; logoUrl?: string },
+  options?: FetchOptions,
+): Promise<{ broker: BrokerDetail }> =>
+  apiPatch<{ broker: BrokerDetail }>(`/v1/brokers/${slug}`, data, options);

@@ -18,6 +18,7 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 
+import { adminRouter } from '../domains/admin/index.js';
 import { brokersRouter } from '../domains/brokers/index.js';
 import { healthRouter } from '../domains/health/index.js';
 import { identityRouter, JoseJwtService } from '../domains/identity/index.js';
@@ -61,6 +62,7 @@ export const createServer = (): Hono<AppHonoEnv> => {
   app.route('/v1/auth', identityRouter);
   app.route('/v1/brokers', brokersRouter);
   app.route('/v1/reviews', reviewsRouter);
+  app.route('/v1/admin', adminRouter);
 
   app.notFound((c) =>
     errorHandler(AppError.notFound(`Route ${c.req.method} ${c.req.path} not found`), c),

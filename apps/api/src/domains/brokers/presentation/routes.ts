@@ -205,6 +205,58 @@ brokersRouter.get('/:slug', async (c) => {
 });
 
 // ---------------------------------------------------------------------------
+// Broker owner stats (for merchant dashboard)
+// ---------------------------------------------------------------------------
+
+brokersRouter.get('/:slug/owner-stats', authMiddleware('user'), async (c) => {
+  const slug = c.req.param('slug');
+  const { userId, tenantId } = c.get('user');
+
+  const broker = await prisma.broker.findFirst({
+    where: { slug, tenantId, deletedAt: null },
+  });
+  if (!broker) {
+    throw new AppError(ErrorCode.NOT_FOUND, 'Broker not found', 404);
+  }
+  if (broker.claimedByUserId !== userId) {
+    throw new AppError(ErrorCode.FORBIDDEN, 'Only the broker owner can view stats', 403);
+  }
+
+  const now = new Date();
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+  const [totalReviews, monthReviews, allRatings] = await Promise.all([
+    prisma.review.count({
+      where: { brokerId: broker.id, tenantId, deletedAt: null },
+    }),
+    prisma.review.count({
+      where: { brokerId: broker.id, tenantId, deletedAt: null, createdAt: { gte: startOfMonth } },
+    }),
+    prisma.review.findMany({
+      where: { brokerId: broker.id, tenantId, deletedAt: null },
+      select: { rating: true },
+    }),
+  ]);
+
+  const avgRating =
+    allRatings.length > 0
+      ? Math.round((allRatings.reduce((sum, r) => sum + r.rating, 0) / allRatings.length) * 10) / 10
+      : null;
+  const positiveCount = allRatings.filter((r) => r.rating >= 4).length;
+  const positiveRate =
+    allRatings.length > 0 ? Math.round((positiveCount / allRatings.length) * 100) : null;
+
+  return c.json({
+    stats: {
+      totalReviews,
+      monthReviews,
+      avgRating,
+      positiveRate,
+    },
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Merchant Claim Flow
 // ---------------------------------------------------------------------------
 
