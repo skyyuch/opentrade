@@ -278,16 +278,14 @@ function SubmitReviewCta({ brokerId, brokerName }: { brokerId: string; brokerNam
   return (
     <form
       onSubmit={(e) => void handleSubmit(e)}
-      className="rounded-xl bg-zinc-900/60 border border-white/10 overflow-hidden"
+      className="rounded-xl bg-zinc-900/60 border border-white/10 p-6 space-y-5"
     >
-      <div className="flex items-center gap-4 p-4 px-6 bg-gradient-to-r from-[#00FF88]/10 to-transparent border-b border-[#00FF88]/20">
-        <div className="w-10 h-10 rounded-full bg-[#00FF88]/20 flex items-center justify-center text-[#00FF88]">
-          <Edit3 size={18} />
-        </div>
+      <div className="flex items-center gap-3">
+        <Edit3 size={18} className="text-[#00FF88]" />
         <div className="font-bold text-sm text-[#00FF88]">{t('writeCta')}</div>
       </div>
 
-      <div className="p-6 space-y-4">
+      <div className="space-y-4">
         {formState.kind === 'error' && (
           <div className="rounded-lg bg-red-500/10 border border-red-500/20 px-4 py-2 text-sm text-red-400">
             {tf('errorTitle')}: {formState.message}
@@ -345,7 +343,7 @@ function SubmitReviewCta({ brokerId, brokerName }: { brokerId: string; brokerNam
         </div>
       </div>
 
-      <div className="flex items-center justify-between px-6 py-4 border-t border-white/5">
+      <div className="flex items-center justify-between pt-4 border-t border-white/5">
         <div className="flex items-center gap-2 text-xs text-white/40">
           <CheckCircle size={14} className="text-[#00FF88]" />
           {t('writeCtaDesc')}
