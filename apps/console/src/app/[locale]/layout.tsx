@@ -28,8 +28,7 @@
  *   `X-Robots-Tag: noindex, nofollow` header from the edge.
  */
 
-import '@opentrade/ui/styles/globals.css';
-import '../../styles/console-overrides.css';
+import '../../styles/console-globals.css';
 
 import { Inter } from 'next/font/google';
 import { notFound } from 'next/navigation';

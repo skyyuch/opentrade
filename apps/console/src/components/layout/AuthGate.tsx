@@ -28,6 +28,8 @@ import { useTranslations } from 'next-intl';
 
 import { useCurrentUser } from '../../hooks/useCurrentUser';
 
+import { LocaleSwitcher } from './LocaleSwitcher';
+
 import type { ReactNode } from 'react';
 
 type Props = {
@@ -197,7 +199,12 @@ export const AuthGate = ({ children, locale }: Props): ReactNode => {
       {/* Main Content */}
       <main className="relative flex-1 overflow-y-auto z-0">
         <div className="fixed right-[-5%] top-[-10%] h-[600px] w-[600px] rounded-full bg-[#00FF88]/5 blur-[120px] pointer-events-none z-0" />
-        <div className="relative z-10 p-8">{children}</div>
+        <div className="relative z-10">
+          <div className="flex justify-end px-8 pt-4">
+            <LocaleSwitcher />
+          </div>
+          <div className="px-8 pb-8">{children}</div>
+        </div>
       </main>
     </div>
   );

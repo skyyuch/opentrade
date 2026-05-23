@@ -1,0 +1,40 @@
+/**
+ * Console-specific Tailwind base stylesheet.
+ *
+ * Replaces `@opentrade/ui/styles/globals.css` for the console app.
+ * The shared globals.css has `* { @apply border-border }` and
+ * `body { @apply bg-background }` which conflict with the Google-designed
+ * dark theme that uses hardcoded colors (bg-white/5, border-white/10, etc).
+ *
+ * This file includes ONLY the Tailwind directives + minimal resets,
+ * deliberately omitting the semantic CSS variable border/body rules.
+ * The Tailwind preset from `@opentrade/ui/tailwind-preset` still provides
+ * all color utilities (sapphire, gilded, etc) if needed.
+ */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .font-numeric,
+  .font-mono {
+    font-variant-numeric: tabular-nums;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
