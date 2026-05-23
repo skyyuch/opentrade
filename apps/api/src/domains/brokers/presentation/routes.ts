@@ -116,6 +116,7 @@ brokersRouter.get('/:slug', async (c) => {
         where: { deletedAt: null },
         orderBy: { licenseType: 'asc' },
       },
+      reviews: { select: { rating: true } },
       _count: { select: { reviews: true } },
     },
   });
@@ -124,22 +125,80 @@ brokersRouter.get('/:slug', async (c) => {
     throw new AppError(ErrorCode.NOT_FOUND, 'Broker not found', 404);
   }
 
+  const reviews = (broker as unknown as { reviews: { rating: number }[] }).reviews;
+  const reviewCount = (broker as unknown as { _count: { reviews: number } })._count.reviews;
+  const positiveCount = reviews.filter((r) => r.rating >= 4).length;
+  const positiveRate = reviewCount > 0 ? Math.round((positiveCount / reviewCount) * 100) : null;
+
+  const ratingDistribution = [5, 4, 3, 2, 1].map((star) => {
+    const count = reviews.filter((r) => r.rating === star).length;
+    return {
+      stars: star,
+      count,
+      percentage: reviewCount > 0 ? Math.round((count / reviewCount) * 100) : 0,
+    };
+  });
+
+  const earliestLicense = broker.licenses.reduce<Date | null>((earliest, l) => {
+    if (!earliest || l.issuedAt < earliest) return l.issuedAt;
+    return earliest;
+  }, null);
+  const activeYears = earliestLicense
+    ? Math.floor((Date.now() - earliestLicense.getTime()) / (365.25 * 24 * 60 * 60 * 1000))
+    : null;
+
+  const similarBrokers = await prisma.broker.findMany({
+    where: {
+      tenantId: DEFAULT_TENANT_ID,
+      deletedAt: null,
+      id: { not: broker.id },
+      licenses: {
+        some: {
+          licenseType: { in: broker.licenses.map((l) => l.licenseType) },
+          deletedAt: null,
+        },
+      },
+    },
+    include: {
+      licenses: { where: { deletedAt: null }, select: { licenseType: true } },
+      _count: { select: { reviews: true } },
+    },
+    take: 5,
+    orderBy: { displayName: 'asc' },
+  });
+
   return c.json({
     broker: {
       id: broker.id,
       slug: broker.slug,
       displayName: broker.displayName,
       legalName: broker.legalName,
+      ceNumber: broker.ceNumber,
       description: broker.description,
       websiteUrl: broker.websiteUrl,
       logoUrl: broker.logoUrl,
+      addressEn: broker.addressEn,
+      addressZh: broker.addressZh,
+      sfcDetailJson: broker.sfcDetailJson,
       isClaimed: broker.isClaimed,
-      reviewCount: (broker as unknown as { _count: { reviews: number } })._count.reviews,
+      activeYears,
+      reviewCount,
+      positiveRate,
+      ratingDistribution,
       licenses: broker.licenses.map((l) => ({
         regulator: l.regulator,
         licenseType: l.licenseType,
         licenseNumber: l.licenseNumber,
         status: l.status,
+        issuedAt: l.issuedAt.toISOString(),
+      })),
+      similarBrokers: similarBrokers.map((sb) => ({
+        id: sb.id,
+        slug: sb.slug,
+        displayName: sb.displayName,
+        logoUrl: sb.logoUrl,
+        licenseTypes: sb.licenses.map((l) => l.licenseType),
+        reviewCount: (sb as unknown as { _count: { reviews: number } })._count.reviews,
       })),
     },
   });

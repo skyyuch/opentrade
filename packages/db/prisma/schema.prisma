@@ -156,15 +156,23 @@ model User {
 ///
 /// `isClaimed` flips to true once an L4 KYC has completed for a custodial
 /// staff user. Pre-claim, `description` / `logoUrl` come from the seed.
+///
+/// SFC detail fields (`addressEn`, `addressZh`, `sfcDetailJson`) are
+/// populated by the offline SFC detail fetcher and contain public-register
+/// data such as responsible officers, conditions, and disciplinary actions.
 model Broker {
   id              String    @id @default(uuid()) @db.Uuid
   tenantId        String    @db.Uuid
   slug            String
   legalName       String
   displayName     String
+  ceNumber        String?
   websiteUrl      String?
   description     String?   @db.Text
   logoUrl         String?
+  addressEn       String?   @db.Text
+  addressZh       String?   @db.Text
+  sfcDetailJson   Json?
   isClaimed       Boolean   @default(false)
   claimedAt       DateTime?
   claimedByUserId String?   @db.Uuid
@@ -181,6 +189,7 @@ model Broker {
   @@unique([tenantId, slug])
   @@index([tenantId, isClaimed])
   @@index([tenantId, legalName])
+  @@index([ceNumber])
   @@map("brokers")
 }
 

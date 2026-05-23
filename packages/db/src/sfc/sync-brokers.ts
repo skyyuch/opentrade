@@ -68,6 +68,7 @@ export async function syncBrokers(
         data: {
           legalName: broker.legalNameEn,
           displayName: broker.legalNameZh,
+          ceNumber: broker.ceNumber,
         },
       });
       result.brokersUpdated++;
@@ -78,6 +79,7 @@ export async function syncBrokers(
           slug: broker.slug,
           legalName: broker.legalNameEn,
           displayName: broker.legalNameZh,
+          ceNumber: broker.ceNumber,
           isClaimed: false,
         },
       });

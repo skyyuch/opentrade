@@ -197,6 +197,30 @@ export type BrokerLicense = {
   licenseType: string;
   licenseNumber: string;
   status: string;
+  issuedAt: string;
+};
+
+export type RatingDistributionItem = {
+  stars: number;
+  count: number;
+  percentage: number;
+};
+
+export type SimilarBroker = {
+  id: string;
+  slug: string;
+  displayName: string;
+  logoUrl: string | null;
+  licenseTypes: string[];
+  reviewCount: number;
+};
+
+export type SfcDetailJson = {
+  principals?: Array<{ nameEn: string; nameZh?: string; role?: string }>;
+  representatives?: Array<{ nameEn: string; nameZh?: string; raTypes?: string[] }>;
+  conditions?: Array<{ text: string; effectiveDate?: string }>;
+  disciplinaryActions?: Array<{ description: string; date?: string; url?: string }>;
+  formerNames?: Array<{ name: string; effectiveUntil?: string }>;
 };
 
 export type BrokerDetail = {
@@ -204,12 +228,20 @@ export type BrokerDetail = {
   slug: string;
   displayName: string;
   legalName: string;
+  ceNumber: string | null;
   description: string | null;
   websiteUrl: string | null;
   logoUrl: string | null;
+  addressEn: string | null;
+  addressZh: string | null;
+  sfcDetailJson: SfcDetailJson | null;
   isClaimed: boolean;
+  activeYears: number | null;
   reviewCount: number;
+  positiveRate: number | null;
+  ratingDistribution: RatingDistributionItem[];
   licenses: BrokerLicense[];
+  similarBrokers: SimilarBroker[];
 };
 
 export type BrokerDetailResponse = {
