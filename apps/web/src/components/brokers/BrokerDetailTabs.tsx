@@ -909,7 +909,9 @@ function LicenseRecordsView({
     <div className="space-y-6">
       <div className="space-y-2">
         <div className="font-bold text-white mb-2 flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full bg-[#00FF88]" />
+          <div
+            className={`w-2 h-2 rounded-full ${sfo && sfo.length > 0 ? 'bg-[#00FF88]' : 'bg-white/20'}`}
+          />
           {t('underSfo')}
         </div>
         <div className="overflow-x-auto rounded-xl border border-white/10">
@@ -960,7 +962,9 @@ function LicenseRecordsView({
 
       <div className="space-y-2">
         <div className="font-bold text-white mb-2 flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full bg-white/20" />
+          <div
+            className={`w-2 h-2 rounded-full ${amlo && amlo.length > 0 ? 'bg-[#00FF88]' : 'bg-white/20'}`}
+          />
           {t('underAmlo')}
         </div>
         <div className="overflow-x-auto rounded-xl border border-white/10">
