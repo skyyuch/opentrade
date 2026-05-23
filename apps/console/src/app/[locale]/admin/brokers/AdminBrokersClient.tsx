@@ -1,6 +1,7 @@
 'use client';
 
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
+import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
 import { useOpenTradeAuth } from '../../../../hooks/useOpenTradeAuth';
@@ -11,6 +12,8 @@ import type { BrokerListItem } from '../../../../lib/api/client';
 export function AdminBrokersClient(): React.ReactNode {
   const { getAccessToken } = useOpenTradeAuth();
   const t = useTranslations('admin');
+  const locale = useLocale();
+  const router = useRouter();
   const [brokers, setBrokers] = useState<BrokerListItem[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -65,7 +68,8 @@ export function AdminBrokersClient(): React.ReactNode {
                 brokers.map((b) => (
                   <tr
                     key={`broker-${b.id}`}
-                    className="border-b border-white/5 transition-colors hover:bg-white/[0.02]"
+                    className="cursor-pointer border-b border-white/5 transition-colors hover:bg-white/[0.04]"
+                    onClick={() => router.push(`/${locale}/admin/brokers/${b.slug}`)}
                   >
                     <td className="px-4 py-3 font-bold">{b.displayName}</td>
                     <td className="px-4 py-3 font-mono text-xs">{b.slug}</td>

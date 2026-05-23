@@ -206,6 +206,7 @@ export type BrokerLicense = {
   licenseType: string;
   licenseNumber: string;
   status: string;
+  issuedAt: string;
 };
 
 export type BrokerDetail = {
@@ -213,12 +214,27 @@ export type BrokerDetail = {
   slug: string;
   displayName: string;
   legalName: string;
+  ceNumber: string | null;
   description: string | null;
   websiteUrl: string | null;
   logoUrl: string | null;
+  addressEn: string | null;
+  addressZh: string | null;
+  sfcDetailJson: Record<string, unknown> | null;
   isClaimed: boolean;
+  activeYears: number | null;
   reviewCount: number;
+  positiveRate: number | null;
+  ratingDistribution: { stars: number; count: number; percentage: number }[];
   licenses: BrokerLicense[];
+  similarBrokers: {
+    id: string;
+    slug: string;
+    displayName: string;
+    logoUrl: string | null;
+    licenseTypes: string[];
+    reviewCount: number;
+  }[];
 };
 
 export type BrokerDetailResponse = {
@@ -227,6 +243,15 @@ export type BrokerDetailResponse = {
 
 export const fetchBroker = (slug: string, options?: FetchOptions): Promise<BrokerDetailResponse> =>
   apiGet<BrokerDetailResponse>(`/v1/brokers/${slug}`, options);
+
+export const updateBrokerLogo = (
+  slug: string,
+  logoUrl: string,
+  options?: FetchOptions,
+): Promise<{ broker: { id: string; slug: string; displayName: string; logoUrl: string | null } }> =>
+  apiPatch<{
+    broker: { id: string; slug: string; displayName: string; logoUrl: string | null };
+  }>(`/v1/brokers/admin/${slug}/logo`, { logoUrl }, options);
 
 export type ReviewItem = {
   id: string;

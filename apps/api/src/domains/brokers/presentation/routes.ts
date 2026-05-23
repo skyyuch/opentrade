@@ -355,6 +355,47 @@ brokersRouter.patch('/:slug', authMiddleware('user'), async (c) => {
 });
 
 // ---------------------------------------------------------------------------
+// Admin: update broker logo (admin can update any broker's logo)
+// ---------------------------------------------------------------------------
+
+const adminUpdateLogoSchema = z.object({
+  logoUrl: z.string().url().or(z.literal('')),
+});
+
+brokersRouter.patch('/admin/:slug/logo', authMiddleware('admin'), async (c) => {
+  const slug = c.req.param('slug');
+
+  const body: unknown = await c.req.json();
+  const parsed = adminUpdateLogoSchema.safeParse(body);
+  if (!parsed.success) {
+    throw new AppError(ErrorCode.VALIDATION_ERROR, 'Invalid logo URL', 400, {
+      details: { issues: parsed.error.issues },
+    });
+  }
+
+  const broker = await prisma.broker.findFirst({
+    where: { slug, tenantId: DEFAULT_TENANT_ID, deletedAt: null },
+  });
+  if (!broker) {
+    throw new AppError(ErrorCode.NOT_FOUND, 'Broker not found', 404);
+  }
+
+  const updated = await prisma.broker.update({
+    where: { id: broker.id },
+    data: { logoUrl: parsed.data.logoUrl || null },
+  });
+
+  return c.json({
+    broker: {
+      id: updated.id,
+      slug: updated.slug,
+      displayName: updated.displayName,
+      logoUrl: updated.logoUrl,
+    },
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Admin claim management
 // ---------------------------------------------------------------------------
 
