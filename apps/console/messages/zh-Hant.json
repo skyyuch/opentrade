@@ -146,6 +146,8 @@
     "statusUnclaimed": "未認領",
     "searchBrokerPlaceholder": "搜尋券商名稱…",
     "filterAll": "所有狀態",
+    "filterLicenseAll": "所有牌照",
+    "clearFilter": "清除篩選",
     "viewIpfs": "查看 IPFS 證據",
     "reviewsDisclaimer": "請注意：鏈上評論無法在平台端刪除",
     "needsAttention": "需注意",
