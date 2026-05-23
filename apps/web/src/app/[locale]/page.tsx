@@ -13,8 +13,8 @@ const HomePage = async (): Promise<ReactNode> => {
   return (
     <div className="-mt-16 relative pt-16">
       {/* Background atmospheric glows — fixed to viewport so they bleed through the transparent header */}
-      <div className="pointer-events-none fixed right-[-5%] top-[-10%] z-0 h-[600px] w-[600px] rounded-full bg-[#00FF88]/10 blur-[120px]" />
-      <div className="pointer-events-none fixed bottom-[-10%] left-[-5%] z-0 h-[500px] w-[500px] rounded-full bg-blue-600/10 blur-[100px]" />
+      <div className="pointer-events-none fixed right-[-5%] top-[-10%] z-0 h-[700px] w-[700px] rounded-full bg-[#00FF88]/20 blur-[150px]" />
+      <div className="pointer-events-none fixed bottom-[-10%] left-[-5%] z-0 h-[600px] w-[600px] rounded-full bg-blue-600/20 blur-[120px]" />
 
       {/* Hero Section */}
       <section className="relative z-10 mx-auto flex max-w-7xl flex-col items-center gap-12 px-6 py-16 lg:flex-row lg:items-center lg:px-10 lg:py-24">
