@@ -11,9 +11,10 @@
 import { usePrivy } from '@privy-io/react-auth';
 import {
   Activity,
+  BadgeCheck,
   Building2,
-  CheckCircle,
-  LayoutDashboard,
+  Fingerprint,
+  LayoutGrid,
   LogOut,
   MessageSquareText,
   Settings,
@@ -39,7 +40,7 @@ type Props = {
 
 type NavItem = {
   href: string;
-  icon: typeof LayoutDashboard;
+  icon: typeof LayoutGrid;
   label: string;
   end?: boolean;
 };
@@ -83,9 +84,9 @@ export const AuthGate = ({ children, locale }: Props): ReactNode => {
   }
 
   const adminNav: NavItem[] = [
-    { href: `/${locale}/admin`, icon: LayoutDashboard, label: t('nav.adminDashboard'), end: true },
-    { href: `/${locale}/admin/claims`, icon: CheckCircle, label: t('nav.claims') },
-    { href: `/${locale}/admin/verifications`, icon: Shield, label: t('nav.verifications') },
+    { href: `/${locale}/admin`, icon: LayoutGrid, label: t('nav.adminDashboard'), end: true },
+    { href: `/${locale}/admin/claims`, icon: BadgeCheck, label: t('nav.claims') },
+    { href: `/${locale}/admin/verifications`, icon: Fingerprint, label: t('nav.verifications') },
     { href: `/${locale}/admin/users`, icon: Users, label: t('nav.users') },
     { href: `/${locale}/admin/reviews`, icon: Star, label: t('nav.reviews') },
     { href: `/${locale}/admin/brokers`, icon: Building2, label: t('nav.brokers') },
@@ -95,7 +96,7 @@ export const AuthGate = ({ children, locale }: Props): ReactNode => {
   const brokerNav: NavItem[] = [
     {
       href: `/${locale}/broker`,
-      icon: LayoutDashboard,
+      icon: LayoutGrid,
       label: t('nav.brokerDashboard'),
       end: true,
     },
@@ -104,7 +105,7 @@ export const AuthGate = ({ children, locale }: Props): ReactNode => {
   ];
 
   const defaultNav: NavItem[] = [
-    { href: `/${locale}`, icon: LayoutDashboard, label: t('nav.dashboard'), end: true },
+    { href: `/${locale}`, icon: LayoutGrid, label: t('nav.dashboard'), end: true },
     { href: `/${locale}/brokers`, icon: Building2, label: t('nav.brokers') },
   ];
 
@@ -142,7 +143,7 @@ export const AuthGate = ({ children, locale }: Props): ReactNode => {
           </span>
         </div>
 
-        <nav className="flex-1 space-y-2 overflow-y-auto px-4 py-6">
+        <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-6">
           {navItems.map((item) => {
             const isActive = item.end
               ? pathname === item.href
@@ -151,17 +152,15 @@ export const AuthGate = ({ children, locale }: Props): ReactNode => {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex items-center gap-3 rounded-lg px-4 py-3 transition-colors ${
-                  isActive
-                    ? `bg-[${accentColor}]/10 text-[${accentColor}]`
-                    : 'text-white/60 hover:bg-white/5 hover:text-white'
+                className={`flex items-center gap-3 rounded-lg px-4 py-2.5 transition-colors ${
+                  isActive ? 'font-bold' : 'text-white/60 hover:bg-white/5 hover:text-white'
                 }`}
                 style={
-                  isActive ? { backgroundColor: `${accentColor}1a`, color: accentColor } : undefined
+                  isActive ? { backgroundColor: `${accentColor}26`, color: accentColor } : undefined
                 }
               >
-                <item.icon size={20} aria-hidden />
-                <span className="text-sm font-medium">{item.label}</span>
+                <item.icon size={18} aria-hidden />
+                <span className="text-sm">{item.label}</span>
               </Link>
             );
           })}
