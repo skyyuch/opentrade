@@ -36,6 +36,7 @@ export function AdminBrokerDetailClient({ slug }: Props): ReactNode {
   const [uploadError, setUploadError] = useState('');
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [pendingPreview, setPendingPreview] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [activeLicenseTab, setActiveLicenseTab] = useState<LicenseTab>('details');
   const tabsRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
@@ -84,6 +85,11 @@ export function AdminBrokerDetailClient({ slug }: Props): ReactNode {
     void load();
   }, [getAccessToken, slug]);
 
+  const showToast = (type: 'success' | 'error', message: string) => {
+    setToast({ type, message });
+    setTimeout(() => setToast(null), 3000);
+  };
+
   const handleSaveLogo = async () => {
     const token = await getAccessToken();
     if (!token || !broker) return;
@@ -91,6 +97,9 @@ export function AdminBrokerDetailClient({ slug }: Props): ReactNode {
     try {
       await updateBrokerLogo(slug, logoUrl, { accessToken: token });
       setBroker({ ...broker, logoUrl: logoUrl || null });
+      showToast('success', t('saveSuccess'));
+    } catch {
+      showToast('error', t('saveFailed'));
     } finally {
       setSaving(false);
     }
@@ -128,8 +137,10 @@ export function AdminBrokerDetailClient({ slug }: Props): ReactNode {
       setBroker({ ...broker, logoUrl: res.logoUrl });
       setLogoUrl(res.logoUrl);
       handleCancelUpload();
+      showToast('success', t('uploadSuccess'));
     } catch {
       setUploadError(t('uploadFailed'));
+      showToast('error', t('uploadFailed'));
     } finally {
       setUploading(false);
     }
@@ -164,6 +175,19 @@ export function AdminBrokerDetailClient({ slug }: Props): ReactNode {
 
   return (
     <div className="animate-in fade-in max-w-6xl space-y-6 pb-12 duration-300">
+      {/* Toast notification */}
+      {toast && (
+        <div
+          className={`animate-in slide-in-from-top-2 fade-in fixed left-1/2 top-6 z-50 -translate-x-1/2 rounded-lg px-5 py-3 text-sm font-medium shadow-xl duration-200 ${
+            toast.type === 'success'
+              ? 'border border-[#00FF88]/20 bg-[#00FF88]/10 text-[#00FF88]'
+              : 'border border-red-500/20 bg-red-500/10 text-red-400'
+          }`}
+        >
+          {toast.message}
+        </div>
+      )}
+
       {/* Back link */}
       <Link
         href={`/${locale}/admin/brokers`}

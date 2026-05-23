@@ -266,6 +266,9 @@
     "uploadTooLarge": "File size exceeds the 5MB limit.",
     "uploadFailed": "Upload failed. Please try again later.",
     "uploadConfirm": "Confirm Upload",
+    "uploadSuccess": "Logo uploaded successfully",
+    "saveSuccess": "Settings saved",
+    "saveFailed": "Save failed. Please try again later.",
     "cancel": "Cancel"
   },
   "common": {

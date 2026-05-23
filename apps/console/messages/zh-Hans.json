@@ -266,6 +266,9 @@
     "uploadTooLarge": "文件大小超过上限 5MB。",
     "uploadFailed": "上传失败，请稍后再试。",
     "uploadConfirm": "确认上传",
+    "uploadSuccess": "Logo 上传成功",
+    "saveSuccess": "设置已保存",
+    "saveFailed": "保存失败，请稍后再试",
     "cancel": "取消"
   },
   "common": {

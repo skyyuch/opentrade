@@ -266,6 +266,9 @@
     "uploadTooLarge": "檔案大小超過上限 5MB。",
     "uploadFailed": "上傳失敗，請稍後再試。",
     "uploadConfirm": "確認上傳",
+    "uploadSuccess": "Logo 上傳成功",
+    "saveSuccess": "設定已儲存",
+    "saveFailed": "儲存失敗，請稍後再試",
     "cancel": "取消"
   },
   "common": {
