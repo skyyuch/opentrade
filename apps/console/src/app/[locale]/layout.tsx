@@ -29,6 +29,7 @@
  */
 
 import '@opentrade/ui/styles/globals.css';
+import '../../styles/console-overrides.css';
 
 import { Inter } from 'next/font/google';
 import { notFound } from 'next/navigation';
