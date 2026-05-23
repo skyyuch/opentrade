@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 
 import { useOpenTradeAuth } from '../../../../hooks/useOpenTradeAuth';
-import { fetchBrokers } from '../../../../lib/api/client';
+import { fetchAllBrokers } from '../../../../lib/api/client';
 
 import type { BrokerListItem } from '../../../../lib/api/client';
 
@@ -32,8 +32,8 @@ export function AdminBrokersClient(): React.ReactNode {
       const token = await getAccessToken();
       if (!token) return;
       try {
-        const res = await fetchBrokers({ accessToken: token });
-        setBrokers(res.brokers);
+        const all = await fetchAllBrokers({ accessToken: token });
+        setBrokers(all);
       } catch {
         setBrokers([]);
       } finally {

@@ -243,7 +243,21 @@ export type BrokersResponse = {
 };
 
 export const fetchBrokers = (options?: FetchOptions): Promise<BrokersResponse> =>
-  apiGet<BrokersResponse>('/v1/brokers', options);
+  apiGet<BrokersResponse>('/v1/brokers?limit=50', options);
+
+export const fetchAllBrokers = async (options?: FetchOptions): Promise<BrokerListItem[]> => {
+  const all: BrokerListItem[] = [];
+  let cursor: string | null = null;
+  let hasMore = true;
+  while (hasMore) {
+    const params: string = cursor ? `?limit=50&cursor=${cursor}` : '?limit=50';
+    const res: BrokersResponse = await apiGet<BrokersResponse>(`/v1/brokers${params}`, options);
+    all.push(...res.brokers);
+    cursor = res.nextCursor;
+    hasMore = cursor !== null;
+  }
+  return all;
+};
 
 export type BrokerLicense = {
   regulator: string;
