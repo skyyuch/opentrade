@@ -8,9 +8,9 @@
 
 ## 最後更新
 
-- **日期**：2026-05-23
-- **更新者**：Console i18n completion + manual user creation session（Claude Opus 4.6）
-- **本次更新摘要**：修復 Console CSS 主題衝突（新增 console-globals.css 取代共用 globals.css）+ 加入 LocaleSwitcher 語言切換組件 + 全面修復 admin/broker 所有內頁 i18n（25+ 個 key 補齊，表頭/Tab/按鈕/placeholder 全部使用翻譯 key）+ 新增 POST /v1/admin/users API（手動建立用戶）+ 前端新增「新增用戶」按鈕和 Modal 表單。VerificationsClient 也完整改寫匹配 Google 暗色風格。
+- **日期**：2026-05-24
+- **更新者**：Console credential login session（Claude Opus 4.6）
+- **本次更新摘要**：新增 admin console 帳號密碼登入功能（POST /v1/auth/login + bcrypt + DDD 四層）+ seed admin 帳號 + useOpenTradeAuth 和 useCurrentUser 重構為 React Context Provider 共享狀態 + PrivyErrorBoundary 隔離 Privy SDK 失敗 + role-based access control（ADMIN / broker owner）+ ADR-0024。已知問題：admin menu 導航仍可能 redirect 到 overview 頁面，需下個 session 排查 AdminGuard 與 auth state hydration 之間的時序問題。
 
 ---
 
@@ -319,7 +319,7 @@ Branch: `feature/phase-1-mvp-a`（first 4 commits + 1 handoff docs commit）
 
 ## 進行中
 
-- **Console Google UI 微調**：CSS 主題衝突已修復（console-globals.css 取代共用 globals.css），i18n 完善，手動新增用戶已上線。仍有部分頁面視覺與 Google 原始設計可能有微小差異，需用戶驗收。
+- **Console credential login 已 commit 但有 bug**：帳號密碼登入 API + UI 已完成，但 admin menu 導航仍 redirect 到 overview 頁面。根本原因：`useCurrentUser` 在各元件各自 fetch 造成 `AdminGuard` 在 fetch 完成前誤判 `user=null` 而 redirect。已重構為 Context Provider 但未驗證修復。
 - **Phase 1 E2E 測試**：Privy dashboard 已設定完成，需瀏覽器跑完整流程
 
 ---
@@ -543,3 +543,4 @@ aws sso login --profile opentrade-dev
 | 2026-05-22 | Phase 1: UI polish + dark mode + Privy setup | Claude Opus 4.6 | ADR-0021/0022 補完。UI 組件實作（SbtBadge, ReviewCard upgrade, VerifyForm, SearchBar, Console ClaimForm）。Privy Dashboard 設定指引。本地三服務啟動驗證。Webpack Privy/wagmi peer deps fix。DB seed 3,482 brokers。BrokerDirectory overhaul (API search + cursor pagination)。強制 dark mode (crypto exchange style)。Broker name i18n logic。Hydration fix。 | |
 | 2026-05-23 | Console role-based rebuild + Google UI integration | Claude Opus 4.6 | Admin domain API (stats/users/reviews/activity) + broker owner-stats + auth/me claimedBroker. Console role-based routing (AdminGuard/BrokerGuard/useCurrentUser). Admin skeleton pages (dashboard/claims/verifications/users/reviews/brokers/system). Broker pages (dashboard/profile/reviews). Settings page. Google AI Studio UI integration (dark #050608 + #00FF88 accent + rounded cards). CSS theme conflict partially fixed (console-overrides.css). | |
 | 2026-05-23 | Console i18n completion + manual user creation | Claude Opus 4.6 | CSS theme conflict resolved (console-globals.css replaces shared globals.css). LocaleSwitcher component (globe icon + dropdown). Full i18n for all admin/broker pages (25+ keys: table headers, tabs, filters, placeholders, status badges). POST /v1/admin/users API for manual user creation. "Add User" button + modal in UsersClient. VerificationsClient rewritten to match dark theme. 2 commits (fix + feat). | |
+|| 2026-05-24 | Console credential login + auth refactor | Claude Opus 4.6 | POST /v1/auth/login (bcrypt + DDD). User model +username/passwordHash. Seed admin user. useOpenTradeAuth refactored to React Context. useCurrentUser refactored to React Context. PrivyErrorBoundary + PrivyLoginButton. AuthGate credential form + role-based access. ADR-0024. Known bug: admin menu navigation redirects to overview (timing issue between hydration and AdminGuard). | |
