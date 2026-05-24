@@ -85,7 +85,7 @@ const LocaleLayout = async ({ children, params }: Props): Promise<ReactNode> => 
             <OpenTradeAuthProvider>
               <CurrentUserProvider>
                 <Web3Providers>
-                  <AuthGate locale={locale}>{children}</AuthGate>
+                  <AuthGate>{children}</AuthGate>
                 </Web3Providers>
               </CurrentUserProvider>
             </OpenTradeAuthProvider>

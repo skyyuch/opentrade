@@ -29,13 +29,12 @@ import {
   Store,
   Users,
 } from 'lucide-react';
-import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
-import { usePathname } from '../../i18n/navigation';
 
 import { useCurrentUser } from '../../hooks/useCurrentUser';
 import { useOpenTradeAuth } from '../../hooks/useOpenTradeAuth';
+import { Link, usePathname } from '../../i18n/navigation';
 import { loginWithCredentials } from '../../lib/api/client';
 import { PrivyLoginButton } from '../auth/PrivyLoginButton';
 import { PrivyErrorBoundary } from '../providers/PrivyErrorBoundary';
@@ -46,7 +45,6 @@ import type { FormEvent, ReactNode } from 'react';
 
 type Props = {
   children: ReactNode;
-  locale: string;
 };
 
 type NavItem = {
@@ -57,7 +55,7 @@ type NavItem = {
   end?: boolean;
 };
 
-export const AuthGate = ({ children, locale }: Props): ReactNode => {
+export const AuthGate = ({ children }: Props): ReactNode => {
   const { isAuthenticated, setToken, clearToken, hydrated } = useOpenTradeAuth();
   const { user, isAdmin, isBrokerOwner, claimedBroker, isLoading } = useCurrentUser();
   const t = useTranslations();
@@ -204,39 +202,39 @@ export const AuthGate = ({ children, locale }: Props): ReactNode => {
 
   const adminNav: NavItem[] = [
     {
-      href: `/${locale}/admin`,
+      href: '/admin',
       path: '/admin',
       icon: LayoutGrid,
       label: t('nav.adminDashboard'),
       end: true,
     },
     {
-      href: `/${locale}/admin/claims`,
+      href: '/admin/claims',
       path: '/admin/claims',
       icon: BadgeCheck,
       label: t('nav.claims'),
     },
     {
-      href: `/${locale}/admin/verifications`,
+      href: '/admin/verifications',
       path: '/admin/verifications',
       icon: Fingerprint,
       label: t('nav.verifications'),
     },
-    { href: `/${locale}/admin/users`, path: '/admin/users', icon: Users, label: t('nav.users') },
+    { href: '/admin/users', path: '/admin/users', icon: Users, label: t('nav.users') },
     {
-      href: `/${locale}/admin/reviews`,
+      href: '/admin/reviews',
       path: '/admin/reviews',
       icon: Star,
       label: t('nav.reviews'),
     },
     {
-      href: `/${locale}/admin/brokers`,
+      href: '/admin/brokers',
       path: '/admin/brokers',
       icon: Building2,
       label: t('nav.brokers'),
     },
     {
-      href: `/${locale}/admin/system`,
+      href: '/admin/system',
       path: '/admin/system',
       icon: Activity,
       label: t('nav.system'),
@@ -245,20 +243,20 @@ export const AuthGate = ({ children, locale }: Props): ReactNode => {
 
   const brokerNav: NavItem[] = [
     {
-      href: `/${locale}/broker`,
+      href: '/broker',
       path: '/broker',
       icon: LayoutGrid,
       label: t('nav.brokerDashboard'),
       end: true,
     },
     {
-      href: `/${locale}/broker/profile`,
+      href: '/broker/profile',
       path: '/broker/profile',
       icon: Store,
       label: t('nav.profile'),
     },
     {
-      href: `/${locale}/broker/reviews`,
+      href: '/broker/reviews',
       path: '/broker/reviews',
       icon: MessageSquareText,
       label: t('nav.brokerReviews'),
@@ -325,7 +323,7 @@ export const AuthGate = ({ children, locale }: Props): ReactNode => {
             </div>
           ) : null}
           <Link
-            href={`/${locale}/settings`}
+            href="/settings"
             className="flex items-center gap-3 rounded-lg px-4 py-3 text-white/50 transition-colors hover:bg-white/5 hover:text-white"
           >
             <Settings size={20} aria-hidden />

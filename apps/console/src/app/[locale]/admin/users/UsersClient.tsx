@@ -2,7 +2,7 @@
 
 import { MoreVertical, Plus, Search, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { useCallback, useEffect, useState } from 'react';
+import { Fragment, useCallback, useEffect, useState } from 'react';
 
 import { useOpenTradeAuth } from '../../../../hooks/useOpenTradeAuth';
 import {
@@ -142,9 +142,8 @@ export function UsersClient(): React.ReactNode {
                   </tr>
                 ) : (
                   users.map((u) => (
-                    <>
+                    <Fragment key={u.id}>
                       <tr
-                        key={`user-${u.id}`}
                         className="cursor-pointer border-b border-white/5 transition-colors hover:bg-white/[0.02]"
                         onClick={() => void handleExpand(u.id)}
                       >
@@ -171,7 +170,7 @@ export function UsersClient(): React.ReactNode {
                         </td>
                       </tr>
                       {expandedId === u.id && detail && (
-                        <tr key={`detail-${u.id}`} className="border-b border-white/5">
+                        <tr className="border-b border-white/5">
                           <td colSpan={7} className="px-6 py-4">
                             <UserDetailPanel
                               detail={detail}
@@ -181,7 +180,7 @@ export function UsersClient(): React.ReactNode {
                           </td>
                         </tr>
                       )}
-                    </>
+                    </Fragment>
                   ))
                 )}
               </tbody>
