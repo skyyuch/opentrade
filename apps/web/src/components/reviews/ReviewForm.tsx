@@ -12,7 +12,7 @@
 
 import { usePrivy } from '@privy-io/react-auth';
 import { Star } from 'lucide-react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { useCallback, useState } from 'react';
 
 import { useOpenTradeAuth } from '../../hooks/useOpenTradeAuth';
@@ -35,6 +35,10 @@ export const ReviewForm = ({ brokerId, brokerName }: Props): ReactNode => {
   const t = useTranslations('reviewForm');
   const { authenticated, login } = usePrivy();
   const { getAccessToken } = useOpenTradeAuth();
+  // Per ADR-0027 D2: send the author's current next-intl locale as the
+  // canonical sourceLocale; the server falls back to Accept-Language
+  // only when this is missing.
+  const currentLocale = useLocale();
 
   const [state, setState] = useState<FormState>({ kind: 'idle' });
   const [rating, setRating] = useState(0);
@@ -56,8 +60,11 @@ export const ReviewForm = ({ brokerId, brokerName }: Props): ReactNode => {
           return;
         }
 
+        const sourceLocale: 'zh-Hant' | 'zh-Hans' | 'en' =
+          currentLocale === 'zh-Hans' || currentLocale === 'en' ? currentLocale : 'zh-Hant';
+
         await submitReview(
-          { brokerId, title: title.trim(), body: body.trim(), rating },
+          { brokerId, title: title.trim(), body: body.trim(), rating, sourceLocale },
           { accessToken },
         );
 
@@ -71,7 +78,7 @@ export const ReviewForm = ({ brokerId, brokerName }: Props): ReactNode => {
         setState({ kind: 'error', message });
       }
     },
-    [brokerId, rating, title, body, getAccessToken, t],
+    [brokerId, rating, title, body, getAccessToken, t, currentLocale],
   );
 
   if (!authenticated) {

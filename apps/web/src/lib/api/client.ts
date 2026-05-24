@@ -368,6 +368,14 @@ export type ReviewItem = {
   body: string;
   rating: number;
   status: string;
+  /**
+   * Per ADR-0027 D2 + D6: the locale the author was browsing in at
+   * submit time. Rendered as a small badge on the ReviewCard so readers
+   * know which language the original is in. Nullable for legacy rows
+   * pre-dating ADR-0027; the D8 backfill script will fill those values
+   * (Han ratio + OpenCC round-trip detection).
+   */
+  sourceLocale: 'zh-Hant' | 'zh-Hans' | 'en' | null;
   createdAt: string;
   author?: ReviewAuthor;
 };
@@ -399,6 +407,13 @@ export type SubmitReviewInput = {
   title: string;
   body: string;
   rating: number;
+  /**
+   * Per ADR-0027 D2: the author's current next-intl locale. The frontend
+   * always knows this (the user clicked through `[locale]` route to get
+   * to the broker page) so we send it explicitly instead of relying on
+   * the server's `Accept-Language` fallback.
+   */
+  sourceLocale: 'zh-Hant' | 'zh-Hans' | 'en';
 };
 
 export type SubmitReviewResponse = {

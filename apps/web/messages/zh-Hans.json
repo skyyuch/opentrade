@@ -182,7 +182,12 @@
     "verifiedAtThisBrokerShort": "本券商客户",
     "verifiedAtBroker": "已通过 {broker} 验证",
     "kolSource": "KOL信号源",
-    "generalUser": "一般用户"
+    "generalUser": "一般用户",
+    "reviewDisclaimer": "评论以作者原文呈现，平台不提供自动翻译。",
+    "sourceLocaleZhHant": "繁体中文",
+    "sourceLocaleZhHans": "简体中文",
+    "sourceLocaleEn": "英文",
+    "sourceLocaleTooltip": "原文语言：{language}"
   },
   "reviewForm": {
     "title": "撰写评论",

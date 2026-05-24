@@ -146,6 +146,15 @@ function ReviewsTab({
         </div>
       </div>
 
+      {/* Per ADR-0027 D6: tell the reader up front that reviews ship in the
+        author's original language and no machine translation runs. The
+        per-card badge below shows which language each individual review
+        was written in. */}
+      <div className="flex items-start gap-2 text-xs text-white/40 px-1">
+        <Info size={12} className="mt-0.5 flex-shrink-0" />
+        <span>{t('reviewDisclaimer')}</span>
+      </div>
+
       <div className="space-y-4">
         {reviews.length === 0 ? (
           <div className="py-20 flex flex-col items-center justify-center text-center border border-white/5 rounded-2xl bg-white/5 border-dashed">
@@ -240,6 +249,10 @@ function SubmitReviewCta({ brokerId, brokerName }: { brokerId: string; brokerNam
   const tf = useTranslations('reviewForm');
   const { authenticated, login } = usePrivy();
   const { getAccessToken } = useOpenTradeAuth();
+  // Per ADR-0027 D2: the author's current locale is the trustworthy
+  // signal for sourceLocale. next-intl exposes it directly because the
+  // user reached this component through the `[locale]` route segment.
+  const currentLocale = useLocale();
 
   const [formState, setFormState] = useState<ReviewFormState>({ kind: 'idle' });
   const [rating, setRating] = useState(0);
@@ -258,8 +271,16 @@ function SubmitReviewCta({ brokerId, brokerName }: { brokerId: string; brokerNam
           setFormState({ kind: 'error', message: tf('loginRequired') });
           return;
         }
+        const sourceLocale: 'zh-Hant' | 'zh-Hans' | 'en' =
+          currentLocale === 'zh-Hans' || currentLocale === 'en' ? currentLocale : 'zh-Hant';
         await submitReview(
-          { brokerId, title: title.trim() || brokerName, body: body.trim(), rating },
+          {
+            brokerId,
+            title: title.trim() || brokerName,
+            body: body.trim(),
+            rating,
+            sourceLocale,
+          },
           { accessToken },
         );
         setFormState({ kind: 'success' });
@@ -271,7 +292,7 @@ function SubmitReviewCta({ brokerId, brokerName }: { brokerId: string; brokerNam
         setFormState({ kind: 'error', message });
       }
     },
-    [brokerId, brokerName, rating, title, body, getAccessToken, tf],
+    [brokerId, brokerName, rating, title, body, getAccessToken, tf, currentLocale],
   );
 
   if (!authenticated) {
@@ -432,6 +453,18 @@ function ReviewCard({
   const visibleOthers = otherVerifiedBrokers.slice(0, VISIBLE_OTHER);
   const hiddenOthersCount = otherVerifiedBrokers.length - visibleOthers.length;
 
+  // Per ADR-0027 D6: show the source language as a small neutral pill.
+  // Pre-D8-backfill rows have null sourceLocale; we hide the badge in
+  // that case rather than guessing, to avoid mislabelling history.
+  const sourceLocaleLabel: string | null =
+    review.sourceLocale === 'zh-Hant'
+      ? t('sourceLocaleZhHant')
+      : review.sourceLocale === 'zh-Hans'
+        ? t('sourceLocaleZhHans')
+        : review.sourceLocale === 'en'
+          ? t('sourceLocaleEn')
+          : null;
+
   return (
     <div className="p-6 rounded-xl bg-zinc-900/50 border border-white/10 hover:border-white/20 transition-colors">
       <div className="flex justify-between items-start mb-4">
@@ -474,6 +507,14 @@ function ReviewCard({
               {hiddenOthersCount > 0 && (
                 <span className="text-[10px] px-1.5 py-0.5 rounded-full border border-white/10 bg-white/5 text-white/50">
                   +{hiddenOthersCount}
+                </span>
+              )}
+              {sourceLocaleLabel && (
+                <span
+                  className="text-[10px] px-1.5 py-0.5 rounded-full border border-white/10 bg-white/5 text-white/50"
+                  title={t('sourceLocaleTooltip', { language: sourceLocaleLabel })}
+                >
+                  {sourceLocaleLabel}
                 </span>
               )}
             </div>

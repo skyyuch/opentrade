@@ -182,7 +182,12 @@
     "verifiedAtThisBrokerShort": "Verified here",
     "verifiedAtBroker": "Verified at {broker}",
     "kolSource": "KOL source",
-    "generalUser": "General user"
+    "generalUser": "General user",
+    "reviewDisclaimer": "Reviews are shown in the author's original language; the platform does not provide automatic translation.",
+    "sourceLocaleZhHant": "Traditional Chinese",
+    "sourceLocaleZhHans": "Simplified Chinese",
+    "sourceLocaleEn": "English",
+    "sourceLocaleTooltip": "Original language: {language}"
   },
   "reviewForm": {
     "title": "Write a review",
