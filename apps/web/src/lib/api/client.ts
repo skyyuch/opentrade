@@ -312,6 +312,13 @@ export const fetchBroker = (slug: string, options?: FetchOptions): Promise<Broke
 export type ReviewAuthor = {
   displayName: string | null;
   sbtTier: string;
+  /**
+   * Broker slugs the author has been verified for. Per ADR-0025 these
+   * are surfaced as credibility badges on the review card; the API
+   * intentionally exposes only the slugs (not commitments / approvedAt)
+   * so the public response stays cheap and minimal.
+   */
+  verifiedBrokers: string[];
 };
 
 export type ReviewItem = {

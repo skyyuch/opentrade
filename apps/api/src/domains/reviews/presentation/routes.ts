@@ -146,7 +146,16 @@ reviewsRouter.get('/broker/:slug', async (c) => {
   const [users, translations] = await Promise.all([
     prisma.user.findMany({
       where: { id: { in: userIds } },
-      select: { id: true, displayName: true, sbtTier: true },
+      select: {
+        id: true,
+        displayName: true,
+        sbtTier: true,
+        // Per ADR-0025: review cards surface the author's verified-broker
+        // list as a public credibility signal. Only the brokerSlug is
+        // exposed (no commitments / approvedAt) so the API stays cheap to
+        // cache and gives the client only what it renders.
+        verifiedBrokers: { select: { brokerSlug: true } },
+      },
     }),
     requestedLocale
       ? prisma.reviewTranslation.findMany({
@@ -182,6 +191,7 @@ reviewsRouter.get('/broker/:slug', async (c) => {
         author: {
           displayName: author?.displayName ?? null,
           sbtTier: author?.sbtTier ?? 'L1',
+          verifiedBrokers: author?.verifiedBrokers.map((b) => b.brokerSlug) ?? [],
         },
       };
     }),

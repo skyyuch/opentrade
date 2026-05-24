@@ -151,7 +151,14 @@ function ReviewsTab({
             <h3 className="text-lg font-bold text-white mb-2">{t('noReviews')}</h3>
           </div>
         ) : (
-          reviews.map((review) => <ReviewCard key={review.id} review={review} locale={locale} />)
+          reviews.map((review) => (
+            <ReviewCard
+              key={review.id}
+              review={review}
+              locale={locale}
+              currentBrokerSlug={broker.slug}
+            />
+          ))
         )}
       </div>
     </>
@@ -370,7 +377,15 @@ function SubmitReviewCta({ brokerId, brokerName }: { brokerId: string; brokerNam
   );
 }
 
-function ReviewCard({ review, locale }: { review: ReviewItem; locale: string }) {
+function ReviewCard({
+  review,
+  locale,
+  currentBrokerSlug,
+}: {
+  review: ReviewItem;
+  locale: string;
+  currentBrokerSlug: string;
+}) {
   const t = useTranslations('brokerDetail');
   const sbtTier = review.author?.sbtTier ?? 'L1';
   const userTypeLabel =
@@ -392,17 +407,50 @@ function ReviewCard({ review, locale }: { review: ReviewItem; locale: string }) 
       ? `${review.contentHash.slice(0, 6)}...${review.contentHash.slice(-4)}`
       : t('anonymous'));
 
+  // Per ADR-0025: a verified review card surfaces the author's broker
+  // coverage as a credibility signal. We split the badges into two
+  // groups so the most relevant one (the current broker) gets a louder
+  // treatment, and we cap the overflow tail to keep the card compact.
+  const verifiedBrokers = review.author?.verifiedBrokers ?? [];
+  const isAuthorVerifiedHere = verifiedBrokers.includes(currentBrokerSlug);
+  const otherVerifiedBrokers = verifiedBrokers.filter((slug) => slug !== currentBrokerSlug);
+  const VISIBLE_OTHER = 2;
+  const visibleOthers = otherVerifiedBrokers.slice(0, VISIBLE_OTHER);
+  const hiddenOthersCount = otherVerifiedBrokers.length - visibleOthers.length;
+
   return (
     <div className="p-6 rounded-xl bg-zinc-900/50 border border-white/10 hover:border-white/20 transition-colors">
       <div className="flex justify-between items-start mb-4">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-blue-600 to-purple-600" />
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <span className="font-bold text-sm">{displayName}</span>
               <span className={`text-[10px] px-1.5 py-0.5 rounded border ${userTypeStyle}`}>
                 {userTypeLabel}
               </span>
+              {isAuthorVerifiedHere && (
+                <span
+                  className="text-[10px] px-1.5 py-0.5 rounded-full border border-[#00FF88]/40 bg-[#00FF88]/15 text-[#00FF88] font-bold"
+                  title={t('verifiedAtThisBroker')}
+                >
+                  ✓ {t('verifiedAtThisBrokerShort')}
+                </span>
+              )}
+              {visibleOthers.map((slug) => (
+                <span
+                  key={slug}
+                  className="text-[10px] px-1.5 py-0.5 rounded-full border border-white/15 bg-white/5 text-white/60 font-mono"
+                  title={t('verifiedAtBroker', { broker: slug })}
+                >
+                  ✓ {slug}
+                </span>
+              ))}
+              {hiddenOthersCount > 0 && (
+                <span className="text-[10px] px-1.5 py-0.5 rounded-full border border-white/10 bg-white/5 text-white/50">
+                  +{hiddenOthersCount}
+                </span>
+              )}
             </div>
             <div className="text-xs text-white/40 mt-1">
               {new Date(review.createdAt).toLocaleDateString(locale)}
