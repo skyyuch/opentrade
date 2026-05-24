@@ -218,7 +218,12 @@ function VerifiedBrokersSection({ brokers }: { brokers: VerifiedBrokerEntry[] })
                       English-locale users staring at routing keys. */}
                   <span className="truncate text-sm">
                     {localizedBrokerName(
-                      { slug: b.brokerSlug, displayName: b.displayName, legalName: b.legalName },
+                      {
+                        slug: b.brokerSlug,
+                        displayName: b.displayName,
+                        displayNameZhHans: b.displayNameZhHans,
+                        legalName: b.legalName,
+                      },
                       locale,
                     )}
                   </span>

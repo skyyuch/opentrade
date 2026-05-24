@@ -171,7 +171,11 @@ export const fetchHealth = (options?: FetchOptions): Promise<HealthReportDto> =>
 export type BrokerListItem = {
   id: string;
   slug: string;
+  // Per cursor rule 51 + ADR-0026: every broker reference ships all
+  // three name columns (TC + SC + EN) so the consumer can pick by
+  // locale via `localizedBrokerName()` from @opentrade/shared.
   displayName: string;
+  displayNameZhHans: string | null;
   legalName: string;
   logoUrl: string | null;
   isClaimed: boolean;
@@ -218,9 +222,11 @@ export type RatingDistributionItem = {
 export type SimilarBroker = {
   id: string;
   slug: string;
-  // Per cursor rule 51: every broker reference carries both name columns
-  // so the consumer can pick by locale via `localizedBrokerName()`.
+  // Per cursor rule 51 + ADR-0026: ship all three name columns
+  // (TC + SC + EN) so the consumer can pick by locale via
+  // `localizedBrokerName()`.
   displayName: string;
+  displayNameZhHans: string | null;
   legalName: string | null;
   logoUrl: string | null;
   licenseTypes: string[];
@@ -293,7 +299,10 @@ export type SfcDetailJson = {
 export type BrokerDetail = {
   id: string;
   slug: string;
+  // Per cursor rule 51 + ADR-0026: ship all three name columns
+  // (TC + SC + EN).
   displayName: string;
+  displayNameZhHans: string | null;
   legalName: string;
   ceNumber: string | null;
   description: string | null;
@@ -326,11 +335,13 @@ export const fetchBroker = (slug: string, options?: FetchOptions): Promise<Broke
 
 export type AuthorVerifiedBroker = {
   brokerSlug: string;
-  // Per cursor rule 51: ship both name columns so ReviewCard can render
-  // the badge in the reader's locale via `localizedBrokerName()`. Slug
-  // alone forced English-locale users to see Chinese-style slugs and
-  // vice versa.
+  // Per cursor rule 51 + ADR-0026: ship all three name columns
+  // (TC + SC + EN) so ReviewCard can render the badge in the reader's
+  // locale via `localizedBrokerName()`. Slug alone forced English-
+  // locale users to see Chinese-style slugs; the previous two-column
+  // shape leaked Traditional Chinese into `zh-Hans` mode.
   displayName: string;
+  displayNameZhHans: string | null;
   legalName: string | null;
 };
 
@@ -364,12 +375,14 @@ export type ReviewItem = {
 export type BrokerReviewsResponse = {
   reviews: ReviewItem[];
   nextCursor: string | null;
-  // Per cursor rule 51: the header broker also ships both name columns
-  // so SubmitReviewCta and any embedded summary block stay locale-aware.
+  // Per cursor rule 51 + ADR-0026: the header broker ships all three
+  // name columns (TC + SC + EN) so SubmitReviewCta and any embedded
+  // summary block stay locale-aware.
   broker: {
     id: string;
     slug: string;
     displayName: string;
+    displayNameZhHans: string | null;
     legalName: string | null;
     logoUrl: string | null;
   };
@@ -490,11 +503,11 @@ export type VerificationStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 export type VerificationStatusItem = {
   id: string;
   brokerSlug: string;
-  // Per cursor rule 51: pending / rejected cards display the broker
-  // name in the user's locale; ship both columns instead of relying on
-  // the SSR-shipped 100-broker pool that may not include the verified
-  // broker.
+  // Per cursor rule 51 + ADR-0026: ship all three name columns
+  // (TC + SC + EN). Pending / rejected cards display the broker name
+  // in the user's locale via `localizedBrokerName()`.
   brokerDisplayName: string;
+  brokerDisplayNameZhHans: string | null;
   brokerLegalName: string | null;
   commitment: string;
   status: VerificationStatus;
@@ -505,10 +518,10 @@ export type VerificationStatusItem = {
 
 export type VerifiedBrokerEntry = {
   brokerSlug: string;
-  // Per cursor rule 51: ship both name columns. Settings + /verify
-  // cards iterate this list and were previously rendering raw slugs
-  // because the API only shipped the routing key.
+  // Per cursor rule 51 + ADR-0026: ship all three name columns
+  // (TC + SC + EN). Settings + /verify cards iterate this list.
   displayName: string;
+  displayNameZhHans: string | null;
   legalName: string | null;
   approvedAt: string;
 };

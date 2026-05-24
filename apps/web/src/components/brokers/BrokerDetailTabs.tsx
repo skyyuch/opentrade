@@ -453,7 +453,12 @@ function ReviewCard({
               )}
               {visibleOthers.map((b) => {
                 const name = localizedBrokerName(
-                  { slug: b.brokerSlug, displayName: b.displayName, legalName: b.legalName },
+                  {
+                    slug: b.brokerSlug,
+                    displayName: b.displayName,
+                    displayNameZhHans: b.displayNameZhHans,
+                    legalName: b.legalName,
+                  },
                   locale,
                 );
                 return (

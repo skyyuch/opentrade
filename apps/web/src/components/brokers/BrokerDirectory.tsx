@@ -10,7 +10,12 @@ import { Link } from '../../i18n/navigation';
 type BrokerListItem = {
   id: string;
   slug: string;
+  // Per cursor rule 51 + ADR-0026: three-column name shape so the
+  // resolver below can pick the right primary/secondary pair per
+  // locale (`zh-Hans` reads the Simplified column, falling back to
+  // Traditional, then English).
   displayName: string;
+  displayNameZhHans: string | null;
   legalName: string;
   logoUrl: string | null;
   isClaimed: boolean;
@@ -64,10 +69,20 @@ function resolveBrokerName(
   broker: BrokerListItem,
   locale: string,
 ): { primary: string; secondary: string | null } {
-  const isChineseLocale = locale.startsWith('zh');
+  // Per cursor rule 51 + ADR-0026: the directory card stacks two lines
+  // (primary + secondary) so it can show both the localised name and
+  // the legal English name as a credibility signal. We hand-roll the
+  // locale fork here because `localizedBrokerName()` only returns the
+  // primary — fold ADR-0026's zh-Hans branch into the legacy logic.
   const hasChinese = broker.displayName !== broker.legalName;
 
-  if (isChineseLocale) {
+  if (locale === 'zh-Hans') {
+    // OpenCC backfill is best-effort (per ADR-0026 D1); fall back to
+    // Traditional Chinese when the Simplified column is null.
+    const primary = broker.displayNameZhHans ?? broker.displayName;
+    return { primary, secondary: hasChinese ? broker.legalName : null };
+  }
+  if (locale.startsWith('zh')) {
     return { primary: broker.displayName, secondary: hasChinese ? broker.legalName : null };
   }
   return { primary: broker.legalName, secondary: hasChinese ? broker.displayName : null };

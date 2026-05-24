@@ -26,7 +26,10 @@ const BrokersPage = async ({ params }: Props): Promise<ReactNode> => {
   let brokers: {
     id: string;
     slug: string;
+    // Per cursor rule 51 + ADR-0026: three-column name shape forwarded
+    // from the API to the BrokerDirectory client component.
     displayName: string;
+    displayNameZhHans: string | null;
     legalName: string;
     logoUrl: string | null;
     isClaimed: boolean;

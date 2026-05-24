@@ -58,7 +58,11 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
 type Broker = {
   slug: string;
+  // Per ADR-0026: keep the local Broker shape aligned with the API's
+  // three-column contract (TC + SC + EN) so callers can pipe these
+  // values into `localizedBrokerName()` without runtime guards.
   displayName: string;
+  displayNameZhHans: string | null;
   legalName: string;
 };
 
@@ -290,7 +294,9 @@ export const VerifyForm = ({ brokers }: VerifyFormProps) => {
       setLatestVerification({
         id: 'pending-local',
         brokerSlug,
+        // Per ADR-0026: ship all three name columns (TC + SC + EN).
         brokerDisplayName: pickedBroker?.displayName ?? brokerSlug,
+        brokerDisplayNameZhHans: pickedBroker?.displayNameZhHans ?? null,
         brokerLegalName: pickedBroker?.legalName ?? null,
         commitment,
         status: 'PENDING',
@@ -367,6 +373,7 @@ export const VerifyForm = ({ brokers }: VerifyFormProps) => {
           {
             slug: latestVerification.brokerSlug,
             displayName: latestVerification.brokerDisplayName,
+            displayNameZhHans: latestVerification.brokerDisplayNameZhHans,
             legalName: latestVerification.brokerLegalName,
           },
           locale,
@@ -383,6 +390,7 @@ export const VerifyForm = ({ brokers }: VerifyFormProps) => {
           {
             slug: latestVerification.brokerSlug,
             displayName: latestVerification.brokerDisplayName,
+            displayNameZhHans: latestVerification.brokerDisplayNameZhHans,
             legalName: latestVerification.brokerLegalName,
           },
           locale,
@@ -646,7 +654,9 @@ const BrokerCombobox = ({
             setRemoteBrokers(
               res.brokers.map((b) => ({
                 slug: b.slug,
+                // Per ADR-0026: forward all three name columns.
                 displayName: b.displayName,
+                displayNameZhHans: b.displayNameZhHans,
                 legalName: b.legalName,
               })),
             );
@@ -980,12 +990,18 @@ const VerifyApprovedCard = ({
           </div>
           <ul className="space-y-2">
             {verifiedBrokers.map((b) => {
-              // Per cursor rule 51: API ships both name columns directly
-              // on each entry, so we never look up the SSR-shipped
-              // 100-broker pool here — that pool may not include the
-              // verified broker if it sits beyond the first page.
+              // Per cursor rule 51 + ADR-0026: API ships all three name
+              // columns directly on each entry, so we never look up the
+              // SSR-shipped 100-broker pool here — that pool may not
+              // include the verified broker if it sits beyond the first
+              // page.
               const name = localizedBrokerName(
-                { slug: b.brokerSlug, displayName: b.displayName, legalName: b.legalName },
+                {
+                  slug: b.brokerSlug,
+                  displayName: b.displayName,
+                  displayNameZhHans: b.displayNameZhHans,
+                  legalName: b.legalName,
+                },
                 locale,
               );
               const approvedAt = formatDateTime(b.approvedAt, locale, formatter);

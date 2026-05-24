@@ -330,6 +330,7 @@ function VerificationRow({ item, tab, onSelect, onApprove, onReject }: RowProps)
     {
       slug: item.brokerSlug,
       displayName: item.brokerDisplayName,
+      displayNameZhHans: item.brokerDisplayNameZhHans,
       legalName: item.brokerLegalName,
     },
     locale,
@@ -426,6 +427,7 @@ function CaseDetailModal({
     {
       slug: caseItem.brokerSlug,
       displayName: caseItem.brokerDisplayName,
+      displayNameZhHans: caseItem.brokerDisplayNameZhHans,
       legalName: caseItem.brokerLegalName,
     },
     locale,
@@ -663,6 +665,7 @@ function UserVerifiedBrokersPanel({ caseItem }: { caseItem: VerificationItem }):
                       {
                         slug: b.brokerSlug,
                         displayName: b.displayName,
+                        displayNameZhHans: b.displayNameZhHans,
                         legalName: b.legalName,
                       },
                       locale,

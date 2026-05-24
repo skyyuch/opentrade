@@ -405,6 +405,7 @@ function UserDetailPanel({
                 {
                   slug: b.brokerSlug,
                   displayName: b.displayName,
+                  displayNameZhHans: b.displayNameZhHans,
                   legalName: b.legalName,
                 },
                 locale,
@@ -448,6 +449,7 @@ function BrokerPills({
   brokers: {
     brokerSlug: string;
     displayName: string;
+    displayNameZhHans: string | null;
     legalName: string | null;
     approvedAt: string;
   }[];
@@ -464,7 +466,12 @@ function BrokerPills({
     <div className="flex flex-wrap items-center gap-1">
       {visible.map((b) => {
         const name = localizedBrokerName(
-          { slug: b.brokerSlug, displayName: b.displayName, legalName: b.legalName },
+          {
+            slug: b.brokerSlug,
+            displayName: b.displayName,
+            displayNameZhHans: b.displayNameZhHans,
+            legalName: b.legalName,
+          },
           locale,
         );
         return (

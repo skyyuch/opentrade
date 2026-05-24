@@ -38,12 +38,20 @@ const VerifyPage = async ({ params }: Props): Promise<ReactNode> => {
   setRequestLocale(params.locale);
   const t = await getTranslations('verify');
 
-  let brokers: { slug: string; displayName: string; legalName: string }[] = [];
+  let brokers: {
+    slug: string;
+    displayName: string;
+    displayNameZhHans: string | null;
+    legalName: string;
+  }[] = [];
   try {
     const data = await fetchBrokers({ limit: 100, next: { revalidate: 300 } });
+    // Per ADR-0026: forward all three name columns (TC + SC + EN) so
+    // `localizedBrokerName()` inside VerifyForm can pick the right one.
     brokers = data.brokers.map((b) => ({
       slug: b.slug,
       displayName: b.displayName,
+      displayNameZhHans: b.displayNameZhHans,
       legalName: b.legalName,
     }));
   } catch {
