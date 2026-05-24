@@ -193,6 +193,7 @@ const verifyBrokerSchema = z.object({
   brokerSlug: z.string().min(1),
   commitment: z.string().regex(/^0x[0-9a-fA-F]{64}$/, 'commitment must be a keccak256 hash'),
   evidenceIpfsCid: z.string().min(1),
+  evidenceMimeType: z.enum(['application/pdf', 'image/jpeg', 'image/png', 'image/webp']).optional(),
 });
 
 identityRouter.post('/verify-broker', authMiddleware('user'), async (c) => {
@@ -220,6 +221,7 @@ identityRouter.post('/verify-broker', authMiddleware('user'), async (c) => {
       brokerSlug: parsed.data.brokerSlug,
       commitment: parsed.data.commitment,
       evidenceIpfsCid: parsed.data.evidenceIpfsCid,
+      evidenceMimeType: parsed.data.evidenceMimeType ?? null,
     },
   });
 
@@ -287,6 +289,7 @@ identityRouter.get('/verification-status', authMiddleware('user'), async (c) => 
     verifications: requests.map((r) => ({
       id: r.id,
       brokerSlug: r.brokerSlug,
+      commitment: r.commitment,
       status: r.status,
       adminNote: r.adminNote,
       createdAt: r.createdAt.toISOString(),
@@ -322,6 +325,7 @@ identityRouter.get('/admin/verifications', authMiddleware('admin'), async (c) =>
       brokerSlug: r.brokerSlug,
       commitment: r.commitment,
       evidenceIpfsCid: r.evidenceIpfsCid,
+      evidenceMimeType: r.evidenceMimeType,
       status: r.status,
       adminNote: r.adminNote,
       createdAt: r.createdAt.toISOString(),
@@ -329,15 +333,22 @@ identityRouter.get('/admin/verifications', authMiddleware('admin'), async (c) =>
   });
 });
 
-const adminVerifyActionSchema = z.object({
+const approveActionSchema = z.object({
   adminNote: z.string().max(500).optional(),
+});
+
+const rejectActionSchema = z.object({
+  adminNote: z
+    .string()
+    .min(5, 'Rejection reason must be at least 5 characters')
+    .max(500, 'Rejection reason must be at most 500 characters'),
 });
 
 identityRouter.post('/admin/verifications/:id/approve', authMiddleware('admin'), async (c) => {
   const id = c.req.param('id');
 
   const body: unknown = await c.req.json().catch(() => ({}));
-  const parsed = adminVerifyActionSchema.safeParse(body);
+  const parsed = approveActionSchema.safeParse(body);
 
   const request = await prisma.sbtVerificationRequest.findUnique({ where: { id } });
   if (request?.status !== 'PENDING') {
@@ -377,7 +388,12 @@ identityRouter.post('/admin/verifications/:id/reject', authMiddleware('admin'), 
   const id = c.req.param('id');
 
   const body: unknown = await c.req.json().catch(() => ({}));
-  const parsed = adminVerifyActionSchema.safeParse(body);
+  const parsed = rejectActionSchema.safeParse(body);
+  if (!parsed.success) {
+    throw new AppError(ErrorCode.VALIDATION_ERROR, 'Rejection reason is required', 400, {
+      details: { issues: parsed.error.issues },
+    });
+  }
 
   const request = await prisma.sbtVerificationRequest.findUnique({ where: { id } });
   if (request?.status !== 'PENDING') {
@@ -388,7 +404,7 @@ identityRouter.post('/admin/verifications/:id/reject', authMiddleware('admin'), 
     where: { id },
     data: {
       status: 'REJECTED',
-      adminNote: parsed.success ? (parsed.data.adminNote ?? null) : null,
+      adminNote: parsed.data.adminNote,
       reviewedAt: new Date(),
     },
   });
