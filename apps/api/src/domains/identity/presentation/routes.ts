@@ -297,6 +297,14 @@ identityRouter.get('/verification-status', authMiddleware('user'), async (c) => 
     take: 5,
   });
 
+  // Per ADR-0025: clients (web /verify, review badges) need the user's
+  // currently-approved broker list, not just the latest request status.
+  const verifiedBrokers = await prisma.userVerifiedBroker.findMany({
+    where: { userId, tenantId },
+    select: { brokerSlug: true, approvedAt: true },
+    orderBy: { approvedAt: 'asc' },
+  });
+
   return c.json({
     verifications: requests.map((r) => ({
       id: r.id,
@@ -306,6 +314,10 @@ identityRouter.get('/verification-status', authMiddleware('user'), async (c) => 
       adminNote: r.adminNote,
       createdAt: r.createdAt.toISOString(),
       reviewedAt: r.reviewedAt?.toISOString() ?? null,
+    })),
+    verifiedBrokers: verifiedBrokers.map((b) => ({
+      brokerSlug: b.brokerSlug,
+      approvedAt: b.approvedAt.toISOString(),
     })),
   });
 });
@@ -323,7 +335,18 @@ identityRouter.get('/admin/verifications', authMiddleware('admin'), async (c) =>
       status: status as 'PENDING' | 'APPROVED' | 'REJECTED',
     },
     include: {
-      user: { select: { id: true, displayName: true, walletAddress: true, sbtTier: true } },
+      user: {
+        select: {
+          id: true,
+          displayName: true,
+          walletAddress: true,
+          sbtTier: true,
+          verifiedBrokers: {
+            select: { brokerSlug: true, approvedAt: true },
+            orderBy: { approvedAt: 'asc' },
+          },
+        },
+      },
     },
     orderBy: { createdAt: 'asc' },
     take: 50,
@@ -333,7 +356,16 @@ identityRouter.get('/admin/verifications', authMiddleware('admin'), async (c) =>
     verifications: requests.map((r) => ({
       id: r.id,
       userId: r.userId,
-      user: r.user,
+      user: {
+        id: r.user.id,
+        displayName: r.user.displayName,
+        walletAddress: r.user.walletAddress,
+        sbtTier: r.user.sbtTier,
+        verifiedBrokers: r.user.verifiedBrokers.map((b) => ({
+          brokerSlug: b.brokerSlug,
+          approvedAt: b.approvedAt.toISOString(),
+        })),
+      },
       brokerSlug: r.brokerSlug,
       commitment: r.commitment,
       evidenceIpfsCid: r.evidenceIpfsCid,
