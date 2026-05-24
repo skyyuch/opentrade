@@ -8,7 +8,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useOpenTradeAuth } from '../../../../../hooks/useOpenTradeAuth';
 import { fetchBroker, updateBrokerLogo, uploadBrokerLogo } from '../../../../../lib/api/client';
 
-import type { BrokerDetail } from '../../../../../lib/api/client';
+import type { BrokerDetail, SfcDetailJson } from '../../../../../lib/api/client';
 import type { ReactNode } from 'react';
 
 type Props = { slug: string };
@@ -158,7 +158,7 @@ export function AdminBrokerDetailClient({ slug }: Props): ReactNode {
     return <div className="py-12 text-center text-white/40">{t('notFound')}</div>;
   }
 
-  const sfcData = (broker.sfcDetailJson ?? {}) as Record<string, unknown>;
+  const sfcData: SfcDetailJson = (broker.sfcDetailJson ?? {}) as SfcDetailJson;
   const disputeCount = broker.ratingDistribution?.find((d) => d.stars === 1)?.count ?? 0;
 
   const licenseTabs: { id: LicenseTab; label: string }[] = [
@@ -417,32 +417,28 @@ export function AdminBrokerDetailClient({ slug }: Props): ReactNode {
 }
 
 // ---------------------------------------------------------------------------
-// Sub-components for SFC tabs
+// Sub-components for SFC tabs — aligned with new SfcDetailJson structure
 // ---------------------------------------------------------------------------
 
 type TabProps = {
   broker?: BrokerDetail;
-  sfcData: Record<string, unknown>;
+  sfcData: SfcDetailJson;
   t: (key: string) => string;
 };
 
-function SfcDetailsTab({ broker, sfcData, t }: TabProps) {
-  const details = (sfcData['details'] as Record<string, string>) ?? {};
+function SfcDetailsTab({ broker, t }: TabProps) {
   const rows = [
-    { label: t('legalName'), value: broker?.legalName ?? details['legalName'] ?? '—' },
-    { label: t('ceNumber'), value: broker?.ceNumber ?? details['ceNumber'] ?? '—' },
+    { label: t('legalName'), value: broker?.legalName ?? '—' },
+    { label: t('ceNumber'), value: broker?.ceNumber ?? '—' },
     {
       label: t('regulatedActivities'),
-      value:
-        broker?.licenses?.map((l) => l.licenseType).join(', ') ??
-        (details['regulatedActivities'] as string) ??
-        '—',
+      value: broker?.licenses?.map((l) => l.licenseType).join(', ') || '—',
     },
     {
       label: t('effectiveDate'),
       value: broker?.licenses?.[0]?.issuedAt
         ? new Date(broker.licenses[0].issuedAt).toISOString().split('T')[0]
-        : ((details['effectiveDate'] as string) ?? '—'),
+        : '—',
     },
   ];
 
@@ -461,26 +457,30 @@ function SfcDetailsTab({ broker, sfcData, t }: TabProps) {
   );
 }
 
-function SfcAddressesTab({ broker, sfcData, t }: TabProps) {
-  const addresses: string[] = [];
-  if (broker?.addressEn) addresses.push(broker.addressEn);
-  if (broker?.addressZh) addresses.push(broker.addressZh);
-  const extra = (sfcData['addresses'] as string[]) ?? [];
-  const all = [...addresses, ...extra.filter((a) => !addresses.includes(a))];
+function SfcAddressesTab({ sfcData, t }: TabProps) {
+  const addresses = sfcData.addresses ?? [];
 
   return (
     <div className="space-y-4 overflow-hidden rounded-xl border border-white/5 bg-black/20">
       <div className="bg-white/5 px-4 py-3 font-bold text-white">{t('businessAddresses')}</div>
       <div className="space-y-4 px-4 pb-4">
-        {all.length === 0 ? (
+        {addresses.length === 0 ? (
           <p className="text-white/40">{t('noData')}</p>
         ) : (
-          all.map((addr, i) => (
+          addresses.map((addr, i) => (
             <div
               key={i}
               className="rounded-lg border border-white/5 bg-white/5 p-3 transition-colors hover:border-white/10"
             >
-              <p className="text-white/80">{addr}</p>
+              <p className="text-white/80">{addr.addressEn}</p>
+              {addr.addressZh && addr.addressZh !== addr.addressEn && (
+                <p className="mt-1 text-white/50">{addr.addressZh}</p>
+              )}
+              {addr.isPrimary && (
+                <span className="mt-2 inline-block rounded border border-[#00FF88]/20 bg-[#00FF88]/10 px-2 py-0.5 text-[10px] text-[#00FF88]">
+                  {t('primaryAddress')}
+                </span>
+              )}
             </div>
           ))
         )}
@@ -494,11 +494,11 @@ function SfcPersonnelTab({
   t,
   tabKey,
 }: {
-  sfcData: Record<string, unknown>;
+  sfcData: SfcDetailJson;
   t: (key: string) => string;
   tabKey: 'ros' | 'reps';
 }) {
-  const people = (sfcData[tabKey] as { name: string; ceNumber: string; ras: number[] }[]) ?? [];
+  const people = tabKey === 'ros' ? (sfcData.principals ?? []) : (sfcData.representatives ?? []);
   const raHeaders = ['RA1', 'RA2', 'RA3', 'RA4', 'RA5', 'RA6', 'RA7', 'RA8', 'RA9'];
 
   return (
@@ -528,14 +528,15 @@ function SfcPersonnelTab({
               people.map((person, i) => (
                 <tr key={i} className="transition-colors hover:bg-white/5">
                   <td className="p-3 text-white/80 underline decoration-[#00FF88]/30 underline-offset-4">
-                    {person.name}
+                    {person.nameEn}
+                    {person.nameZh && <span className="ml-1 text-white/40">{person.nameZh}</span>}
                   </td>
                   <td className="border-r border-white/5 p-3 font-mono text-white/50">
-                    {person.ceNumber}
+                    {person.ceRef ?? '—'}
                   </td>
-                  {[0, 1, 2, 3, 4, 5, 6, 7, 8].map((j) => (
-                    <td key={j} className="p-3 text-center text-white/30">
-                      {person.ras.includes(j) ? 'X' : ''}
+                  {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((raNum) => (
+                    <td key={raNum} className="p-3 text-center text-white/30">
+                      {person.raTypes.includes(raNum) ? 'X' : ''}
                     </td>
                   ))}
                 </tr>
@@ -548,17 +549,21 @@ function SfcPersonnelTab({
   );
 }
 
-function SfcComplaintsTab({
-  sfcData,
-  t,
-}: {
-  sfcData: Record<string, unknown>;
-  t: (key: string) => string;
-}) {
-  const complaints = (sfcData['complaints'] as Record<string, string>) ?? {};
+function SfcComplaintsTab({ sfcData, t }: { sfcData: SfcDetailJson; t: (key: string) => string }) {
+  const officer = sfcData.complaintsOfficer;
 
   return (
     <div className="space-y-4">
+      {officer && (officer.entityName || officer.entityNameChi) && (
+        <div className="space-y-1 text-center">
+          <div className="text-white/50">{t('corporation')}</div>
+          <div className="font-bold">
+            {officer.entityName}
+            {officer.entityNameChi && ` ${officer.entityNameChi}`}
+            {officer.ceRef && <span className="ml-1 text-white/40">({officer.ceRef})</span>}
+          </div>
+        </div>
+      )}
       <div className="mb-2 font-bold text-white">{t('contactDetails')}</div>
       <div className="overflow-x-auto rounded-xl border border-white/10">
         <table className="w-full text-left text-sm">
@@ -572,16 +577,18 @@ function SfcComplaintsTab({
           </thead>
           <tbody className="bg-black/20">
             <tr className="transition-colors hover:bg-white/5">
-              <td className="border-r border-white/5 p-4 text-white/80">
-                {complaints['phone'] ?? '—'}
+              <td className="border-r border-white/5 p-4 text-white/80">{officer?.tel ?? '—'}</td>
+              <td className="border-r border-white/5 p-4 text-white/80">{officer?.fax ?? '—'}</td>
+              <td className="border-r border-white/5 p-4">
+                {officer?.email ? (
+                  <a href={`mailto:${officer.email}`} className="text-[#00FF88] hover:underline">
+                    {officer.email}
+                  </a>
+                ) : (
+                  '—'
+                )}
               </td>
-              <td className="border-r border-white/5 p-4 text-white/80">
-                {complaints['fax'] ?? '—'}
-              </td>
-              <td className="border-r border-white/5 p-4 text-[#00FF88]">
-                {complaints['email'] ?? '—'}
-              </td>
-              <td className="p-4 text-white/80">{complaints['address'] ?? '—'}</td>
+              <td className="p-4 text-white/80">{officer?.address ?? '—'}</td>
             </tr>
           </tbody>
         </table>
@@ -595,97 +602,189 @@ function SfcGenericTable({
   t,
   tabKey,
 }: {
-  sfcData: Record<string, unknown>;
+  sfcData: SfcDetailJson;
   t: (key: string) => string;
   tabKey: 'conditions' | 'actions' | 'names';
 }) {
-  const data = (sfcData[tabKey] as Record<string, string>[]) ?? [];
+  if (tabKey === 'conditions') {
+    const sfo = sfcData.conditionsSfo ?? [];
+    const amlo = sfcData.conditionsAmlo ?? [];
+    return (
+      <div className="space-y-6">
+        <ConditionSection title={t('underSfo')} items={sfo} t={t} />
+        <ConditionSection
+          title={t('underAmlo')}
+          items={amlo}
+          t={t}
+          emptyLabel={t('noLicenseRecord')}
+        />
+      </div>
+    );
+  }
 
-  const headerMap: Record<string, { headers: string[]; headerLabels: string[] }> = {
-    conditions: {
-      headers: ['effectiveDate', 'condition'],
-      headerLabels: [t('effectiveDate'), t('licenseCondition')],
-    },
-    actions: {
-      headers: ['actionDate', 'action', 'pressRelease'],
-      headerLabels: [t('actionDate'), t('actionTaken'), t('pressRelease')],
-    },
-    names: {
-      headers: ['validUntil', 'englishName', 'chineseName'],
-      headerLabels: [t('validUntil'), t('englishName'), t('chineseName')],
-    },
-  };
+  if (tabKey === 'actions') {
+    const actions = sfcData.disciplinaryActions ?? [];
+    return (
+      <div className="space-y-4">
+        <div className="overflow-x-auto rounded-xl border border-white/10">
+          <table className="w-full whitespace-nowrap text-left text-sm">
+            <thead className="border-b border-white/10 bg-red-500/10 text-red-400">
+              <tr>
+                <th className="border-r border-red-500/10 p-4 font-bold">{t('actionDate')}</th>
+                <th className="border-r border-red-500/10 p-4 font-bold">{t('actionTaken')}</th>
+                <th className="p-4 font-bold">{t('pressRelease')}</th>
+              </tr>
+            </thead>
+            <tbody className="bg-black/20">
+              {actions.length === 0 ? (
+                <tr>
+                  <td colSpan={3} className="p-4 text-center text-white/60">
+                    {t('noData')}
+                  </td>
+                </tr>
+              ) : (
+                actions.map((a, i) => (
+                  <tr key={i} className="transition-colors hover:bg-white/5">
+                    <td className="border-r border-white/5 p-4 text-white/80">{a.date ?? '—'}</td>
+                    <td className="whitespace-normal border-r border-white/5 p-4 text-white/80">
+                      {a.description}
+                    </td>
+                    <td className="p-4">
+                      {a.url ? (
+                        <a
+                          href={a.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[#00FF88] hover:underline"
+                        >
+                          {t('viewPressRelease')}
+                        </a>
+                      ) : (
+                        '—'
+                      )}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+        <div className="text-xs italic text-white/40">{t('actionsDisclaimer')}</div>
+      </div>
+    );
+  }
 
-  const config = headerMap[tabKey]!;
-  const isActions = tabKey === 'actions';
-
+  const names = sfcData.formerNames ?? [];
   return (
     <div className="space-y-4">
-      {tabKey === 'names' && <div className="mb-2 font-bold">{t('formerNames')}</div>}
+      <div className="mb-2 font-bold">{t('formerNames')}</div>
       <div className="overflow-x-auto rounded-xl border border-white/10">
         <table className="w-full whitespace-nowrap text-left text-sm">
-          <thead
-            className={`border-b border-white/10 ${
-              isActions ? 'bg-red-500/10 text-red-400' : 'bg-[#00FF88]/10 text-[#00FF88]'
-            }`}
-          >
+          <thead className="border-b border-white/10 bg-[#00FF88]/10 text-[#00FF88]">
             <tr>
-              {config.headerLabels.map((h, i) => (
-                <th
-                  key={i}
-                  className={`p-4 font-bold ${i < config.headerLabels.length - 1 ? `border-r ${isActions ? 'border-red-500/10' : 'border-[#00FF88]/10'}` : ''}`}
-                >
-                  {h}
-                </th>
-              ))}
+              <th className="border-r border-[#00FF88]/10 p-4 font-bold">{t('validUntil')}</th>
+              <th className="border-r border-[#00FF88]/10 p-4 font-bold">{t('englishName')}</th>
+              <th className="p-4 font-bold">{t('chineseName')}</th>
             </tr>
           </thead>
           <tbody className="bg-black/20">
-            {data.length === 0 ? (
+            {names.length === 0 ? (
               <tr>
-                <td colSpan={config.headers.length} className="p-4 text-center text-white/60">
+                <td colSpan={3} className="p-4 text-center text-white/60">
                   {t('noData')}
                 </td>
               </tr>
             ) : (
-              data.map((row, i) => (
+              names.map((n, i) => (
                 <tr key={i} className="transition-colors hover:bg-white/5">
-                  {config.headers.map((key, j) => (
-                    <td
-                      key={j}
-                      className={`p-4 text-white/80 ${j < config.headers.length - 1 ? 'border-r border-white/5' : ''}`}
-                    >
-                      {row[key] ?? '—'}
-                    </td>
-                  ))}
+                  <td className="border-r border-white/5 p-4 text-white/80">
+                    {n.effectiveUntil ?? '—'}
+                  </td>
+                  <td className="border-r border-white/5 p-4 text-white/80">{n.nameEn ?? '—'}</td>
+                  <td className="p-4 text-white/80">{n.nameZh ?? '—'}</td>
                 </tr>
               ))
             )}
           </tbody>
         </table>
       </div>
-      {isActions && <div className="text-xs italic text-white/40">{t('actionsDisclaimer')}</div>}
     </div>
   );
 }
 
-function SfcRecordsTab({ broker, sfcData, t }: TabProps) {
-  const records =
-    (sfcData['records'] as { licenseType: string; activity: string; period: string }[]) ?? [];
-  const licenseRecords =
-    records.length > 0
-      ? records
-      : (broker?.licenses ?? []).map((l) => ({
-          licenseType: l.licenseType,
-          activity: l.licenseType,
-          period: l.issuedAt ? `${t('from')} ${new Date(l.issuedAt).toLocaleDateString()}` : '—',
-        }));
+function ConditionSection({
+  title,
+  items,
+  t,
+  emptyLabel,
+}: {
+  title: string;
+  items: Array<{ text: string; textZh?: string; effectiveDate?: string }>;
+  t: (key: string) => string;
+  emptyLabel?: string;
+}) {
+  return (
+    <div className="space-y-2">
+      <div className="font-bold text-white">{title}</div>
+      <div className="overflow-x-auto rounded-xl border border-white/10">
+        <table className="w-full whitespace-nowrap text-left text-sm">
+          <thead className="border-b border-white/10 bg-[#00FF88]/10 text-[#00FF88]">
+            <tr>
+              <th className="w-1/4 border-r border-[#00FF88]/10 p-4 font-bold">
+                {t('effectiveDate')}
+              </th>
+              <th className="p-4 font-bold">{t('licenseCondition')}</th>
+            </tr>
+          </thead>
+          <tbody className="bg-black/20">
+            {items.length > 0 ? (
+              items.map((c, i) => (
+                <tr key={i} className="transition-colors hover:bg-white/5">
+                  <td className="border-r border-white/5 p-4 text-white/50">
+                    {c.effectiveDate ?? '—'}
+                  </td>
+                  <td className="whitespace-normal p-4 text-white/80">{c.text}</td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td className="border-r border-white/5 p-4 text-white/50">—</td>
+                <td className="p-4 text-white/80">{emptyLabel ?? t('noData')}</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function formatLicDate(dateStr: string): string {
+  if (!dateStr) return '—';
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return dateStr;
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}年${m}月${day}日`;
+  } catch {
+    return dateStr;
+  }
+}
+
+function SfcRecordsTab({ sfcData, t }: TabProps) {
+  const sfo = sfcData.licenseRecordsSfo ?? [];
+  const amlo = sfcData.licenseRecordsAmlo ?? [];
+  const lcTypeMap: Record<string, string> = { C: t('licensedCorp'), I: t('licensedIndividual') };
 
   return (
     <div className="space-y-6">
       <div className="space-y-2">
         <div className="mb-2 flex items-center gap-2 font-bold text-white">
-          <div className="size-2 rounded-full bg-[#00FF88]" />
+          <div
+            className={`size-2 rounded-full ${sfo.length > 0 ? 'bg-[#00FF88]' : 'bg-white/20'}`}
+          />
           {t('underSfo')}
         </div>
         <div className="overflow-x-auto rounded-xl border border-white/10">
@@ -702,18 +801,83 @@ function SfcRecordsTab({ broker, sfcData, t }: TabProps) {
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5 bg-black/20">
-              {licenseRecords.length === 0 ? (
+              {sfo.length === 0 ? (
                 <tr>
-                  <td colSpan={3} className="p-4 text-center text-white/60">
-                    {t('noData')}
+                  <td colSpan={3} className="p-4 text-white/60">
+                    {t('noLicenseRecord')}
                   </td>
                 </tr>
               ) : (
-                licenseRecords.map((rec, i) => (
+                sfo.map((rec, i) => (
                   <tr key={i} className="transition-colors hover:bg-white/5">
-                    <td className="border-r border-white/5 p-4 text-white/80">{rec.licenseType}</td>
-                    <td className="border-r border-white/5 p-4 text-white/80">{rec.activity}</td>
-                    <td className="p-4 text-white/60">{rec.period}</td>
+                    <td className="border-r border-white/5 p-4 text-white/80">
+                      {lcTypeMap[rec.lcType] ?? rec.lcType}
+                    </td>
+                    <td className="border-r border-white/5 p-4 text-white/80">
+                      {rec.actDescZh || rec.actDesc}
+                    </td>
+                    <td className="p-4 text-white/60">
+                      {rec.periods.map((p, j) => (
+                        <div key={j}>
+                          {p.to
+                            ? `${formatLicDate(p.from)} - ${formatLicDate(p.to)}`
+                            : `由 ${formatLicDate(p.from)}`}
+                        </div>
+                      ))}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <div className="mb-2 flex items-center gap-2 font-bold text-white">
+          <div
+            className={`size-2 rounded-full ${amlo.length > 0 ? 'bg-[#00FF88]' : 'bg-white/20'}`}
+          />
+          {t('underAmlo')}
+        </div>
+        <div className="overflow-x-auto rounded-xl border border-white/10">
+          <table className="w-full text-left text-sm">
+            <thead className="border-b border-white/10 bg-[#00FF88]/10 text-[#00FF88]">
+              <tr>
+                <th className="w-1/4 border-r border-[#00FF88]/10 p-4 font-bold">
+                  {t('licenseCategory')}
+                </th>
+                <th className="w-1/3 border-r border-[#00FF88]/10 p-4 font-bold">
+                  {t('vaServices')}
+                </th>
+                <th className="p-4 font-bold">{t('validPeriod')}</th>
+              </tr>
+            </thead>
+            <tbody className="bg-black/20">
+              {amlo.length === 0 ? (
+                <tr>
+                  <td colSpan={3} className="p-4 text-white/60">
+                    {t('noLicenseRecord')}
+                  </td>
+                </tr>
+              ) : (
+                amlo.map((rec, i) => (
+                  <tr key={i} className="transition-colors hover:bg-white/5">
+                    <td className="border-r border-white/5 p-4 text-white/80">
+                      {lcTypeMap[rec.lcType] ?? rec.lcType}
+                    </td>
+                    <td className="border-r border-white/5 p-4 text-white/80">
+                      {rec.actDescZh || rec.actDesc}
+                    </td>
+                    <td className="p-4 text-white/60">
+                      {rec.periods.map((p, j) => (
+                        <div key={j}>
+                          {p.to
+                            ? `${formatLicDate(p.from)} - ${formatLicDate(p.to)}`
+                            : `由 ${formatLicDate(p.from)}`}
+                        </div>
+                      ))}
+                    </td>
                   </tr>
                 ))
               )}
