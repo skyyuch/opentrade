@@ -222,7 +222,12 @@ brokersRouter.get('/:slug', async (c) => {
       similarBrokers: similarBrokers.map((sb) => ({
         id: sb.id,
         slug: sb.slug,
+        // Per cursor rule 51: every broker reference ships both name
+        // columns so the consumer can render in the reader's locale.
+        // The previous shape (displayName-only) made the right-rail
+        // "similar brokers" list show Chinese names in `en` mode.
         displayName: sb.displayName,
+        legalName: sb.legalName,
         logoUrl: sb.logoUrl,
         licenseTypes: sb.licenses.map((l) => l.licenseType),
         reviewCount: (sb as unknown as { _count: { reviews: number } })._count.reviews,
@@ -505,7 +510,9 @@ brokersRouter.get('/admin/claims', authMiddleware('admin'), async (c) => {
       status: status as 'PENDING' | 'APPROVED' | 'REJECTED',
     },
     include: {
-      broker: { select: { id: true, slug: true, displayName: true } },
+      // Per cursor rule 51: ship both broker name columns so the admin
+      // claims table can render in the operator's locale.
+      broker: { select: { id: true, slug: true, displayName: true, legalName: true } },
     },
     orderBy: { createdAt: 'asc' },
     take: 50,

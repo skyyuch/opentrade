@@ -21,6 +21,7 @@ import { z } from 'zod';
 import { prisma } from '@opentrade/db';
 
 import { authMiddleware } from '../../../http/middleware/auth.js';
+import { hydrateBrokerNames } from '../../../shared/brokerHydration.js';
 import { env } from '../../../shared/env.js';
 import { AppError, ErrorCode } from '../../../shared/errors/index.js';
 
@@ -140,6 +141,12 @@ adminRouter.get('/users', authMiddleware('admin'), async (c) => {
   const items = hasMore ? rows.slice(0, limit) : rows;
   const nextCursor = hasMore ? (items[items.length - 1]?.id ?? null) : null;
 
+  // Per cursor rule 51: ship localised name columns for every broker
+  // referenced in the response so the admin pill list and detail panel
+  // render in the operator's locale instead of bare slugs.
+  const allSlugs = items.flatMap((u) => u.verifiedBrokers.map((b) => b.brokerSlug));
+  const nameMap = await hydrateBrokerNames(allSlugs, DEFAULT_TENANT_ID);
+
   return c.json({
     users: items.map((u) => ({
       id: u.id,
@@ -151,10 +158,15 @@ adminRouter.get('/users', authMiddleware('admin'), async (c) => {
       role: u.role,
       sbtTier: u.sbtTier,
       createdAt: u.createdAt.toISOString(),
-      verifiedBrokers: u.verifiedBrokers.map((b) => ({
-        brokerSlug: b.brokerSlug,
-        approvedAt: b.approvedAt.toISOString(),
-      })),
+      verifiedBrokers: u.verifiedBrokers.map((b) => {
+        const meta = nameMap.get(b.brokerSlug);
+        return {
+          brokerSlug: b.brokerSlug,
+          displayName: meta?.displayName ?? b.brokerSlug,
+          legalName: meta?.legalName ?? null,
+          approvedAt: b.approvedAt.toISOString(),
+        };
+      }),
     })),
     nextCursor,
   });
@@ -175,12 +187,17 @@ adminRouter.get('/users/:id', authMiddleware('admin'), async (c) => {
     throw new AppError(ErrorCode.NOT_FOUND, 'User not found', 404);
   }
 
+  // Per cursor rule 51: every broker reference shipped here MUST carry
+  // both `displayName` (Chinese) and `legalName` (English). Reviews +
+  // claims already join the broker row, so we just widen their `select`;
+  // the verifications + verifiedBrokers lists hold raw slugs and need
+  // a `hydrateBrokerNames` round-trip.
   const [reviews, verifications, claims, verifiedBrokers] = await Promise.all([
     prisma.review.findMany({
       where: { userId: id, tenantId: DEFAULT_TENANT_ID, deletedAt: null },
       orderBy: { createdAt: 'desc' },
       take: 10,
-      include: { broker: { select: { slug: true, displayName: true } } },
+      include: { broker: { select: { slug: true, displayName: true, legalName: true } } },
     }),
     prisma.sbtVerificationRequest.findMany({
       where: { userId: id, tenantId: DEFAULT_TENANT_ID },
@@ -191,7 +208,7 @@ adminRouter.get('/users/:id', authMiddleware('admin'), async (c) => {
       where: { userId: id, tenantId: DEFAULT_TENANT_ID },
       orderBy: { createdAt: 'desc' },
       take: 5,
-      include: { broker: { select: { slug: true, displayName: true } } },
+      include: { broker: { select: { slug: true, displayName: true, legalName: true } } },
     }),
     // Per ADR-0025: complement the verifications history (which mixes
     // PENDING/REJECTED rows) with the canonical APPROVED ledger so the
@@ -202,6 +219,12 @@ adminRouter.get('/users/:id', authMiddleware('admin'), async (c) => {
       select: { brokerSlug: true, approvedAt: true },
     }),
   ]);
+
+  const slugSlugs = [
+    ...verifications.map((v) => v.brokerSlug),
+    ...verifiedBrokers.map((b) => b.brokerSlug),
+  ];
+  const nameMap = await hydrateBrokerNames(slugSlugs, DEFAULT_TENANT_ID);
 
   return c.json({
     user: {
@@ -223,22 +246,32 @@ adminRouter.get('/users/:id', authMiddleware('admin'), async (c) => {
       broker: r.broker,
       createdAt: r.createdAt.toISOString(),
     })),
-    verifications: verifications.map((v) => ({
-      id: v.id,
-      brokerSlug: v.brokerSlug,
-      status: v.status,
-      createdAt: v.createdAt.toISOString(),
-    })),
+    verifications: verifications.map((v) => {
+      const meta = nameMap.get(v.brokerSlug);
+      return {
+        id: v.id,
+        brokerSlug: v.brokerSlug,
+        brokerDisplayName: meta?.displayName ?? v.brokerSlug,
+        brokerLegalName: meta?.legalName ?? null,
+        status: v.status,
+        createdAt: v.createdAt.toISOString(),
+      };
+    }),
     claims: claims.map((cl) => ({
       id: cl.id,
       broker: cl.broker,
       status: cl.status,
       createdAt: cl.createdAt.toISOString(),
     })),
-    verifiedBrokers: verifiedBrokers.map((b) => ({
-      brokerSlug: b.brokerSlug,
-      approvedAt: b.approvedAt.toISOString(),
-    })),
+    verifiedBrokers: verifiedBrokers.map((b) => {
+      const meta = nameMap.get(b.brokerSlug);
+      return {
+        brokerSlug: b.brokerSlug,
+        displayName: meta?.displayName ?? b.brokerSlug,
+        legalName: meta?.legalName ?? null,
+        approvedAt: b.approvedAt.toISOString(),
+      };
+    }),
   });
 });
 
@@ -405,7 +438,7 @@ adminRouter.get('/reviews', authMiddleware('admin'), async (c) => {
     orderBy: [{ createdAt: 'desc' as const }],
     take: limit + 1,
     include: {
-      broker: { select: { slug: true, displayName: true } },
+      broker: { select: { slug: true, displayName: true, legalName: true } },
       user: { select: { id: true, displayName: true } },
     },
   };
@@ -432,7 +465,13 @@ adminRouter.get('/reviews', authMiddleware('admin'), async (c) => {
       ipfsCid: r.ipfsCid,
       contentHash: r.contentHash,
       chainReviewId: r.chainReviewId,
-      broker: (r as unknown as { broker: { slug: string; displayName: string } }).broker,
+      // Per cursor rule 51: broker reference ships both name columns so
+      // the console can render in the admin's locale.
+      broker: (
+        r as unknown as {
+          broker: { slug: string; displayName: string; legalName: string | null };
+        }
+      ).broker,
       author: (r as unknown as { user: { id: string; displayName: string | null } }).user,
       createdAt: r.createdAt.toISOString(),
     })),

@@ -18,6 +18,7 @@ import { z } from 'zod';
 import { prisma } from '@opentrade/db';
 
 import { authMiddleware } from '../../../http/middleware/auth.js';
+import { hydrateBrokerNames } from '../../../shared/brokerHydration.js';
 import { env } from '../../../shared/env.js';
 import { AppError, ErrorCode } from '../../../shared/errors/index.js';
 import { PinataIpfsService } from '../../reviews/infrastructure/PinataIpfsService.js';
@@ -128,7 +129,11 @@ identityRouter.get('/me', authMiddleware('user'), async (c) => {
 
   const claimedBroker = await prisma.broker.findFirst({
     where: { claimedByUserId: userId, tenantId, deletedAt: null },
-    select: { slug: true, displayName: true },
+    // Per cursor rule 51: any broker meta crossing the API boundary MUST
+    // ship both name columns so the consumer can pick by locale via
+    // `localizedBrokerName()`. Sending only `displayName` (Chinese) leaks
+    // English-locale users into Chinese names.
+    select: { slug: true, displayName: true, legalName: true },
   });
 
   return c.json({
@@ -144,7 +149,11 @@ identityRouter.get('/me', authMiddleware('user'), async (c) => {
       createdAt: user.createdAt.toISOString(),
     },
     claimedBroker: claimedBroker
-      ? { slug: claimedBroker.slug, displayName: claimedBroker.displayName }
+      ? {
+          slug: claimedBroker.slug,
+          displayName: claimedBroker.displayName,
+          legalName: claimedBroker.legalName,
+        }
       : null,
   });
 });
@@ -313,20 +322,42 @@ identityRouter.get('/verification-status', authMiddleware('user'), async (c) => 
     orderBy: { approvedAt: 'asc' },
   });
 
+  // Per cursor rule 51: never ship a slug to the client without its
+  // localised display columns. We collect slugs from BOTH lists in one
+  // hydration query so /verify can render Pending/Rejected/Approved
+  // cards without a follow-up fetch (the previous shortcut of looking
+  // up the slug in the SSR-shipped 100-broker pool failed for any
+  // broker beyond #100).
+  const allSlugs = [
+    ...requests.map((r) => r.brokerSlug),
+    ...verifiedBrokers.map((b) => b.brokerSlug),
+  ];
+  const nameMap = await hydrateBrokerNames(allSlugs, tenantId);
+
   return c.json({
-    verifications: requests.map((r) => ({
-      id: r.id,
-      brokerSlug: r.brokerSlug,
-      commitment: r.commitment,
-      status: r.status,
-      adminNote: r.adminNote,
-      createdAt: r.createdAt.toISOString(),
-      reviewedAt: r.reviewedAt?.toISOString() ?? null,
-    })),
-    verifiedBrokers: verifiedBrokers.map((b) => ({
-      brokerSlug: b.brokerSlug,
-      approvedAt: b.approvedAt.toISOString(),
-    })),
+    verifications: requests.map((r) => {
+      const meta = nameMap.get(r.brokerSlug);
+      return {
+        id: r.id,
+        brokerSlug: r.brokerSlug,
+        brokerDisplayName: meta?.displayName ?? r.brokerSlug,
+        brokerLegalName: meta?.legalName ?? null,
+        commitment: r.commitment,
+        status: r.status,
+        adminNote: r.adminNote,
+        createdAt: r.createdAt.toISOString(),
+        reviewedAt: r.reviewedAt?.toISOString() ?? null,
+      };
+    }),
+    verifiedBrokers: verifiedBrokers.map((b) => {
+      const meta = nameMap.get(b.brokerSlug);
+      return {
+        brokerSlug: b.brokerSlug,
+        displayName: meta?.displayName ?? b.brokerSlug,
+        legalName: meta?.legalName ?? null,
+        approvedAt: b.approvedAt.toISOString(),
+      };
+    }),
   });
 });
 
@@ -360,28 +391,50 @@ identityRouter.get('/admin/verifications', authMiddleware('admin'), async (c) =>
     take: 50,
   });
 
+  // Per cursor rule 51: every broker reference shipped to the console
+  // (table column, case-modal "Target broker" panel, user verified-list
+  // panel) needs both name columns so the admin can read the broker name
+  // in their preferred locale. Hydrate once across both the top-level
+  // requests AND the user's verified-broker list to keep this O(1)
+  // queries instead of N+1.
+  const allSlugs = [
+    ...requests.map((r) => r.brokerSlug),
+    ...requests.flatMap((r) => r.user.verifiedBrokers.map((b) => b.brokerSlug)),
+  ];
+  const nameMap = await hydrateBrokerNames(allSlugs, DEFAULT_TENANT_ID);
+
   return c.json({
-    verifications: requests.map((r) => ({
-      id: r.id,
-      userId: r.userId,
-      user: {
-        id: r.user.id,
-        displayName: r.user.displayName,
-        walletAddress: r.user.walletAddress,
-        sbtTier: r.user.sbtTier,
-        verifiedBrokers: r.user.verifiedBrokers.map((b) => ({
-          brokerSlug: b.brokerSlug,
-          approvedAt: b.approvedAt.toISOString(),
-        })),
-      },
-      brokerSlug: r.brokerSlug,
-      commitment: r.commitment,
-      evidenceIpfsCid: r.evidenceIpfsCid,
-      evidenceMimeType: r.evidenceMimeType,
-      status: r.status,
-      adminNote: r.adminNote,
-      createdAt: r.createdAt.toISOString(),
-    })),
+    verifications: requests.map((r) => {
+      const requestMeta = nameMap.get(r.brokerSlug);
+      return {
+        id: r.id,
+        userId: r.userId,
+        user: {
+          id: r.user.id,
+          displayName: r.user.displayName,
+          walletAddress: r.user.walletAddress,
+          sbtTier: r.user.sbtTier,
+          verifiedBrokers: r.user.verifiedBrokers.map((b) => {
+            const meta = nameMap.get(b.brokerSlug);
+            return {
+              brokerSlug: b.brokerSlug,
+              displayName: meta?.displayName ?? b.brokerSlug,
+              legalName: meta?.legalName ?? null,
+              approvedAt: b.approvedAt.toISOString(),
+            };
+          }),
+        },
+        brokerSlug: r.brokerSlug,
+        brokerDisplayName: requestMeta?.displayName ?? r.brokerSlug,
+        brokerLegalName: requestMeta?.legalName ?? null,
+        commitment: r.commitment,
+        evidenceIpfsCid: r.evidenceIpfsCid,
+        evidenceMimeType: r.evidenceMimeType,
+        status: r.status,
+        adminNote: r.adminNote,
+        createdAt: r.createdAt.toISOString(),
+      };
+    }),
   });
 });
 

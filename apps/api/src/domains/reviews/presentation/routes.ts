@@ -20,6 +20,7 @@ import { z } from 'zod';
 import { prisma } from '@opentrade/db';
 
 import { authMiddleware } from '../../../http/middleware/auth.js';
+import { hydrateBrokerNames } from '../../../shared/brokerHydration.js';
 import { env } from '../../../shared/env.js';
 import { AppError, ErrorCode } from '../../../shared/errors/index.js';
 import { GetBrokerReviewsUseCase } from '../application/GetBrokerReviewsUseCase.js';
@@ -151,9 +152,12 @@ reviewsRouter.get('/broker/:slug', async (c) => {
         displayName: true,
         sbtTier: true,
         // Per ADR-0025: review cards surface the author's verified-broker
-        // list as a public credibility signal. Only the brokerSlug is
-        // exposed (no commitments / approvedAt) so the API stays cheap to
-        // cache and gives the client only what it renders.
+        // list as a public credibility signal. UserVerifiedBroker keys by
+        // slug (not brokerId) so we can't `include` the broker row;
+        // instead we collect every slug across the page and resolve their
+        // names via `hydrateBrokerNames` in one query below. Per cursor
+        // rule 51 we then ship both `displayName` + `legalName` so the
+        // ReviewCard renders in the reader's locale.
         verifiedBrokers: { select: { brokerSlug: true } },
       },
     }),
@@ -166,6 +170,12 @@ reviewsRouter.get('/broker/:slug', async (c) => {
 
   const userMap = new Map(users.map((u) => [u.id, u]));
   const translationMap = new Map(translations.map((t) => [t.reviewId, t]));
+
+  // Hydrate broker names for every slug surfaced via author.verifiedBrokers
+  // on this page. Single batched query — each user's slug list is small,
+  // but the same broker often repeats across users.
+  const verifiedSlugs = users.flatMap((u) => u.verifiedBrokers.map((b) => b.brokerSlug));
+  const verifiedNameMap = await hydrateBrokerNames(verifiedSlugs, DEFAULT_TENANT_ID);
 
   return c.json({
     reviews: result.items.map((r) => {
@@ -191,7 +201,15 @@ reviewsRouter.get('/broker/:slug', async (c) => {
         author: {
           displayName: author?.displayName ?? null,
           sbtTier: author?.sbtTier ?? 'L1',
-          verifiedBrokers: author?.verifiedBrokers.map((b) => b.brokerSlug) ?? [],
+          verifiedBrokers:
+            author?.verifiedBrokers.map((b) => {
+              const meta = verifiedNameMap.get(b.brokerSlug);
+              return {
+                brokerSlug: b.brokerSlug,
+                displayName: meta?.displayName ?? b.brokerSlug,
+                legalName: meta?.legalName ?? null,
+              };
+            }) ?? [],
         },
       };
     }),
@@ -199,7 +217,12 @@ reviewsRouter.get('/broker/:slug', async (c) => {
     broker: {
       id: broker.id,
       slug: broker.slug,
+      // Per cursor rule 51: ship both name columns; broker detail page
+      // already does, but the reviews-by-broker payload was missing
+      // legalName, leaving the SubmitReviewCta + similar surfaces
+      // locale-blind.
       displayName: broker.displayName,
+      legalName: broker.legalName,
       logoUrl: broker.logoUrl,
     },
   });
