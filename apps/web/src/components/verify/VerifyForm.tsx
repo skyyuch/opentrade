@@ -43,7 +43,11 @@ import {
   uploadVerifyEvidence,
 } from '../../lib/api/client';
 
-import type { UserProfile, VerificationStatusItem } from '../../lib/api/client';
+import type {
+  UserProfile,
+  VerificationStatusItem,
+  VerifiedBrokerEntry,
+} from '../../lib/api/client';
 import type { DragEvent as ReactDragEvent, FormEvent } from 'react';
 
 const ALLOWED_MIME = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
@@ -79,7 +83,17 @@ const brokerNameForSlug = (brokers: Broker[], slug: string, locale: string): str
   return found ? localizedBrokerName(found, locale) : slug;
 };
 
-type ViewMode = 'loading' | 'idle' | 'pending' | 'rejected' | 'approved';
+/**
+ * `idle`            — fresh user, no record yet → show form
+ * `pending`         — has a PENDING request → show pending card (no form)
+ * `rejected`        — latest record is REJECTED → show rejected card with retry
+ * `approved`        — has ≥ 1 verified broker but no follow-up activity →
+ *                     show summary with "verify another broker" CTA per
+ *                     ADR-0025 D1 (a user may verify multiple brokers).
+ * `adding`          — user pressed "verify another broker"; show form again
+ *                     with already-verified brokers excluded from the picker.
+ */
+type ViewMode = 'loading' | 'idle' | 'pending' | 'rejected' | 'approved' | 'adding';
 
 export const VerifyForm = ({ brokers }: VerifyFormProps) => {
   const t = useTranslations('verify');
@@ -90,6 +104,7 @@ export const VerifyForm = ({ brokers }: VerifyFormProps) => {
 
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [latestVerification, setLatestVerification] = useState<VerificationStatusItem | null>(null);
+  const [verifiedBrokers, setVerifiedBrokers] = useState<VerifiedBrokerEntry[]>([]);
   const [viewMode, setViewMode] = useState<ViewMode>('loading');
   const [brokerSlug, setBrokerSlug] = useState('');
   const [uploaded, setUploaded] = useState<UploadedFile | null>(null);
@@ -127,14 +142,23 @@ export const VerifyForm = ({ brokers }: VerifyFormProps) => {
       if (profileRes) setProfile(profileRes.user);
 
       const latest = statusRes?.verifications[0] ?? null;
+      const brokers = statusRes?.verifiedBrokers ?? [];
       setLatestVerification(latest);
+      setVerifiedBrokers(brokers);
 
-      if (latest?.status === 'APPROVED' || profileRes?.user.sbtTier === 'L2') {
-        setViewMode('approved');
-      } else if (latest?.status === 'PENDING') {
+      // Status-machine resolution per ADR-0025 D1:
+      //   - PENDING wins over everything → user sees pending card.
+      //   - REJECTED wins over historical APPROVEDs → rejected card with
+      //     retry, because the rejected request is the latest activity.
+      //   - Otherwise: if the user has any approved brokers, show the
+      //     approved summary that lets them add another broker.
+      //   - Else (fresh user) → form.
+      if (latest?.status === 'PENDING') {
         setViewMode('pending');
       } else if (latest?.status === 'REJECTED') {
         setViewMode('rejected');
+      } else if (brokers.length > 0 || profileRes?.user.sbtTier === 'L2') {
+        setViewMode('approved');
       } else {
         setViewMode('idle');
       }
@@ -308,7 +332,15 @@ export const VerifyForm = ({ brokers }: VerifyFormProps) => {
   }
 
   if (viewMode === 'approved') {
-    return <VerifyAlreadyVerifiedCard />;
+    return (
+      <VerifyApprovedCard
+        verifiedBrokers={verifiedBrokers}
+        brokers={brokers}
+        locale={locale}
+        canAddMore={verifiedBrokers.length < brokers.length}
+        onAddAnother={() => setViewMode('adding')}
+      />
+    );
   }
 
   if (viewMode === 'pending' && latestVerification) {
@@ -347,6 +379,7 @@ export const VerifyForm = ({ brokers }: VerifyFormProps) => {
           locale={locale}
           value={brokerSlug}
           onChange={setBrokerSlug}
+          excludeSlugs={verifiedBrokers.map((b) => b.brokerSlug)}
         />
       </div>
 
@@ -500,11 +533,24 @@ type BrokerComboboxProps = {
   locale: string;
   value: string;
   onChange: (slug: string) => void;
+  /**
+   * Slugs the user has already been verified for. Per ADR-0025 D2 they
+   * cannot re-verify these, so we filter them from both the initial list
+   * and incoming search results to avoid the user picking a broker that
+   * the API will then reject.
+   */
+  excludeSlugs?: string[];
 };
 
 const SEARCH_DEBOUNCE_MS = 250;
 
-const BrokerCombobox = ({ initialBrokers, locale, value, onChange }: BrokerComboboxProps) => {
+const BrokerCombobox = ({
+  initialBrokers,
+  locale,
+  value,
+  onChange,
+  excludeSlugs,
+}: BrokerComboboxProps) => {
   const t = useTranslations('verify');
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -592,15 +638,21 @@ const BrokerCombobox = ({ initialBrokers, locale, value, onChange }: BrokerCombo
   // List shown in dropdown: remote results (when searching) or initial 100.
   // For initial-list mode we also locally filter so the typing feels instant.
   const visibleBrokers = useMemo(() => {
-    if (remoteBrokers) return remoteBrokers;
+    const excluded = new Set(excludeSlugs ?? []);
+    const filterExcluded = (list: Broker[]) =>
+      excluded.size === 0 ? list : list.filter((b) => !excluded.has(b.slug));
+
+    if (remoteBrokers) return filterExcluded(remoteBrokers);
     const trimmed = search.trim().toLowerCase();
-    if (!trimmed) return initialBrokers;
-    return initialBrokers.filter(
-      (b) =>
-        b.displayName.toLowerCase().includes(trimmed) ||
-        b.legalName.toLowerCase().includes(trimmed),
+    if (!trimmed) return filterExcluded(initialBrokers);
+    return filterExcluded(
+      initialBrokers.filter(
+        (b) =>
+          b.displayName.toLowerCase().includes(trimmed) ||
+          b.legalName.toLowerCase().includes(trimmed),
+      ),
     );
-  }, [remoteBrokers, search, initialBrokers]);
+  }, [remoteBrokers, search, initialBrokers, excludeSlugs]);
 
   const handleSelect = (broker: Broker) => {
     // Cache the full record first so the input keeps the label even after
@@ -861,15 +913,82 @@ const VerifyRejectedCard = ({ record, brokerName, onRetry }: RejectedCardProps) 
   );
 };
 
-const VerifyAlreadyVerifiedCard = () => {
+type ApprovedCardProps = {
+  verifiedBrokers: VerifiedBrokerEntry[];
+  brokers: Broker[];
+  locale: string;
+  canAddMore: boolean;
+  onAddAnother: () => void;
+};
+
+const VerifyApprovedCard = ({
+  verifiedBrokers,
+  brokers,
+  locale,
+  canAddMore,
+  onAddAnother,
+}: ApprovedCardProps) => {
   const t = useTranslations('verify');
+  const formatter = useFormatter();
 
   return (
-    <div className="flex flex-col items-center gap-4 rounded-2xl border border-[#00FF88]/30 bg-[#00FF88]/5 p-10 text-center shadow-xl">
-      <div className="flex size-14 items-center justify-center rounded-full bg-[#00FF88]/15 ring-1 ring-[#00FF88]/40">
-        <CheckCircle2 className="size-7 text-[#00FF88]" />
+    <div className="overflow-hidden rounded-2xl border border-[#00FF88]/30 bg-gradient-to-b from-[#00FF88]/10 to-transparent shadow-xl">
+      <div className="flex flex-col items-center gap-4 px-8 pb-2 pt-10 text-center">
+        <div className="flex size-16 items-center justify-center rounded-full bg-[#00FF88]/15 ring-1 ring-[#00FF88]/40">
+          <CheckCircle2 className="size-8 text-[#00FF88]" />
+        </div>
+        <h2 className="text-2xl font-bold text-white">{t('alreadyVerified')}</h2>
+        {verifiedBrokers.length > 0 && (
+          <p className="max-w-md text-sm leading-relaxed text-white/60">
+            {t('verifiedBrokersCount', { count: verifiedBrokers.length })}
+          </p>
+        )}
       </div>
-      <h3 className="text-xl font-bold">{t('alreadyVerified')}</h3>
+
+      {verifiedBrokers.length > 0 && (
+        <div className="space-y-3 px-8 py-6">
+          <div className="text-xs font-bold uppercase tracking-wider text-white/40">
+            {t('verifiedBrokersTitle')}
+          </div>
+          <ul className="space-y-2">
+            {verifiedBrokers.map((b) => {
+              const name = brokerNameForSlug(brokers, b.brokerSlug, locale);
+              const approvedAt = formatDateTime(b.approvedAt, locale, formatter);
+              return (
+                <li
+                  key={b.brokerSlug}
+                  className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-3"
+                >
+                  <div className="flex min-w-0 flex-col">
+                    <span className="truncate font-medium text-white">{name}</span>
+                    <span className="text-xs text-white/40">
+                      {t('verifiedAtLabel')} · {approvedAt}
+                    </span>
+                  </div>
+                  <span className="flex shrink-0 items-center gap-1 rounded-full bg-[#00FF88]/15 px-2.5 py-1 text-xs font-bold text-[#00FF88]">
+                    <Check size={12} aria-hidden /> {t('brokerAlreadyVerifiedBadge')}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
+
+      {canAddMore && (
+        <div className="border-t border-white/10 bg-white/5 px-8 py-5">
+          <p className="mb-3 text-xs leading-relaxed text-white/50">
+            {t('addAnotherBrokerDescription')}
+          </p>
+          <button
+            type="button"
+            onClick={onAddAnother}
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 py-3.5 text-sm font-bold text-white shadow-[0_0_20px_rgba(37,99,235,0.4)] transition-all hover:bg-blue-500"
+          >
+            <Upload size={16} /> {t('addAnotherBroker')}
+          </button>
+        </div>
+      )}
     </div>
   );
 };

@@ -462,8 +462,14 @@ export type VerificationStatusItem = {
   reviewedAt: string | null;
 };
 
+export type VerifiedBrokerEntry = {
+  brokerSlug: string;
+  approvedAt: string;
+};
+
 export type VerificationStatusResponse = {
   verifications: VerificationStatusItem[];
+  verifiedBrokers: VerifiedBrokerEntry[];
 };
 
 export const fetchVerificationStatus = (
