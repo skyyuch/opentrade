@@ -6,8 +6,10 @@
  * override: `["node", "dist/tasks/outbox-worker.js"]`.
  *
  * Currently handles:
- *   - `review.submitted`    → calls ReviewRegistry.submitReview() on-chain
- *   - `sbt.mint_requested`  → calls ReviewerSBT.mint() on-chain (per ADR-0021/0022)
+ *   - `review.submitted`         → calls ReviewRegistry.submitReview() on-chain
+ *   - `sbt.mint_requested`       → calls ReviewerSBT.mint() on-chain (per ADR-0021/0022)
+ *   - `verification.broker_added` → ack-only (per ADR-0025 D5; ledger audit trail
+ *                                   with no Phase 1 on-chain side effect)
  *
  * Per ADR-0006 outbox pattern: the API writes events to the DB in the same
  * transaction as the business entity. This worker reads them and submits the
@@ -237,6 +239,13 @@ async function main() {
           await processReviewSubmitted(event);
         } else if (event.eventType === 'sbt.mint_requested') {
           await processSbtMintRequested(event);
+        } else if (event.eventType === 'verification.broker_added') {
+          // ADR-0025 D5: this event is emitted in the same transaction as the
+          // `user_verified_brokers` insert during admin approve as a hash-chain
+          // ledger audit trail entry. The ledger row IS the source of truth;
+          // the worker has nothing to do in Phase 1 (multi-broker verification
+          // stays off-chain per ADR-0025 D1, with ReviewerSBT v2 deferred to
+          // Phase 2). Ack-only: fall through to `processedAt` update below.
         } else {
           log('warn', `Unknown event type: ${event.eventType}`, {
             eventId: event.id,
