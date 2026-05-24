@@ -35,6 +35,7 @@
     "db:migrate:status": "dotenv -e ../../.env -- prisma migrate status",
     "db:seed": "dotenv -e ../../.env -- tsx scripts/seed.ts",
     "db:backfill:zh-hans": "dotenv -e ../../.env -- tsx scripts/backfill-zh-hans.ts",
+    "db:backfill:source-locale": "dotenv -e ../../.env -- tsx scripts/backfill-source-locale.ts",
     "fetch:sfc": "tsx scripts/fetch-sfc-brokers.ts",
     "fetch:sfc:details": "dotenv -e ../../.env -- tsx scripts/fetch-sfc-details.ts",
     "crawl:logos": "dotenv -e ../../.env -- tsx scripts/crawl-broker-logos.ts",
