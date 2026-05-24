@@ -32,6 +32,7 @@ const BrokersPage = async ({ params }: Props): Promise<ReactNode> => {
     isClaimed: boolean;
     reviewCount: number;
     positiveRate: number | null;
+    verifiedUserCount: number;
     licenseTypes: string[];
   }[] = [];
   let nextCursor: string | null = null;

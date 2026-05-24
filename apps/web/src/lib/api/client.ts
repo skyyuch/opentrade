@@ -177,6 +177,12 @@ export type BrokerListItem = {
   isClaimed: boolean;
   reviewCount: number;
   positiveRate: number | null;
+  /**
+   * Per ADR-0025: number of distinct users who have been approved for
+   * this broker. Independent of reviewCount — an unclaimed broker can
+   * still have many verified reviewers behind its reviews.
+   */
+  verifiedUserCount: number;
   licenseTypes: string[];
 };
 
@@ -297,6 +303,12 @@ export type BrokerDetail = {
   activeYears: number | null;
   reviewCount: number;
   positiveRate: number | null;
+  /**
+   * Per ADR-0025: number of distinct users who have been verified for
+   * this broker. Surfaced on the broker detail page as a credibility
+   * signal complementary to the review-rating distribution.
+   */
+  verifiedUserCount: number;
   ratingDistribution: RatingDistributionItem[];
   licenses: BrokerLicense[];
   similarBrokers: SimilarBroker[];

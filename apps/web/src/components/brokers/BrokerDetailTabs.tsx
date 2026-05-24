@@ -15,6 +15,7 @@ import {
   ThumbsDown,
   ThumbsUp,
   TrendingUp,
+  Users,
 } from 'lucide-react';
 import { Link } from '@/i18n/navigation';
 import { useOpenTradeAuth } from '@/hooks/useOpenTradeAuth';
@@ -190,12 +191,23 @@ function RatingSummary({ broker }: { broker: BrokerDetail }) {
         <div className="text-sm text-white/40 mt-2">
           {t('totalReviews', { count: broker.reviewCount })}
         </div>
-        {broker.reviewCount > 0 && (
-          <div className="mt-4 flex items-center gap-2 text-xs text-[#00FF88] bg-[#00FF88]/10 px-3 py-1.5 rounded-full">
-            <TrendingUp size={14} />
-            {t('trendUp')}
-          </div>
-        )}
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          {broker.reviewCount > 0 && (
+            <div className="flex items-center gap-2 text-xs text-[#00FF88] bg-[#00FF88]/10 px-3 py-1.5 rounded-full">
+              <TrendingUp size={14} />
+              {t('trendUp')}
+            </div>
+          )}
+          {broker.verifiedUserCount > 0 && (
+            <div
+              className="flex items-center gap-2 text-xs text-[#00FF88] bg-[#00FF88]/10 px-3 py-1.5 rounded-full font-bold"
+              title={t('verifiedUsersTooltip', { count: broker.verifiedUserCount })}
+            >
+              <Users size={14} />
+              {t('verifiedUsers', { count: broker.verifiedUserCount })}
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="flex flex-col justify-center space-y-2.5">

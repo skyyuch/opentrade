@@ -1,6 +1,6 @@
 'use client';
 
-import { ChevronRight, Filter, Loader2, Search, ShieldCheck } from 'lucide-react';
+import { ChevronRight, Filter, Loader2, Search, ShieldCheck, Users } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useCallback, useEffect, useRef, useState, useTransition } from 'react';
 
@@ -16,6 +16,8 @@ type BrokerListItem = {
   isClaimed: boolean;
   reviewCount: number;
   positiveRate: number | null;
+  /** Per ADR-0025: count of distinct users approved for this broker. */
+  verifiedUserCount: number;
   licenseTypes: string[];
 };
 
@@ -264,15 +266,28 @@ const BrokerCard = ({ broker, locale }: { broker: BrokerListItem; locale: string
         </div>
       </div>
 
-      {/* License badge */}
-      {broker.licenseTypes.length > 0 && (
-        <div className="mb-4 inline-flex w-fit items-center gap-1.5 rounded border border-white/5 bg-white/5 px-2.5 py-1">
-          <ShieldCheck size={14} className="text-[#00FF88]" />
-          <span className="text-[10px] font-medium tracking-wide text-white/70">
-            {formatLicenseTypes(broker.licenseTypes)}
-          </span>
-        </div>
-      )}
+      {/* License + verified-users badges */}
+      <div className="mb-4 flex flex-wrap gap-2">
+        {broker.licenseTypes.length > 0 && (
+          <div className="inline-flex items-center gap-1.5 rounded border border-white/5 bg-white/5 px-2.5 py-1">
+            <ShieldCheck size={14} className="text-[#00FF88]" />
+            <span className="text-[10px] font-medium tracking-wide text-white/70">
+              {formatLicenseTypes(broker.licenseTypes)}
+            </span>
+          </div>
+        )}
+        {broker.verifiedUserCount > 0 && (
+          <div
+            className="inline-flex items-center gap-1.5 rounded border border-[#00FF88]/30 bg-[#00FF88]/10 px-2.5 py-1"
+            title={t('verifiedUsersTooltip', { count: broker.verifiedUserCount })}
+          >
+            <Users size={14} className="text-[#00FF88]" />
+            <span className="text-[10px] font-bold tracking-wide text-[#00FF88]">
+              {t('verifiedUsersBadge', { count: broker.verifiedUserCount })}
+            </span>
+          </div>
+        )}
+      </div>
 
       {/* Spacer */}
       <div className="flex-1" />
