@@ -250,6 +250,7 @@ model SbtVerificationRequest {
   brokerSlug       String
   commitment       String
   evidenceIpfsCid  String
+  evidenceMimeType String?
   status           VerificationStatus @default(PENDING)
   adminNote        String?            @db.Text
   createdAt        DateTime           @default(now())
