@@ -8,9 +8,9 @@
 
 ## 最後更新
 
-- **日期**：2026-05-24（session handoff）
-- **更新者**：/verify page rebuild session（Claude Opus 4.7）
-- **本次更新摘要**：重寫 `/verify` (L2 SBT verification) 頁面 — 從「貼 IPFS CID」改為真實檔案上傳：(1) 後端新增 `POST /v1/auth/verify-broker/upload`（auth 保護 + PDF/JPG/PNG/WebP MIME 白名單 + 10MB 上限 + 檔名脫敏 + 透過 `PinataIpfsService.pinFile()` 上鏈到 IPFS；ADR-0022 紅線：raw 檔案不入 DB）。`PinataIpfsService` + `IIpfsService` 加 `pinFile(file, name)`。Brokers listing 上限從 50 提到 100 給 autocomplete UX。(2) 前端 `/verify` 完整重寫：Google dark crypto 設計（#00FF88 + 藍色 glow）+ drag-drop 自動上傳 + 自動 IPFS CID + 本地 keccak256 commitment 計算。Broker selector 改為 lightweight searchable combobox（debounced 250ms server search + 本地 fallback 過濾）。**Locale-aware broker name**：`legalName`（英）/ `displayName`（中）依 `useLocale()` 取對應欄位（解決所有語言永遠顯示中文 bug）。修了 combobox 「搜尋後點選空白」bug（用獨立 state 快取選中 broker 資料，避免 `setSearch('')` 連鎖清掉 remoteBrokers 後 fallback 找不到）。Cursor rule 51 新增「DB 多語欄位 模式 A：平行欄位」章節 codify locale-aware getter 強制要求。**Session 結束 handoff**：留下 2 個待下個 agent 處理的問題（見「下一步」+「待決策」）。
+- **日期**：2026-05-24（session in progress）
+- **更新者**：verify status & reject reason + multi-broker ADR session（Claude Opus 4.7）
+- **本次更新摘要**：(1) `/verify` page status-driven views — 把「提交成功只顯示綠色 success card」升級為四態狀態機（loading / idle / pending / rejected / approved）。Pending card 採 Google reference 設計（amber Clock spinner + commitment hash + 提交時間 + 狀態 badge）。Rejected card 顯示 admin 駁回原因（紅框 readonly）+ 提交/駁回時間 + 「重新申請」button → 重設 form。Approved 顯示 alreadyVerified card。提交成功後自動 synthesise 一筆 PENDING 記錄即時切到 pending card。(2) Admin reject reason 必填 — API 拆 `approveActionSchema` / `rejectActionSchema`（reject `adminNote` min 5 max 500 chars，VALIDATION_ERROR on missing），console 加 nested `RejectReasonModal`（z-70）+ case modal data panel 顯示 `adminNote` 紅框 readonly。(3) Console admin verifications IPFS preview — 表格加 thumbnail 欄、case modal 兩欄式 layout（IPFS viewer 含 image zoom / PDF iframe / unknown fallback；data panel 顯示 broker / wallet / commitment / CID / adminNote）。`useEvidenceMime` hook 對 legacy 無 mime 紀錄走 HEAD probe Pinata gateway。`/verify` upload 加圖片即時 thumbnail（`URL.createObjectURL` + cleanup revoke）。(4) DB schema：`SbtVerificationRequest.evidenceMimeType String?` + 兩個 migrations（`add_user_credential_auth` baseline 修 schema drift + `add_verification_evidence_mime_type`）。(5) **ADR-0025 多券商驗證策略決策** — 採 B 漸進版（Phase 1 用 DB `UserVerifiedBroker` 表 + outbox hash chain；Phase 2 升 ReviewerSBT v2 鏈上化）。L 等級不靠驗證次數升、broker 數量不限、`(userId, brokerSlug)` 已 APPROVED 後不可重提。4 個 commit (db / api / console / web)。
 
 ---
 
@@ -326,16 +326,14 @@ Branch: `feature/phase-1-mvp-a`（first 4 commits + 1 handoff docs commit）
 
 ## 下一步（按優先序）
 
-### 立即（前 session 留給下個 agent）
+### 立即
 
-1. **多券商驗證策略決策** — 一個用戶在多個券商有帳戶時，能否多次提交 verify？當前實作：`SbtVerificationRequest` schema 沒擋（只擋同時 PENDING），但 `ReviewerSBT` 是 one-mint-per-address（ADR-0021 D3）。需設計 SBT metadata 模式（broker list 在 tokenURI？on-chain mapping？）並寫 ADR。**這個 Q 必須在做 #2 之前釐清**（admin 審核 UI 與 broker list 顯示要對齊）。詳見「待決策」#技術層級「多券商驗證」段。
-2. **`/admin/users` 加用戶上傳檔案瀏覽 UI** — admin 看 verify 申請時無法檢視使用者上傳的 IPFS 證明（只有 CID hash）。需要：
-   - 找出使用者要參考的 Google UI 設計（前 session 在 `~/Downloads/` 留過 5 個 reference file：`SbtVerification.tsx` / `Navigation.tsx` / `PublicLayout.tsx` / `App.tsx` / `types.ts`，但本次只用了 `SbtVerification.tsx`；可能要請使用者再給 admin 相關的 reference）
-   - admin verifications 頁加 IPFS preview（PDF iframe / image preview，透過 Pinata gateway URL）
-   - 順便：`/admin/users` 詳細頁列出該用戶的所有 SbtVerificationRequest（成功 / 失敗 / pending）
-3. **Console Google UI 修復** — globals.css 主題系統與 Google 硬編碼色的衝突需要系統性解決（可能需要 console 專屬 Tailwind preset 或完全繞過共用主題）
-4. **端到端瀏覽器測試** — Privy login → exchange JWT → browse brokers → submit review → verify broker (L2 上傳檔案) → admin approve → SBT mint → outbox worker → on-chain confirm
-5. **Outbox worker 本地跑通** — 確認 review 提交後 worker 能 poll → submit on-chain → update status CONFIRMED
+1. ✅ ~~**多券商驗證策略決策**~~ → 已決策 per [ADR-0025](./decisions/0025-multi-broker-verification-strategy.md)：採 B 漸進版（Phase 1 用 DB list + outbox hash chain；Phase 2 升合約 v2 鏈上化）。需依 ADR-0025 Implementation Notes 開工 6 個 commit（DB schema → API approve → /verify UI → console UI → review badge → docs）
+2. ✅ ~~**`/admin/users` 加用戶上傳檔案瀏覽 UI**~~ → 本 session（2026-05-24 verify status & reject reason）已完成 admin verifications 頁 IPFS preview（image / PDF / 不知 mime fallback）+ 駁回原因 popup modal + reject reason 必填 + 案件 modal 顯示 admin note 歷史
+3. **依 ADR-0025 補多券商實作** — DB 加 `UserVerifiedBroker` 表、API approve flow 改造、`/verify` 加 `'approved-can-add'` viewMode、評論卡顯示 broker 徽章
+4. **Console Google UI 修復** — globals.css 主題系統與 Google 硬編碼色的衝突需要系統性解決（可能需要 console 專屬 Tailwind preset 或完全繞過共用主題）
+5. **端到端瀏覽器測試** — Privy login → exchange JWT → browse brokers → submit review → verify broker (L2 上傳檔案) → admin approve → SBT mint → outbox worker → on-chain confirm
+6. **Outbox worker 本地跑通** — 確認 review 提交後 worker 能 poll → submit on-chain → update status CONFIRMED
 
 ### 短期
 
@@ -368,12 +366,7 @@ Branch: `feature/phase-1-mvp-a`（first 4 commits + 1 handoff docs commit）
 
 ### 技術層級
 
-- ❓ **多券商驗證策略（HIGH PRIORITY — 下個 session 必處理）**：當前架構：`SbtVerificationRequest` schema 允許一個 user 對多個 `brokerSlug` 各提一筆（commitment hash 每筆獨立），但 admin approve 流程把 user `sbtTier` 升 L2 + 觸發 outbox 鑄 ONE SBT（per ADR-0021 D3 one-mint-per-address）。問題：第二次 verify 通過後 SBT 怎麼處理？三個候選：
-  - **A. 不再鑄 SBT，只在 user 紀錄加 verified broker list** — 簡單，但 SBT 失去「綁定 broker」語意，鏈上看不到使用者驗證了哪些券商
-  - **B. SBT tokenURI 升級為「list of brokers」** — 每次新 broker 驗證通過，admin 在 IPFS 重新 pin 一個包含全部 broker 列表的 JSON，更新 tokenURI（ReviewerSBT 需加 `updateTokenURI(tokenId, newURI)`，要 ADR 修正 ADR-0021）
-  - **C. SBT per broker（ERC1155 或多 ERC721）** — 最 verbose，但語意最清楚；需重做 ReviewerSBT 架構
-
-  需寫 ADR 拍板，影響：DB schema（是否加 `userId × brokerSlug` unique？）、admin approve 流程、`/verify` UI 是否阻擋已驗證 broker、Review submission gate 邏輯。Phase 1 必須收尾。
+- ✅ ~~**多券商驗證策略**~~ → 已決策 per [ADR-0025](./decisions/0025-multi-broker-verification-strategy.md)：Phase 1 用 DB `UserVerifiedBroker` 表 + outbox hash chain（合約不動）；Phase 2 才升 ReviewerSBT v2 把 broker mapping 上鏈。實作 6 個 commit 待開工，詳見 ADR Implementation Notes。
 
 - ❓ **License 選擇**：Business Source License 1.1 vs AGPL-3.0 — 上線前決定
 - ❓ **設計師資源**：是否找 freelance 香港設計師（HK$30-80k 預算）做 Figma 高保真稿
@@ -558,3 +551,4 @@ aws sso login --profile opentrade-dev
 || 2026-05-24 | Console credential login + auth refactor | Claude Opus 4.6 | POST /v1/auth/login (bcrypt + DDD). User model +username/passwordHash. Seed admin user. useOpenTradeAuth refactored to React Context. useCurrentUser refactored to React Context. PrivyErrorBoundary + PrivyLoginButton. AuthGate credential form + role-based access. ADR-0024. Known bug: admin menu navigation redirects to overview (timing issue between hydration and AdminGuard). | |
 | 2026-05-24 | Console admin nav + locale routing fix | Claude Opus 4.7 | Fixed ADR-0024 known bug. Switched console `localePrefix` from `'as-needed'` to `'always'` (App Router `[locale]` segment was mismatching non-prefixed paths like `/admin/users` → `[locale=admin]/users` 404). AuthGate sidebar now uses next-intl `Link` from `i18n/navigation` (removed hardcoded `/${locale}` prefixes). AdminGuard/BrokerGuard moved `router.replace()` into `useEffect` + use next-intl `useRouter`. UsersClient `.map()` Fragment now has `key`. | |
 | 2026-05-24 | /verify page rebuild — file upload + searchable broker combobox + locale-aware names | Claude Opus 4.7 | Backend: `POST /v1/auth/verify-broker/upload` (auth + 10MB + PDF/JPG/PNG/WebP) using `PinataIpfsService.pinFile()`; brokers listing limit cap raised 50 → 100. Frontend: full `/verify` rewrite in Google dark crypto theme (#00FF88 + blue glow), drag-drop file → auto IPFS upload → local keccak256 commitment, lightweight searchable broker combobox (debounced 250ms server search + local fallback filter), locale-aware broker name getter (`legalName` for en, `displayName` for zh-\*) fixing always-Chinese bug. Fixed combobox blank-after-search bug (cached selectedBroker in local state). Cursor rule 51 codifies "DB 多語欄位 模式 A: parallel columns" pattern with locale-aware getter requirement. Session handoff with 2 open Qs for next agent: (1) multi-broker verification SBT strategy, (2) /admin/users IPFS preview UI. | [link](./conversations/2026-05-24-verify-page-rebuild.md) |
+| 2026-05-24 | Verify status views + admin reject reason + IPFS preview + ADR-0025 multi-broker | Claude Opus 4.7 | (1) `/verify` 4-state machine: loading / idle / pending / rejected / approved. Pending card per Google reference (Clock spinner + commitment hash + status badge). Rejected card shows admin reason + retry button. Approved → existing alreadyVerified card. Submit success synthesises local PENDING record for instant transition. (2) Admin reject reason now required (split approve/reject schemas, min 5 max 500 chars, nested RejectReasonModal z-70, case modal surfaces adminNote on any tab). (3) Console verifications page rewritten with IPFS preview (image zoom / PDF iframe / fallback), thumbnail per row, useEvidenceMime hook HEAD-probes legacy records. `/verify` upload adds inline image thumbnails. (4) DB: `evidenceMimeType` column + 2 migrations (credential-auth baseline + mime type). (5) **ADR-0025 multi-broker verification strategy** — phased B (Phase 1 DB `UserVerifiedBroker` + outbox hash chain; Phase 2 ReviewerSBT v2 with on-chain broker mapping). 4 commits (db / api / console / web). | |

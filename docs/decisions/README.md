@@ -113,6 +113,7 @@ YYYY-MM-DD
 | 0022 | L2 identity verification via commitment-hash (Phase 1) | Accepted | 2026-05-22 |
 | 0023 | UGC translation via DeepL API (Phase 1)                | Accepted | 2026-05-22 |
 | 0024 | Console username/password authentication (Phase 1)     | Accepted | 2026-05-23 |
+| 0025 | Multi-broker verification strategy (Phase 1 off-chain) | Accepted | 2026-05-24 |
 
 ---
 
