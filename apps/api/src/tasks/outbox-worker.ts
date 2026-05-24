@@ -49,6 +49,13 @@ const REVIEWER_SBT_ABI = [
     outputs: [{ name: 'tokenId', type: 'uint256' }],
     stateMutability: 'nonpayable',
   },
+  {
+    type: 'function',
+    name: 'balanceOf',
+    inputs: [{ name: 'owner', type: 'address' }],
+    outputs: [{ name: 'balance', type: 'uint256' }],
+    stateMutability: 'view',
+  },
 ] as const;
 
 function log(level: string, msg: string, data?: Record<string, unknown>) {
@@ -163,6 +170,29 @@ async function main() {
     const user = await prisma.user.findUnique({ where: { id: payload.userId } });
     if (!user?.walletAddress) {
       throw new Error(`User ${payload.userId} has no wallet address for SBT mint`);
+    }
+
+    // Idempotency guard: ReviewerSBT is one-mint-per-address (soulbound, per
+    // ADR-0021 Block 11). If the wallet already holds an SBT, re-emitting a
+    // mint event for any reason (replay, multi-broker verification race per
+    // ADR-0025 D3, manual deploy-day test mint, etc.) will revert on-chain
+    // with AlreadyMinted(address). Skip + mark processedAt instead of letting
+    // the worker burn 5 retries on a deterministic revert.
+    const existingBalance = await publicClient.readContract({
+      address: sbtAddress as `0x${string}`,
+      abi: REVIEWER_SBT_ABI,
+      functionName: 'balanceOf',
+      args: [user.walletAddress as `0x${string}`],
+    });
+
+    if (existingBalance > 0n) {
+      log('warn', 'Skipping SBT mint — wallet already holds an SBT (idempotent skip)', {
+        verificationId: event.aggregateId,
+        userId: payload.userId,
+        wallet: user.walletAddress,
+        existingBalance: existingBalance.toString(),
+      });
+      return;
     }
 
     const tokenUri = `ipfs://verification/${event.aggregateId}`;
