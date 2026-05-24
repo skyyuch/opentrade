@@ -42,6 +42,7 @@ import {
   fetchVerificationStatus,
   uploadVerifyEvidence,
 } from '../../lib/api/client';
+import { translateApiError } from '../../lib/api/errorMessage';
 
 import type {
   UserProfile,
@@ -97,6 +98,7 @@ type ViewMode = 'loading' | 'idle' | 'pending' | 'rejected' | 'approved' | 'addi
 
 export const VerifyForm = ({ brokers }: VerifyFormProps) => {
   const t = useTranslations('verify');
+  const tErrors = useTranslations('errors');
   const locale = useLocale();
   const { authenticated, login } = usePrivy();
   const { getAccessToken } = useOpenTradeAuth();
@@ -196,13 +198,18 @@ export const VerifyForm = ({ brokers }: VerifyFormProps) => {
           if (prev?.previewUrl) URL.revokeObjectURL(prev.previewUrl);
           return { file: selectedFile, cid: res.cid, previewUrl };
         });
-      } catch {
-        setError(t('uploadFailed'));
+      } catch (err) {
+        // Most upload failures are network glitches; the API does emit
+        // structured `details.reason` on validation rejections (file_too_large
+        // / invalid_file_type) which `translateApiError` will surface verbatim.
+        // Anything unrecognised falls back to the legacy `verify.uploadFailed`
+        // copy since users care about retry guidance more than internals.
+        setError(translateApiError(err, tErrors, t('uploadFailed')));
       } finally {
         setIsUploading(false);
       }
     },
-    [getAccessToken, t],
+    [getAccessToken, t, tErrors],
   );
 
   // Revoke each preview URL when it's replaced or on unmount, to avoid memory leaks.
@@ -287,7 +294,11 @@ export const VerifyForm = ({ brokers }: VerifyFormProps) => {
       });
       setViewMode('pending');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error');
+      // The API distinguishes the two CONFLICT sub-cases via
+      // `details.reason` (`pending_exists` vs `broker_already_verified`)
+      // — `translateApiError` resolves them to localised strings; any
+      // unmapped error falls back to the generic `errors.code.*` copy.
+      setError(translateApiError(err, tErrors));
     } finally {
       setSubmitting(false);
     }

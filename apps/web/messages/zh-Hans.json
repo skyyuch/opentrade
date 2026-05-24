@@ -323,5 +323,25 @@
       "requestId": "Request ID"
     },
     "disclaimer": "本页仅显示系统运行状态，不构成任何投资建议。"
+  },
+  "errors": {
+    "code": {
+      "VALIDATION_ERROR": "请求格式不正确，请检查字段后重试。",
+      "CONFLICT": "数据冲突，请刷新页面后再试。",
+      "UNAUTHORIZED": "登录状态已过期，请重新登录。",
+      "FORBIDDEN": "你目前没有权限执行此操作。",
+      "NOT_FOUND": "找不到对应资源。",
+      "RATE_LIMIT_EXCEEDED": "请求频率过高，请稍后再试。",
+      "SERVICE_UNAVAILABLE": "服务暂时不可用，请稍后再试。",
+      "INTERNAL_ERROR": "发生未预期的错误，请稍后再试。",
+      "INVALID_CREDENTIALS": "账号或密码不正确。"
+    },
+    "reason": {
+      "pending_exists": "你已有一笔审核中的申请，请等待管理员处理后再提交。",
+      "broker_already_verified": "你已通过此券商的验证，无须重复申请。",
+      "no_file": "请选择要上传的文件。",
+      "invalid_file_type": "不支持的文件格式，请上传 PDF、JPG、PNG 或 WebP。",
+      "file_too_large": "文件过大，请上传小于 10MB 的文件。"
+    }
   }
 }

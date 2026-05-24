@@ -323,5 +323,25 @@
       "requestId": "Request ID"
     },
     "disclaimer": "This page reports operational status only and does not constitute investment advice."
+  },
+  "errors": {
+    "code": {
+      "VALIDATION_ERROR": "Your request couldn't be processed. Please review the fields and try again.",
+      "CONFLICT": "There's a conflict with the current data. Please refresh and try again.",
+      "UNAUTHORIZED": "Your session has expired. Please sign in again.",
+      "FORBIDDEN": "You don't have permission to perform this action.",
+      "NOT_FOUND": "We couldn't find what you were looking for.",
+      "RATE_LIMIT_EXCEEDED": "You're going a bit too fast. Please wait a moment and try again.",
+      "SERVICE_UNAVAILABLE": "The service is temporarily unavailable. Please try again shortly.",
+      "INTERNAL_ERROR": "Something went wrong on our side. Please try again.",
+      "INVALID_CREDENTIALS": "Username or password is incorrect."
+    },
+    "reason": {
+      "pending_exists": "You already have a pending verification request. Please wait for the admin review to complete.",
+      "broker_already_verified": "You've already been verified for this broker — no need to resubmit.",
+      "no_file": "Please select a file to upload.",
+      "invalid_file_type": "Unsupported file type. Please upload a PDF, JPG, PNG, or WebP file.",
+      "file_too_large": "The file is too large. Please upload a file smaller than 10MB."
+    }
   }
 }

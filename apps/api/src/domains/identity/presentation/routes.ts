@@ -211,7 +211,9 @@ identityRouter.post('/verify-broker', authMiddleware('user'), async (c) => {
     where: { userId, tenantId, status: 'PENDING' },
   });
   if (pending) {
-    throw new AppError(ErrorCode.CONFLICT, 'You already have a pending verification request', 409);
+    throw new AppError(ErrorCode.CONFLICT, 'You already have a pending verification request', 409, {
+      details: { reason: 'pending_exists' },
+    });
   }
 
   // Per ADR-0025 D2: a (userId, brokerSlug) pair can only have one APPROVED
@@ -223,7 +225,9 @@ identityRouter.post('/verify-broker', authMiddleware('user'), async (c) => {
     select: { id: true },
   });
   if (alreadyVerified) {
-    throw new AppError(ErrorCode.CONFLICT, 'You have already been verified for this broker', 409);
+    throw new AppError(ErrorCode.CONFLICT, 'You have already been verified for this broker', 409, {
+      details: { reason: 'broker_already_verified' },
+    });
   }
 
   const request = await prisma.sbtVerificationRequest.create({
@@ -259,7 +263,9 @@ identityRouter.post('/verify-broker/upload', authMiddleware('user'), async (c) =
   const file = body['file'];
 
   if (!file || !(file instanceof File)) {
-    throw new AppError(ErrorCode.VALIDATION_ERROR, 'No file provided', 400);
+    throw new AppError(ErrorCode.VALIDATION_ERROR, 'No file provided', 400, {
+      details: { reason: 'no_file' },
+    });
   }
 
   if (
@@ -271,6 +277,7 @@ identityRouter.post('/verify-broker/upload', authMiddleware('user'), async (c) =
       ErrorCode.VALIDATION_ERROR,
       `Invalid file type: ${file.type}. Accepted: PDF, JPEG, PNG, WebP`,
       400,
+      { details: { reason: 'invalid_file_type', mimeType: file.type } },
     );
   }
 
@@ -279,6 +286,7 @@ identityRouter.post('/verify-broker/upload', authMiddleware('user'), async (c) =
       ErrorCode.VALIDATION_ERROR,
       `File too large: ${(file.size / 1024 / 1024).toFixed(2)} MB. Max 10 MB.`,
       400,
+      { details: { reason: 'file_too_large', sizeBytes: file.size } },
     );
   }
 

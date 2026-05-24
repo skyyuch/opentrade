@@ -323,5 +323,25 @@
       "requestId": "Request ID"
     },
     "disclaimer": "本頁僅顯示系統運行狀態，不構成任何投資建議。"
+  },
+  "errors": {
+    "code": {
+      "VALIDATION_ERROR": "請求格式不正確，請檢查欄位後重試。",
+      "CONFLICT": "資料衝突，請重新整理頁面後再試。",
+      "UNAUTHORIZED": "登入狀態已逾期，請重新登入。",
+      "FORBIDDEN": "你目前沒有權限執行此操作。",
+      "NOT_FOUND": "找不到對應資源。",
+      "RATE_LIMIT_EXCEEDED": "請求頻率過高，請稍後再試。",
+      "SERVICE_UNAVAILABLE": "服務暫時不可用，請稍後再試。",
+      "INTERNAL_ERROR": "發生未預期的錯誤，請稍後再試。",
+      "INVALID_CREDENTIALS": "帳號或密碼不正確。"
+    },
+    "reason": {
+      "pending_exists": "你已有一筆審核中的申請，請等待管理員處理後再提交。",
+      "broker_already_verified": "你已通過此券商的驗證，無須重複申請。",
+      "no_file": "請選擇要上傳的檔案。",
+      "invalid_file_type": "不支援的檔案格式，請上傳 PDF、JPG、PNG 或 WebP。",
+      "file_too_large": "檔案過大，請上傳小於 10MB 的檔案。"
+    }
   }
 }
