@@ -616,10 +616,27 @@ export const approveClaim = (id: string, adminNote?: string, options?: FetchOpti
 export const rejectClaim = (id: string, adminNote?: string, options?: FetchOptions) =>
   apiPost<{ status: string }>(`/v1/brokers/admin/claims/${id}/reject`, { adminNote }, options);
 
+export type VerifiedBrokerEntry = {
+  brokerSlug: string;
+  approvedAt: string;
+};
+
 export type VerificationItem = {
   id: string;
   userId: string;
-  user: { id: string; displayName: string | null; walletAddress: string | null; sbtTier: string };
+  user: {
+    id: string;
+    displayName: string | null;
+    walletAddress: string | null;
+    sbtTier: string;
+    /**
+     * Per ADR-0025: every broker the user has been approved for. The
+     * verifications under review may or may not be in this list (a
+     * PENDING/REJECTED record never lands here; only APPROVED does).
+     * Phase 1 source of truth is the user_verified_brokers table.
+     */
+    verifiedBrokers: VerifiedBrokerEntry[];
+  };
   brokerSlug: string;
   commitment: string;
   evidenceIpfsCid: string;

@@ -506,6 +506,8 @@ function CaseDetailModal({
               <p className="text-xl font-bold">{caseItem.brokerSlug}</p>
             </div>
 
+            <UserVerifiedBrokersPanel caseItem={caseItem} />
+
             <div className="space-y-4">
               <DataField label={t('userAddress')}>
                 <div className="break-all rounded-lg border border-white/10 bg-black/40 p-2.5 font-mono text-sm text-white/80">
@@ -577,6 +579,63 @@ function DataField({
     <div>
       <label className="mb-1 block text-xs font-bold text-white/40">{label}</label>
       {children}
+    </div>
+  );
+}
+
+/**
+ * Compact list of every broker the user has been verified for, scoped to
+ * the case modal's data panel. Per ADR-0025 admins use this to spot
+ * duplicates and unusual coverage before approving a new request — the
+ * approve handler itself rejects (userId, brokerSlug) double-approves at
+ * the DB level, but seeing the existing list keeps the human reviewer
+ * grounded.
+ */
+function UserVerifiedBrokersPanel({ caseItem }: { caseItem: VerificationItem }): React.ReactNode {
+  const t = useTranslations('admin');
+  const brokers = caseItem.user.verifiedBrokers;
+
+  return (
+    <div className="rounded-xl border border-white/10 bg-black/30 p-4">
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <h3 className="text-xs font-bold uppercase tracking-wider text-white/50">
+          {t('userVerifiedBrokersTitle')}
+        </h3>
+        {brokers.length > 0 && (
+          <span className="rounded-full bg-[#00FF88]/15 px-2 py-0.5 text-[11px] font-bold text-[#00FF88]">
+            {t('userVerifiedBrokersCount', { count: brokers.length })}
+          </span>
+        )}
+      </div>
+      {brokers.length === 0 ? (
+        <p className="text-xs text-white/40">{t('userVerifiedBrokersEmpty')}</p>
+      ) : (
+        <ul className="space-y-1.5">
+          {brokers.map((b) => {
+            const isCurrent = b.brokerSlug === caseItem.brokerSlug;
+            return (
+              <li
+                key={b.brokerSlug}
+                className={`flex items-center justify-between gap-2 rounded-lg border px-2.5 py-1.5 text-sm ${
+                  isCurrent
+                    ? 'border-blue-500/40 bg-blue-500/10 text-blue-200'
+                    : 'border-white/10 bg-white/5 text-white/70'
+                }`}
+              >
+                <span className="flex items-center gap-2 truncate">
+                  <CheckCircle size={12} className="shrink-0 text-[#00FF88]" aria-hidden />
+                  <span className="truncate font-mono text-xs">{b.brokerSlug}</span>
+                </span>
+                {isCurrent && (
+                  <span className="shrink-0 rounded-full bg-blue-500/30 px-2 py-0.5 text-[10px] font-bold text-blue-100">
+                    {t('currentTarget')}
+                  </span>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </div>
   );
 }
