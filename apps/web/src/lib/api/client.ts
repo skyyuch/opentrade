@@ -185,9 +185,12 @@ export type BrokersResponse = {
   nextCursor: string | null;
 };
 
-export const fetchBrokers = (options?: FetchOptions & { search?: string }): Promise<BrokersResponse> => {
+export const fetchBrokers = (
+  options?: FetchOptions & { search?: string; limit?: number },
+): Promise<BrokersResponse> => {
   const params = new URLSearchParams();
   if (options?.search) params.set('search', options.search);
+  if (options?.limit !== undefined) params.set('limit', String(options.limit));
   const qs = params.toString();
   return apiGet<BrokersResponse>(`/v1/brokers${qs ? `?${qs}` : ''}`, options);
 };
@@ -436,3 +439,56 @@ export const updateMyProfile = (
   options: FetchOptions,
 ): Promise<UserProfileResponse> =>
   apiPatch<UserProfileResponse>('/v1/auth/me', input, options);
+
+// ---------------------------------------------------------------------------
+// L2 SBT verification — evidence file upload (file → IPFS via API server)
+// ---------------------------------------------------------------------------
+
+export type VerifyEvidenceUploadResponse = {
+  cid: string;
+  size: number;
+  mimeType: string;
+};
+
+export const uploadVerifyEvidence = async (
+  file: File,
+  options: FetchOptions,
+): Promise<VerifyEvidenceUploadResponse> => {
+  const url = `${env.NEXT_PUBLIC_API_URL}/v1/auth/verify-broker/upload`;
+  const headers: Record<string, string> = {};
+  if (options.accessToken) {
+    headers['Authorization'] = `Bearer ${options.accessToken}`;
+  }
+
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers,
+    body: formData,
+    ...(options.signal !== undefined ? { signal: options.signal } : {}),
+  });
+
+  if (!res.ok) {
+    let parsed: unknown = undefined;
+    try {
+      parsed = await res.json();
+    } catch {
+      // Non-JSON error body.
+    }
+    if (isApiErrorBody(parsed)) {
+      throw new ApiClientError(res.status, parsed.error.code, parsed.error.message, {
+        ...(parsed.error.requestId !== undefined ? { requestId: parsed.error.requestId } : {}),
+        ...(parsed.error.details ? { details: parsed.error.details } : {}),
+      });
+    }
+    throw new ApiClientError(
+      res.status,
+      'INTERNAL_ERROR',
+      `Upstream POST /v1/auth/verify-broker/upload returned ${res.status}`,
+    );
+  }
+
+  return (await res.json()) as VerifyEvidenceUploadResponse;
+};
