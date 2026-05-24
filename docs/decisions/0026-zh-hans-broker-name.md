@@ -2,11 +2,24 @@
 
 ## Status
 
-Accepted
+Accepted (Implemented 2026-05-24)
 
 ## Date
 
 2026-05-24
+
+## Implementation status
+
+Landed in 6 atomic commits direct to `main` on 2026-05-24:
+
+- **c1** `feat(db)` — `Broker.displayNameZhHans String?` + migration `20260524134053_add_broker_display_name_zh_hans`
+- **c2** `feat(shared)` — `localizedBrokerName` three-arm fallback chain + `LocalizedNameInput` extended
+- **c3** `feat(db)` — `opencc-js@1.3.1` install + `src/sfc/opencc.ts` lazy singleton + `sync-brokers.ts` auto-convert + `scripts/backfill-zh-hans.ts` one-shot backfill (dev: 3482 brokers populated)
+- **c4** `feat(api)` — 10 endpoint payloads ship `displayNameZhHans` + `BrokerNameMeta` extended
+- **c5** `feat(web,console)` — both `client.ts` + 10 hand-rolled component prop types extended; `BrokerDirectory.resolveBrokerName` gains zh-Hans branch
+- **c6** `docs(rules,status,decisions)` — rule 51 §模式 A rewritten to ship three columns; status doc updated; this ADR marked Implemented
+
+**Outstanding follow-up**: production DB backfill (`pnpm --filter @opentrade/db db:backfill:zh-hans` against prod RDS) — see Implementation Notes §6 below. Not blocking: new prod brokers from SFC sync are already covered by c3's `sync-brokers.ts` integration; the backfill only catches the existing population.
 
 ## Context
 

@@ -175,18 +175,25 @@ OpenTrade 有三種模式，依資料來源與彈性需求擇一：
 
 ### 模式 A：平行欄位（**當前 Broker 表使用**）
 
-來源資料（如 SFC 公開 register）天生只有英 / 中兩語，且不會再加新語言時：
+來源資料（如 SFC 公開 register）天生只有英 / 繁中兩語，且不會再加新語言時。
+OpenTrade 額外把 SFC 繁中經 OpenCC 轉成簡中存第三列，避免簡中讀者全程看到繁體（per ADR-0026）：
 
 ```prisma
 model Broker {
-  legalName   String  // English（SFC `nameEng`）— 對應 locale = 'en'
-  displayName String  // Chinese（SFC `nameChi`，無中文時 fallback 英文）— 對應 zh-*
+  legalName         String  // English（SFC `nameEng`）— 對應 locale = 'en'
+  displayName       String  // Traditional Chinese（SFC `nameChi`，無中文時 fallback 英文）— 對應 locale = 'zh-Hant'
+  displayNameZhHans String? // Simplified Chinese（OpenCC t→cn from displayName）— 對應 locale = 'zh-Hans'
 }
 ```
 
 ⚠️ **這是專案曾出過 4+ 次的回歸點**。新進 agent 改 API payload / UI component 時，
-若直接使用 `b.displayName` 或 `{slug}`，等於把英文 locale 使用者鎖在中文（或反向）。
-本節是**強制紅線**，不是可選實作。
+若直接使用 `b.displayName` 或 `{slug}`，等於把英文 locale 使用者鎖在中文（或反向），
+或把簡中讀者鎖在繁體。本節是**強制紅線**，不是可選實作。
+
+`displayNameZhHans` 為什麼 nullable：
+1. 來自 OpenCC 自動轉換，極少數 unicode codepoint 可能轉換失敗（best-effort backfill）
+2. Admin 將來可能想覆寫個別 broker 的轉換結果（部分 HK 繁體俗語自動轉簡中後語感不準）
+3. Nullable 讓 helper 自然 fallback 到 `displayName`，比寫一個語感錯誤的值好
 
 #### A1. Canonical helper（強制使用，不要再寫第二份）
 
@@ -194,9 +201,11 @@ model Broker {
 // packages/shared/src/i18n/brokerName.ts
 import { localizedBrokerName } from '@opentrade/shared';
 
-// 規則：
-//   - en       → legalName ?? displayName ?? slug
-//   - 其他     → displayName ?? legalName ?? slug
+// 規則（三路 fallback chain）：
+//   - en        → legalName ?? displayName ?? slug
+//   - zh-Hans   → displayNameZhHans ?? displayName ?? legalName ?? slug
+//   - zh-Hant   → displayName ?? legalName ?? slug
+//   - 其他       → displayName ?? legalName ?? slug
 //
 // 任何顯示 broker / KOL / 其他「平行欄位」實體名稱的 UI 都必須走它，
 // 包括：表格、card、tooltip、avatar fallback initials、頁面 title、breadcrumb、
@@ -207,37 +216,50 @@ import { localizedBrokerName } from '@opentrade/shared';
 若採用 parallel columns，必須在這裡擴充 helper（`localizedKolName`、
 `localizedLicenseSeries`、…），**禁止**在 component 自己寫 ternary。
 
-#### A2. API contract — 永遠回傳兩列
+#### A2. API contract — 永遠回傳三列
 
 任何 API endpoint 在 payload 含「平行欄位實體」的引用（broker、kol、…）時，
-**必須**同時回傳 `displayName` + `legalName`（broker），或對應的兩列名稱。
-**禁止**只回 slug 或只回 displayName。
+**必須**同時回傳 `displayName` + `displayNameZhHans` + `legalName`（broker），
+或對應的多列名稱。**禁止**只回 slug、只回 displayName、或只回兩列。
 
 ```ts
 // ❌ 禁止 — 只 ship slug，前端被迫 render `hsbc-broking-securities-hong-kong-limited`
 { brokerSlug: 'hsbc-...', approvedAt: '...' }
 
-// ❌ 禁止 — 只 ship displayName，英文 locale 永遠顯示中文
+// ❌ 禁止 — 只 ship displayName，英文 / 簡中 locale 永遠顯示繁體
 { broker: { slug: 'hsbc-...', displayName: '匯豐證券' } }
 
-// ✅ 強制 — 兩列都帶
+// ❌ 禁止 — 漏 displayNameZhHans，簡中讀者永遠回到繁體 fallback
 { broker: { slug: 'hsbc-...', displayName: '匯豐證券', legalName: 'HSBC ...' } }
+
+// ✅ 強制 — 三列都帶（displayNameZhHans 可為 null，但欄位必須存在）
+{
+  broker: {
+    slug: 'hsbc-...',
+    displayName: '匯豐證券',         // zh-Hant
+    displayNameZhHans: '汇丰证券',   // zh-Hans（可為 null）
+    legalName: 'HSBC ...'            // en
+  }
+}
 ```
 
 當 entity 沒有 FK relation 可 `include`（例如 `UserVerifiedBroker` 用 slug 做 key），
 用 `apps/api/src/shared/brokerHydration.ts#hydrateBrokerNames(slugs, tenantId)`
-做一次性 batched 查表後展平到 payload。
+做一次性 batched 查表後展平到 payload。Helper 內部已 select 三列，呼叫端只要
+把 `displayName` / `displayNameZhHans` / `legalName` 一起 spread 進 payload 即可。
 
 #### A3. UI component — 永遠 pipe 進 helper
 
 ```tsx
 // ❌ 禁止 — 直接 render 欄位
 <span>{broker.displayName}</span>
+<span>{broker.displayNameZhHans}</span>
 <span>{broker.legalName}</span>
 <span className="font-mono">{b.brokerSlug}</span>
 
 // ❌ 禁止 — 在 component 內 inline ternary（會跟 helper 不同步）
 <span>{locale === 'en' ? broker.legalName : broker.displayName}</span>
+<span>{locale === 'zh-Hans' ? broker.displayNameZhHans ?? broker.displayName : broker.displayName}</span>
 
 // ✅ 強制 — 走 canonical helper
 import { localizedBrokerName } from '@opentrade/shared';
@@ -249,6 +271,11 @@ const locale = useLocale();
 
 如果是 server component，從 `params.locale` 拿 locale 字串。
 
+當 component 透過 props 接收的 broker 是 hand-rolled 型別而非完整 API client 型別，
+**必須**在 props type 列入三列（`displayName` / `displayNameZhHans: string | null` /
+`legalName: string | null`），不可只列兩列硬塞 helper — TS 會通過，但 zh-Hans
+讀者會永遠 fallback 到繁體。
+
 #### A4. 兩列都要顯示的特例
 
 少數場景需要同時顯示中英名（例如 SFC license record、broker detail header
@@ -256,9 +283,15 @@ const locale = useLocale();
 
 ```tsx
 const primary = localizedBrokerName(broker, locale);
+// secondary 應呈現「另一面語言」：
+//   - zh-* primary → secondary 顯示 legalName（英文）
+//   - en primary   → secondary 顯示 displayName（繁中，因為 SFC 原始來源是繁中）
 const secondary = locale === 'en' ? broker.displayName : broker.legalName;
 // 只有 secondary !== primary 才 render 第二行（避免重複）
 ```
+
+不要在 zh-Hant / zh-Hans 之間互當 secondary —— 簡繁互譯不是另一面身分證明，
+只是同語言的轉寫。
 
 #### A5. Slug 的容身之處
 
@@ -271,7 +304,10 @@ const secondary = locale === 'en' ? broker.displayName : broker.legalName;
 **禁止**：表格 cell 主內容、card headline、tooltip 主文、modal title、breadcrumb、
 通知文案。
 
-未來若擴增第三語（如日文）或希望去除歧義，應 schema 改名為 `nameEn` / `nameZhHant` / `nameZhHans` 並寫 ADR；helper 同步擴成 4 路 fallback 即可，**API contract 與 component 用法不變**。
+未來若擴增第四語（如日文）或希望去除歧義，應 schema 改名為 `nameEn` / `nameZhHant` /
+`nameZhHans` / `nameJa` 並寫 ADR；helper 同步擴成 N 路 fallback 即可，**API
+contract 與 component 用法不變**（一定要記得連同新欄位 ship 到所有 endpoint
+與 client type）。
 
 ### 模式 B：JSON 多語欄位
 
@@ -393,8 +429,9 @@ new Intl.NumberFormat('zh-Hant', {
 - ❌ 把翻譯結果上鏈
 - ❌ 在 console 不做 i18n（即使是 admin 用，也要遵守規範）
 - ❌ 漏譯欄位（CI 必須檢查 zh-Hant / zh-Hans / en 同步）
-- ❌ DB 平行欄位（如 `legalName` / `displayName`）在 UI 直接顯示不轉 locale（必須走 `localizedBrokerName(b, locale)` from `@opentrade/shared`，per「DB 多語欄位 模式 A」）
-- ❌ API endpoint 在 payload 引用 broker / 其他平行欄位實體時只回 slug 或只回 `displayName`（必須兩列一起回，per「模式 A · A2」）
+- ❌ DB 平行欄位（如 `legalName` / `displayName` / `displayNameZhHans`）在 UI 直接顯示不轉 locale（必須走 `localizedBrokerName(b, locale)` from `@opentrade/shared`，per「DB 多語欄位 模式 A」）
+- ❌ API endpoint 在 payload 引用 broker / 其他平行欄位實體時只回 slug、只回 `displayName`、或只回兩列（必須**三列**一起回 — `displayName` + `displayNameZhHans` + `legalName`，per「模式 A · A2」）
+- ❌ Component 在 props 型別只列兩列（`displayName` / `legalName`）就把物件丟給 `localizedBrokerName` — zh-Hans 讀者會永遠 fallback 到繁體（per「模式 A · A3」末段）
 - ❌ Component 內 inline `locale === 'en' ? ... : ...`，繞過 canonical helper（會跟 helper 不同步，未來擴語言時所有 inline 版都要 grep 改一遍）
 - ❌ 把 slug 當 user-facing 文案 render（slug 是 routing key，per「模式 A · A5」）
 - ❌ Avatar 縮寫 / fallback initials 直接吃 `displayName.charAt(0)`（locale 切到 `en` 時會變成中文首字）
