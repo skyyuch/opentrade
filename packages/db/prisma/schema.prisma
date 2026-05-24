@@ -111,6 +111,7 @@ model Tenant {
   outboxEvents            OutboxEvent[]
   sbtVerificationRequests SbtVerificationRequest[]
   brokerClaimRequests     BrokerClaimRequest[]
+  userVerifiedBrokers     UserVerifiedBroker[]
 
   @@map("tenants")
 }
@@ -145,6 +146,7 @@ model User {
   tenant                Tenant                 @relation(fields: [tenantId], references: [id])
   reviews               Review[]
   sbtVerificationRequests SbtVerificationRequest[]
+  verifiedBrokers       UserVerifiedBroker[]
 
   @@unique([tenantId, privyId])
   @@index([tenantId, role])
@@ -258,10 +260,38 @@ model SbtVerificationRequest {
 
   user   User   @relation(fields: [userId], references: [id])
   tenant Tenant @relation(fields: [tenantId], references: [id])
+  verifiedBrokerLink UserVerifiedBroker?
 
   @@index([tenantId, status])
   @@index([tenantId, userId])
   @@map("sbt_verification_requests")
+}
+
+/// Append-only record of brokers a user has been verified for. Inserted in
+/// the same transaction as the verification approval, with a unique
+/// (userId, brokerSlug) constraint. Per ADR-0025 (Phase 1) this list is
+/// off-chain — Phase 2 batches these rows into the on-chain ReviewerSBT v2
+/// broker mapping. Each row's `commitment` mirrors the original verification
+/// request and is also emitted as an outbox event with a hash chain
+/// pointing to the user's previous broker, giving auditors a way to detect
+/// post-hoc admin tampering until the data lands on-chain.
+model UserVerifiedBroker {
+  id             String   @id @default(uuid()) @db.Uuid
+  tenantId       String   @db.Uuid
+  userId         String   @db.Uuid
+  brokerSlug     String
+  verificationId String   @unique @db.Uuid
+  commitment     String
+  approvedAt     DateTime @default(now())
+
+  user         User                   @relation(fields: [userId], references: [id])
+  tenant       Tenant                 @relation(fields: [tenantId], references: [id])
+  verification SbtVerificationRequest @relation(fields: [verificationId], references: [id])
+
+  @@unique([userId, brokerSlug])
+  @@index([tenantId, userId])
+  @@index([tenantId, brokerSlug])
+  @@map("user_verified_brokers")
 }
 
 /// A request from a merchant to claim ownership of a broker profile.
