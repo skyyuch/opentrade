@@ -470,6 +470,12 @@ export type AdminUserItem = {
   role: string;
   sbtTier: string;
   createdAt: string;
+  /**
+   * Per ADR-0025: every broker the user has been approved for. Surfaced
+   * directly on the list so admins can spot multi-broker users without
+   * opening detail.
+   */
+  verifiedBrokers: { brokerSlug: string; approvedAt: string }[];
 };
 
 export type AdminUsersResponse = {
@@ -499,6 +505,7 @@ export type AdminUserDetailResponse = {
   reviews: { id: string; title: string; rating: number; status: string; broker: { slug: string; displayName: string }; createdAt: string }[];
   verifications: { id: string; brokerSlug: string; status: string; createdAt: string }[];
   claims: { id: string; broker: { slug: string; displayName: string }; status: string; createdAt: string }[];
+  verifiedBrokers: { brokerSlug: string; approvedAt: string }[];
 };
 
 export const fetchAdminUserDetail = (id: string, options?: FetchOptions): Promise<AdminUserDetailResponse> =>

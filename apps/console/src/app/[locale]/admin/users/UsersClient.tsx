@@ -129,6 +129,7 @@ export function UsersClient(): React.ReactNode {
                   <th className="px-4 py-3">{t('thWallet')}</th>
                   <th className="px-4 py-3">{t('thRole')}</th>
                   <th className="px-4 py-3">{t('thSbt')}</th>
+                  <th className="px-4 py-3">{t('thBrokers')}</th>
                   <th className="px-4 py-3">{t('thDate')}</th>
                   <th className="px-4 py-3" />
                 </tr>
@@ -136,7 +137,7 @@ export function UsersClient(): React.ReactNode {
               <tbody>
                 {users.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="p-8 text-center text-white/40">
+                    <td colSpan={8} className="p-8 text-center text-white/40">
                       {t('noResults')}
                     </td>
                   </tr>
@@ -160,6 +161,12 @@ export function UsersClient(): React.ReactNode {
                         <td className="px-4 py-3">
                           <SbtBadge tier={u.sbtTier} />
                         </td>
+                        <td className="px-4 py-3">
+                          <BrokerPills
+                            brokers={u.verifiedBrokers}
+                            emptyLabel={t('userBrokersNone')}
+                          />
+                        </td>
                         <td className="px-4 py-3 text-white/60">
                           {new Date(u.createdAt).toLocaleDateString()}
                         </td>
@@ -171,7 +178,7 @@ export function UsersClient(): React.ReactNode {
                       </tr>
                       {expandedId === u.id && detail && (
                         <tr className="border-b border-white/5">
-                          <td colSpan={7} className="px-6 py-4">
+                          <td colSpan={8} className="px-6 py-4">
                             <UserDetailPanel
                               detail={detail}
                               onRoleChange={(role) => void handleRoleChange(u.id, role)}
@@ -343,6 +350,7 @@ function UserDetailPanel({
   onRoleChange: (role: string) => void;
   changeRoleLabel: string;
 }): React.ReactNode {
+  const t = useTranslations('admin');
   const u = detail.user;
   return (
     <div className="space-y-3 rounded-xl bg-white/[0.03] p-4 text-sm">
@@ -377,6 +385,68 @@ function UserDetailPanel({
           <span className="text-white/50">SBT Token ID: </span>
           <span className="font-mono text-[#00FF88]">{u.sbtTokenId}</span>
         </div>
+      )}
+
+      <div className="border-t border-white/5 pt-3">
+        <div className="mb-2 text-xs font-bold uppercase tracking-wider text-white/40">
+          {t('userBrokersDetailTitle')}
+        </div>
+        {detail.verifiedBrokers.length === 0 ? (
+          <p className="text-xs text-white/40">{t('userBrokersDetailEmpty')}</p>
+        ) : (
+          <ul className="space-y-1.5">
+            {detail.verifiedBrokers.map((b) => (
+              <li
+                key={b.brokerSlug}
+                className="flex items-center justify-between gap-2 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5"
+              >
+                <span className="font-mono text-xs text-white/80">{b.brokerSlug}</span>
+                <span className="text-[10px] text-white/40">
+                  {new Date(b.approvedAt).toLocaleDateString()}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Compact pill list for the table row. Shows up to two slugs and a +N
+ * overflow tag so the row stays readable for power reviewers without
+ * truncating the text. Empty state renders the configured `emptyLabel`
+ * (typically the same em-dash used for missing email/wallet).
+ */
+function BrokerPills({
+  brokers,
+  emptyLabel,
+}: {
+  brokers: { brokerSlug: string; approvedAt: string }[];
+  emptyLabel: string;
+}): React.ReactNode {
+  if (brokers.length === 0) {
+    return <span className="text-white/30">{emptyLabel}</span>;
+  }
+  const VISIBLE = 2;
+  const visible = brokers.slice(0, VISIBLE);
+  const hidden = brokers.length - visible.length;
+  return (
+    <div className="flex flex-wrap items-center gap-1">
+      {visible.map((b) => (
+        <span
+          key={b.brokerSlug}
+          className="rounded-full bg-[#00FF88]/15 px-2 py-0.5 font-mono text-[10px] text-[#00FF88]"
+          title={b.brokerSlug}
+        >
+          {b.brokerSlug}
+        </span>
+      ))}
+      {hidden > 0 && (
+        <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] text-white/50">
+          +{hidden}
+        </span>
       )}
     </div>
   );

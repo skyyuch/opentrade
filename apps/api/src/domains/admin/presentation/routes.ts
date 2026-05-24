@@ -105,7 +105,7 @@ adminRouter.get('/users', authMiddleware('admin'), async (c) => {
 
   const limit = Math.min(query.data.limit ?? 20, 50);
 
-  const where: Parameters<typeof prisma.user.findMany>[0] = {
+  const rows = await prisma.user.findMany({
     where: {
       tenantId: DEFAULT_TENANT_ID,
       deletedAt: null,
@@ -121,16 +121,20 @@ adminRouter.get('/users', authMiddleware('admin'), async (c) => {
           }
         : {}),
     },
+    // Per ADR-0025: surface each user's verified-broker list directly on
+    // the admin user table so operations can spot multi-broker users
+    // without opening every detail page. Only the slug is exposed (no
+    // commitments) since the table only renders pills.
+    include: {
+      verifiedBrokers: {
+        select: { brokerSlug: true, approvedAt: true },
+        orderBy: { approvedAt: 'asc' },
+      },
+    },
     orderBy: [{ createdAt: 'desc' as const }],
     take: limit + 1,
-  };
-
-  if (query.data.cursor) {
-    where.cursor = { id: query.data.cursor };
-    where.skip = 1;
-  }
-
-  const rows = await prisma.user.findMany(where);
+    ...(query.data.cursor ? { cursor: { id: query.data.cursor }, skip: 1 } : {}),
+  });
 
   const hasMore = rows.length > limit;
   const items = hasMore ? rows.slice(0, limit) : rows;
@@ -147,6 +151,10 @@ adminRouter.get('/users', authMiddleware('admin'), async (c) => {
       role: u.role,
       sbtTier: u.sbtTier,
       createdAt: u.createdAt.toISOString(),
+      verifiedBrokers: u.verifiedBrokers.map((b) => ({
+        brokerSlug: b.brokerSlug,
+        approvedAt: b.approvedAt.toISOString(),
+      })),
     })),
     nextCursor,
   });
@@ -167,7 +175,7 @@ adminRouter.get('/users/:id', authMiddleware('admin'), async (c) => {
     throw new AppError(ErrorCode.NOT_FOUND, 'User not found', 404);
   }
 
-  const [reviews, verifications, claims] = await Promise.all([
+  const [reviews, verifications, claims, verifiedBrokers] = await Promise.all([
     prisma.review.findMany({
       where: { userId: id, tenantId: DEFAULT_TENANT_ID, deletedAt: null },
       orderBy: { createdAt: 'desc' },
@@ -184,6 +192,14 @@ adminRouter.get('/users/:id', authMiddleware('admin'), async (c) => {
       orderBy: { createdAt: 'desc' },
       take: 5,
       include: { broker: { select: { slug: true, displayName: true } } },
+    }),
+    // Per ADR-0025: complement the verifications history (which mixes
+    // PENDING/REJECTED rows) with the canonical APPROVED ledger so the
+    // admin detail page can render a clean "currently verified" panel.
+    prisma.userVerifiedBroker.findMany({
+      where: { userId: id, tenantId: DEFAULT_TENANT_ID },
+      orderBy: { approvedAt: 'asc' },
+      select: { brokerSlug: true, approvedAt: true },
     }),
   ]);
 
@@ -218,6 +234,10 @@ adminRouter.get('/users/:id', authMiddleware('admin'), async (c) => {
       broker: cl.broker,
       status: cl.status,
       createdAt: cl.createdAt.toISOString(),
+    })),
+    verifiedBrokers: verifiedBrokers.map((b) => ({
+      brokerSlug: b.brokerSlug,
+      approvedAt: b.approvedAt.toISOString(),
     })),
   });
 });
