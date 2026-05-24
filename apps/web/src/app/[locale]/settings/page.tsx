@@ -2,8 +2,10 @@
 
 import { usePrivy } from '@privy-io/react-auth';
 import { CheckCircle2, ShieldCheck, Settings } from 'lucide-react';
-import { useFormatter, useTranslations } from 'next-intl';
+import { useFormatter, useLocale, useTranslations } from 'next-intl';
 import { useCallback, useEffect, useState } from 'react';
+
+import { localizedBrokerName } from '@opentrade/shared';
 
 import { useOpenTradeAuth } from '../../../hooks/useOpenTradeAuth';
 import { Link } from '../../../i18n/navigation';
@@ -174,6 +176,7 @@ export default function SettingsPage(): ReactNode {
 function VerifiedBrokersSection({ brokers }: { brokers: VerifiedBrokerEntry[] }): ReactNode {
   const t = useTranslations('settings');
   const formatter = useFormatter();
+  const locale = useLocale();
 
   return (
     <section className="mt-10 rounded-lg border border-border bg-muted/30 p-5">
@@ -209,7 +212,16 @@ function VerifiedBrokersSection({ brokers }: { brokers: VerifiedBrokerEntry[] })
               >
                 <span className="flex min-w-0 items-center gap-2">
                   <CheckCircle2 size={14} className="shrink-0 text-[#00FF88]" aria-hidden />
-                  <span className="truncate font-mono text-xs">{b.brokerSlug}</span>
+                  {/* Per cursor rule 51: render the localised broker name
+                      from the API-shipped columns, never the slug. The
+                      previous shape was `{brokerSlug}` only, which left
+                      English-locale users staring at routing keys. */}
+                  <span className="truncate text-sm">
+                    {localizedBrokerName(
+                      { slug: b.brokerSlug, displayName: b.displayName, legalName: b.legalName },
+                      locale,
+                    )}
+                  </span>
                 </span>
                 <span className="shrink-0 text-[11px] text-muted-foreground">
                   {t('verifiedAtLabel')} ·{' '}

@@ -218,7 +218,10 @@ export type RatingDistributionItem = {
 export type SimilarBroker = {
   id: string;
   slug: string;
+  // Per cursor rule 51: every broker reference carries both name columns
+  // so the consumer can pick by locale via `localizedBrokerName()`.
   displayName: string;
+  legalName: string | null;
   logoUrl: string | null;
   licenseTypes: string[];
   reviewCount: number;
@@ -321,16 +324,26 @@ export type BrokerDetailResponse = {
 export const fetchBroker = (slug: string, options?: FetchOptions): Promise<BrokerDetailResponse> =>
   apiGet<BrokerDetailResponse>(`/v1/brokers/${slug}`, options);
 
+export type AuthorVerifiedBroker = {
+  brokerSlug: string;
+  // Per cursor rule 51: ship both name columns so ReviewCard can render
+  // the badge in the reader's locale via `localizedBrokerName()`. Slug
+  // alone forced English-locale users to see Chinese-style slugs and
+  // vice versa.
+  displayName: string;
+  legalName: string | null;
+};
+
 export type ReviewAuthor = {
   displayName: string | null;
   sbtTier: string;
   /**
-   * Broker slugs the author has been verified for. Per ADR-0025 these
-   * are surfaced as credibility badges on the review card; the API
-   * intentionally exposes only the slugs (not commitments / approvedAt)
-   * so the public response stays cheap and minimal.
+   * Brokers the author has been verified for. Per ADR-0025 these are
+   * surfaced as credibility badges on the review card; the API exposes
+   * only the slug + display columns (no commitments / approvedAt) so
+   * the public response stays cheap and minimal.
    */
-  verifiedBrokers: string[];
+  verifiedBrokers: AuthorVerifiedBroker[];
 };
 
 export type ReviewItem = {
@@ -351,10 +364,13 @@ export type ReviewItem = {
 export type BrokerReviewsResponse = {
   reviews: ReviewItem[];
   nextCursor: string | null;
+  // Per cursor rule 51: the header broker also ships both name columns
+  // so SubmitReviewCta and any embedded summary block stay locale-aware.
   broker: {
     id: string;
     slug: string;
     displayName: string;
+    legalName: string | null;
     logoUrl: string | null;
   };
 };
@@ -474,6 +490,12 @@ export type VerificationStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 export type VerificationStatusItem = {
   id: string;
   brokerSlug: string;
+  // Per cursor rule 51: pending / rejected cards display the broker
+  // name in the user's locale; ship both columns instead of relying on
+  // the SSR-shipped 100-broker pool that may not include the verified
+  // broker.
+  brokerDisplayName: string;
+  brokerLegalName: string | null;
   commitment: string;
   status: VerificationStatus;
   adminNote: string | null;
@@ -483,6 +505,11 @@ export type VerificationStatusItem = {
 
 export type VerifiedBrokerEntry = {
   brokerSlug: string;
+  // Per cursor rule 51: ship both name columns. Settings + /verify
+  // cards iterate this list and were previously rendering raw slugs
+  // because the API only shipped the routing key.
+  displayName: string;
+  legalName: string | null;
   approvedAt: string;
 };
 

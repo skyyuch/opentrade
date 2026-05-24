@@ -34,6 +34,8 @@ import { useFormatter, useLocale, useTranslations } from 'next-intl';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { encodePacked, keccak256 } from 'viem';
 
+import { localizedBrokerName } from '@opentrade/shared';
+
 import { useOpenTradeAuth } from '../../hooks/useOpenTradeAuth';
 import {
   apiPost,
@@ -71,18 +73,13 @@ type UploadedFile = {
   previewUrl: string | null;
 };
 
-/** Locale-aware broker label.
- *  - en      → English legal name
- *  - zh-Hant/zh-Hans → displayName (Chinese; falls back to English when no
- *    Chinese name was in the SFC seed, see packages/db/src/sfc/sync-brokers.ts).
- */
-const localizedBrokerName = (b: Broker, locale: string): string =>
-  locale === 'en' ? b.legalName : b.displayName;
-
-const brokerNameForSlug = (brokers: Broker[], slug: string, locale: string): string => {
-  const found = brokers.find((b) => b.slug === slug);
-  return found ? localizedBrokerName(found, locale) : slug;
-};
+// `localizedBrokerName` is the canonical helper from `@opentrade/shared`
+// (per cursor rule 51). The previous inline `brokerNameForSlug` lookup
+// against the SSR-shipped 100-broker pool was a fallback that silently
+// degraded to the raw slug whenever the user's verified broker sat
+// beyond the first page — visible regression on /verify "已驗證的券商".
+// All call sites now consume the API-shipped `{displayName, legalName}`
+// columns directly and pipe them through `localizedBrokerName()`.
 
 /**
  * `idle`            — fresh user, no record yet → show form
@@ -283,9 +280,18 @@ export const VerifyForm = ({ brokers }: VerifyFormProps) => {
         },
         { accessToken: token },
       );
+      // We synthesise a local PENDING row instead of refetching status,
+      // for instant UI transition. Per cursor rule 51 the new
+      // VerificationStatusItem shape carries broker name columns; we
+      // resolve them from the SSR-shipped broker pool because the user
+      // just picked the broker from the same pool seconds ago, so the
+      // hit rate is 100% by construction.
+      const pickedBroker = brokers.find((b) => b.slug === brokerSlug);
       setLatestVerification({
         id: 'pending-local',
         brokerSlug,
+        brokerDisplayName: pickedBroker?.displayName ?? brokerSlug,
+        brokerLegalName: pickedBroker?.legalName ?? null,
         commitment,
         status: 'PENDING',
         adminNote: null,
@@ -346,7 +352,6 @@ export const VerifyForm = ({ brokers }: VerifyFormProps) => {
     return (
       <VerifyApprovedCard
         verifiedBrokers={verifiedBrokers}
-        brokers={brokers}
         locale={locale}
         canAddMore={verifiedBrokers.length < brokers.length}
         onAddAnother={() => setViewMode('adding')}
@@ -358,7 +363,14 @@ export const VerifyForm = ({ brokers }: VerifyFormProps) => {
     return (
       <VerifyPendingCard
         record={latestVerification}
-        brokerName={brokerNameForSlug(brokers, latestVerification.brokerSlug, locale)}
+        brokerName={localizedBrokerName(
+          {
+            slug: latestVerification.brokerSlug,
+            displayName: latestVerification.brokerDisplayName,
+            legalName: latestVerification.brokerLegalName,
+          },
+          locale,
+        )}
       />
     );
   }
@@ -367,7 +379,14 @@ export const VerifyForm = ({ brokers }: VerifyFormProps) => {
     return (
       <VerifyRejectedCard
         record={latestVerification}
-        brokerName={brokerNameForSlug(brokers, latestVerification.brokerSlug, locale)}
+        brokerName={localizedBrokerName(
+          {
+            slug: latestVerification.brokerSlug,
+            displayName: latestVerification.brokerDisplayName,
+            legalName: latestVerification.brokerLegalName,
+          },
+          locale,
+        )}
         onRetry={handleRetry}
       />
     );
@@ -926,7 +945,6 @@ const VerifyRejectedCard = ({ record, brokerName, onRetry }: RejectedCardProps) 
 
 type ApprovedCardProps = {
   verifiedBrokers: VerifiedBrokerEntry[];
-  brokers: Broker[];
   locale: string;
   canAddMore: boolean;
   onAddAnother: () => void;
@@ -934,7 +952,6 @@ type ApprovedCardProps = {
 
 const VerifyApprovedCard = ({
   verifiedBrokers,
-  brokers,
   locale,
   canAddMore,
   onAddAnother,
@@ -963,7 +980,14 @@ const VerifyApprovedCard = ({
           </div>
           <ul className="space-y-2">
             {verifiedBrokers.map((b) => {
-              const name = brokerNameForSlug(brokers, b.brokerSlug, locale);
+              // Per cursor rule 51: API ships both name columns directly
+              // on each entry, so we never look up the SSR-shipped
+              // 100-broker pool here — that pool may not include the
+              // verified broker if it sits beyond the first page.
+              const name = localizedBrokerName(
+                { slug: b.brokerSlug, displayName: b.displayName, legalName: b.legalName },
+                locale,
+              );
               const approvedAt = formatDateTime(b.approvedAt, locale, formatter);
               return (
                 <li

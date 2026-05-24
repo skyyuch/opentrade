@@ -20,6 +20,7 @@ import {
 import { Link } from '@/i18n/navigation';
 import { useOpenTradeAuth } from '@/hooks/useOpenTradeAuth';
 import { ApiClientError, submitReview } from '@/lib/api/client';
+import { localizedBrokerName } from '@opentrade/shared';
 
 import type { FormEvent } from 'react';
 import type {
@@ -125,7 +126,7 @@ function ReviewsTab({
   return (
     <>
       <RatingSummary broker={broker} />
-      <SubmitReviewCta brokerId={broker.id} brokerName={broker.displayName} />
+      <SubmitReviewCta brokerId={broker.id} brokerName={localizedBrokerName(broker, locale)} />
 
       <div className="flex flex-col sm:flex-row justify-between items-center gap-4 pt-4 border-t border-white/5">
         <h3 className="font-bold flex items-center gap-2">
@@ -419,13 +420,14 @@ function ReviewCard({
       ? `${review.contentHash.slice(0, 6)}...${review.contentHash.slice(-4)}`
       : t('anonymous'));
 
-  // Per ADR-0025: a verified review card surfaces the author's broker
-  // coverage as a credibility signal. We split the badges into two
-  // groups so the most relevant one (the current broker) gets a louder
-  // treatment, and we cap the overflow tail to keep the card compact.
+  // Per ADR-0025 + cursor rule 51: a verified review card surfaces the
+  // author's broker coverage as a credibility signal, with each badge
+  // rendered in the reader's locale. The API ships
+  // `{ brokerSlug, displayName, legalName }[]` so we drop straight into
+  // `localizedBrokerName()` instead of rendering the routing slug.
   const verifiedBrokers = review.author?.verifiedBrokers ?? [];
-  const isAuthorVerifiedHere = verifiedBrokers.includes(currentBrokerSlug);
-  const otherVerifiedBrokers = verifiedBrokers.filter((slug) => slug !== currentBrokerSlug);
+  const isAuthorVerifiedHere = verifiedBrokers.some((b) => b.brokerSlug === currentBrokerSlug);
+  const otherVerifiedBrokers = verifiedBrokers.filter((b) => b.brokerSlug !== currentBrokerSlug);
   const VISIBLE_OTHER = 2;
   const visibleOthers = otherVerifiedBrokers.slice(0, VISIBLE_OTHER);
   const hiddenOthersCount = otherVerifiedBrokers.length - visibleOthers.length;
@@ -449,15 +451,21 @@ function ReviewCard({
                   ✓ {t('verifiedAtThisBrokerShort')}
                 </span>
               )}
-              {visibleOthers.map((slug) => (
-                <span
-                  key={slug}
-                  className="text-[10px] px-1.5 py-0.5 rounded-full border border-white/15 bg-white/5 text-white/60 font-mono"
-                  title={t('verifiedAtBroker', { broker: slug })}
-                >
-                  ✓ {slug}
-                </span>
-              ))}
+              {visibleOthers.map((b) => {
+                const name = localizedBrokerName(
+                  { slug: b.brokerSlug, displayName: b.displayName, legalName: b.legalName },
+                  locale,
+                );
+                return (
+                  <span
+                    key={b.brokerSlug}
+                    className="text-[10px] px-1.5 py-0.5 rounded-full border border-white/15 bg-white/5 text-white/60"
+                    title={t('verifiedAtBroker', { broker: name })}
+                  >
+                    ✓ {name}
+                  </span>
+                );
+              })}
               {hiddenOthersCount > 0 && (
                 <span className="text-[10px] px-1.5 py-0.5 rounded-full border border-white/10 bg-white/5 text-white/50">
                   +{hiddenOthersCount}
@@ -1115,6 +1123,7 @@ function ArbitrationTab() {
 
 function Sidebar({ broker }: { broker: BrokerDetail }) {
   const t = useTranslations('brokerDetail');
+  const locale = useLocale();
 
   return (
     <div className="w-full lg:w-1/3 flex flex-col gap-6">
@@ -1153,36 +1162,43 @@ function Sidebar({ broker }: { broker: BrokerDetail }) {
         <div className="bg-zinc-900/60 border border-white/10 rounded-2xl p-6 backdrop-blur-xl">
           <h3 className="font-bold text-sm mb-4">{t('similarBrokers')}</h3>
           <div className="space-y-4">
-            {broker.similarBrokers.map((sb) => (
-              <Link
-                key={sb.id}
-                href={`/brokers/${sb.slug}`}
-                className="flex gap-3 items-center group cursor-pointer hover:bg-white/5 p-2 -mx-2 rounded-lg transition-colors"
-              >
-                {sb.logoUrl ? (
-                  <img
-                    src={sb.logoUrl}
-                    alt={sb.displayName}
-                    className="w-10 h-10 rounded-lg object-contain bg-white p-1 border border-white/5"
-                  />
-                ) : (
-                  <div className="w-10 h-10 rounded-lg bg-zinc-800 flex items-center justify-center font-bold text-xs border border-white/5">
-                    {sb.displayName.substring(0, 2).toUpperCase()}
+            {broker.similarBrokers.map((sb) => {
+              // Per cursor rule 51: localise both the avatar fallback
+              // initials and the visible name. Without this, English
+              // locale users saw Chinese names and avatars rendered the
+              // first 2 chars of Chinese ("匯豐" → "匯豐").
+              const sbName = localizedBrokerName(sb, locale);
+              return (
+                <Link
+                  key={sb.id}
+                  href={`/brokers/${sb.slug}`}
+                  className="flex gap-3 items-center group cursor-pointer hover:bg-white/5 p-2 -mx-2 rounded-lg transition-colors"
+                >
+                  {sb.logoUrl ? (
+                    <img
+                      src={sb.logoUrl}
+                      alt={sbName}
+                      className="w-10 h-10 rounded-lg object-contain bg-white p-1 border border-white/5"
+                    />
+                  ) : (
+                    <div className="w-10 h-10 rounded-lg bg-zinc-800 flex items-center justify-center font-bold text-xs border border-white/5">
+                      {sbName.substring(0, 2).toUpperCase()}
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <div className="font-bold text-sm group-hover:text-[#00FF88] transition-colors truncate">
+                      {sbName}
+                    </div>
+                    <div className="text-[10px] text-white/40 truncate">
+                      {sb.licenseTypes.map((l) => l.replace('HK_SFC_TYPE_', 'Type ')).join(', ')}
+                    </div>
                   </div>
-                )}
-                <div className="flex-1 min-w-0">
-                  <div className="font-bold text-sm group-hover:text-[#00FF88] transition-colors truncate">
-                    {sb.displayName}
+                  <div className="text-right">
+                    <div className="text-white/60 text-xs">{sb.reviewCount}</div>
                   </div>
-                  <div className="text-[10px] text-white/40 truncate">
-                    {sb.licenseTypes.map((l) => l.replace('HK_SFC_TYPE_', 'Type ')).join(', ')}
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className="text-white/60 text-xs">{sb.reviewCount}</div>
-                </div>
-              </Link>
-            ))}
+                </Link>
+              );
+            })}
           </div>
         </div>
       )}
