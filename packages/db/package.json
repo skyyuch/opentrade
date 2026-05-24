@@ -34,6 +34,7 @@
     "db:migrate:reset": "dotenv -e ../../.env -- prisma migrate reset",
     "db:migrate:status": "dotenv -e ../../.env -- prisma migrate status",
     "db:seed": "dotenv -e ../../.env -- tsx scripts/seed.ts",
+    "db:backfill:zh-hans": "dotenv -e ../../.env -- tsx scripts/backfill-zh-hans.ts",
     "fetch:sfc": "tsx scripts/fetch-sfc-brokers.ts",
     "fetch:sfc:details": "dotenv -e ../../.env -- tsx scripts/fetch-sfc-details.ts",
     "crawl:logos": "dotenv -e ../../.env -- tsx scripts/crawl-broker-logos.ts",
@@ -45,6 +46,7 @@
     "@opentrade/shared": "workspace:*",
     "@prisma/client": "^6.19.3",
     "bcryptjs": "^3.0.3",
+    "opencc-js": "^1.3.1",
     "zod": "^4.4.3"
   },
   "devDependencies": {

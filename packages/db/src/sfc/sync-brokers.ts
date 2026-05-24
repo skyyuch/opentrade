@@ -17,6 +17,8 @@
 
 import { LicenseStatus, LicenseType, Regulator } from '@prisma/client';
 
+import { toSimplifiedChinese } from './opencc.js';
+
 import type { SfcBrokerData } from './types.js';
 import type { PrismaClient } from '@prisma/client';
 
@@ -62,12 +64,15 @@ export async function syncBrokers(
       include: { licenses: true },
     });
 
+    const displayNameZhHans = toSimplifiedChinese(broker.legalNameZh);
+
     if (existing) {
       await prisma.broker.update({
         where: { id: existing.id },
         data: {
           legalName: broker.legalNameEn,
           displayName: broker.legalNameZh,
+          displayNameZhHans,
           ceNumber: broker.ceNumber,
         },
       });
@@ -79,6 +84,7 @@ export async function syncBrokers(
           slug: broker.slug,
           legalName: broker.legalNameEn,
           displayName: broker.legalNameZh,
+          displayNameZhHans,
           ceNumber: broker.ceNumber,
           isClaimed: false,
         },
