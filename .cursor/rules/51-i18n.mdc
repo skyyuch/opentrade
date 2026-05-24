@@ -184,22 +184,94 @@ model Broker {
 }
 ```
 
-⚠️ **前端必須有 locale-aware getter**，不能直接 `b.displayName`：
+⚠️ **這是專案曾出過 4+ 次的回歸點**。新進 agent 改 API payload / UI component 時，
+若直接使用 `b.displayName` 或 `{slug}`，等於把英文 locale 使用者鎖在中文（或反向）。
+本節是**強制紅線**，不是可選實作。
+
+#### A1. Canonical helper（強制使用，不要再寫第二份）
 
 ```ts
-// ❌ 永遠顯示中文，英文 UI 也是中文
-<span>{broker.displayName}</span>
+// packages/shared/src/i18n/brokerName.ts
+import { localizedBrokerName } from '@opentrade/shared';
 
-// ✅ 依 locale 取對應欄位
-const localizedName = (b: Broker, locale: string): string =>
-  locale === 'en' ? b.legalName : b.displayName;
-
-<span>{localizedName(broker, locale)}</span>
+// 規則：
+//   - en       → legalName ?? displayName ?? slug
+//   - 其他     → displayName ?? legalName ?? slug
+//
+// 任何顯示 broker / KOL / 其他「平行欄位」實體名稱的 UI 都必須走它，
+// 包括：表格、card、tooltip、avatar fallback initials、頁面 title、breadcrumb、
+// 通知文案、email 模板。
 ```
 
-理由：欄位名稱（`legalName` / `displayName`）並未明示語言，但實際語意是英 / 中。新進 AI agent 容易誤用導致永遠顯示單一語言。**取得任何 broker 欄位前必先讀本節**。
+新 entity（如未來 KOL nickname / BrokerLicense series / Dispute case title）
+若採用 parallel columns，必須在這裡擴充 helper（`localizedKolName`、
+`localizedLicenseSeries`、…），**禁止**在 component 自己寫 ternary。
 
-未來若擴增第三語（如日文）或希望去除歧義，應 schema 改名為 `nameEn` / `nameZhHant` / `nameZhHans` 並寫 ADR。
+#### A2. API contract — 永遠回傳兩列
+
+任何 API endpoint 在 payload 含「平行欄位實體」的引用（broker、kol、…）時，
+**必須**同時回傳 `displayName` + `legalName`（broker），或對應的兩列名稱。
+**禁止**只回 slug 或只回 displayName。
+
+```ts
+// ❌ 禁止 — 只 ship slug，前端被迫 render `hsbc-broking-securities-hong-kong-limited`
+{ brokerSlug: 'hsbc-...', approvedAt: '...' }
+
+// ❌ 禁止 — 只 ship displayName，英文 locale 永遠顯示中文
+{ broker: { slug: 'hsbc-...', displayName: '匯豐證券' } }
+
+// ✅ 強制 — 兩列都帶
+{ broker: { slug: 'hsbc-...', displayName: '匯豐證券', legalName: 'HSBC ...' } }
+```
+
+當 entity 沒有 FK relation 可 `include`（例如 `UserVerifiedBroker` 用 slug 做 key），
+用 `apps/api/src/shared/brokerHydration.ts#hydrateBrokerNames(slugs, tenantId)`
+做一次性 batched 查表後展平到 payload。
+
+#### A3. UI component — 永遠 pipe 進 helper
+
+```tsx
+// ❌ 禁止 — 直接 render 欄位
+<span>{broker.displayName}</span>
+<span>{broker.legalName}</span>
+<span className="font-mono">{b.brokerSlug}</span>
+
+// ❌ 禁止 — 在 component 內 inline ternary（會跟 helper 不同步）
+<span>{locale === 'en' ? broker.legalName : broker.displayName}</span>
+
+// ✅ 強制 — 走 canonical helper
+import { localizedBrokerName } from '@opentrade/shared';
+import { useLocale } from 'next-intl';
+
+const locale = useLocale();
+<span>{localizedBrokerName(broker, locale)}</span>
+```
+
+如果是 server component，從 `params.locale` 拿 locale 字串。
+
+#### A4. 兩列都要顯示的特例
+
+少數場景需要同時顯示中英名（例如 SFC license record、broker detail header
+雙行 hierarchy），這時 helper 仍負責「主要那行的選擇」：
+
+```tsx
+const primary = localizedBrokerName(broker, locale);
+const secondary = locale === 'en' ? broker.displayName : broker.legalName;
+// 只有 secondary !== primary 才 render 第二行（避免重複）
+```
+
+#### A5. Slug 的容身之處
+
+`slug` 永遠是 routing key，**不是** user-facing 文案。允許出現的位置：
+
+- `<a href={`/brokers/${slug}`}>`、`router.push('/brokers/' + slug)` 等 URL
+- `title` / `aria-label` 屬性的次要除錯標識
+- 後台 detail 卡片的小灰字 `font-mono` caption（給管理員追溯用，不是表頭）
+
+**禁止**：表格 cell 主內容、card headline、tooltip 主文、modal title、breadcrumb、
+通知文案。
+
+未來若擴增第三語（如日文）或希望去除歧義，應 schema 改名為 `nameEn` / `nameZhHant` / `nameZhHans` 並寫 ADR；helper 同步擴成 4 路 fallback 即可，**API contract 與 component 用法不變**。
 
 ### 模式 B：JSON 多語欄位
 
@@ -321,7 +393,11 @@ new Intl.NumberFormat('zh-Hant', {
 - ❌ 把翻譯結果上鏈
 - ❌ 在 console 不做 i18n（即使是 admin 用，也要遵守規範）
 - ❌ 漏譯欄位（CI 必須檢查 zh-Hant / zh-Hans / en 同步）
-- ❌ DB 平行欄位（如 `legalName` / `displayName`）在 UI 直接顯示不轉 locale（必須走 locale-aware getter，per「DB 多語欄位 模式 A」）
+- ❌ DB 平行欄位（如 `legalName` / `displayName`）在 UI 直接顯示不轉 locale（必須走 `localizedBrokerName(b, locale)` from `@opentrade/shared`，per「DB 多語欄位 模式 A」）
+- ❌ API endpoint 在 payload 引用 broker / 其他平行欄位實體時只回 slug 或只回 `displayName`（必須兩列一起回，per「模式 A · A2」）
+- ❌ Component 內 inline `locale === 'en' ? ... : ...`，繞過 canonical helper（會跟 helper 不同步，未來擴語言時所有 inline 版都要 grep 改一遍）
+- ❌ 把 slug 當 user-facing 文案 render（slug 是 routing key，per「模式 A · A5」）
+- ❌ Avatar 縮寫 / fallback initials 直接吃 `displayName.charAt(0)`（locale 切到 `en` 時會變成中文首字）
 - ❌ 從 `next/link` 或 `next/navigation` 匯入 `Link` / `useRouter`（永遠走 `src/i18n/navigation`）
 - ❌ 在 href 硬編碼 `/${locale}/...` 前綴（next-intl `Link` 會自動處理）
 - ❌ 在有保留 top-level segment（admin / broker 等）的 app 用 `localePrefix: 'as-needed'`（會與 App Router `[locale]` 動態段衝突造成 404）
