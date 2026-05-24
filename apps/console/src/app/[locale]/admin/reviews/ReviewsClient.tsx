@@ -1,8 +1,10 @@
 'use client';
 
 import { ExternalLink, Search, ShieldAlert, Star } from 'lucide-react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { useCallback, useEffect, useState } from 'react';
+
+import { localizedBrokerName } from '@opentrade/shared';
 
 import { useOpenTradeAuth } from '../../../../hooks/useOpenTradeAuth';
 import { fetchAdminReviews } from '../../../../lib/api/client';
@@ -15,6 +17,7 @@ export function ReviewsClient(): React.ReactNode {
   const { getAccessToken } = useOpenTradeAuth();
   const t = useTranslations('admin');
   const tc = useTranslations('common');
+  const locale = useLocale();
   const [reviews, setReviews] = useState<AdminReviewItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -115,7 +118,10 @@ export function ReviewsClient(): React.ReactNode {
                       <td className="max-w-[200px] truncate px-4 py-3 font-bold" title={r.title}>
                         {r.title}
                       </td>
-                      <td className="px-4 py-3">{r.broker.displayName}</td>
+                      <td className="px-4 py-3">
+                        {/* Per cursor rule 51: localised broker name. */}
+                        {localizedBrokerName(r.broker, locale)}
+                      </td>
                       <td className="px-4 py-3 font-mono text-xs text-blue-400">
                         {r.author.displayName ?? '—'}
                       </td>

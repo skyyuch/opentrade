@@ -1,8 +1,10 @@
 'use client';
 
 import { ExternalLink } from 'lucide-react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
+
+import { localizedBrokerName } from '@opentrade/shared';
 
 import { useOpenTradeAuth } from '../../../../hooks/useOpenTradeAuth';
 import { approveClaim, fetchAdminClaims, rejectClaim } from '../../../../lib/api/client';
@@ -20,6 +22,7 @@ const TAB_KEYS: Record<TabStatus, string> = {
 export function ClaimsClient(): React.ReactNode {
   const { getAccessToken } = useOpenTradeAuth();
   const t = useTranslations('admin');
+  const locale = useLocale();
   const [tab, setTab] = useState<TabStatus>('PENDING');
   const [claims, setClaims] = useState<ClaimItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -107,7 +110,12 @@ export function ClaimsClient(): React.ReactNode {
                       key={`claim-${claim.id}`}
                       className="border-b border-white/5 transition-colors hover:bg-white/[0.02]"
                     >
-                      <td className="px-4 py-3 font-bold">{claim.broker.displayName}</td>
+                      <td className="px-4 py-3 font-bold">
+                        {/* Per cursor rule 51: render the localised
+                            broker name, not the Chinese-only
+                            `displayName` shortcut. */}
+                        {localizedBrokerName(claim.broker, locale)}
+                      </td>
                       <td className="px-4 py-3 font-mono text-xs">{claim.ceRefNumber}</td>
                       <td className="px-4 py-3">
                         {claim.companyLetterIpfsCid ? (

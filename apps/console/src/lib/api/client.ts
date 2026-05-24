@@ -431,7 +431,9 @@ export type CurrentUserResponse = {
     sbtTier: 'L1' | 'L2' | 'L3' | 'L4';
     createdAt: string;
   };
-  claimedBroker: { slug: string; displayName: string } | null;
+  // Per cursor rule 51: every broker reference ships both name columns
+  // so the sidebar can render in the operator's locale.
+  claimedBroker: { slug: string; displayName: string; legalName: string | null } | null;
 };
 
 export const fetchCurrentUser = (options?: FetchOptions): Promise<CurrentUserResponse> =>
@@ -473,9 +475,15 @@ export type AdminUserItem = {
   /**
    * Per ADR-0025: every broker the user has been approved for. Surfaced
    * directly on the list so admins can spot multi-broker users without
-   * opening detail.
+   * opening detail. Per cursor rule 51 each entry also carries the
+   * localised display columns so the table pills don't render raw slugs.
    */
-  verifiedBrokers: { brokerSlug: string; approvedAt: string }[];
+  verifiedBrokers: {
+    brokerSlug: string;
+    displayName: string;
+    legalName: string | null;
+    approvedAt: string;
+  }[];
 };
 
 export type AdminUsersResponse = {
@@ -502,10 +510,38 @@ export type AdminUserDetailResponse = {
     sbtTokenId: number | null;
     sbtMintTxHash: string | null;
   };
-  reviews: { id: string; title: string; rating: number; status: string; broker: { slug: string; displayName: string }; createdAt: string }[];
-  verifications: { id: string; brokerSlug: string; status: string; createdAt: string }[];
-  claims: { id: string; broker: { slug: string; displayName: string }; status: string; createdAt: string }[];
-  verifiedBrokers: { brokerSlug: string; approvedAt: string }[];
+  // Per cursor rule 51: every broker reference shipped from the admin
+  // detail endpoint carries both name columns; consumers must render via
+  // `localizedBrokerName(b, locale)` rather than `b.displayName` (Chinese)
+  // or `b.brokerSlug` (routing key).
+  reviews: {
+    id: string;
+    title: string;
+    rating: number;
+    status: string;
+    broker: { slug: string; displayName: string; legalName: string | null };
+    createdAt: string;
+  }[];
+  verifications: {
+    id: string;
+    brokerSlug: string;
+    brokerDisplayName: string;
+    brokerLegalName: string | null;
+    status: string;
+    createdAt: string;
+  }[];
+  claims: {
+    id: string;
+    broker: { slug: string; displayName: string; legalName: string | null };
+    status: string;
+    createdAt: string;
+  }[];
+  verifiedBrokers: {
+    brokerSlug: string;
+    displayName: string;
+    legalName: string | null;
+    approvedAt: string;
+  }[];
 };
 
 export const fetchAdminUserDetail = (id: string, options?: FetchOptions): Promise<AdminUserDetailResponse> =>
@@ -556,7 +592,9 @@ export type AdminReviewItem = {
   ipfsCid: string | null;
   contentHash: string;
   chainReviewId: number | null;
-  broker: { slug: string; displayName: string };
+  // Per cursor rule 51: ship both name columns so the admin reviews
+  // table renders in the operator's locale.
+  broker: { slug: string; displayName: string; legalName: string | null };
   author: { id: string; displayName: string | null };
   createdAt: string;
 };
@@ -603,7 +641,9 @@ export const fetchAdminActivity = (options?: FetchOptions): Promise<AdminActivit
 export type ClaimItem = {
   id: string;
   brokerId: string;
-  broker: { id: string; slug: string; displayName: string };
+  // Per cursor rule 51: ship both name columns so the admin claims table
+  // renders in the operator's locale.
+  broker: { id: string; slug: string; displayName: string; legalName: string | null };
   userId: string;
   ceRefNumber: string;
   companyLetterIpfsCid: string;
@@ -625,6 +665,10 @@ export const rejectClaim = (id: string, adminNote?: string, options?: FetchOptio
 
 export type VerifiedBrokerEntry = {
   brokerSlug: string;
+  // Per cursor rule 51: each verified-broker pill renders in the
+  // operator's locale via `localizedBrokerName(b, locale)`.
+  displayName: string;
+  legalName: string | null;
   approvedAt: string;
 };
 
@@ -645,6 +689,10 @@ export type VerificationItem = {
     verifiedBrokers: VerifiedBrokerEntry[];
   };
   brokerSlug: string;
+  // Per cursor rule 51: top-level case row also carries both name
+  // columns for the table column + case-modal "Target broker" panel.
+  brokerDisplayName: string;
+  brokerLegalName: string | null;
   commitment: string;
   evidenceIpfsCid: string;
   evidenceMimeType: string | null;

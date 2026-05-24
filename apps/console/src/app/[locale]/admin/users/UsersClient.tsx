@@ -1,8 +1,10 @@
 'use client';
 
 import { MoreVertical, Plus, Search, X } from 'lucide-react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { Fragment, useCallback, useEffect, useState } from 'react';
+
+import { localizedBrokerName } from '@opentrade/shared';
 
 import { useOpenTradeAuth } from '../../../../hooks/useOpenTradeAuth';
 import {
@@ -351,6 +353,7 @@ function UserDetailPanel({
   changeRoleLabel: string;
 }): React.ReactNode {
   const t = useTranslations('admin');
+  const locale = useLocale();
   const u = detail.user;
   return (
     <div className="space-y-3 rounded-xl bg-white/[0.03] p-4 text-sm">
@@ -395,17 +398,34 @@ function UserDetailPanel({
           <p className="text-xs text-white/40">{t('userBrokersDetailEmpty')}</p>
         ) : (
           <ul className="space-y-1.5">
-            {detail.verifiedBrokers.map((b) => (
-              <li
-                key={b.brokerSlug}
-                className="flex items-center justify-between gap-2 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5"
-              >
-                <span className="font-mono text-xs text-white/80">{b.brokerSlug}</span>
-                <span className="text-[10px] text-white/40">
-                  {new Date(b.approvedAt).toLocaleDateString()}
-                </span>
-              </li>
-            ))}
+            {detail.verifiedBrokers.map((b) => {
+              // Per cursor rule 51: render the localised name; the slug
+              // stays inline as a small monospace tag for traceability.
+              const name = localizedBrokerName(
+                {
+                  slug: b.brokerSlug,
+                  displayName: b.displayName,
+                  legalName: b.legalName,
+                },
+                locale,
+              );
+              return (
+                <li
+                  key={b.brokerSlug}
+                  className="flex items-center justify-between gap-2 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5"
+                >
+                  <div className="flex min-w-0 flex-col">
+                    <span className="truncate text-xs text-white/85">{name}</span>
+                    <span className="truncate font-mono text-[10px] text-white/40">
+                      {b.brokerSlug}
+                    </span>
+                  </div>
+                  <span className="shrink-0 text-[10px] text-white/40">
+                    {new Date(b.approvedAt).toLocaleDateString()}
+                  </span>
+                </li>
+              );
+            })}
           </ul>
         )}
       </div>
@@ -414,18 +434,26 @@ function UserDetailPanel({
 }
 
 /**
- * Compact pill list for the table row. Shows up to two slugs and a +N
- * overflow tag so the row stays readable for power reviewers without
- * truncating the text. Empty state renders the configured `emptyLabel`
- * (typically the same em-dash used for missing email/wallet).
+ * Compact pill list for the table row. Shows up to two localised broker
+ * names and a +N overflow tag so the row stays readable for power
+ * reviewers. Per cursor rule 51 each pill renders the locale-aware
+ * display name (the previous shape rendered raw slugs, leaking routing
+ * keys into the UI). The `title` attribute keeps the slug discoverable
+ * for debugging without bloating the visible pill.
  */
 function BrokerPills({
   brokers,
   emptyLabel,
 }: {
-  brokers: { brokerSlug: string; approvedAt: string }[];
+  brokers: {
+    brokerSlug: string;
+    displayName: string;
+    legalName: string | null;
+    approvedAt: string;
+  }[];
   emptyLabel: string;
 }): React.ReactNode {
+  const locale = useLocale();
   if (brokers.length === 0) {
     return <span className="text-white/30">{emptyLabel}</span>;
   }
@@ -434,15 +462,21 @@ function BrokerPills({
   const hidden = brokers.length - visible.length;
   return (
     <div className="flex flex-wrap items-center gap-1">
-      {visible.map((b) => (
-        <span
-          key={b.brokerSlug}
-          className="rounded-full bg-[#00FF88]/15 px-2 py-0.5 font-mono text-[10px] text-[#00FF88]"
-          title={b.brokerSlug}
-        >
-          {b.brokerSlug}
-        </span>
-      ))}
+      {visible.map((b) => {
+        const name = localizedBrokerName(
+          { slug: b.brokerSlug, displayName: b.displayName, legalName: b.legalName },
+          locale,
+        );
+        return (
+          <span
+            key={b.brokerSlug}
+            className="max-w-[140px] truncate rounded-full bg-[#00FF88]/15 px-2 py-0.5 text-[10px] text-[#00FF88]"
+            title={`${name} (${b.brokerSlug})`}
+          >
+            {name}
+          </span>
+        );
+      })}
       {hidden > 0 && (
         <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] text-white/50">
           +{hidden}

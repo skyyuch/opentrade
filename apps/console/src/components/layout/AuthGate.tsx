@@ -29,8 +29,10 @@ import {
   Store,
   Users,
 } from 'lucide-react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { useState } from 'react';
+
+import { localizedBrokerName } from '@opentrade/shared';
 
 import { useCurrentUser } from '../../hooks/useCurrentUser';
 import { useOpenTradeAuth } from '../../hooks/useOpenTradeAuth';
@@ -59,6 +61,7 @@ export const AuthGate = ({ children }: Props): ReactNode => {
   const { isAuthenticated, setToken, clearToken, hydrated } = useOpenTradeAuth();
   const { user, isAdmin, isBrokerOwner, claimedBroker, isLoading } = useCurrentUser();
   const t = useTranslations();
+  const locale = useLocale();
   const localePath = usePathname();
 
   const [username, setUsername] = useState('');
@@ -319,7 +322,10 @@ export const AuthGate = ({ children }: Props): ReactNode => {
         <div className="space-y-2 border-t border-white/5 p-4">
           {claimedBroker ? (
             <div className="mb-2 px-4">
-              <p className="truncate text-xs text-white/40">{claimedBroker.displayName}</p>
+              {/* Per cursor rule 51: localised broker name. */}
+              <p className="truncate text-xs text-white/40">
+                {localizedBrokerName(claimedBroker, locale)}
+              </p>
             </div>
           ) : null}
           <Link

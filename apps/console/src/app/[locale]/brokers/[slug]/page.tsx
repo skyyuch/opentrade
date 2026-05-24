@@ -18,6 +18,8 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 
+import { localizedBrokerName } from '@opentrade/shared';
+
 import { ClaimForm } from '../../../../components/brokers/ClaimForm';
 import { ApiClientError, fetchBroker, fetchBrokerReviews } from '../../../../lib/api/client';
 
@@ -44,7 +46,7 @@ const BrokerDetailPage = async ({ params }: Props): Promise<ReactNode> => {
         {t('backToList')}
       </Link>
 
-      <BrokerHeader broker={broker} />
+      <BrokerHeader broker={broker} locale={params.locale} />
 
       <ClaimForm brokerSlug={broker.slug} isClaimed={broker.isClaimed} />
 
@@ -95,30 +97,39 @@ const fetchData = async (
 
 type ManageTranslator = Awaited<ReturnType<typeof getTranslations<'brokerManage'>>>;
 
-const BrokerHeader = ({ broker }: { broker: BrokerDetail }): ReactNode => (
-  <header className="flex items-start justify-between gap-4">
-    <div className="flex items-start gap-3">
-      <div className="flex size-12 items-center justify-center rounded-xl bg-muted">
-        <Building2 className="size-6 text-muted-foreground" aria-hidden />
+const BrokerHeader = ({ broker, locale }: { broker: BrokerDetail; locale: string }): ReactNode => {
+  // Per cursor rule 51: pick primary by locale; show the other column
+  // as the secondary line so both names are still discoverable on the
+  // detail header.
+  const primary = localizedBrokerName(broker, locale);
+  const secondary = locale === 'en' ? broker.displayName : broker.legalName;
+  return (
+    <header className="flex items-start justify-between gap-4">
+      <div className="flex items-start gap-3">
+        <div className="flex size-12 items-center justify-center rounded-xl bg-muted">
+          <Building2 className="size-6 text-muted-foreground" aria-hidden />
+        </div>
+        <div className="flex flex-col gap-0.5">
+          <h1 className="text-xl font-semibold tracking-tight">{primary}</h1>
+          {secondary && secondary !== primary ? (
+            <p className="text-sm text-muted-foreground">{secondary}</p>
+          ) : null}
+        </div>
       </div>
-      <div className="flex flex-col gap-0.5">
-        <h1 className="text-xl font-semibold tracking-tight">{broker.displayName}</h1>
-        <p className="text-sm text-muted-foreground">{broker.legalName}</p>
-      </div>
-    </div>
-    {broker.websiteUrl ? (
-      <a
-        href={broker.websiteUrl}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs transition-colors hover:bg-muted"
-      >
-        <ExternalLink className="size-3.5" aria-hidden />
-        Website
-      </a>
-    ) : null}
-  </header>
-);
+      {broker.websiteUrl ? (
+        <a
+          href={broker.websiteUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs transition-colors hover:bg-muted"
+        >
+          <ExternalLink className="size-3.5" aria-hidden />
+          Website
+        </a>
+      ) : null}
+    </header>
+  );
+};
 
 const LicensesSection = ({
   broker,

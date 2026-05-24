@@ -9,8 +9,10 @@ import {
   X,
   XCircle,
 } from 'lucide-react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { useEffect, useMemo, useState } from 'react';
+
+import { localizedBrokerName } from '@opentrade/shared';
 
 import { useOpenTradeAuth } from '../../../../hooks/useOpenTradeAuth';
 import {
@@ -314,10 +316,24 @@ type RowProps = {
 
 function VerificationRow({ item, tab, onSelect, onApprove, onReject }: RowProps): React.ReactNode {
   const t = useTranslations('admin');
+  const locale = useLocale();
   const ipfsUrl = `${PINATA_GATEWAY}${item.evidenceIpfsCid}`;
   const { mime } = useEvidenceMime(item.evidenceIpfsCid, item.evidenceMimeType);
   const [imgFailed, setImgFailed] = useState(false);
   const showImageThumb = isImageMime(mime) && !imgFailed;
+
+  // Per cursor rule 51: render the localised broker name from the API-
+  // shipped columns, never the raw slug. The column header is "聲明券商";
+  // showing `hsbc-broking-securities-hong-kong-limited` was the
+  // user-reported regression on this surface.
+  const brokerName = localizedBrokerName(
+    {
+      slug: item.brokerSlug,
+      displayName: item.brokerDisplayName,
+      legalName: item.brokerLegalName,
+    },
+    locale,
+  );
 
   return (
     <tr className="group cursor-pointer transition-colors hover:bg-white/10" onClick={onSelect}>
@@ -327,7 +343,7 @@ function VerificationRow({ item, tab, onSelect, onApprove, onReject }: RowProps)
       <td className="p-4 font-mono text-blue-400 transition-colors group-hover:text-blue-300">
         {shortenWallet(item.user.walletAddress)}
       </td>
-      <td className="p-4 font-medium">{item.brokerSlug}</td>
+      <td className="p-4 font-medium">{brokerName}</td>
       <td className="p-4">
         <div className="flex items-center gap-2">
           <div className="flex size-8 items-center justify-center overflow-hidden rounded border border-white/20 bg-white/10">
@@ -395,6 +411,7 @@ function CaseDetailModal({
   showActions,
 }: ModalProps): React.ReactNode {
   const t = useTranslations('admin');
+  const locale = useLocale();
   const ipfsUrl = `${PINATA_GATEWAY}${caseItem.evidenceIpfsCid}`;
   const { mime, loading: mimeLoading } = useEvidenceMime(
     caseItem.evidenceIpfsCid,
@@ -402,6 +419,17 @@ function CaseDetailModal({
   );
   const isImage = isImageMime(mime);
   const isPdf = isPdfMime(mime);
+
+  // Per cursor rule 51: render the localised broker name in the case
+  // modal "Target broker" panel using the API-shipped name columns.
+  const caseBrokerName = localizedBrokerName(
+    {
+      slug: caseItem.brokerSlug,
+      displayName: caseItem.brokerDisplayName,
+      legalName: caseItem.brokerLegalName,
+    },
+    locale,
+  );
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
@@ -503,7 +531,10 @@ function CaseDetailModal({
               <h3 className="mb-1 text-xs font-bold uppercase tracking-wider text-blue-400">
                 {t('targetBroker')}
               </h3>
-              <p className="text-xl font-bold">{caseItem.brokerSlug}</p>
+              <p className="text-xl font-bold">{caseBrokerName}</p>
+              <p className="mt-0.5 truncate font-mono text-[10px] text-white/40">
+                {caseItem.brokerSlug}
+              </p>
             </div>
 
             <UserVerifiedBrokersPanel caseItem={caseItem} />
@@ -593,6 +624,7 @@ function DataField({
  */
 function UserVerifiedBrokersPanel({ caseItem }: { caseItem: VerificationItem }): React.ReactNode {
   const t = useTranslations('admin');
+  const locale = useLocale();
   const brokers = caseItem.user.verifiedBrokers;
 
   return (
@@ -624,7 +656,18 @@ function UserVerifiedBrokersPanel({ caseItem }: { caseItem: VerificationItem }):
               >
                 <span className="flex items-center gap-2 truncate">
                   <CheckCircle size={12} className="shrink-0 text-[#00FF88]" aria-hidden />
-                  <span className="truncate font-mono text-xs">{b.brokerSlug}</span>
+                  {/* Per cursor rule 51: render the localised broker
+                      name instead of the raw slug. */}
+                  <span className="truncate text-xs">
+                    {localizedBrokerName(
+                      {
+                        slug: b.brokerSlug,
+                        displayName: b.displayName,
+                        legalName: b.legalName,
+                      },
+                      locale,
+                    )}
+                  </span>
                 </span>
                 {isCurrent && (
                   <span className="shrink-0 rounded-full bg-blue-500/30 px-2 py-0.5 text-[10px] font-bold text-blue-100">
