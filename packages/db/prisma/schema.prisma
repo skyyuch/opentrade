@@ -143,10 +143,10 @@ model User {
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  tenant                Tenant                 @relation(fields: [tenantId], references: [id])
-  reviews               Review[]
+  tenant                  Tenant                   @relation(fields: [tenantId], references: [id])
+  reviews                 Review[]
   sbtVerificationRequests SbtVerificationRequest[]
-  verifiedBrokers       UserVerifiedBroker[]
+  verifiedBrokers         UserVerifiedBroker[]
 
   @@unique([tenantId, privyId])
   @@index([tenantId, role])
@@ -165,27 +165,38 @@ model User {
 /// populated by the offline SFC detail fetcher and contain public-register
 /// data such as responsible officers, conditions, and disciplinary actions.
 model Broker {
-  id              String    @id @default(uuid()) @db.Uuid
-  tenantId        String    @db.Uuid
-  slug            String
-  legalName       String
-  displayName     String
-  ceNumber        String?
-  websiteUrl      String?
-  description     String?   @db.Text
-  logoUrl         String?
-  addressEn       String?   @db.Text
-  addressZh       String?   @db.Text
-  sfcDetailJson   Json?
-  isClaimed       Boolean   @default(false)
-  claimedAt       DateTime?
-  claimedByUserId String?   @db.Uuid
+  id                String    @id @default(uuid()) @db.Uuid
+  tenantId          String    @db.Uuid
+  slug              String
+  legalName         String
+  displayName       String
+  // Simplified Chinese display name, derived from `displayName` via OpenCC
+  // `t2s.json` (Traditional → Simplified). Nullable for two reasons:
+  //   1. Backfill is best-effort — OpenCC may decline a small fraction of
+  //      rows (rare unicode codepoints), and we don't want to block
+  //      migrations on those edge cases.
+  //   2. Admins may want to override OpenCC output for individual brokers
+  //      where the auto-conversion is technically valid but semantically
+  //      awkward (e.g. specific 香港繁體 idioms). Nullable lets the helper
+  //      fall back to `displayName` rather than persisting a "wrong" value.
+  // Per ADR-0026; see also cursor rule 51 §模式 A.
+  displayNameZhHans String?
+  ceNumber          String?
+  websiteUrl        String?
+  description       String?   @db.Text
+  logoUrl           String?
+  addressEn         String?   @db.Text
+  addressZh         String?   @db.Text
+  sfcDetailJson     Json?
+  isClaimed         Boolean   @default(false)
+  claimedAt         DateTime?
+  claimedByUserId   String?   @db.Uuid
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  tenant        Tenant             @relation(fields: [tenantId], references: [id])
+  tenant        Tenant               @relation(fields: [tenantId], references: [id])
   licenses      BrokerLicense[]
   reviews       Review[]
   claimRequests BrokerClaimRequest[]
@@ -258,8 +269,8 @@ model SbtVerificationRequest {
   createdAt        DateTime           @default(now())
   reviewedAt       DateTime?
 
-  user   User   @relation(fields: [userId], references: [id])
-  tenant Tenant @relation(fields: [tenantId], references: [id])
+  user               User                @relation(fields: [userId], references: [id])
+  tenant             Tenant              @relation(fields: [tenantId], references: [id])
   verifiedBrokerLink UserVerifiedBroker?
 
   @@index([tenantId, status])
@@ -298,16 +309,16 @@ model UserVerifiedBroker {
 /// Manual KYC: user provides CE ref number and a company authorization letter
 /// (uploaded to IPFS). Admin reviews and approves/rejects.
 model BrokerClaimRequest {
-  id                    String      @id @default(uuid()) @db.Uuid
-  tenantId              String      @db.Uuid
-  brokerId              String      @db.Uuid
-  userId                String      @db.Uuid
-  ceRefNumber           String
-  companyLetterIpfsCid  String
-  status                ClaimStatus @default(PENDING)
-  adminNote             String?     @db.Text
-  createdAt             DateTime    @default(now())
-  reviewedAt            DateTime?
+  id                   String      @id @default(uuid()) @db.Uuid
+  tenantId             String      @db.Uuid
+  brokerId             String      @db.Uuid
+  userId               String      @db.Uuid
+  ceRefNumber          String
+  companyLetterIpfsCid String
+  status               ClaimStatus @default(PENDING)
+  adminNote            String?     @db.Text
+  createdAt            DateTime    @default(now())
+  reviewedAt           DateTime?
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
   broker Broker @relation(fields: [brokerId], references: [id])
@@ -341,10 +352,10 @@ enum ReviewStatus {
 /// Soft-delete (`deletedAt`) is reserved for extraordinary legal compliance
 /// (court order) and requires an ADR + admin audit log.
 model Review {
-  id            String       @id @default(uuid()) @db.Uuid
-  tenantId      String       @db.Uuid
-  userId        String       @db.Uuid
-  brokerId      String       @db.Uuid
+  id       String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  userId   String @db.Uuid
+  brokerId String @db.Uuid
 
   /// keccak256(JSON.stringify(ipfsPayload)) — matches on-chain contentHash.
   contentHash   String
@@ -355,17 +366,17 @@ model Review {
   /// Transaction hash of the on-chain submission.
   txHash        String?
 
-  title         String       @db.VarChar(200)
-  body          String       @db.Text
+  title  String @db.VarChar(200)
+  body   String @db.Text
   /// 1-5 star rating.
-  rating        Int          @db.SmallInt
+  rating Int    @db.SmallInt
 
-  status        ReviewStatus @default(PENDING)
-  sourceLocale  String?
+  status       ReviewStatus @default(PENDING)
+  sourceLocale String?
 
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
-  deletedAt     DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
 
   tenant       Tenant              @relation(fields: [tenantId], references: [id])
   user         User                @relation(fields: [userId], references: [id])
