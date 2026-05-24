@@ -342,28 +342,43 @@ model ReviewTranslation {
 
 ## 用戶生成內容（評論）翻譯
 
-流程：
+> ⚠️ **Phase 1 不做自動翻譯**（per [ADR-0027](mdc:docs/decisions/0027-deprecate-ugc-translation.md)
+> superseding ADR-0023）。Review 以**作者原文**呈現，不在 submit 時呼叫
+> DeepL / OpenAI / Google Translate 任何翻譯服務。
 
-1. 用戶寫評論（簡中）
-2. DB 存原文 + `language='zh-Hans'`
-3. SQS event triggers Lambda
-4. Lambda 呼叫 DeepL → 翻成 zh-Hant + en
-5. 結果存 `review_translations` 表
-6. 前端依使用者 locale 顯示對應翻譯
-7. UI 標明「機器翻譯」+ 切換原文按鈕
+### 當前流程
 
-### 翻譯服務優先序
+1. 用戶寫評論，前端送 `sourceLocale: 'zh-Hant' | 'zh-Hans' | 'en'`
+   （從當前 next-intl locale 自動帶；後端 fallback 解析 `Accept-Language`）
+2. `POST /v1/reviews` zod 驗 `sourceLocale` 必填三選一
+3. `SubmitReviewUseCase` 把 `sourceLocale` 一併寫進 `Review.sourceLocale`
+4. IPFS pin + on-chain anchor 流程不變（per ADR-0019）
+5. `GET /v1/reviews/broker/:slug` **永遠回原文** `Review.title` + `Review.body`，
+   **不**讀 `review_translations` 表
+6. Frontend `ReviewCard` 在 review header 顯示 `sourceLocale` badge
+   （「繁體中文」/「简体中文」/「English」）
+7. Review list 上方加一行 disclaimer：「評論以作者原文呈現，不提供自動翻譯」
 
-1. **DeepL**（主）— 質量最好
-2. **OpenAI GPT-4**（備援）— 成本較低
-3. **Google Translate API**（最後備援）
+### 為什麼不翻譯（per ADR-0027）
 
-設定走 env feature flag：
+- 與「公平 / 透明 / 不可篡改 / 平台不介入內容」紅線一致
+- HK 金融用語（孖展、補倉、窩輪、結算等）DeepL 易誤譯，反失可信度
+- 業界 UGC 平台（GitHub / Reddit / Twitter / Glassdoor）皆不自動翻譯
+- 同源 CJK 跨地讀者基本可被動讀繁中（zh-Hans ↔ zh-Hant 互讀成本低）
 
-```ts
-TRANSLATION_PROVIDER_PRIMARY=deepl
-TRANSLATION_PROVIDER_FALLBACK=openai
-```
+### 未來路徑（D7 預留）
+
+`DeepLTranslationService` / `ReviewTranslation` 表 / `DEEPL_API_KEY` env 全部
+**保留**為 dormant，待未來「reader 點按鈕 → 一次性翻譯 → cache 回 table」的
+on-demand 模式落地（需另寫 successor ADR）。
+
+### 嚴禁
+
+- ❌ 不可在 review submit path 自動呼叫翻譯服務（per ADR-0027 D1）
+- ❌ 不可從 `review_translations` 讀資料 serve API（per ADR-0027 D5）
+- ❌ 不可移除 `Review.sourceLocale` / `ReviewTranslation` / `DeepLTranslationService`
+  （per ADR-0027 D3 + D5 保留 dormant）
+- ❌ 不可加新 translation provider env（DeepL 已 deprecated，新 provider 需先寫 ADR）
 
 ---
 

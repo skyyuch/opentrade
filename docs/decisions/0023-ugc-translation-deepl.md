@@ -2,7 +2,10 @@
 
 ## Status
 
-Accepted
+**Superseded by [ADR-0027](./0027-deprecate-ugc-translation.md)** (2026-05-24).
+Phase 1 ships reviews as author-original without automatic translation; the
+DeepL service / `ReviewTranslation` table / `DEEPL_API_KEY` env slot remain
+dormant for a possible future on-demand-translation ADR (per ADR-0027 D7).
 
 ## Date
 
