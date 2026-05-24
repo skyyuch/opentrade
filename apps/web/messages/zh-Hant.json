@@ -217,7 +217,13 @@
     "save": "儲存變更",
     "saving": "儲存中…",
     "saved": "已儲存",
-    "loginRequired": "請先登入以查看設定。"
+    "loginRequired": "請先登入以查看設定。",
+    "verifiedBrokersTitle": "已驗證券商",
+    "verifiedBrokersSubtitle": "你已通過 {count} 家券商的關係驗證",
+    "verifiedBrokersEmpty": "你尚未通過任何券商驗證。",
+    "verifiedAtLabel": "通過時間",
+    "verifyAddBroker": "新增另一家券商驗證",
+    "verifyStartCta": "開始驗證券商身份"
   },
   "verify": {
     "eyebrow": "身份驗證",

@@ -217,7 +217,13 @@
     "save": "Save changes",
     "saving": "Saving…",
     "saved": "Changes saved",
-    "loginRequired": "Please log in to view settings."
+    "loginRequired": "Please log in to view settings.",
+    "verifiedBrokersTitle": "Verified brokers",
+    "verifiedBrokersSubtitle": "{count, plural, one {You have been verified for # broker} other {You have been verified for # brokers}}",
+    "verifiedBrokersEmpty": "You have not been verified for any broker yet.",
+    "verifiedAtLabel": "Verified at",
+    "verifyAddBroker": "Verify another broker",
+    "verifyStartCta": "Start broker verification"
   },
   "verify": {
     "eyebrow": "Identity verification",

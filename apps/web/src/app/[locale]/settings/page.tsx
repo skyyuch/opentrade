@@ -1,14 +1,15 @@
 'use client';
 
 import { usePrivy } from '@privy-io/react-auth';
-import { Settings } from 'lucide-react';
-import { useTranslations } from 'next-intl';
+import { CheckCircle2, ShieldCheck, Settings } from 'lucide-react';
+import { useFormatter, useTranslations } from 'next-intl';
 import { useCallback, useEffect, useState } from 'react';
 
 import { useOpenTradeAuth } from '../../../hooks/useOpenTradeAuth';
-import { fetchMyProfile, updateMyProfile } from '../../../lib/api/client';
+import { Link } from '../../../i18n/navigation';
+import { fetchMyProfile, fetchVerificationStatus, updateMyProfile } from '../../../lib/api/client';
 
-import type { UserProfile } from '../../../lib/api/client';
+import type { UserProfile, VerifiedBrokerEntry } from '../../../lib/api/client';
 import type { FormEvent, ReactNode } from 'react';
 
 type SaveState = 'idle' | 'saving' | 'saved' | 'error';
@@ -19,6 +20,7 @@ export default function SettingsPage(): ReactNode {
   const { getAccessToken } = useOpenTradeAuth();
 
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [verifiedBrokers, setVerifiedBrokers] = useState<VerifiedBrokerEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [displayName, setDisplayName] = useState('');
   const [preferredLocale, setPreferredLocale] = useState('');
@@ -35,11 +37,20 @@ export default function SettingsPage(): ReactNode {
       const token = await getAccessToken();
       if (!token || cancelled) return;
       try {
-        const res = await fetchMyProfile({ accessToken: token });
-        if (!cancelled) {
-          setProfile(res.user);
-          setDisplayName(res.user.displayName ?? '');
-          setPreferredLocale(res.user.preferredLocale ?? 'zh-Hant');
+        // Fetch profile + verification status in parallel — neither
+        // depends on the other and the page can't render without both.
+        const [profileRes, statusRes] = await Promise.all([
+          fetchMyProfile({ accessToken: token }).catch(() => null),
+          fetchVerificationStatus({ accessToken: token }).catch(() => null),
+        ]);
+        if (cancelled) return;
+        if (profileRes) {
+          setProfile(profileRes.user);
+          setDisplayName(profileRes.user.displayName ?? '');
+          setPreferredLocale(profileRes.user.preferredLocale ?? 'zh-Hant');
+        }
+        if (statusRes) {
+          setVerifiedBrokers(statusRes.verifiedBrokers);
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -154,7 +165,72 @@ export default function SettingsPage(): ReactNode {
           />
         </div>
       ) : null}
+
+      <VerifiedBrokersSection brokers={verifiedBrokers} />
     </main>
+  );
+}
+
+function VerifiedBrokersSection({ brokers }: { brokers: VerifiedBrokerEntry[] }): ReactNode {
+  const t = useTranslations('settings');
+  const formatter = useFormatter();
+
+  return (
+    <section className="mt-10 rounded-lg border border-border bg-muted/30 p-5">
+      <header className="mb-4 flex items-center gap-3">
+        <ShieldCheck className="size-5 text-[#00FF88]" aria-hidden />
+        <div>
+          <h2 className="text-base font-semibold tracking-tight">{t('verifiedBrokersTitle')}</h2>
+          {brokers.length > 0 && (
+            <p className="text-xs text-muted-foreground">
+              {t('verifiedBrokersSubtitle', { count: brokers.length })}
+            </p>
+          )}
+        </div>
+      </header>
+
+      {brokers.length === 0 ? (
+        <div className="flex flex-col items-start gap-3">
+          <p className="text-sm text-muted-foreground">{t('verifiedBrokersEmpty')}</p>
+          <Link
+            href="/verify"
+            className="inline-flex items-center gap-2 rounded-lg bg-foreground px-4 py-2 text-sm font-medium text-background transition-opacity hover:opacity-90"
+          >
+            {t('verifyStartCta')}
+          </Link>
+        </div>
+      ) : (
+        <>
+          <ul className="space-y-2">
+            {brokers.map((b) => (
+              <li
+                key={b.brokerSlug}
+                className="flex items-center justify-between gap-3 rounded-md border border-border bg-background px-3 py-2"
+              >
+                <span className="flex min-w-0 items-center gap-2">
+                  <CheckCircle2 size={14} className="shrink-0 text-[#00FF88]" aria-hidden />
+                  <span className="truncate font-mono text-xs">{b.brokerSlug}</span>
+                </span>
+                <span className="shrink-0 text-[11px] text-muted-foreground">
+                  {t('verifiedAtLabel')} ·{' '}
+                  {formatter.dateTime(new Date(b.approvedAt), {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric',
+                  })}
+                </span>
+              </li>
+            ))}
+          </ul>
+          <Link
+            href="/verify"
+            className="mt-4 inline-flex items-center gap-2 text-xs font-medium text-[#00FF88] hover:underline"
+          >
+            {t('verifyAddBroker')} →
+          </Link>
+        </>
+      )}
+    </section>
   );
 }
 
