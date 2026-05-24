@@ -171,30 +171,64 @@ API 不直接回傳人類可讀文字，而是 `error_code`：
 
 ## DB 多語欄位
 
-業務 metadata（券商介紹、KOL 簡介等）用 JSON 欄位多語存：
+OpenTrade 有三種模式，依資料來源與彈性需求擇一：
+
+### 模式 A：平行欄位（**當前 Broker 表使用**）
+
+來源資料（如 SFC 公開 register）天生只有英 / 中兩語，且不會再加新語言時：
 
 ```prisma
 model Broker {
-  id          String @id
-  // 多語欄位
-  name        Json   // { zh_hant, zh_hans, en }
-  description Json   // { zh_hant, zh_hans, en }
-  // ...
+  legalName   String  // English（SFC `nameEng`）— 對應 locale = 'en'
+  displayName String  // Chinese（SFC `nameChi`，無中文時 fallback 英文）— 對應 zh-*
 }
 ```
 
-或用獨立翻譯表（更可擴展）：
+⚠️ **前端必須有 locale-aware getter**，不能直接 `b.displayName`：
+
+```ts
+// ❌ 永遠顯示中文，英文 UI 也是中文
+<span>{broker.displayName}</span>
+
+// ✅ 依 locale 取對應欄位
+const localizedName = (b: Broker, locale: string): string =>
+  locale === 'en' ? b.legalName : b.displayName;
+
+<span>{localizedName(broker, locale)}</span>
+```
+
+理由：欄位名稱（`legalName` / `displayName`）並未明示語言，但實際語意是英 / 中。新進 AI agent 容易誤用導致永遠顯示單一語言。**取得任何 broker 欄位前必先讀本節**。
+
+未來若擴增第三語（如日文）或希望去除歧義，應 schema 改名為 `nameEn` / `nameZhHant` / `nameZhHans` 並寫 ADR。
+
+### 模式 B：JSON 多語欄位
+
+UGC 或可擴增語言的 metadata（如 KOL 自我介紹）：
 
 ```prisma
-model BrokerTranslation {
-  brokerId String
-  locale   String  // 'zh-Hant', 'zh-Hans', 'en'
-  field    String  // 'name', 'description'
-  value    String
-
-  @@id([brokerId, locale, field])
+model KolProfile {
+  id   String @id
+  bio  Json   // { "zh-Hant": "...", "zh-Hans": "...", "en": "..." }
 }
 ```
+
+前端：`bio[locale] ?? bio['zh-Hant']`（永遠 fallback 預設 locale）。
+
+### 模式 C：獨立翻譯表
+
+當翻譯由背景任務動態產生（如評論用 DeepL 翻），用模式 C：
+
+```prisma
+model ReviewTranslation {
+  reviewId String
+  locale   String  // 'zh-Hant' | 'zh-Hans' | 'en'
+  body     String
+
+  @@id([reviewId, locale])
+}
+```
+
+當前 `ReviewTranslation` 採此模式（per ADR-0023）。
 
 ---
 
@@ -287,6 +321,7 @@ new Intl.NumberFormat('zh-Hant', {
 - ❌ 把翻譯結果上鏈
 - ❌ 在 console 不做 i18n（即使是 admin 用，也要遵守規範）
 - ❌ 漏譯欄位（CI 必須檢查 zh-Hant / zh-Hans / en 同步）
+- ❌ DB 平行欄位（如 `legalName` / `displayName`）在 UI 直接顯示不轉 locale（必須走 locale-aware getter，per「DB 多語欄位 模式 A」）
 - ❌ 從 `next/link` 或 `next/navigation` 匯入 `Link` / `useRouter`（永遠走 `src/i18n/navigation`）
 - ❌ 在 href 硬編碼 `/${locale}/...` 前綴（next-intl `Link` 會自動處理）
 - ❌ 在有保留 top-level segment（admin / broker 等）的 app 用 `localePrefix: 'as-needed'`（會與 App Router `[locale]` 動態段衝突造成 404）
