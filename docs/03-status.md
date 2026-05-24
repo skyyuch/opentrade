@@ -380,6 +380,16 @@ Branch: `feature/phase-1-mvp-a`（first 4 commits + 1 handoff docs commit）
 - ❓ **Foundry version pin 策略**：本機 `foundryup --install stable` 抓到 `forge 1.7.1`。CI 透過 `foundry-toolchain` action 應 pin 同版本；何時 bump 寫 ADR：(a) 上游 1.8+ 帶來新 cheatcode 是 audit 必需；或 (b) v5 tag 解析 bug 修了之後（ADR-0015 D2 提到）
 - ❓ **solhint 嚴格化時機**：ADR-0015 D5 約定 Phase 1 第一個業務合約 PR 時把 ruleset 從 warning-only 切 error-level，並 extend `solhint:recommended`。需在 Phase 1 同個 PR 內完成，避免「先 ship contract 再 tighten lint」的 backwards 流程
 
+### 流程層級
+
+- ❓ **Phase 2 開始前轉 PR-only flow**：目前 GitHub `main` 已設定 branch protection（必須走 PR + 必須通過 7 條 status checks），但 owner 帳號帶有 admin bypass 權限，Phase 1 大量 direct push 到 `main`（截至 2026-05-24 已累積 50+ commits 都是直推）。**Phase 2 開始前必須**：
+  1. 列清楚 7 條 required status checks 的具體名稱（typecheck / lint / unit / build / forge / e2e / migration safety 之類），現在連名字都不確定
+  2. 把它們在 `.github/workflows/` 補齊並讓 main 上每個 commit 都跑過至少一次（驗證沒漏跑）
+  3. 寫一條新 ADR 紀錄：何時完全解除 admin bypass 權限（至少 jury / 第二位人類 contributor 加入時必須）
+  4. 之後新功能一律走 `feature/xxx → PR → CI → squash merge`，違反 rule 70「不可 force push 到 main / 不可跳過 CI 直接 merge」的紅線
+
+  目前 phase 1 開發節奏快、CI 還沒全綠，admin bypass 是務實之舉但不該長期化。觸發點：(a) 第二位人類 contributor 加入；(b) 完成 phase 1 / 進入 phase 2 之間；(c) 香港 SFC 高層董事正式加入並開始接觸 repo 之前 — 三者中最早的那個。
+
 ---
 
 ## 已知風險
