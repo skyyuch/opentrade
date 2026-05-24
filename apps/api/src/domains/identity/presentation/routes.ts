@@ -207,11 +207,23 @@ identityRouter.post('/verify-broker', authMiddleware('user'), async (c) => {
     });
   }
 
-  const existing = await prisma.sbtVerificationRequest.findFirst({
+  const pending = await prisma.sbtVerificationRequest.findFirst({
     where: { userId, tenantId, status: 'PENDING' },
   });
-  if (existing) {
+  if (pending) {
     throw new AppError(ErrorCode.CONFLICT, 'You already have a pending verification request', 409);
+  }
+
+  // Per ADR-0025 D2: a (userId, brokerSlug) pair can only have one APPROVED
+  // request. Resubmitting against an already-verified broker is a no-op.
+  // REJECTED rows are intentionally not blocked — users may retry after
+  // adjusting their evidence.
+  const alreadyVerified = await prisma.sbtVerificationRequest.findFirst({
+    where: { userId, tenantId, brokerSlug: parsed.data.brokerSlug, status: 'APPROVED' },
+    select: { id: true },
+  });
+  if (alreadyVerified) {
+    throw new AppError(ErrorCode.CONFLICT, 'You have already been verified for this broker', 409);
   }
 
   const request = await prisma.sbtVerificationRequest.create({
@@ -365,20 +377,69 @@ identityRouter.post('/admin/verifications/:id/approve', authMiddleware('admin'),
       },
     });
 
-    await tx.user.update({
-      where: { id: request.userId },
-      data: { sbtTier: 'L2', role: 'REVIEWER' },
+    // Per ADR-0025 D5 hash chain: capture the previous broker commitment
+    // BEFORE inserting the new row so we don't have to exclude ourselves
+    // from the lookup. `null` means this is the user's first verified
+    // broker.
+    const prev = await tx.userVerifiedBroker.findFirst({
+      where: { userId: request.userId },
+      orderBy: { approvedAt: 'desc' },
+      select: { commitment: true },
+    });
+
+    // Per ADR-0025 D4: append the broker to the user's verified-brokers
+    // ledger. The (userId, brokerSlug) unique constraint protects against
+    // double-approve races at the database level.
+    await tx.userVerifiedBroker.create({
+      data: {
+        tenantId: request.tenantId,
+        userId: request.userId,
+        brokerSlug: request.brokerSlug,
+        verificationId: request.id,
+        commitment: request.commitment,
+      },
     });
 
     await tx.outboxEvent.create({
       data: {
         tenantId: request.tenantId,
-        aggregateType: 'sbt_verification',
-        aggregateId: id,
-        eventType: 'sbt.mint_requested',
-        payload: { userId: request.userId, verificationId: id },
+        aggregateType: 'user_verified_broker',
+        aggregateId: request.id,
+        eventType: 'verification.broker_added',
+        payload: {
+          userId: request.userId,
+          brokerSlug: request.brokerSlug,
+          commitment: request.commitment,
+          prevCommitment: prev?.commitment ?? null,
+        },
       },
     });
+
+    // Per ADR-0025 D3: tier promotion + on-chain mint only fires on the
+    // user's first ever approved broker. Subsequent approves stay on chain
+    // as the existing SBT (which is one-mint-per-address per ADR-0021 D2)
+    // and live in DB/outbox until Phase 2.
+    const user = await tx.user.findUnique({
+      where: { id: request.userId },
+      select: { sbtTier: true },
+    });
+
+    if (user?.sbtTier === 'L1') {
+      await tx.user.update({
+        where: { id: request.userId },
+        data: { sbtTier: 'L2', role: 'REVIEWER' },
+      });
+
+      await tx.outboxEvent.create({
+        data: {
+          tenantId: request.tenantId,
+          aggregateType: 'sbt_verification',
+          aggregateId: id,
+          eventType: 'sbt.mint_requested',
+          payload: { userId: request.userId, verificationId: id },
+        },
+      });
+    }
   });
 
   return c.json({ status: 'approved', verificationId: id });
