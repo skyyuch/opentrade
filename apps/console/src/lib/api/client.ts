@@ -623,6 +623,7 @@ export type VerificationItem = {
   brokerSlug: string;
   commitment: string;
   evidenceIpfsCid: string;
+  evidenceMimeType: string | null;
   status: string;
   adminNote: string | null;
   createdAt: string;
@@ -636,7 +637,7 @@ export const fetchAdminVerifications = (status = 'PENDING', options?: FetchOptio
 export const approveVerification = (id: string, adminNote?: string, options?: FetchOptions) =>
   apiPost<{ status: string }>(`/v1/auth/admin/verifications/${id}/approve`, { adminNote }, options);
 
-export const rejectVerification = (id: string, adminNote?: string, options?: FetchOptions) =>
+export const rejectVerification = (id: string, adminNote: string, options?: FetchOptions) =>
   apiPost<{ status: string }>(`/v1/auth/admin/verifications/${id}/reject`, { adminNote }, options);
 
 // ---------------------------------------------------------------------------
