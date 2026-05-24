@@ -142,8 +142,13 @@ const envSchema = z.object({
     .optional(),
 
   /**
-   * DeepL API key for UGC translation (per ADR-0023). Free tier provides
-   * 500k chars/month. Only required when translation is enabled.
+   * DeepL API key for UGC translation.
+   *
+   * @deprecated Per ADR-0027 (supersedes ADR-0023): the submit-time
+   * auto-translation path has been removed and `DeepLTranslationService`
+   * is no longer instantiated. The env slot is kept optional and unused so
+   * a future on-demand-translation ADR (ADR-0027 D7) can rewire it without
+   * an env-schema change. Setting this variable currently has no effect.
    */
   DEEPL_API_KEY: z.string().optional(),
 

@@ -33,6 +33,7 @@ export class PrismaReviewRepository implements IReviewRepository {
           title: data.title,
           body: data.body,
           rating: data.rating,
+          sourceLocale: data.sourceLocale,
         },
       });
 
@@ -130,6 +131,7 @@ export class PrismaReviewRepository implements IReviewRepository {
     body: string;
     rating: number;
     status: string;
+    sourceLocale: string | null;
     createdAt: Date;
     updatedAt: Date;
   }): ReviewRecord {
@@ -146,6 +148,7 @@ export class PrismaReviewRepository implements IReviewRepository {
       body: row.body,
       rating: row.rating,
       status: row.status as ReviewRecord['status'],
+      sourceLocale: row.sourceLocale as ReviewRecord['sourceLocale'],
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
     };

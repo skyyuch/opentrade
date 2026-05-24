@@ -1,7 +1,7 @@
 /**
  * Application layer: submit a new review.
  *
- * Flow (per ADR-0019):
+ * Flow (per ADR-0019, with translation deprecated per ADR-0027):
  *   1. Build the IPFS payload JSON from user input.
  *   2. Compute keccak256 content hash (matches on-chain ReviewRegistry).
  *   3. Pin JSON to IPFS via Pinata.
@@ -9,6 +9,12 @@
  *      (transaction managed inside the repository per ADR-0006 outbox pattern).
  *   5. A background worker (Phase 1+) reads the outbox and submits the
  *      chain transaction; on confirmation it calls updateChainStatus.
+ *
+ * ADR-0027 deprecates the prior synchronous DeepL translation step
+ * (ADR-0023 D1/D3): reviews now ship as author-original. The use case no
+ * longer accepts a translation service. `sourceLocale` is recorded
+ * directly from the request (frontend next-intl locale, or `Accept-Language`
+ * fallback) so the ReviewCard can render a language badge.
  *
  * Pure orchestration — no HTTP, no Prisma, no `process.*` direct access.
  */
@@ -19,7 +25,6 @@ import { AppError, ErrorCode } from '../../../shared/errors/index.js';
 
 import type { IReviewRepository } from '../domain/IReviewRepository.js';
 import type { ReviewRecord, SubmitReviewInput } from '../domain/ReviewEntity.js';
-import type { DeepLTranslationService } from '../infrastructure/DeepLTranslationService.js';
 import type { IIpfsService } from '../infrastructure/IIpfsService.js';
 
 export type SubmitReviewOutput = {
@@ -30,7 +35,6 @@ export class SubmitReviewUseCase {
   constructor(
     private readonly reviewRepo: IReviewRepository,
     private readonly ipfsService: IIpfsService,
-    private readonly translationService?: DeepLTranslationService | null,
   ) {}
 
   async execute(input: SubmitReviewInput): Promise<SubmitReviewOutput> {
@@ -58,14 +62,6 @@ export class SubmitReviewUseCase {
       contentHash,
       ipfsCid: pinResult.cid,
     });
-
-    if (this.translationService) {
-      try {
-        await this.translationService.translateReview(review.id, input.title, input.body);
-      } catch {
-        // Translation failure is non-critical; review is still saved.
-      }
-    }
 
     return { review };
   }

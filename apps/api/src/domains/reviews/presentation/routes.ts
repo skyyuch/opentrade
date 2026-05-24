@@ -25,27 +25,54 @@ import { env } from '../../../shared/env.js';
 import { AppError, ErrorCode } from '../../../shared/errors/index.js';
 import { GetBrokerReviewsUseCase } from '../application/GetBrokerReviewsUseCase.js';
 import { SubmitReviewUseCase } from '../application/SubmitReviewUseCase.js';
-import { DeepLTranslationService } from '../infrastructure/DeepLTranslationService.js';
 import { PinataIpfsService } from '../infrastructure/PinataIpfsService.js';
 import { PrismaReviewRepository } from '../infrastructure/PrismaReviewRepository.js';
 
 import type { AppHonoEnv } from '../../../http/types.js';
+import type { ReviewSourceLocale } from '../domain/ReviewEntity.js';
 
 const DEFAULT_TENANT_ID = env.DEFAULT_TENANT_ID;
 
 const reviewRepo = new PrismaReviewRepository(prisma);
 const ipfsService = new PinataIpfsService(env.PINATA_JWT);
-const translationService = env.DEEPL_API_KEY
-  ? new DeepLTranslationService(env.DEEPL_API_KEY, prisma)
-  : null;
-const submitReview = new SubmitReviewUseCase(reviewRepo, ipfsService, translationService);
+// Per ADR-0027 (supersedes ADR-0023): DeepLTranslationService is no longer
+// wired into the submit path. The class file is kept @deprecated for a
+// future on-demand-translation ADR (D7). SubmitReviewUseCase ctor accepts
+// only repo + IPFS now.
+const submitReview = new SubmitReviewUseCase(reviewRepo, ipfsService);
 const getBrokerReviews = new GetBrokerReviewsUseCase(reviewRepo);
+
+const SOURCE_LOCALE_VALUES = ['zh-Hant', 'zh-Hans', 'en'] as const;
+
+/**
+ * Resolve the author's submit-time locale per ADR-0027 D2.
+ *
+ * Priority:
+ *   1. Explicit `sourceLocale` on the request body (frontend next-intl
+ *      locale, the trustworthy signal)
+ *   2. First entry of `Accept-Language` if it exactly matches one of the
+ *      three supported locales
+ *   3. Fallback to `zh-Hant` (ADR-0003 default locale)
+ *
+ * No best-match negotiation: we want exact, predictable behaviour rather
+ * than letting an `en-US;q=0.9, zh-TW;q=0.8` header surprise us.
+ */
+function resolveSourceLocale(
+  explicit: ReviewSourceLocale | undefined,
+  acceptLanguageHeader: string | undefined,
+): ReviewSourceLocale {
+  if (explicit) return explicit;
+  const first = acceptLanguageHeader?.split(',')[0]?.trim();
+  if (first === 'zh-Hant' || first === 'zh-Hans' || first === 'en') return first;
+  return 'zh-Hant';
+}
 
 const submitReviewBodySchema = z.object({
   brokerId: z.string().uuid('brokerId must be a valid UUID'),
   title: z.string().min(1, 'title is required').max(200, 'title must be 200 chars or less'),
   body: z.string().min(10, 'body must be at least 10 characters').max(5000),
   rating: z.number().int().min(1).max(5),
+  sourceLocale: z.enum(SOURCE_LOCALE_VALUES).optional(),
 });
 
 const listReviewsQuerySchema = z.object({
@@ -79,6 +106,11 @@ reviewsRouter.post('/', authMiddleware('reviewer'), async (c) => {
     throw new AppError(ErrorCode.NOT_FOUND, 'Broker not found', 404);
   }
 
+  const sourceLocale = resolveSourceLocale(
+    parsed.data.sourceLocale,
+    c.req.header('Accept-Language'),
+  );
+
   const result = await submitReview.execute({
     tenantId: DEFAULT_TENANT_ID,
     userId: user.userId,
@@ -86,6 +118,7 @@ reviewsRouter.post('/', authMiddleware('reviewer'), async (c) => {
     title: parsed.data.title,
     body: parsed.data.body,
     rating: parsed.data.rating as 1 | 2 | 3 | 4 | 5,
+    sourceLocale,
   });
 
   const logger = c.get('logger');
@@ -137,39 +170,32 @@ reviewsRouter.get('/broker/:slug', async (c) => {
     limit: query.data.limit,
   });
 
-  const acceptLang = c.req.header('Accept-Language')?.split(',')[0]?.trim() ?? null;
-  const requestedLocale =
-    acceptLang === 'zh-Hant' || acceptLang === 'zh-Hans' || acceptLang === 'en' ? acceptLang : null;
-
-  const reviewIds = result.items.map((r) => r.id);
   const userIds = [...new Set(result.items.map((r) => r.userId))];
 
-  const [users, translations] = await Promise.all([
-    prisma.user.findMany({
-      where: { id: { in: userIds } },
-      select: {
-        id: true,
-        displayName: true,
-        sbtTier: true,
-        // Per ADR-0025: review cards surface the author's verified-broker
-        // list as a public credibility signal. UserVerifiedBroker keys by
-        // slug (not brokerId) so we can't `include` the broker row;
-        // instead we collect every slug across the page and resolve their
-        // names via `hydrateBrokerNames` in one query below. Per cursor
-        // rule 51 we then ship both `displayName` + `legalName` so the
-        // ReviewCard renders in the reader's locale.
-        verifiedBrokers: { select: { brokerSlug: true } },
-      },
-    }),
-    requestedLocale
-      ? prisma.reviewTranslation.findMany({
-          where: { reviewId: { in: reviewIds }, locale: requestedLocale },
-        })
-      : Promise.resolve([]),
-  ]);
+  // Per ADR-0027 D5: GET /broker/:slug always returns author-original
+  // title/body and never joins review_translations. The `sourceLocale`
+  // field is shipped so the ReviewCard can render the language badge
+  // (D6). `isTranslated` and `originalTitle/originalBody` are removed
+  // from the response shape; clients that consumed them treat all
+  // reviews as untranslated (the dominant behaviour they already saw).
+  const users = await prisma.user.findMany({
+    where: { id: { in: userIds } },
+    select: {
+      id: true,
+      displayName: true,
+      sbtTier: true,
+      // Per ADR-0025: review cards surface the author's verified-broker
+      // list as a public credibility signal. UserVerifiedBroker keys by
+      // slug (not brokerId) so we can't `include` the broker row;
+      // instead we collect every slug across the page and resolve their
+      // names via `hydrateBrokerNames` in one query below. Per cursor
+      // rule 51 we then ship both `displayName` + `legalName` so the
+      // ReviewCard renders in the reader's locale.
+      verifiedBrokers: { select: { brokerSlug: true } },
+    },
+  });
 
   const userMap = new Map(users.map((u) => [u.id, u]));
-  const translationMap = new Map(translations.map((t) => [t.reviewId, t]));
 
   // Hydrate broker names for every slug surfaced via author.verifiedBrokers
   // on this page. Single batched query — each user's slug list is small,
@@ -180,8 +206,6 @@ reviewsRouter.get('/broker/:slug', async (c) => {
   return c.json({
     reviews: result.items.map((r) => {
       const author = userMap.get(r.userId);
-      const translation = translationMap.get(r.id);
-      const isTranslated = !!translation;
 
       return {
         id: r.id,
@@ -190,13 +214,11 @@ reviewsRouter.get('/broker/:slug', async (c) => {
         ipfsCid: r.ipfsCid,
         chainReviewId: r.chainReviewId,
         txHash: r.txHash,
-        title: isTranslated ? translation.title : r.title,
-        body: isTranslated ? translation.body : r.body,
-        originalTitle: isTranslated ? r.title : null,
-        originalBody: isTranslated ? r.body : null,
-        isTranslated,
+        title: r.title,
+        body: r.body,
         rating: r.rating,
         status: r.status,
+        sourceLocale: r.sourceLocale,
         createdAt: r.createdAt.toISOString(),
         author: {
           displayName: author?.displayName ?? null,
@@ -251,6 +273,7 @@ reviewsRouter.get('/:id', async (c) => {
       body: review.body,
       rating: review.rating,
       status: review.status,
+      sourceLocale: review.sourceLocale,
       createdAt: review.createdAt.toISOString(),
     },
   });

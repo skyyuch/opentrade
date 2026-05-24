@@ -1,16 +1,21 @@
 /**
  * DeepL-backed translation service for user-generated content.
  *
- * Per ADR-0023: translates review title and body into the two non-source
- * locales at submission time. Stores results in ReviewTranslation rows.
+ * @deprecated Per [ADR-0027](../../../../../../docs/decisions/0027-deprecate-ugc-translation.md)
+ * this service is no longer wired into `SubmitReviewUseCase` and `GET
+ * /v1/reviews/broker/:slug` no longer reads from `review_translations`.
+ * The class and the surrounding env / table are intentionally preserved
+ * (not deleted) as dormant infrastructure so a future on-demand-translation
+ * ADR (ADR-0027 D7: reader clicks → translate-once → cache) can rewire
+ * them without a schema migration. Do not call this from new code paths;
+ * if you need translation behaviour, write the successor ADR first.
  *
- * DeepL language codes:
+ * Original ADR-0023 context (kept for archaeology): translated review
+ * title and body into the two non-source locales at submission time,
+ * storing results in ReviewTranslation rows. DeepL language codes:
  *   - zh-Hant → ZH (DeepL auto-detects traditional)
  *   - zh-Hans → ZH (target uses ZH for simplified, but we can't distinguish)
  *   - en → EN-US
- *
- * For Phase 1 we map OpenTrade locales to DeepL target_lang codes. DeepL's
- * source auto-detection handles the input language.
  */
 
 import type { PrismaClient } from '@opentrade/db';
