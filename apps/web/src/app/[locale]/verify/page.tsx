@@ -1,11 +1,17 @@
 /**
  * `/verify` — L2 identity verification page.
  *
- * Users submit their broker account proof (commitment hash + IPFS evidence)
- * to earn Verified Reviewer status and receive an on-chain SBT.
+ * Users upload broker account proof; the file is pinned to IPFS by our API
+ * (PinataIpfsService.pinFile), browser computes a keccak256 commitment
+ * locally, and the request is submitted for admin review. On approval the
+ * outbox triggers an on-chain ReviewerSBT mint.
  *
- * Per ADR-0022: the server never receives raw account data — only a
- * keccak256 commitment hash computed in the user's browser.
+ * Per ADR-0022: the raw account data never enters our DB — the server only
+ * relays the file to IPFS, and only the commitment hash + IPFS CID are
+ * persisted.
+ *
+ * Visual: Google-designed dark crypto layout with two atmospheric glows
+ * (#00FF88 + blue-600) — matches the broader OpenTrade dark theme.
  */
 
 import { getTranslations, setRequestLocale } from 'next-intl/server';
@@ -32,35 +38,43 @@ const VerifyPage = async ({ params }: Props): Promise<ReactNode> => {
   setRequestLocale(params.locale);
   const t = await getTranslations('verify');
 
-  let brokers: { slug: string; displayName: string }[] = [];
+  let brokers: { slug: string; displayName: string; legalName: string }[] = [];
   try {
-    const data = await fetchBrokers({ next: { revalidate: 300 } });
-    brokers = data.brokers.map((b) => ({ slug: b.slug, displayName: b.displayName }));
+    const data = await fetchBrokers({ limit: 100, next: { revalidate: 300 } });
+    brokers = data.brokers.map((b) => ({
+      slug: b.slug,
+      displayName: b.displayName,
+      legalName: b.legalName,
+    }));
   } catch {
-    // Graceful fallback: empty broker list, user can type slug manually
+    // Graceful fallback: empty broker list (UI shows placeholder option).
   }
 
   return (
-    <main className="container mx-auto flex flex-col gap-12 px-4 py-12 md:py-16">
-      {/* Header */}
-      <header className="flex flex-col gap-3">
-        <p className="text-xs font-medium uppercase tracking-wider text-primary">{t('eyebrow')}</p>
-        <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">{t('title')}</h1>
-        <p className="max-w-2xl text-sm text-muted-foreground md:text-base">{t('subtitle')}</p>
-      </header>
+    <div className="relative w-full overflow-hidden">
+      {/* Atmospheric background glows */}
+      <div className="pointer-events-none absolute right-[-5%] top-[-10%] z-0 h-[600px] w-[600px] rounded-full bg-[#00FF88]/10 blur-[120px]" />
+      <div className="pointer-events-none absolute bottom-[-10%] left-[-5%] z-0 h-[500px] w-[500px] rounded-full bg-blue-600/10 blur-[100px]" />
 
-      {/* Two-column layout: form + steps */}
-      <div className="grid gap-12 lg:grid-cols-[1fr_380px]">
-        <div className="flex flex-col gap-8">
-          <VerifyForm brokers={brokers} />
+      <main className="container relative z-10 mx-auto flex flex-col gap-12 px-4 py-12 md:py-16 lg:px-10">
+        <header className="space-y-3">
+          <p className="text-sm font-bold text-blue-400">{t('eyebrow')}</p>
+          <h1 className="text-4xl font-extrabold tracking-tight md:text-5xl">{t('title')}</h1>
+          <p className="max-w-2xl text-base text-white/50 md:text-lg">{t('subtitle')}</p>
+        </header>
+
+        <div className="grid grid-cols-1 gap-12 lg:grid-cols-12 lg:gap-20">
+          <div className="lg:col-span-7">
+            <VerifyForm brokers={brokers} />
+          </div>
+          <aside className="lg:col-span-5">
+            <div className="lg:sticky lg:top-24">
+              <VerifySteps />
+            </div>
+          </aside>
         </div>
-        <aside className="flex flex-col gap-8">
-          <VerifySteps />
-        </aside>
-      </div>
-
-      <footer className="text-xs text-muted-foreground">{t('disclaimer')}</footer>
-    </main>
+      </main>
+    </div>
   );
 };
 
