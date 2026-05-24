@@ -224,6 +224,45 @@ await prisma.$transaction(async (tx) => {
 
 背景 worker 讀 outbox → SQS → 訂閱者處理。
 
+### Worker Consumer Idempotency（強制）
+
+Outbox worker / event consumer **必須**在實際呼叫 side-effect 前**讀取下游真實 state 守護**，不可只信 emit 端的條件或 DB 狀態。這是因為：
+
+- Outbox 有 retry 機制（5 次），同一個 event 可能被處理多次
+- DB 狀態可能與下游真實 state drift（鏈上、第三方 API、SBT balance 等）
+- 即使 emit 端有條件守護（例如「只有第一次升 L2 時 emit」），歷史 legacy event 或 race condition 仍會誤觸
+
+**Pattern**：對 deterministic-revert / one-shot 操作（例如 ERC721/SBT one-mint-per-address、付款冪等、外部 webhook one-shot），worker handler 在實際呼叫前必須 `read → check → skip-if-already-done → otherwise-execute`。
+
+```ts
+// ❌ 錯誤：只信 emit 端條件
+async function processSbtMintRequested(event) {
+  await reviewerSbt.write.mint([wallet, tokenURI]);
+  // 第二次 retry 撞 AlreadyMinted(address) revert，浪費 gas、污染 log、5 次 retry 後標 FAILED
+}
+
+// ✅ 正確：worker 層加 idempotent guard
+async function processSbtMintRequested(event) {
+  const existingBalance = await publicClient.readContract({
+    address: sbtAddress, abi: REVIEWER_SBT_ABI,
+    functionName: 'balanceOf', args: [wallet],
+  });
+  if (existingBalance > 0n) {
+    log('warn', 'Skipping SBT mint — wallet already holds SBT (idempotent skip)', {...});
+    return; // 標 processed，不 retry
+  }
+  await reviewerSbt.write.mint([wallet, tokenURI]);
+}
+```
+
+**真實案例**：`apps/api/src/tasks/outbox-worker.ts#processSbtMintRequested` 在 ADR-0025 D3 已在 emit 端加 conditional emit (「只有第一次升 L2 時 emit」)，但仍需 worker 層 `balanceOf > 0` 守護以保障 legacy event retry / race condition 場景。詳見 commit `9df2336` 與 docs/conversations/2026-05-24-translation-deprecation-and-e2e.md §3。
+
+### 嚴禁
+
+- ❌ Worker handler 對 deterministic-revert 操作不做下游 state 守護
+- ❌ 只信 DB 狀態決定是否執行下游 side-effect（DB 可能 drift）
+- ❌ 對 retry 5 次 fail 才偵測到 idempotency 違反就接受（要在第 1 次就守護）
+
 ---
 
 ## OpenAPI 自動產生
