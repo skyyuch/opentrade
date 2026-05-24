@@ -29,7 +29,7 @@ const DEFAULT_TENANT_ID = env.DEFAULT_TENANT_ID;
 
 const listQuerySchema = z.object({
   cursor: z.string().uuid().optional(),
-  limit: z.coerce.number().int().min(1).max(50).optional(),
+  limit: z.coerce.number().int().min(1).max(100).optional(),
   search: z.string().max(100).optional(),
 });
 
@@ -43,7 +43,7 @@ brokersRouter.get('/', async (c) => {
     });
   }
 
-  const limit = Math.min(query.data.limit ?? 20, 50);
+  const limit = Math.min(query.data.limit ?? 20, 100);
 
   const where: Parameters<typeof prisma.broker.findMany>[0] = {
     where: {

@@ -12,4 +12,5 @@ export type IpfsPinResult = {
 
 export type IIpfsService = {
   pinJson(data: unknown, name: string): Promise<IpfsPinResult>;
+  pinFile(file: File, name: string): Promise<IpfsPinResult>;
 };

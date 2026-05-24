@@ -20,6 +20,7 @@ import { prisma } from '@opentrade/db';
 import { authMiddleware } from '../../../http/middleware/auth.js';
 import { env } from '../../../shared/env.js';
 import { AppError, ErrorCode } from '../../../shared/errors/index.js';
+import { PinataIpfsService } from '../../reviews/infrastructure/PinataIpfsService.js';
 import { ExchangeTokenUseCase } from '../application/ExchangeTokenUseCase.js';
 import { LoginWithCredentialsUseCase } from '../application/LoginWithCredentialsUseCase.js';
 import { BcryptPasswordHasher } from '../infrastructure/BcryptPasswordHasher.js';
@@ -41,6 +42,7 @@ const jwtService = new JoseJwtService(env.JWT_PRIVATE_KEY_PEM, env.JWT_PUBLIC_KE
 const passwordHasher = new BcryptPasswordHasher();
 const exchangeToken = new ExchangeTokenUseCase(privyVerifier, userRepo, jwtService);
 const loginWithCredentials = new LoginWithCredentialsUseCase(userRepo, jwtService, passwordHasher);
+const ipfsService = new PinataIpfsService(env.PINATA_JWT);
 
 const exchangeBodySchema = z.object({
   accessToken: z.string().min(1, 'accessToken is required'),
@@ -222,6 +224,54 @@ identityRouter.post('/verify-broker', authMiddleware('user'), async (c) => {
   });
 
   return c.json({ verification: { id: request.id, status: request.status } }, 201);
+});
+
+// ---------------------------------------------------------------------------
+// Verification evidence file upload (file → IPFS via Pinata)
+// ---------------------------------------------------------------------------
+
+const VERIFY_EVIDENCE_ALLOWED_MIME = [
+  'application/pdf',
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+] as const;
+const VERIFY_EVIDENCE_MAX_SIZE = 10 * 1024 * 1024; // 10 MB
+
+identityRouter.post('/verify-broker/upload', authMiddleware('user'), async (c) => {
+  const { userId } = c.get('user');
+
+  const body = await c.req.parseBody();
+  const file = body['file'];
+
+  if (!file || !(file instanceof File)) {
+    throw new AppError(ErrorCode.VALIDATION_ERROR, 'No file provided', 400);
+  }
+
+  if (
+    !VERIFY_EVIDENCE_ALLOWED_MIME.includes(
+      file.type as (typeof VERIFY_EVIDENCE_ALLOWED_MIME)[number],
+    )
+  ) {
+    throw new AppError(
+      ErrorCode.VALIDATION_ERROR,
+      `Invalid file type: ${file.type}. Accepted: PDF, JPEG, PNG, WebP`,
+      400,
+    );
+  }
+
+  if (file.size > VERIFY_EVIDENCE_MAX_SIZE) {
+    throw new AppError(
+      ErrorCode.VALIDATION_ERROR,
+      `File too large: ${(file.size / 1024 / 1024).toFixed(2)} MB. Max 10 MB.`,
+      400,
+    );
+  }
+
+  const safeName = `verify-${userId}-${Date.now()}`;
+  const { cid } = await ipfsService.pinFile(file, safeName);
+
+  return c.json({ cid, size: file.size, mimeType: file.type }, 201);
 });
 
 identityRouter.get('/verification-status', authMiddleware('user'), async (c) => {

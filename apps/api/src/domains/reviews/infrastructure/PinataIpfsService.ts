@@ -35,4 +35,18 @@ export class PinataIpfsService implements IIpfsService {
       );
     }
   }
+
+  async pinFile(file: File, name: string): Promise<IpfsPinResult> {
+    try {
+      const result = await this.pinata.upload.public.file(file).name(name);
+      return { cid: result.cid };
+    } catch (error) {
+      throw new AppError(
+        ErrorCode.SERVICE_UNAVAILABLE,
+        'Failed to pin file to IPFS via Pinata',
+        503,
+        { cause: error },
+      );
+    }
+  }
 }
