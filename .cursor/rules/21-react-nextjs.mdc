@@ -93,6 +93,54 @@ function ReviewForm() {
 - 預設 locale：zh-Hant
 - 不允許在頁面層讀取或設定 locale 之外的 cookie 直接影響 routing
 
+i18n navigation 規範詳見 `51-i18n.mdc`（重點：永遠從 `src/i18n/navigation` 匯入 `Link` / `useRouter`，不用 `next/link` / `next/navigation`；href 不可硬編碼 `/${locale}` 前綴）。
+
+---
+
+## Route Guards（auth / role 守門）
+
+當需要根據 auth state 限制存取，guard 元件**不可**在 render body 內呼叫 `router.replace()` / `router.push()` — 這是 React anti-pattern：
+
+- render 期觸發 navigation 會破壞 React reconciliation
+- SSR 時直接炸 `Cannot update a component while rendering...`
+- 與 Suspense / streaming render 互動會行為不可預測
+
+```tsx
+// ❌ 不可：render 期 side-effect
+export function AdminGuard({ children }: Props) {
+  const { isAdmin, isLoading, user } = useCurrentUser();
+  const router = useRouter();
+
+  if (isLoading) return <Spinner />;
+  if (!user || !isAdmin) {
+    router.replace('/');  // ⚠️ render 期呼叫 navigation
+    return <Spinner />;
+  }
+  return <>{children}</>;
+}
+
+// ✅ 應該：useEffect 處理 redirect
+export function AdminGuard({ children }: Props) {
+  const { isAdmin, isLoading, user } = useCurrentUser();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isLoading && (!user || !isAdmin)) {
+      router.replace('/');
+    }
+  }, [isLoading, user, isAdmin, router]);
+
+  if (isLoading) return <Spinner />;
+  if (!user || !isAdmin) return <Spinner />;  // 等 useEffect 觸發
+  return <>{children}</>;
+}
+```
+
+要點：
+- redirect 動作放 `useEffect`，依賴清單列齊所有判斷條件
+- render 仍要回 loading state（避免短暫閃出未授權內容）
+- guard 元件透過 `i18n/navigation` 的 `useRouter`（locale-aware），不是 `next/navigation`
+
 ---
 
 ## State 管理
@@ -200,3 +248,5 @@ Storybook 必須跑 `@storybook/addon-a11y`。
 - ❌ 直接操作 DOM（用 ref + React life cycle）
 - ❌ 在 React component 裡 `console.log`（用 logger 或刪除）
 - ❌ 在 component 直接 import `@opentrade/db`（前端絕不接觸 DB，只能 type-only）
+- ❌ 在 render body 呼叫 `router.replace()` / `router.push()`（必移到 `useEffect`，見「Route Guards」段）
+- ❌ guard / 任何元件從 `next/link` 或 `next/navigation` 匯入 `Link` / `useRouter`（走 `src/i18n/navigation`，詳見 rule 51）

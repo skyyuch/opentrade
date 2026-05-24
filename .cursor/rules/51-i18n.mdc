@@ -93,6 +93,54 @@ URL 必須含 locale：
 - 未含 locale → 從 Accept-Language → cookie → 預設（zh-Hant）
 - 切換語言時更新 cookie
 
+### `localePrefix` 策略選擇
+
+每個 app 在 `src/i18n/routing.ts` 必須明確選 `localePrefix`：
+
+| 策略 | URL 樣式 | 適用場景 |
+|---|---|---|
+| `'always'` | `/zh-Hant/foo`、`/en/foo` 全帶前綴 | console 或任何**不需 SEO** 的後台 app |
+| `'as-needed'` | 預設 locale `/foo`、其他 `/en/foo` | apps/web 等需要 SEO-clean 預設 URL 的 public app |
+
+#### ⚠️ App Router `[locale]` 動態段衝突
+
+`'as-needed'` 在 Next.js App Router 有一個非顯而易見的陷阱：
+
+- App Router 用 `app/[locale]/...` 結構匹配 URL
+- 預設 locale 不帶前綴時（如 `/admin/users`），App Router 會把 `admin` 當作 `[locale]` 的值嘗試匹配
+- `admin` 不在合法 locale 清單裡 → `hasLocale()` 守門失敗 → 404
+
+→ **凡是有 top-level segment（`admin`、`broker`、`api`、`brokers` 等）可能與 locale 字串混淆的 app，必須用 `'always'`**，避免 client-side navigation 觸發 404 或誤匹配。
+
+當前選擇：
+
+- `apps/web` → `'as-needed'`（SEO-clean URL，無 admin/broker 等保留段）
+- `apps/console` → `'always'`（admin / broker top-level，加上 robots disallow-all 不影響 SEO）
+
+### Navigation 強制走 `i18n/navigation`
+
+每個 next-intl app 都會在 `src/i18n/navigation.ts` 用 `createNavigation(routing)` 匯出 locale-aware 的 `Link` / `useRouter` / `usePathname` / `redirect`。所有 client 與 server component 必須從這裡匯入，**不可**從 `next/link` 或 `next/navigation` 直接匯入。
+
+```tsx
+// ❌ 不可
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+
+<Link href={`/${locale}/admin/users`}>...</Link>
+router.replace(`/${locale}`);
+
+// ✅ 應該
+import { Link, useRouter } from '../../i18n/navigation';
+
+<Link href="/admin/users">...</Link>  // locale 由 next-intl 自動處理
+router.replace('/');
+```
+
+理由：
+- 從 `next/*` 匯入的 `Link` 不認識 next-intl 的 `localePrefix` 策略，會把 href 原封不動丟給 router → 跟 middleware 與 App Router 三方打架
+- 硬編碼 `/${locale}/...` 前綴等於繞過 next-intl，當你切換 `localePrefix` 策略（如本次 `as-needed → always`）時會全面壞掉
+- next-intl 的 `Link` 會根據 `routing.localePrefix` 自動加 / 不加前綴
+
 ---
 
 ## 後端錯誤訊息
@@ -239,3 +287,6 @@ new Intl.NumberFormat('zh-Hant', {
 - ❌ 把翻譯結果上鏈
 - ❌ 在 console 不做 i18n（即使是 admin 用，也要遵守規範）
 - ❌ 漏譯欄位（CI 必須檢查 zh-Hant / zh-Hans / en 同步）
+- ❌ 從 `next/link` 或 `next/navigation` 匯入 `Link` / `useRouter`（永遠走 `src/i18n/navigation`）
+- ❌ 在 href 硬編碼 `/${locale}/...` 前綴（next-intl `Link` 會自動處理）
+- ❌ 在有保留 top-level segment（admin / broker 等）的 app 用 `localePrefix: 'as-needed'`（會與 App Router `[locale]` 動態段衝突造成 404）
