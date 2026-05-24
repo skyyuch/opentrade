@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { usePrivy } from '@privy-io/react-auth';
 import {
   CheckCircle,
@@ -711,6 +711,29 @@ function ComplaintsOfficerView({ officer }: { officer: SfcComplaintsOfficer | un
   );
 }
 
+function decodeHtmlEntities(str: string): string {
+  return str
+    .replace(/&ldquo;/g, '\u201C')
+    .replace(/&rdquo;/g, '\u201D')
+    .replace(/&lsquo;/g, '\u2018')
+    .replace(/&rsquo;/g, '\u2019')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&nbsp;/g, ' ');
+}
+
+function useConditionText() {
+  const locale = useLocale();
+  const isZh = locale === 'zh-Hant' || locale === 'zh-Hans';
+  return (c: SfcCondition) => {
+    const raw = isZh && c.textZh ? c.textZh : c.text;
+    return decodeHtmlEntities(raw);
+  };
+}
+
 function ConditionsView({
   sfo,
   amlo,
@@ -719,6 +742,7 @@ function ConditionsView({
   amlo: SfcCondition[] | undefined;
 }) {
   const t = useTranslations('brokerDetail');
+  const getText = useConditionText();
   return (
     <div className="space-y-6">
       <div className="space-y-2">
@@ -740,7 +764,7 @@ function ConditionsView({
                     <td className="p-4 text-white/50 border-r border-white/5">
                       {c.effectiveDate ?? '-'}
                     </td>
-                    <td className="p-4 text-white/80 whitespace-normal">{c.text}</td>
+                    <td className="p-4 text-white/80 whitespace-normal">{getText(c)}</td>
                   </tr>
                 ))
               ) : (
@@ -773,7 +797,7 @@ function ConditionsView({
                     <td className="p-4 text-white/50 border-r border-white/5">
                       {c.effectiveDate ?? '-'}
                     </td>
-                    <td className="p-4 text-white/80 whitespace-normal">{c.text}</td>
+                    <td className="p-4 text-white/80 whitespace-normal">{getText(c)}</td>
                   </tr>
                 ))
               ) : (
@@ -792,6 +816,8 @@ function ConditionsView({
 
 function DisciplinaryView({ actions }: { actions: SfcDisciplinaryAction[] | undefined }) {
   const t = useTranslations('brokerDetail');
+  const locale = useLocale();
+  const isZh = locale === 'zh-Hant' || locale === 'zh-Hans';
   return (
     <div className="space-y-4">
       <div className="overflow-x-auto rounded-xl border border-white/10">
@@ -809,7 +835,7 @@ function DisciplinaryView({ actions }: { actions: SfcDisciplinaryAction[] | unde
                 <tr key={i} className="hover:bg-white/5 transition-colors">
                   <td className="p-4 text-white/80 border-r border-white/5">{a.date ?? '-'}</td>
                   <td className="p-4 text-white/80 border-r border-white/5 whitespace-normal">
-                    {a.description}
+                    {decodeHtmlEntities(isZh && a.descriptionZh ? a.descriptionZh : a.description)}
                   </td>
                   <td className="p-4">
                     {a.url ? (

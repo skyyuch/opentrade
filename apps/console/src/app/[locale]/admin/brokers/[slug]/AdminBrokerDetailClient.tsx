@@ -606,6 +606,9 @@ function SfcGenericTable({
   t: (key: string) => string;
   tabKey: 'conditions' | 'actions' | 'names';
 }) {
+  const loc = useLocale();
+  const isZh = loc === 'zh-Hant' || loc === 'zh-Hans';
+
   if (tabKey === 'conditions') {
     const sfo = sfcData.conditionsSfo ?? [];
     const amlo = sfcData.conditionsAmlo ?? [];
@@ -647,7 +650,9 @@ function SfcGenericTable({
                   <tr key={i} className="transition-colors hover:bg-white/5">
                     <td className="border-r border-white/5 p-4 text-white/80">{a.date ?? '—'}</td>
                     <td className="whitespace-normal border-r border-white/5 p-4 text-white/80">
-                      {a.description}
+                      {decodeHtmlEntities(
+                        isZh && a.descriptionZh ? a.descriptionZh : a.description,
+                      )}
                     </td>
                     <td className="p-4">
                       {a.url ? (
@@ -712,6 +717,20 @@ function SfcGenericTable({
   );
 }
 
+function decodeHtmlEntities(str: string): string {
+  return str
+    .replace(/&ldquo;/g, '\u201C')
+    .replace(/&rdquo;/g, '\u201D')
+    .replace(/&lsquo;/g, '\u2018')
+    .replace(/&rsquo;/g, '\u2019')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&nbsp;/g, ' ');
+}
+
 function ConditionSection({
   title,
   items,
@@ -723,6 +742,8 @@ function ConditionSection({
   t: (key: string) => string;
   emptyLabel?: string;
 }) {
+  const loc = useLocale();
+  const isZh = loc === 'zh-Hant' || loc === 'zh-Hans';
   return (
     <div className="space-y-2">
       <div className="font-bold text-white">{title}</div>
@@ -743,7 +764,9 @@ function ConditionSection({
                   <td className="border-r border-white/5 p-4 text-white/50">
                     {c.effectiveDate ?? '—'}
                   </td>
-                  <td className="whitespace-normal p-4 text-white/80">{c.text}</td>
+                  <td className="whitespace-normal p-4 text-white/80">
+                    {decodeHtmlEntities(isZh && c.textZh ? c.textZh : c.text)}
+                  </td>
                 </tr>
               ))
             ) : (
