@@ -78,6 +78,23 @@ brokersRouter.get('/', async (c) => {
   const items = hasMore ? rows.slice(0, limit) : rows;
   const nextCursor = hasMore ? (items[items.length - 1]?.id ?? null) : null;
 
+  // Per ADR-0025: surface "how many users have been verified for this
+  // broker" as a list-level credibility signal, alongside review count.
+  // Single groupBy across the page keeps cost flat (~1 indexed scan)
+  // even when the page has 50+ brokers.
+  const slugs = items.map((b) => b.slug);
+  const verifiedCounts =
+    slugs.length === 0
+      ? []
+      : await prisma.userVerifiedBroker.groupBy({
+          by: ['brokerSlug'],
+          where: { tenantId: DEFAULT_TENANT_ID, brokerSlug: { in: slugs } },
+          _count: { brokerSlug: true },
+        });
+  const verifiedCountBySlug = new Map(
+    verifiedCounts.map((row) => [row.brokerSlug, row._count.brokerSlug]),
+  );
+
   return c.json({
     brokers: items.map((b) => {
       const reviews = (b as unknown as { reviews: { rating: number }[] }).reviews;
@@ -94,6 +111,7 @@ brokersRouter.get('/', async (c) => {
         isClaimed: b.isClaimed,
         reviewCount,
         positiveRate,
+        verifiedUserCount: verifiedCountBySlug.get(b.slug) ?? 0,
         licenseTypes: (b as unknown as { licenses: { licenseType: string }[] }).licenses.map(
           (l) => l.licenseType,
         ),
@@ -148,6 +166,13 @@ brokersRouter.get('/:slug', async (c) => {
     ? Math.floor((Date.now() - earliestLicense.getTime()) / (365.25 * 24 * 60 * 60 * 1000))
     : null;
 
+  // Per ADR-0025: how many distinct users have been verified for this
+  // broker. Acts as a credibility signal independent of reviewCount —
+  // an unclaimed broker can still rack up trustworthy reviewers.
+  const verifiedUserCount = await prisma.userVerifiedBroker.count({
+    where: { tenantId: DEFAULT_TENANT_ID, brokerSlug: broker.slug },
+  });
+
   const similarBrokers = await prisma.broker.findMany({
     where: {
       tenantId: DEFAULT_TENANT_ID,
@@ -185,6 +210,7 @@ brokersRouter.get('/:slug', async (c) => {
       activeYears,
       reviewCount,
       positiveRate,
+      verifiedUserCount,
       ratingDistribution,
       licenses: broker.licenses.map((l) => ({
         regulator: l.regulator,
