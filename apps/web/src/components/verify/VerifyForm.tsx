@@ -402,16 +402,27 @@ const BrokerCombobox = ({ initialBrokers, locale, value, onChange }: BrokerCombo
   const [remoteBrokers, setRemoteBrokers] = useState<Broker[] | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // Selected broker — search both the cached + initial pools so the label
-  // survives even after the dropdown list changes.
-  const selectedBroker = useMemo(() => {
-    if (!value) return null;
-    return (
-      remoteBrokers?.find((b) => b.slug === value) ??
-      initialBrokers.find((b) => b.slug === value) ??
-      null
-    );
-  }, [value, remoteBrokers, initialBrokers]);
+  // Cache the full Broker record for the currently-selected slug so its label
+  // survives even after remoteBrokers is cleared (which happens when the
+  // search input goes empty after a pick). Without this, picking a broker
+  // that was NOT in the initial 100-broker SSR pool would leave the input
+  // blank because the lookup chain remoteBrokers → initialBrokers fails on
+  // both pools.
+  const [selectedBroker, setSelectedBroker] = useState<Broker | null>(
+    () => initialBrokers.find((b) => b.slug === value) ?? null,
+  );
+
+  // Reconcile the cache when `value` changes from outside (e.g. parent reset).
+  useEffect(() => {
+    if (!value) {
+      setSelectedBroker(null);
+      return;
+    }
+    if (selectedBroker?.slug === value) return;
+    const found =
+      remoteBrokers?.find((b) => b.slug === value) ?? initialBrokers.find((b) => b.slug === value);
+    if (found) setSelectedBroker(found);
+  }, [value, remoteBrokers, initialBrokers, selectedBroker]);
 
   // Click-outside closes the dropdown.
   useEffect(() => {
@@ -479,8 +490,11 @@ const BrokerCombobox = ({ initialBrokers, locale, value, onChange }: BrokerCombo
     );
   }, [remoteBrokers, search, initialBrokers]);
 
-  const handleSelect = (slug: string) => {
-    onChange(slug);
+  const handleSelect = (broker: Broker) => {
+    // Cache the full record first so the input keeps the label even after
+    // setSearch('') triggers setRemoteBrokers(null) below.
+    setSelectedBroker(broker);
+    onChange(broker.slug);
     setOpen(false);
     setSearch('');
     inputRef.current?.blur();
@@ -488,6 +502,7 @@ const BrokerCombobox = ({ initialBrokers, locale, value, onChange }: BrokerCombo
 
   const handleClear = (e: React.MouseEvent) => {
     e.stopPropagation();
+    setSelectedBroker(null);
     onChange('');
     setSearch('');
     setRemoteBrokers(null);
@@ -512,7 +527,10 @@ const BrokerCombobox = ({ initialBrokers, locale, value, onChange }: BrokerCombo
           onChange={(e) => {
             setSearch(e.target.value);
             if (!open) setOpen(true);
-            if (value) onChange('');
+            if (value) {
+              onChange('');
+              setSelectedBroker(null);
+            }
           }}
           onFocus={() => setOpen(true)}
           placeholder={selectedBroker ? '' : t('brokerSearchPlaceholder')}
@@ -554,7 +572,7 @@ const BrokerCombobox = ({ initialBrokers, locale, value, onChange }: BrokerCombo
                   <li key={b.slug}>
                     <button
                       type="button"
-                      onClick={() => handleSelect(b.slug)}
+                      onClick={() => handleSelect(b)}
                       className={`flex w-full items-center justify-between gap-3 px-4 py-2.5 text-left text-sm transition-colors
                         ${selected ? 'bg-[#00FF88]/10 text-[#00FF88]' : 'text-white/80 hover:bg-white/5'}`}
                     >
