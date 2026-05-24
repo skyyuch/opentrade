@@ -18,6 +18,7 @@ import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import bcrypt from 'bcryptjs';
 import { PrismaClient } from '@prisma/client';
 
 import { syncBrokers } from '../src/sfc/sync-brokers.js';
@@ -81,10 +82,38 @@ const seedBrokers = async (): Promise<void> => {
   console.log(`  ✔ licenses: ${result.licensesCreated} created, ${result.licensesRevoked} revoked`);
 };
 
+const seedAdminUser = async (): Promise<void> => {
+  const tenant = await prisma.tenant.findUnique({ where: { code: 'hk' } });
+  if (!tenant) {
+    console.log('  ⚠ Tenant "hk" not found. Skipping admin user seed.');
+    return;
+  }
+
+  const username = 'admin';
+  const passwordHash = await bcrypt.hash('123456', 10);
+  const placeholderPrivyId = 'manual:admin-bootstrap';
+
+  const result = await prisma.user.upsert({
+    where: { username },
+    update: { passwordHash, role: 'ADMIN' },
+    create: {
+      tenantId: tenant.id,
+      privyId: placeholderPrivyId,
+      username,
+      passwordHash,
+      displayName: 'Admin',
+      role: 'ADMIN',
+    },
+  });
+  console.log(`  ✔ admin user username="${username}" id=${result.id} role=${result.role}`);
+};
+
 const main = async (): Promise<void> => {
   console.log('Seeding @opentrade/db...');
   console.log('• Tenants');
   await seedTenants();
+  console.log('• Admin User');
+  await seedAdminUser();
   console.log('• SFC Brokers');
   await seedBrokers();
   console.log('Done.');

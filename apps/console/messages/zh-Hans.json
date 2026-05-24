@@ -18,6 +18,17 @@
     "loginTitle": "商户后台登录",
     "loginSubtitle": "登录后管理你的券商主页及查看链上评论。",
     "loginButton": "登录",
+    "username": "账号",
+    "password": "密码",
+    "loginWithCredentials": "账号密码登录",
+    "orLoginWith": "或使用以下方式",
+    "loginFailed": "账号或密码错误",
+    "usernamePlaceholder": "请输入账号",
+    "passwordPlaceholder": "请输入密码",
+    "merchantLogin": "商户 / 券商登录",
+    "unauthorizedTitle": "无权限访问",
+    "unauthorizedMessage": "本后台仅供管理员及已认领券商的商户使用。如你是券商负责人，请先在用户端完成专页认领后再登录。",
+    "backToLogout": "返回登录页",
     "loggingIn": "登录中…"
   },
   "brokerList": {

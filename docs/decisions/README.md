@@ -112,6 +112,7 @@ YYYY-MM-DD
 | 0021 | ReviewerSBT contract design (Phase 1)                  | Accepted | 2026-05-22 |
 | 0022 | L2 identity verification via commitment-hash (Phase 1) | Accepted | 2026-05-22 |
 | 0023 | UGC translation via DeepL API (Phase 1)                | Accepted | 2026-05-22 |
+| 0024 | Console username/password authentication (Phase 1)     | Accepted | 2026-05-23 |
 
 ---
 

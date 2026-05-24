@@ -7,6 +7,7 @@
  *
  * Endpoints:
  *   POST /exchange    — Privy access token → OpenTrade JWT
+ *   POST /login       — Username/password → OpenTrade JWT (per ADR-0023)
  *   GET  /me          — Current user profile (auth required)
  *   PATCH /me         — Update display name / locale (auth required)
  */
@@ -20,6 +21,8 @@ import { authMiddleware } from '../../../http/middleware/auth.js';
 import { env } from '../../../shared/env.js';
 import { AppError, ErrorCode } from '../../../shared/errors/index.js';
 import { ExchangeTokenUseCase } from '../application/ExchangeTokenUseCase.js';
+import { LoginWithCredentialsUseCase } from '../application/LoginWithCredentialsUseCase.js';
+import { BcryptPasswordHasher } from '../infrastructure/BcryptPasswordHasher.js';
 import { JoseJwtService } from '../infrastructure/JoseJwtService.js';
 import { PrismaUserRepository } from '../infrastructure/PrismaUserRepository.js';
 import { PrivyVerifier } from '../infrastructure/PrivyVerifier.js';
@@ -35,7 +38,9 @@ const privyVerifier = new PrivyVerifier(
 );
 const userRepo = new PrismaUserRepository(prisma);
 const jwtService = new JoseJwtService(env.JWT_PRIVATE_KEY_PEM, env.JWT_PUBLIC_KEY_PEM);
+const passwordHasher = new BcryptPasswordHasher();
 const exchangeToken = new ExchangeTokenUseCase(privyVerifier, userRepo, jwtService);
+const loginWithCredentials = new LoginWithCredentialsUseCase(userRepo, jwtService, passwordHasher);
 
 const exchangeBodySchema = z.object({
   accessToken: z.string().min(1, 'accessToken is required'),
@@ -71,6 +76,37 @@ identityRouter.post('/exchange', async (c) => {
   const result = await exchangeToken.execute({
     privyAccessToken: parsed.data.accessToken,
     tenantId: DEFAULT_TENANT_ID,
+  });
+
+  return c.json({
+    accessToken: result.accessToken,
+    expiresIn: result.expiresIn,
+    userId: result.userId,
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Username/password login (per ADR-0023)
+// ---------------------------------------------------------------------------
+
+const loginBodySchema = z.object({
+  username: z.string().min(1, 'username is required'),
+  password: z.string().min(1, 'password is required'),
+});
+
+identityRouter.post('/login', async (c) => {
+  const body: unknown = await c.req.json();
+  const parsed = loginBodySchema.safeParse(body);
+
+  if (!parsed.success) {
+    throw new AppError(ErrorCode.VALIDATION_ERROR, 'Invalid request body', 400, {
+      details: { issues: parsed.error.issues },
+    });
+  }
+
+  const result = await loginWithCredentials.execute({
+    username: parsed.data.username,
+    password: parsed.data.password,
   });
 
   return c.json({

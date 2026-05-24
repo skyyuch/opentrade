@@ -38,6 +38,8 @@ import { getMessages, getTranslations } from 'next-intl/server';
 import { AuthGate } from '../../components/layout/AuthGate';
 import { ThemeProvider } from '../../components/providers/ThemeProvider';
 import { Web3Providers } from '../../components/providers/Web3Providers';
+import { CurrentUserProvider } from '../../hooks/useCurrentUser';
+import { OpenTradeAuthProvider } from '../../hooks/useOpenTradeAuth';
 import { routing } from '../../i18n/routing';
 
 import type { Metadata } from 'next';
@@ -80,9 +82,13 @@ const LocaleLayout = async ({ children, params }: Props): Promise<ReactNode> => 
       <body className={`${inter.className} min-h-screen bg-[#050608] text-white antialiased`}>
         <ThemeProvider>
           <NextIntlClientProvider locale={locale} messages={messages}>
-            <Web3Providers>
-              <AuthGate locale={locale}>{children}</AuthGate>
-            </Web3Providers>
+            <OpenTradeAuthProvider>
+              <CurrentUserProvider>
+                <Web3Providers>
+                  <AuthGate locale={locale}>{children}</AuthGate>
+                </Web3Providers>
+              </CurrentUserProvider>
+            </OpenTradeAuthProvider>
           </NextIntlClientProvider>
         </ThemeProvider>
       </body>

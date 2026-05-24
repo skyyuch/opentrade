@@ -191,6 +191,12 @@ export type ExchangeTokenResponse = {
 export const exchangeAuthToken = (privyToken: string): Promise<ExchangeTokenResponse> =>
   apiPost<ExchangeTokenResponse>('/v1/auth/exchange', { accessToken: privyToken });
 
+export const loginWithCredentials = (
+  username: string,
+  password: string,
+): Promise<ExchangeTokenResponse> =>
+  apiPost<ExchangeTokenResponse>('/v1/auth/login', { username, password });
+
 export const apiGet = async <T>(path: string, options: FetchOptions = {}): Promise<T> => {
   const url = `${env.NEXT_PUBLIC_API_URL}${path}`;
 

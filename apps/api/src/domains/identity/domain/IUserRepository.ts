@@ -25,6 +25,7 @@ export type IUserRepository = {
   upsertByPrivyId(input: UpsertUserInput): Promise<User>;
   findById(id: string): Promise<User | null>;
   findByPrivyId(tenantId: string, privyId: string): Promise<User | null>;
+  findByUsername(username: string): Promise<User | null>;
   updateRole(id: string, role: UserRole): Promise<User>;
   updateSbtTier(id: string, sbtTier: SbtTier): Promise<User>;
   updateProfile(id: string, input: UpdateProfileInput): Promise<User>;

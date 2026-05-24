@@ -18,6 +18,17 @@
     "loginTitle": "Merchant console login",
     "loginSubtitle": "Log in to manage your broker profile and view on-chain reviews.",
     "loginButton": "Log in",
+    "username": "Username",
+    "password": "Password",
+    "loginWithCredentials": "Sign in",
+    "orLoginWith": "Or continue with",
+    "loginFailed": "Invalid username or password",
+    "usernamePlaceholder": "Enter username",
+    "passwordPlaceholder": "Enter password",
+    "merchantLogin": "Merchant / Broker login",
+    "unauthorizedTitle": "Access Denied",
+    "unauthorizedMessage": "This console is for administrators and verified broker owners only. If you are a broker representative, please claim your broker page in the user portal first.",
+    "backToLogout": "Back to login",
     "loggingIn": "Logging in…"
   },
   "brokerList": {

@@ -31,6 +31,8 @@ export const ErrorCode = {
   RATE_LIMIT_EXCEEDED: 'RATE_LIMIT_EXCEEDED',
   /** Resource conflict (duplicate, already exists); surfaced as 409. */
   CONFLICT: 'CONFLICT',
+  /** Username/password login failed (wrong credentials); surfaced as 401. */
+  INVALID_CREDENTIALS: 'INVALID_CREDENTIALS',
 } as const;
 
 export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode];

@@ -1,23 +1,29 @@
 /**
  * Auth gate for the merchant console — role-based layout.
  *
- * After authentication, determines what sidebar nav to show based on
- * the user's role (admin vs broker owner vs regular user).
- * UI design by Google — dark theme with atmospheric glows.
+ * Supports two auth paths (per ADR-0024):
+ *   1. Username/password login (primary for admin) — NO Privy dependency
+ *   2. Privy social/wallet login (for broker owners) — isolated component
+ *
+ * This component does NOT call usePrivy() directly. All Privy hooks are
+ * isolated in PrivyLoginButton, wrapped in PrivyErrorBoundary, so that
+ * credential login always works even when Privy is unavailable.
  */
 
 'use client';
 
-import { usePrivy } from '@privy-io/react-auth';
 import {
   Activity,
   BadgeCheck,
   Building2,
+  Eye,
+  EyeOff,
   Fingerprint,
   LayoutGrid,
   LogOut,
   MessageSquareText,
   Settings,
+  ShieldAlert,
   Shield,
   Star,
   Store,
@@ -25,13 +31,18 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
+import { useState } from 'react';
 import { usePathname } from '../../i18n/navigation';
 
 import { useCurrentUser } from '../../hooks/useCurrentUser';
+import { useOpenTradeAuth } from '../../hooks/useOpenTradeAuth';
+import { loginWithCredentials } from '../../lib/api/client';
+import { PrivyLoginButton } from '../auth/PrivyLoginButton';
+import { PrivyErrorBoundary } from '../providers/PrivyErrorBoundary';
 
 import { LocaleSwitcher } from './LocaleSwitcher';
 
-import type { ReactNode } from 'react';
+import type { FormEvent, ReactNode } from 'react';
 
 type Props = {
   children: ReactNode;
@@ -47,12 +58,35 @@ type NavItem = {
 };
 
 export const AuthGate = ({ children, locale }: Props): ReactNode => {
-  const { ready, authenticated, login, logout } = usePrivy();
+  const { isAuthenticated, setToken, clearToken, hydrated } = useOpenTradeAuth();
   const { user, isAdmin, isBrokerOwner, claimedBroker, isLoading } = useCurrentUser();
   const t = useTranslations();
   const localePath = usePathname();
 
-  if (!ready || (authenticated && isLoading)) {
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [loginError, setLoginError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleCredentialLogin = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!username.trim() || !password.trim()) return;
+
+    setIsSubmitting(true);
+    setLoginError('');
+
+    try {
+      const res = await loginWithCredentials(username.trim(), password);
+      setToken(res.accessToken, res.userId, res.expiresIn, 'manual');
+    } catch {
+      setLoginError(t('auth.loginFailed'));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  if (!hydrated || (isAuthenticated && isLoading)) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#050608]">
         <div className="size-6 animate-spin rounded-full border-2 border-white/20 border-t-[#00FF88]" />
@@ -60,24 +94,108 @@ export const AuthGate = ({ children, locale }: Props): ReactNode => {
     );
   }
 
-  if (!authenticated) {
+  if (!isAuthenticated) {
     return (
       <div className="relative flex min-h-screen flex-col items-center justify-center bg-[#050608] px-4 text-white overflow-hidden">
         <div className="fixed right-[-5%] top-[-10%] h-[600px] w-[600px] rounded-full bg-[#00FF88]/10 blur-[120px] pointer-events-none" />
         <div className="fixed bottom-[-10%] left-[-5%] h-[500px] w-[500px] rounded-full bg-blue-600/10 blur-[100px] pointer-events-none" />
 
-        <div className="relative z-10 flex flex-col items-center gap-6 text-center">
+        <div className="relative z-10 flex flex-col items-center gap-6 text-center w-full max-w-sm">
           <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white/5 border border-white/10">
             <Shield className="size-8 text-[#00FF88]" aria-hidden />
           </div>
           <h1 className="text-2xl font-bold tracking-tight">{t('auth.loginTitle')}</h1>
           <p className="max-w-md text-sm text-white/50">{t('auth.loginSubtitle')}</p>
+
+          {/* Credential login form — no Privy dependency */}
+          <form
+            onSubmit={(e) => void handleCredentialLogin(e)}
+            className="flex w-full flex-col gap-3"
+          >
+            <div>
+              <label htmlFor="username" className="mb-1 block text-left text-xs text-white/50">
+                {t('auth.username')}
+              </label>
+              <input
+                id="username"
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder={t('auth.usernamePlaceholder')}
+                autoComplete="username"
+                className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white placeholder-white/30 outline-none transition-colors focus:border-[#00FF88]/50 focus:ring-1 focus:ring-[#00FF88]/30"
+              />
+            </div>
+            <div>
+              <label htmlFor="password" className="mb-1 block text-left text-xs text-white/50">
+                {t('auth.password')}
+              </label>
+              <div className="relative">
+                <input
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder={t('auth.passwordPlaceholder')}
+                  autoComplete="current-password"
+                  className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-2.5 pr-10 text-sm text-white placeholder-white/30 outline-none transition-colors focus:border-[#00FF88]/50 focus:ring-1 focus:ring-[#00FF88]/30"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60"
+                  tabIndex={-1}
+                >
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+            </div>
+
+            {loginError ? <p className="text-xs text-red-400">{loginError}</p> : null}
+
+            <button
+              type="submit"
+              disabled={isSubmitting || !username.trim() || !password.trim()}
+              className="rounded-lg bg-[#00FF88] px-6 py-2.5 text-sm font-bold text-[#050608] transition-all hover:bg-[#00FF88]/90 hover:shadow-lg hover:shadow-[#00FF88]/20 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {isSubmitting ? (
+                <span className="flex items-center justify-center gap-2">
+                  <span className="size-4 animate-spin rounded-full border-2 border-[#050608]/20 border-t-[#050608]" />
+                </span>
+              ) : (
+                t('auth.loginWithCredentials')
+              )}
+            </button>
+          </form>
+
+          {/* Privy login — isolated with error boundary */}
+          <PrivyErrorBoundary fallback={null}>
+            <PrivyLoginButton />
+          </PrivyErrorBoundary>
+        </div>
+      </div>
+    );
+  }
+
+  const hasConsoleAccess = isAdmin || isBrokerOwner;
+
+  if (!hasConsoleAccess) {
+    return (
+      <div className="relative flex min-h-screen flex-col items-center justify-center bg-[#050608] px-4 text-white overflow-hidden">
+        <div className="fixed right-[-5%] top-[-10%] h-[600px] w-[600px] rounded-full bg-red-500/5 blur-[120px] pointer-events-none" />
+
+        <div className="relative z-10 flex flex-col items-center gap-6 text-center w-full max-w-md">
+          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-red-500/10 border border-red-500/20">
+            <ShieldAlert className="size-8 text-red-400" aria-hidden />
+          </div>
+          <h1 className="text-2xl font-bold tracking-tight">{t('auth.unauthorizedTitle')}</h1>
+          <p className="text-sm text-white/50 leading-relaxed">{t('auth.unauthorizedMessage')}</p>
           <button
             type="button"
-            onClick={() => void login()}
-            className="rounded-lg bg-[#00FF88] px-6 py-2.5 text-sm font-bold text-[#050608] transition-all hover:bg-[#00FF88]/90 hover:shadow-lg hover:shadow-[#00FF88]/20"
+            onClick={clearToken}
+            className="rounded-lg border border-white/10 bg-white/5 px-6 py-2.5 text-sm font-medium text-white transition-all hover:bg-white/10"
           >
-            {t('auth.loginButton')}
+            {t('auth.backToLogout')}
           </button>
         </div>
       </div>
@@ -147,11 +265,6 @@ export const AuthGate = ({ children, locale }: Props): ReactNode => {
     },
   ];
 
-  const defaultNav: NavItem[] = [
-    { href: `/${locale}`, path: '/', icon: LayoutGrid, label: t('nav.dashboard'), end: true },
-    { href: `/${locale}/brokers`, path: '/brokers', icon: Building2, label: t('nav.brokers') },
-  ];
-
   let navItems: NavItem[];
   let accentColor: string;
   let roleBadge: { text: string; color: string };
@@ -160,14 +273,10 @@ export const AuthGate = ({ children, locale }: Props): ReactNode => {
     navItems = adminNav;
     accentColor = '#00FF88';
     roleBadge = { text: 'ADMIN', color: 'bg-[#00FF88]/20 text-[#00FF88]' };
-  } else if (isBrokerOwner) {
+  } else {
     navItems = brokerNav;
     accentColor = '#3b82f6';
     roleBadge = { text: 'BROKER', color: 'bg-blue-500/20 text-blue-400' };
-  } else {
-    navItems = defaultNav;
-    accentColor = '#00FF88';
-    roleBadge = { text: 'USER', color: 'bg-white/10 text-white/70' };
   }
 
   const displayName = user?.displayName ?? user?.walletAddress?.slice(0, 8) ?? '';
@@ -224,7 +333,7 @@ export const AuthGate = ({ children, locale }: Props): ReactNode => {
           </Link>
           <button
             type="button"
-            onClick={() => void logout()}
+            onClick={clearToken}
             className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-white/50 transition-colors hover:bg-white/5 hover:text-white"
           >
             <LogOut size={20} aria-hidden />

@@ -48,6 +48,10 @@ export class PrismaUserRepository implements IUserRepository {
     });
   }
 
+  async findByUsername(username: string): Promise<User | null> {
+    return this.prisma.user.findUnique({ where: { username } });
+  }
+
   async updateRole(id: string, role: UserRole): Promise<User> {
     return this.prisma.user.update({ where: { id }, data: { role } });
   }

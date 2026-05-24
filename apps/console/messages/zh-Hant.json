@@ -18,7 +18,18 @@
     "loginTitle": "商戶後台登入",
     "loginSubtitle": "登入後管理你的證券商專頁及查看鏈上評論。",
     "loginButton": "登入",
-    "loggingIn": "登入中…"
+    "username": "帳號",
+    "password": "密碼",
+    "loginWithCredentials": "帳號密碼登入",
+    "orLoginWith": "或使用以下方式",
+    "loginFailed": "帳號或密碼錯誤",
+    "usernamePlaceholder": "請輸入帳號",
+    "passwordPlaceholder": "請輸入密碼",
+    "loggingIn": "登入中…",
+    "merchantLogin": "商戶 / 券商登入",
+    "unauthorizedTitle": "無權限訪問",
+    "unauthorizedMessage": "本後台僅供管理員及已認領券商的商戶使用。如你是券商負責人，請先在用戶端完成專頁認領後再登入。",
+    "backToLogout": "返回登入頁"
   },
   "brokerList": {
     "title": "證券商列表",
