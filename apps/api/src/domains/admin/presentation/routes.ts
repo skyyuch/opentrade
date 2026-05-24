@@ -162,7 +162,9 @@ adminRouter.get('/users', authMiddleware('admin'), async (c) => {
         const meta = nameMap.get(b.brokerSlug);
         return {
           brokerSlug: b.brokerSlug,
+          // Per ADR-0026: ship all three name columns (TC + SC + EN).
           displayName: meta?.displayName ?? b.brokerSlug,
+          displayNameZhHans: meta?.displayNameZhHans ?? null,
           legalName: meta?.legalName ?? null,
           approvedAt: b.approvedAt.toISOString(),
         };
@@ -187,17 +189,27 @@ adminRouter.get('/users/:id', authMiddleware('admin'), async (c) => {
     throw new AppError(ErrorCode.NOT_FOUND, 'User not found', 404);
   }
 
-  // Per cursor rule 51: every broker reference shipped here MUST carry
-  // both `displayName` (Chinese) and `legalName` (English). Reviews +
-  // claims already join the broker row, so we just widen their `select`;
-  // the verifications + verifiedBrokers lists hold raw slugs and need
-  // a `hydrateBrokerNames` round-trip.
+  // Per cursor rule 51 + ADR-0026: every broker reference shipped here
+  // MUST carry all three name columns — `displayName` (Traditional),
+  // `displayNameZhHans` (Simplified), and `legalName` (English). Reviews
+  // + claims already join the broker row, so we just widen their
+  // `select`; the verifications + verifiedBrokers lists hold raw slugs
+  // and need a `hydrateBrokerNames` round-trip.
   const [reviews, verifications, claims, verifiedBrokers] = await Promise.all([
     prisma.review.findMany({
       where: { userId: id, tenantId: DEFAULT_TENANT_ID, deletedAt: null },
       orderBy: { createdAt: 'desc' },
       take: 10,
-      include: { broker: { select: { slug: true, displayName: true, legalName: true } } },
+      include: {
+        broker: {
+          select: {
+            slug: true,
+            displayName: true,
+            displayNameZhHans: true,
+            legalName: true,
+          },
+        },
+      },
     }),
     prisma.sbtVerificationRequest.findMany({
       where: { userId: id, tenantId: DEFAULT_TENANT_ID },
@@ -208,7 +220,16 @@ adminRouter.get('/users/:id', authMiddleware('admin'), async (c) => {
       where: { userId: id, tenantId: DEFAULT_TENANT_ID },
       orderBy: { createdAt: 'desc' },
       take: 5,
-      include: { broker: { select: { slug: true, displayName: true, legalName: true } } },
+      include: {
+        broker: {
+          select: {
+            slug: true,
+            displayName: true,
+            displayNameZhHans: true,
+            legalName: true,
+          },
+        },
+      },
     }),
     // Per ADR-0025: complement the verifications history (which mixes
     // PENDING/REJECTED rows) with the canonical APPROVED ledger so the
@@ -251,7 +272,9 @@ adminRouter.get('/users/:id', authMiddleware('admin'), async (c) => {
       return {
         id: v.id,
         brokerSlug: v.brokerSlug,
+        // Per ADR-0026: ship all three name columns (TC + SC + EN).
         brokerDisplayName: meta?.displayName ?? v.brokerSlug,
+        brokerDisplayNameZhHans: meta?.displayNameZhHans ?? null,
         brokerLegalName: meta?.legalName ?? null,
         status: v.status,
         createdAt: v.createdAt.toISOString(),
@@ -267,7 +290,9 @@ adminRouter.get('/users/:id', authMiddleware('admin'), async (c) => {
       const meta = nameMap.get(b.brokerSlug);
       return {
         brokerSlug: b.brokerSlug,
+        // Per ADR-0026: ship all three name columns (TC + SC + EN).
         displayName: meta?.displayName ?? b.brokerSlug,
+        displayNameZhHans: meta?.displayNameZhHans ?? null,
         legalName: meta?.legalName ?? null,
         approvedAt: b.approvedAt.toISOString(),
       };
@@ -438,7 +463,9 @@ adminRouter.get('/reviews', authMiddleware('admin'), async (c) => {
     orderBy: [{ createdAt: 'desc' as const }],
     take: limit + 1,
     include: {
-      broker: { select: { slug: true, displayName: true, legalName: true } },
+      broker: {
+        select: { slug: true, displayName: true, displayNameZhHans: true, legalName: true },
+      },
       user: { select: { id: true, displayName: true } },
     },
   };
@@ -465,11 +492,17 @@ adminRouter.get('/reviews', authMiddleware('admin'), async (c) => {
       ipfsCid: r.ipfsCid,
       contentHash: r.contentHash,
       chainReviewId: r.chainReviewId,
-      // Per cursor rule 51: broker reference ships both name columns so
-      // the console can render in the admin's locale.
+      // Per cursor rule 51 + ADR-0026: broker reference ships all three
+      // name columns (TC + SC + EN) so the console can render in the
+      // admin's locale.
       broker: (
         r as unknown as {
-          broker: { slug: string; displayName: string; legalName: string | null };
+          broker: {
+            slug: string;
+            displayName: string;
+            displayNameZhHans: string | null;
+            legalName: string | null;
+          };
         }
       ).broker,
       author: (r as unknown as { user: { id: string; displayName: string | null } }).user,

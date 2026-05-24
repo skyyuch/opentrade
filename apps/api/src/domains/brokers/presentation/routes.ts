@@ -105,7 +105,11 @@ brokersRouter.get('/', async (c) => {
       return {
         id: b.id,
         slug: b.slug,
+        // Per ADR-0026: ship three name columns (TC + SC + EN) so the
+        // consumer can render in the reader's locale via
+        // localizedBrokerName() from @opentrade/shared.
         displayName: b.displayName,
+        displayNameZhHans: b.displayNameZhHans,
         legalName: b.legalName,
         logoUrl: b.logoUrl,
         isClaimed: b.isClaimed,
@@ -197,7 +201,9 @@ brokersRouter.get('/:slug', async (c) => {
     broker: {
       id: broker.id,
       slug: broker.slug,
+      // Per ADR-0026: ship three name columns (TC + SC + EN).
       displayName: broker.displayName,
+      displayNameZhHans: broker.displayNameZhHans,
       legalName: broker.legalName,
       ceNumber: broker.ceNumber,
       description: broker.description,
@@ -222,11 +228,13 @@ brokersRouter.get('/:slug', async (c) => {
       similarBrokers: similarBrokers.map((sb) => ({
         id: sb.id,
         slug: sb.slug,
-        // Per cursor rule 51: every broker reference ships both name
-        // columns so the consumer can render in the reader's locale.
-        // The previous shape (displayName-only) made the right-rail
-        // "similar brokers" list show Chinese names in `en` mode.
+        // Per cursor rule 51 + ADR-0026: every broker reference ships
+        // three name columns (TC + SC + EN) so the consumer can render
+        // in the reader's locale. The previous shape (displayName-only)
+        // made the right-rail "similar brokers" list show Traditional
+        // Chinese names in `en` and `zh-Hans` modes.
         displayName: sb.displayName,
+        displayNameZhHans: sb.displayNameZhHans,
         legalName: sb.legalName,
         logoUrl: sb.logoUrl,
         licenseTypes: sb.licenses.map((l) => l.licenseType),
@@ -510,9 +518,18 @@ brokersRouter.get('/admin/claims', authMiddleware('admin'), async (c) => {
       status: status as 'PENDING' | 'APPROVED' | 'REJECTED',
     },
     include: {
-      // Per cursor rule 51: ship both broker name columns so the admin
-      // claims table can render in the operator's locale.
-      broker: { select: { id: true, slug: true, displayName: true, legalName: true } },
+      // Per cursor rule 51 + ADR-0026: ship all three broker name
+      // columns (TC + SC + EN) so the admin claims table can render
+      // in the operator's locale.
+      broker: {
+        select: {
+          id: true,
+          slug: true,
+          displayName: true,
+          displayNameZhHans: true,
+          legalName: true,
+        },
+      },
     },
     orderBy: { createdAt: 'asc' },
     take: 50,

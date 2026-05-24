@@ -206,7 +206,9 @@ reviewsRouter.get('/broker/:slug', async (c) => {
               const meta = verifiedNameMap.get(b.brokerSlug);
               return {
                 brokerSlug: b.brokerSlug,
+                // Per ADR-0026: ship all three name columns (TC + SC + EN).
                 displayName: meta?.displayName ?? b.brokerSlug,
+                displayNameZhHans: meta?.displayNameZhHans ?? null,
                 legalName: meta?.legalName ?? null,
               };
             }) ?? [],
@@ -217,11 +219,12 @@ reviewsRouter.get('/broker/:slug', async (c) => {
     broker: {
       id: broker.id,
       slug: broker.slug,
-      // Per cursor rule 51: ship both name columns; broker detail page
-      // already does, but the reviews-by-broker payload was missing
-      // legalName, leaving the SubmitReviewCta + similar surfaces
-      // locale-blind.
+      // Per cursor rule 51 + ADR-0026: ship all three name columns
+      // (TC + SC + EN); the broker detail page already does, but the
+      // reviews-by-broker payload was missing legalName until the
+      // i18n hardening session, and is now extended to zh-Hans.
       displayName: broker.displayName,
+      displayNameZhHans: broker.displayNameZhHans,
       legalName: broker.legalName,
       logoUrl: broker.logoUrl,
     },

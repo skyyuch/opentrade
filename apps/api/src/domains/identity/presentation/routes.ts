@@ -129,11 +129,10 @@ identityRouter.get('/me', authMiddleware('user'), async (c) => {
 
   const claimedBroker = await prisma.broker.findFirst({
     where: { claimedByUserId: userId, tenantId, deletedAt: null },
-    // Per cursor rule 51: any broker meta crossing the API boundary MUST
-    // ship both name columns so the consumer can pick by locale via
-    // `localizedBrokerName()`. Sending only `displayName` (Chinese) leaks
-    // English-locale users into Chinese names.
-    select: { slug: true, displayName: true, legalName: true },
+    // Per cursor rule 51 + ADR-0026: any broker meta crossing the API
+    // boundary MUST ship all three name columns (TC + SC + EN) so the
+    // consumer can pick by locale via `localizedBrokerName()`.
+    select: { slug: true, displayName: true, displayNameZhHans: true, legalName: true },
   });
 
   return c.json({
@@ -152,6 +151,7 @@ identityRouter.get('/me', authMiddleware('user'), async (c) => {
       ? {
           slug: claimedBroker.slug,
           displayName: claimedBroker.displayName,
+          displayNameZhHans: claimedBroker.displayNameZhHans,
           legalName: claimedBroker.legalName,
         }
       : null,
@@ -340,7 +340,9 @@ identityRouter.get('/verification-status', authMiddleware('user'), async (c) => 
       return {
         id: r.id,
         brokerSlug: r.brokerSlug,
+        // Per ADR-0026: ship all three name columns (TC + SC + EN).
         brokerDisplayName: meta?.displayName ?? r.brokerSlug,
+        brokerDisplayNameZhHans: meta?.displayNameZhHans ?? null,
         brokerLegalName: meta?.legalName ?? null,
         commitment: r.commitment,
         status: r.status,
@@ -353,7 +355,9 @@ identityRouter.get('/verification-status', authMiddleware('user'), async (c) => 
       const meta = nameMap.get(b.brokerSlug);
       return {
         brokerSlug: b.brokerSlug,
+        // Per ADR-0026: ship all three name columns (TC + SC + EN).
         displayName: meta?.displayName ?? b.brokerSlug,
+        displayNameZhHans: meta?.displayNameZhHans ?? null,
         legalName: meta?.legalName ?? null,
         approvedAt: b.approvedAt.toISOString(),
       };
@@ -418,14 +422,18 @@ identityRouter.get('/admin/verifications', authMiddleware('admin'), async (c) =>
             const meta = nameMap.get(b.brokerSlug);
             return {
               brokerSlug: b.brokerSlug,
+              // Per ADR-0026: ship all three name columns (TC + SC + EN).
               displayName: meta?.displayName ?? b.brokerSlug,
+              displayNameZhHans: meta?.displayNameZhHans ?? null,
               legalName: meta?.legalName ?? null,
               approvedAt: b.approvedAt.toISOString(),
             };
           }),
         },
         brokerSlug: r.brokerSlug,
+        // Per ADR-0026: ship all three name columns (TC + SC + EN).
         brokerDisplayName: requestMeta?.displayName ?? r.brokerSlug,
+        brokerDisplayNameZhHans: requestMeta?.displayNameZhHans ?? null,
         brokerLegalName: requestMeta?.legalName ?? null,
         commitment: r.commitment,
         evidenceIpfsCid: r.evidenceIpfsCid,
