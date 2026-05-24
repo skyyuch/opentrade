@@ -19,22 +19,31 @@ import {
   Check,
   CheckCircle2,
   ChevronDown,
+  Clock,
   FileText,
   Fingerprint,
   Lock,
+  RefreshCw,
   Search,
   Shield,
   Upload,
   X,
+  XCircle,
 } from 'lucide-react';
-import { useLocale, useTranslations } from 'next-intl';
+import { useFormatter, useLocale, useTranslations } from 'next-intl';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { encodePacked, keccak256 } from 'viem';
 
 import { useOpenTradeAuth } from '../../hooks/useOpenTradeAuth';
-import { apiPost, fetchBrokers, fetchMyProfile, uploadVerifyEvidence } from '../../lib/api/client';
+import {
+  apiPost,
+  fetchBrokers,
+  fetchMyProfile,
+  fetchVerificationStatus,
+  uploadVerifyEvidence,
+} from '../../lib/api/client';
 
-import type { UserProfile } from '../../lib/api/client';
+import type { UserProfile, VerificationStatusItem } from '../../lib/api/client';
 import type { DragEvent as ReactDragEvent, FormEvent } from 'react';
 
 const ALLOWED_MIME = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
@@ -53,6 +62,8 @@ type VerifyFormProps = {
 type UploadedFile = {
   file: File;
   cid: string;
+  /** Local object URL for image thumbnail preview. Null for non-image files. */
+  previewUrl: string | null;
 };
 
 /** Locale-aware broker label.
@@ -63,6 +74,13 @@ type UploadedFile = {
 const localizedBrokerName = (b: Broker, locale: string): string =>
   locale === 'en' ? b.legalName : b.displayName;
 
+const brokerNameForSlug = (brokers: Broker[], slug: string, locale: string): string => {
+  const found = brokers.find((b) => b.slug === slug);
+  return found ? localizedBrokerName(found, locale) : slug;
+};
+
+type ViewMode = 'loading' | 'idle' | 'pending' | 'rejected' | 'approved';
+
 export const VerifyForm = ({ brokers }: VerifyFormProps) => {
   const t = useTranslations('verify');
   const locale = useLocale();
@@ -71,6 +89,8 @@ export const VerifyForm = ({ brokers }: VerifyFormProps) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [latestVerification, setLatestVerification] = useState<VerificationStatusItem | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>('loading');
   const [brokerSlug, setBrokerSlug] = useState('');
   const [uploaded, setUploaded] = useState<UploadedFile | null>(null);
   const [commitment, setCommitment] = useState('');
@@ -78,21 +98,45 @@ export const VerifyForm = ({ brokers }: VerifyFormProps) => {
   const [isComputing, setIsComputing] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!authenticated) return undefined;
+    if (!authenticated) {
+      setViewMode('idle');
+      return undefined;
+    }
     const controller = new AbortController();
+    setViewMode('loading');
     const load = async () => {
       const token = await getAccessToken();
       if (!token || controller.signal.aborted) return;
-      try {
-        const res = await fetchMyProfile({ accessToken: token, signal: controller.signal });
-        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- signal.aborted may flip during await
-        if (!controller.signal.aborted) setProfile(res.user);
-      } catch {
-        /* swallow — user may not have profile yet */
+
+      const profilePromise = fetchMyProfile({
+        accessToken: token,
+        signal: controller.signal,
+      }).catch(() => null);
+      const statusPromise = fetchVerificationStatus({
+        accessToken: token,
+        signal: controller.signal,
+      }).catch(() => null);
+
+      const [profileRes, statusRes] = await Promise.all([profilePromise, statusPromise]);
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- signal.aborted may flip during await
+      if (controller.signal.aborted) return;
+
+      if (profileRes) setProfile(profileRes.user);
+
+      const latest = statusRes?.verifications[0] ?? null;
+      setLatestVerification(latest);
+
+      if (latest?.status === 'APPROVED' || profileRes?.user.sbtTier === 'L2') {
+        setViewMode('approved');
+      } else if (latest?.status === 'PENDING') {
+        setViewMode('pending');
+      } else if (latest?.status === 'REJECTED') {
+        setViewMode('rejected');
+      } else {
+        setViewMode('idle');
       }
     };
     void load();
@@ -121,7 +165,13 @@ export const VerifyForm = ({ brokers }: VerifyFormProps) => {
         const token = await getAccessToken();
         if (!token) throw new Error('Not authenticated');
         const res = await uploadVerifyEvidence(selectedFile, { accessToken: token });
-        setUploaded({ file: selectedFile, cid: res.cid });
+        const previewUrl = selectedFile.type.startsWith('image/')
+          ? URL.createObjectURL(selectedFile)
+          : null;
+        setUploaded((prev) => {
+          if (prev?.previewUrl) URL.revokeObjectURL(prev.previewUrl);
+          return { file: selectedFile, cid: res.cid, previewUrl };
+        });
       } catch {
         setError(t('uploadFailed'));
       } finally {
@@ -130,6 +180,13 @@ export const VerifyForm = ({ brokers }: VerifyFormProps) => {
     },
     [getAccessToken, t],
   );
+
+  // Revoke each preview URL when it's replaced or on unmount, to avoid memory leaks.
+  useEffect(() => {
+    const url = uploaded?.previewUrl;
+    if (!url) return undefined;
+    return () => URL.revokeObjectURL(url);
+  }, [uploaded?.previewUrl]);
 
   const handleDragOver = (e: ReactDragEvent) => {
     e.preventDefault();
@@ -149,6 +206,7 @@ export const VerifyForm = ({ brokers }: VerifyFormProps) => {
   };
 
   const handleRemoveFile = () => {
+    if (uploaded?.previewUrl) URL.revokeObjectURL(uploaded.previewUrl);
     setUploaded(null);
     setCommitment('');
     if (fileInputRef.current) fileInputRef.current.value = '';
@@ -186,15 +244,39 @@ export const VerifyForm = ({ brokers }: VerifyFormProps) => {
       if (!token) throw new Error('Not authenticated');
       await apiPost(
         '/v1/auth/verify-broker',
-        { brokerSlug, commitment, evidenceIpfsCid: uploaded.cid },
+        {
+          brokerSlug,
+          commitment,
+          evidenceIpfsCid: uploaded.cid,
+          evidenceMimeType: uploaded.file.type,
+        },
         { accessToken: token },
       );
-      setSuccess(true);
+      setLatestVerification({
+        id: 'pending-local',
+        brokerSlug,
+        commitment,
+        status: 'PENDING',
+        adminNote: null,
+        createdAt: new Date().toISOString(),
+        reviewedAt: null,
+      });
+      setViewMode('pending');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleRetry = () => {
+    if (uploaded?.previewUrl) URL.revokeObjectURL(uploaded.previewUrl);
+    setBrokerSlug('');
+    setUploaded(null);
+    setCommitment('');
+    setError(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+    setViewMode('idle');
   };
 
   // -------------------------------------------------------------------------
@@ -216,15 +298,35 @@ export const VerifyForm = ({ brokers }: VerifyFormProps) => {
     );
   }
 
-  if (success) {
+  if (viewMode === 'loading') {
     return (
-      <div className="flex flex-col items-center gap-4 rounded-2xl border border-[#00FF88]/30 bg-[#00FF88]/5 p-10 text-center">
-        <div className="flex size-14 items-center justify-center rounded-full bg-[#00FF88]/15">
-          <CheckCircle2 className="size-7 text-[#00FF88]" />
-        </div>
-        <h3 className="text-xl font-bold">{t('successTitle')}</h3>
-        <p className="max-w-md text-sm text-white/60">{t('successMessage')}</p>
+      <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-10 text-center">
+        <div className="size-6 animate-spin rounded-full border-2 border-white/20 border-t-[#00FF88]" />
+        <p className="text-sm text-white/50">{t('loadingStatus')}</p>
       </div>
+    );
+  }
+
+  if (viewMode === 'approved') {
+    return <VerifyAlreadyVerifiedCard />;
+  }
+
+  if (viewMode === 'pending' && latestVerification) {
+    return (
+      <VerifyPendingCard
+        record={latestVerification}
+        brokerName={brokerNameForSlug(brokers, latestVerification.brokerSlug, locale)}
+      />
+    );
+  }
+
+  if (viewMode === 'rejected' && latestVerification) {
+    return (
+      <VerifyRejectedCard
+        record={latestVerification}
+        brokerName={brokerNameForSlug(brokers, latestVerification.brokerSlug, locale)}
+        onRetry={handleRetry}
+      />
     );
   }
 
@@ -285,9 +387,19 @@ export const VerifyForm = ({ brokers }: VerifyFormProps) => {
             </div>
           ) : uploaded ? (
             <div className="z-10 flex flex-col items-center justify-center">
-              <div className="mb-3 flex size-12 items-center justify-center rounded-full bg-blue-500/20 text-blue-400">
-                <FileText size={24} />
-              </div>
+              {uploaded.previewUrl ? (
+                <div className="mb-3 flex size-32 items-center justify-center overflow-hidden rounded-xl border border-white/10 bg-black/40">
+                  <img
+                    src={uploaded.previewUrl}
+                    alt={uploaded.file.name}
+                    className="size-full object-cover"
+                  />
+                </div>
+              ) : (
+                <div className="mb-3 flex size-12 items-center justify-center rounded-full bg-blue-500/20 text-blue-400">
+                  <FileText size={24} />
+                </div>
+              )}
               <span className="mb-1 max-w-xs truncate font-bold text-white">
                 {uploaded.file.name}
               </span>
@@ -594,6 +706,170 @@ const BrokerCombobox = ({ initialBrokers, locale, value, onChange }: BrokerCombo
           </div>
         </div>
       )}
+    </div>
+  );
+};
+
+// =========================================================================
+// Status sub-components — Pending / Rejected / AlreadyVerified
+// =========================================================================
+
+const formatDateTime = (
+  iso: string,
+  locale: string,
+  formatter: ReturnType<typeof useFormatter>,
+): string => {
+  try {
+    return formatter.dateTime(new Date(iso), {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  } catch {
+    return new Date(iso).toLocaleString(locale);
+  }
+};
+
+const shortenCommitment = (hash: string): string =>
+  hash.length > 18 ? `${hash.slice(0, 10)}…${hash.slice(-6)}` : hash;
+
+type PendingCardProps = {
+  record: VerificationStatusItem;
+  brokerName: string;
+};
+
+const VerifyPendingCard = ({ record, brokerName }: PendingCardProps) => {
+  const t = useTranslations('verify');
+  const locale = useLocale();
+  const formatter = useFormatter();
+  const submittedAt = formatDateTime(record.createdAt, locale, formatter);
+
+  return (
+    <div className="overflow-hidden rounded-2xl border border-amber-500/30 bg-gradient-to-b from-amber-500/10 to-transparent shadow-xl">
+      <div className="flex flex-col items-center gap-4 px-8 pb-2 pt-10 text-center">
+        <div className="relative flex size-16 items-center justify-center">
+          <span className="absolute inset-0 animate-ping rounded-full bg-amber-500/30" />
+          <span className="relative flex size-16 items-center justify-center rounded-full bg-amber-500/20 ring-1 ring-amber-400/40">
+            <Clock className="size-8 text-amber-400" aria-hidden />
+          </span>
+        </div>
+        <h2 className="text-2xl font-bold text-white">{t('pendingTitle')}</h2>
+        <p className="max-w-md text-sm leading-relaxed text-white/60">
+          {t('pendingDescription', { broker: brokerName })}
+        </p>
+      </div>
+
+      <div className="space-y-3 px-8 py-8">
+        <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+          <div className="mb-1 text-xs font-bold uppercase tracking-wider text-white/40">
+            {t('submittedAtLabel')}
+          </div>
+          <div className="font-mono text-sm text-white/80">{submittedAt}</div>
+        </div>
+
+        <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+          <div className="mb-1 text-xs font-bold uppercase tracking-wider text-white/40">
+            {t('commitmentLabel')}
+          </div>
+          <div className="break-all font-mono text-sm text-[#00FF88]/80" title={record.commitment}>
+            {shortenCommitment(record.commitment)}
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4">
+          <div className="mb-1 text-xs font-bold uppercase tracking-wider text-amber-400/80">
+            {t('statusLabel')}
+          </div>
+          <div className="flex items-center gap-2 text-sm text-amber-200">
+            <span className="size-2 animate-pulse rounded-full bg-amber-400" />
+            {t('statusPending')}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+type RejectedCardProps = {
+  record: VerificationStatusItem;
+  brokerName: string;
+  onRetry: () => void;
+};
+
+const VerifyRejectedCard = ({ record, brokerName, onRetry }: RejectedCardProps) => {
+  const t = useTranslations('verify');
+  const locale = useLocale();
+  const formatter = useFormatter();
+  const submittedAt = formatDateTime(record.createdAt, locale, formatter);
+  const reviewedAt = record.reviewedAt
+    ? formatDateTime(record.reviewedAt, locale, formatter)
+    : null;
+  const reason = record.adminNote?.trim() ?? '';
+
+  return (
+    <div className="overflow-hidden rounded-2xl border border-red-500/30 bg-gradient-to-b from-red-500/10 to-transparent shadow-xl">
+      <div className="flex flex-col items-center gap-4 px-8 pb-2 pt-10 text-center">
+        <div className="flex size-16 items-center justify-center rounded-full bg-red-500/20 ring-1 ring-red-400/40">
+          <XCircle className="size-8 text-red-400" aria-hidden />
+        </div>
+        <h2 className="text-2xl font-bold text-white">{t('rejectedTitle')}</h2>
+        <p className="max-w-md text-sm leading-relaxed text-white/60">
+          {t('rejectedDescription', { broker: brokerName })}
+        </p>
+      </div>
+
+      <div className="space-y-3 px-8 py-6">
+        <div className="rounded-xl border border-red-500/30 bg-red-500/5 p-4">
+          <div className="mb-2 text-xs font-bold uppercase tracking-wider text-red-400">
+            {t('rejectionReason')}
+          </div>
+          <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-red-100/90">
+            {reason || t('rejectionReasonEmpty')}
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+            <div className="mb-1 text-xs font-bold uppercase tracking-wider text-white/40">
+              {t('submittedAtLabel')}
+            </div>
+            <div className="font-mono text-sm text-white/80">{submittedAt}</div>
+          </div>
+          {reviewedAt && (
+            <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+              <div className="mb-1 text-xs font-bold uppercase tracking-wider text-white/40">
+                {t('rejectedAtLabel')}
+              </div>
+              <div className="font-mono text-sm text-white/80">{reviewedAt}</div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="border-t border-white/10 bg-white/5 px-8 py-5">
+        <button
+          type="button"
+          onClick={onRetry}
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 py-3.5 text-sm font-bold text-white shadow-[0_0_20px_rgba(37,99,235,0.4)] transition-all hover:bg-blue-500"
+        >
+          <RefreshCw size={16} /> {t('retry')}
+        </button>
+      </div>
+    </div>
+  );
+};
+
+const VerifyAlreadyVerifiedCard = () => {
+  const t = useTranslations('verify');
+
+  return (
+    <div className="flex flex-col items-center gap-4 rounded-2xl border border-[#00FF88]/30 bg-[#00FF88]/5 p-10 text-center shadow-xl">
+      <div className="flex size-14 items-center justify-center rounded-full bg-[#00FF88]/15 ring-1 ring-[#00FF88]/40">
+        <CheckCircle2 className="size-7 text-[#00FF88]" />
+      </div>
+      <h3 className="text-xl font-bold">{t('alreadyVerified')}</h3>
     </div>
   );
 };

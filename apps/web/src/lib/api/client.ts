@@ -450,6 +450,27 @@ export type VerifyEvidenceUploadResponse = {
   mimeType: string;
 };
 
+export type VerificationStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+
+export type VerificationStatusItem = {
+  id: string;
+  brokerSlug: string;
+  commitment: string;
+  status: VerificationStatus;
+  adminNote: string | null;
+  createdAt: string;
+  reviewedAt: string | null;
+};
+
+export type VerificationStatusResponse = {
+  verifications: VerificationStatusItem[];
+};
+
+export const fetchVerificationStatus = (
+  options: FetchOptions,
+): Promise<VerificationStatusResponse> =>
+  apiGet<VerificationStatusResponse>('/v1/auth/verification-status', options);
+
 export const uploadVerifyEvidence = async (
   file: File,
   options: FetchOptions,
