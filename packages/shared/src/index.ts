@@ -12,3 +12,8 @@
 export const PACKAGE_NAME = '@opentrade/shared' as const;
 
 export type { DependencyHealthDto, HealthReportDto, HealthStatus } from './health/HealthReportDto';
+
+// i18n helpers — pure, framework-free name pickers for entities that use
+// the "parallel columns" multilingual pattern (per cursor rule 51).
+export { localizedBrokerName } from './i18n/brokerName';
+export type { LocaleString, LocalizedNameInput } from './i18n/brokerName';
