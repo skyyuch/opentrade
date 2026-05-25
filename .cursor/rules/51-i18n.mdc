@@ -82,6 +82,66 @@ export function ReviewForm() {
 
 ---
 
+## packages/ui 不可耦合 next-intl
+
+`packages/ui` 是 design-system primitive 層（per rule 10 monorepo boundary），
+**禁止** import `next-intl` / `next-intl/server` 或任何特定 i18n 框架。原因：
+
+1. `packages/ui` 可能被未來 SDK、admin tool、Storybook 之外的 host 使用
+2. 框架耦合會把 design system 鎖死在 Next.js + next-intl 組合
+3. Storybook 自己沒有 next-intl context，硬 import 會 crash
+
+### Caller-supplied labels pattern
+
+需要 user-facing 文字的 primitive 一律經由 props 接收，由 host app（apps/web、
+apps/console）解析翻譯後注入：
+
+```tsx
+// ✅ 強制 — primitive 在 packages/ui 內
+export type SentimentPickerLabels = {
+  positive: string;
+  neutral: string;
+  negative: string;
+};
+
+export type SentimentPickerProps = {
+  value: Sentiment | null;
+  onChange: (next: Sentiment) => void;
+  labels: SentimentPickerLabels;  // 由 caller 注入
+  // ...
+};
+```
+
+```tsx
+// ✅ 強制 — host app 在 apps/web 內
+import { SentimentPicker } from '@opentrade/ui';
+import { useTranslations } from 'next-intl';
+
+const t = useTranslations('reviewForm');
+<SentimentPicker
+  labels={{
+    positive: t('sentimentPositive'),
+    neutral: t('sentimentNeutral'),
+    negative: t('sentimentNegative'),
+  }}
+  // ...
+/>
+```
+
+### Storybook stories 用 hardcoded 字串
+
+`packages/ui/**/*.stories.tsx` 不可 import next-intl；直接傳 hardcoded label
+就行（rule 22 已涵蓋 Storybook 必有 coverage）。建議至少加一個 `Localised`
+story 同時 demo zh-Hant / zh-Hans / en 三組 labels，給未來 host 看樣板。
+
+### aria-label / placeholder 同樣 caller-supplied
+
+任何 a11y attribute（`aria-label` / `aria-describedby` 文字 / placeholder /
+tooltip）若含 user-facing 字串，一律走 props 注入，**禁止**在 component
+內 hardcode 任何語言字串（包括 English fallback）。
+
+---
+
 ## Routing
 
 URL 必須含 locale：
@@ -453,3 +513,5 @@ new Intl.NumberFormat('zh-Hant', {
 - ❌ 從 `next/link` 或 `next/navigation` 匯入 `Link` / `useRouter`（永遠走 `src/i18n/navigation`）
 - ❌ 在 href 硬編碼 `/${locale}/...` 前綴（next-intl `Link` 會自動處理）
 - ❌ 在有保留 top-level segment（admin / broker 等）的 app 用 `localePrefix: 'as-needed'`（會與 App Router `[locale]` 動態段衝突造成 404）
+- ❌ 在 `packages/ui/**` 內 import `next-intl` / `next-intl/server` 或任何特定 i18n 框架（會把 design system 鎖死在 Next.js + 破壞 Storybook context，per「packages/ui 不可耦合 next-intl」）
+- ❌ 在 `packages/ui` primitive 內 hardcode 任何 user-facing 字串（包括 aria-label / placeholder / tooltip / English fallback）— labels 必須 props 注入由 host app 解析

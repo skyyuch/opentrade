@@ -56,6 +56,7 @@ alwaysApply: true
 - `contracts`、`db`、`ui`、`shared`、`config`
 - `infra`、`docs`、`decisions`（ADR commits）、`conversations`（session 歸檔）、`rules`
 - `deps`（依賴升級）、`release`（版本發布）、`ci`（CI/CD 變更）、`status`（`docs/03-status.md` 更新）
+- `i18n`（純翻譯字串改動跨多 app — web + console + packages/ui + schema docs 一起改字；混合改動仍用受影響 surface scope）
 
 ### Subject
 
