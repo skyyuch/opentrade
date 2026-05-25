@@ -5,3 +5,10 @@
  */
 
 export { Button, buttonVariants, type ButtonProps } from './button/Button';
+
+export {
+  SentimentPicker,
+  type Sentiment,
+  type SentimentPickerLabels,
+  type SentimentPickerProps,
+} from './sentiment-picker/SentimentPicker';
