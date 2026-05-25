@@ -31,7 +31,7 @@ export function UsersClient(): React.ReactNode {
 
   const loadUsers = useCallback(async () => {
     setLoading(true);
-    const token = await getAccessToken();
+    const token = getAccessToken();
     if (!token) return;
     try {
       const params: { search?: string; role?: string } = {};
@@ -57,7 +57,7 @@ export function UsersClient(): React.ReactNode {
       return;
     }
     setExpandedId(id);
-    const token = await getAccessToken();
+    const token = getAccessToken();
     if (!token) return;
     try {
       const res = await fetchAdminUserDetail(id, { accessToken: token });
@@ -68,7 +68,7 @@ export function UsersClient(): React.ReactNode {
   };
 
   const handleRoleChange = async (userId: string, newRole: string) => {
-    const token = await getAccessToken();
+    const token = getAccessToken();
     if (!token) return;
     await updateUserRole(userId, newRole, { accessToken: token });
     void loadUsers();
@@ -232,7 +232,7 @@ function CreateUserModal({
     setSaving(true);
     setError('');
     try {
-      const token = await getAccessToken();
+      const token = getAccessToken();
       if (!token) return;
       await createAdminUser(
         {

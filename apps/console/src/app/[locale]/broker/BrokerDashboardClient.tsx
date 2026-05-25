@@ -22,7 +22,7 @@ export function BrokerDashboardClient(): React.ReactNode {
     if (userLoading || !claimedBroker) return;
 
     const load = async () => {
-      const token = await getAccessToken();
+      const token = getAccessToken();
       if (!token) return;
       try {
         const [s, r] = await Promise.all([

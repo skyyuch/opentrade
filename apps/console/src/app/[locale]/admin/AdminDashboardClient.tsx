@@ -18,7 +18,7 @@ export function AdminDashboardClient(): React.ReactNode {
 
   useEffect(() => {
     const load = async () => {
-      const token = await getAccessToken();
+      const token = getAccessToken();
       if (!token) return;
       try {
         const [s, a] = await Promise.all([

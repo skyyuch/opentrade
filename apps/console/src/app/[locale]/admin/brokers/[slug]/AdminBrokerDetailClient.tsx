@@ -70,7 +70,7 @@ export function AdminBrokerDetailClient({ slug }: Props): ReactNode {
 
   useEffect(() => {
     const load = async () => {
-      const token = await getAccessToken();
+      const token = getAccessToken();
       if (!token) return;
       try {
         const res = await fetchBroker(slug, { accessToken: token });
@@ -91,7 +91,7 @@ export function AdminBrokerDetailClient({ slug }: Props): ReactNode {
   };
 
   const handleSaveLogo = async () => {
-    const token = await getAccessToken();
+    const token = getAccessToken();
     if (!token || !broker) return;
     setSaving(true);
     try {
@@ -129,7 +129,7 @@ export function AdminBrokerDetailClient({ slug }: Props): ReactNode {
 
   const handleConfirmUpload = async () => {
     if (!pendingFile) return;
-    const token = await getAccessToken();
+    const token = getAccessToken();
     if (!token || !broker) return;
     setUploading(true);
     try {
@@ -158,8 +158,8 @@ export function AdminBrokerDetailClient({ slug }: Props): ReactNode {
     return <div className="py-12 text-center text-white/40">{t('notFound')}</div>;
   }
 
-  const sfcData: SfcDetailJson = (broker.sfcDetailJson ?? {}) as SfcDetailJson;
-  const disputeCount = broker.ratingDistribution?.find((d) => d.stars === 1)?.count ?? 0;
+  const sfcData: SfcDetailJson = broker.sfcDetailJson ?? {};
+  const disputeCount = broker.ratingDistribution.find((d) => d.stars === 1)?.count ?? 0;
 
   const licenseTabs: { id: LicenseTab; label: string }[] = [
     { id: 'details', label: t('tabDetails') },
@@ -266,7 +266,9 @@ export function AdminBrokerDetailClient({ slug }: Props): ReactNode {
               />
             </div>
             <button
-              onClick={handleSaveLogo}
+              onClick={() => {
+                void handleSaveLogo();
+              }}
               disabled={saving}
               className="flex w-full items-center justify-center gap-2 whitespace-nowrap rounded-lg border border-[#00FF88]/20 bg-[#00FF88]/10 px-6 py-3 font-bold text-[#00FF88] transition-colors hover:bg-[#00FF88]/20 disabled:opacity-50 sm:w-auto"
             >
@@ -432,11 +434,11 @@ function SfcDetailsTab({ broker, t }: TabProps) {
     { label: t('ceNumber'), value: broker?.ceNumber ?? '—' },
     {
       label: t('regulatedActivities'),
-      value: broker?.licenses?.map((l) => l.licenseType).join(', ') || '—',
+      value: broker?.licenses.length ? broker.licenses.map((l) => l.licenseType).join(', ') : '—',
     },
     {
       label: t('effectiveDate'),
-      value: broker?.licenses?.[0]?.issuedAt
+      value: broker?.licenses[0]?.issuedAt
         ? new Date(broker.licenses[0].issuedAt).toISOString().split('T')[0]
         : '—',
     },
@@ -554,7 +556,7 @@ function SfcComplaintsTab({ sfcData, t }: { sfcData: SfcDetailJson; t: (key: str
 
   return (
     <div className="space-y-4">
-      {officer && (officer.entityName || officer.entityNameChi) && (
+      {officer && (officer.entityName != null || officer.entityNameChi != null) && (
         <div className="space-y-1 text-center">
           <div className="text-white/50">{t('corporation')}</div>
           <div className="font-bold">
@@ -738,7 +740,7 @@ function ConditionSection({
   emptyLabel,
 }: {
   title: string;
-  items: Array<{ text: string; textZh?: string; effectiveDate?: string }>;
+  items: { text: string; textZh?: string; effectiveDate?: string }[];
   t: (key: string) => string;
   emptyLabel?: string;
 }) {

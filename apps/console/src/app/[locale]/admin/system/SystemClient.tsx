@@ -22,7 +22,7 @@ export function SystemClient(): React.ReactNode {
 
   useEffect(() => {
     const load = async () => {
-      const token = await getAccessToken();
+      const token = getAccessToken();
       if (!token) return;
       try {
         const [h, stats] = await Promise.all([

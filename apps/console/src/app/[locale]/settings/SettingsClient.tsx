@@ -26,7 +26,7 @@ export function SettingsClient(): React.ReactNode {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const token = await getAccessToken();
+      const token = getAccessToken();
       if (!token) return;
       await apiPatch('/v1/auth/me', { displayName, preferredLocale }, { accessToken: token });
       await refresh();

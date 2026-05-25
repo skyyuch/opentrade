@@ -1,8 +1,8 @@
 'use client';
 
 import { ChevronLeft, ChevronRight, Search } from 'lucide-react';
-import { useLocale, useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
+import { useLocale, useTranslations } from 'next-intl';
 import { useEffect, useMemo, useState } from 'react';
 
 import { useOpenTradeAuth } from '../../../../hooks/useOpenTradeAuth';
@@ -12,8 +12,10 @@ import type { BrokerListItem } from '../../../../lib/api/client';
 
 const PAGE_SIZE = 50;
 
+const LICENSE_TYPE_PATTERN = /HK_SFC_TYPE_(\d+)/;
+
 function formatLicenseType(raw: string): string {
-  const match = raw.match(/HK_SFC_TYPE_(\d+)/);
+  const match = LICENSE_TYPE_PATTERN.exec(raw);
   return match ? `SFC ${match[1]}` : raw;
 }
 
@@ -32,7 +34,7 @@ export function AdminBrokersClient(): React.ReactNode {
 
   useEffect(() => {
     const load = async () => {
-      const token = await getAccessToken();
+      const token = getAccessToken();
       if (!token) return;
       try {
         const all = await fetchAllBrokers({ accessToken: token });

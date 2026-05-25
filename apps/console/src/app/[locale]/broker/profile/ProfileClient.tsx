@@ -25,7 +25,7 @@ export function ProfileClient(): React.ReactNode {
     if (userLoading || !claimedBroker) return;
 
     const load = async () => {
-      const token = await getAccessToken();
+      const token = getAccessToken();
       if (!token) return;
       try {
         const res = await fetchBroker(claimedBroker.slug, { accessToken: token });
@@ -45,7 +45,7 @@ export function ProfileClient(): React.ReactNode {
     if (!claimedBroker) return;
     setSaving(true);
     try {
-      const token = await getAccessToken();
+      const token = getAccessToken();
       if (!token) return;
       const res = await updateBrokerProfile(
         claimedBroker.slug,

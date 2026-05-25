@@ -49,7 +49,7 @@ export const ClaimForm = ({ brokerSlug, isClaimed }: ClaimFormProps) => {
     setError(null);
 
     try {
-      const token = await getAccessToken();
+      const token = getAccessToken();
       if (!token) throw new Error('Not authenticated');
       await apiPost(
         `/v1/brokers/${brokerSlug}/claim`,

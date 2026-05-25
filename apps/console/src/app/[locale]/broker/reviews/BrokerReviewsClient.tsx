@@ -22,7 +22,7 @@ export function BrokerReviewsClient(): React.ReactNode {
     if (userLoading || !claimedBroker) return;
 
     const load = async () => {
-      const token = await getAccessToken();
+      const token = getAccessToken();
       if (!token) return;
       try {
         const res = await fetchBrokerReviews(claimedBroker.slug, { accessToken: token });

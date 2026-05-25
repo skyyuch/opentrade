@@ -30,7 +30,7 @@ export function ClaimsClient(): React.ReactNode {
   useEffect(() => {
     const load = async () => {
       setLoading(true);
-      const token = await getAccessToken();
+      const token = getAccessToken();
       if (!token) return;
       try {
         const res = await fetchAdminClaims(tab, { accessToken: token });
@@ -45,14 +45,14 @@ export function ClaimsClient(): React.ReactNode {
   }, [getAccessToken, tab]);
 
   const handleApprove = async (id: string) => {
-    const token = await getAccessToken();
+    const token = getAccessToken();
     if (!token) return;
     await approveClaim(id, undefined, { accessToken: token });
     setClaims((prev) => prev.filter((c) => c.id !== id));
   };
 
   const handleReject = async (id: string) => {
-    const token = await getAccessToken();
+    const token = getAccessToken();
     if (!token) return;
     await rejectClaim(id, undefined, { accessToken: token });
     setClaims((prev) => prev.filter((c) => c.id !== id));

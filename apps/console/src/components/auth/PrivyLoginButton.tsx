@@ -13,11 +13,11 @@
 'use client';
 
 import { usePrivy } from '@privy-io/react-auth';
-import { useCallback, useEffect, useRef } from 'react';
 import { useTranslations } from 'next-intl';
+import { useCallback, useEffect, useRef } from 'react';
 
-import { exchangeAuthToken } from '../../lib/api/client';
 import { useOpenTradeAuth } from '../../hooks/useOpenTradeAuth';
+import { exchangeAuthToken } from '../../lib/api/client';
 
 export const PrivyLoginButton = () => {
   const { ready, authenticated, login, logout, getAccessToken: getPrivyToken } = usePrivy();
