@@ -1,20 +1,113 @@
 /**
  * Console-specific Tailwind base stylesheet.
  *
- * Replaces `@opentrade/ui/styles/globals.css` for the console app.
- * The shared globals.css has `* { @apply border-border }` and
- * `body { @apply bg-background }` which conflict with the Google-designed
- * dark theme that uses hardcoded colors (bg-white/5, border-white/10, etc).
+ * Replaces `@opentrade/ui/styles/globals.css` for the console app. The
+ * shared `globals.css` ships two cross-cutting rules that conflict with
+ * the Google-designed admin dark theme:
  *
- * This file includes ONLY the Tailwind directives + minimal resets,
- * deliberately omitting the semantic CSS variable border/body rules.
- * The Tailwind preset from `@opentrade/ui/tailwind-preset` still provides
- * all color utilities (sapphire, gilded, etc) if needed.
+ *   * { @apply border-border }
+ *   body { @apply bg-background text-foreground antialiased }
+ *
+ * The admin pages use hardcoded `bg-white/5` / `border-white/10` and
+ * own their body background via `bg-[#050608]` on `<body>` in
+ * `app/[locale]/layout.tsx`. Re-applying the semantic body and universal
+ * border rules causes visible regressions on those surfaces, so we
+ * intentionally do NOT inherit them here.
+ *
+ * However, the broker / merchant-facing pages (e.g. ClaimForm,
+ * /brokers/[slug]) DO use semantic Tailwind utilities (`bg-background`,
+ * `text-muted-foreground`, `border-border`, `ring-ring`, etc.) that
+ * resolve via `hsl(var(--X))`. To keep those pages rendering correctly,
+ * we declare the same CSS custom properties that `packages/ui` exposes
+ * on `:root` / `.dark` — but as standalone declarations, not paired
+ * with body/border resets.
+ *
+ * The result:
+ *   - Admin Google UI (hardcoded colors): unaffected.
+ *   - Broker / merchant pages (semantic utilities): correctly themed.
+ *   - No double-load of `@opentrade/ui/styles/globals.css` (which would
+ *     re-introduce the conflicting body/border rules).
+ *
+ * The previous `console-overrides.css` file (now removed) attempted to
+ * patch this by overriding 6 of the variables AFTER loading the shared
+ * globals; it was never actually imported, leaving merchant pages with
+ * undefined `hsl(var(--background))` etc. This file consolidates both
+ * concerns in one place per ADR-0011.
  */
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222 47% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+
+    --primary: 224 76% 48%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222 47% 11%;
+    --accent: 35 43% 50%;
+    --accent-foreground: 0 0% 100%;
+
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
+    --success: 163 94% 24%;
+    --success-foreground: 0 0% 100%;
+    --danger: 0 74% 42%;
+    --danger-foreground: 0 0% 100%;
+    --warning: 26 90% 37%;
+    --warning-foreground: 0 0% 100%;
+
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 217 91% 60%;
+
+    --chain-ink: 215 25% 27%;
+    --chain-bg: 210 40% 98%;
+    --chain-border: 213 27% 84%;
+
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 220 23% 3%;
+    --foreground: 210 40% 98%;
+    --card: 220 20% 8%;
+    --card-foreground: 210 40% 98%;
+    --popover: 220 20% 8%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 217 91% 60%;
+    --primary-foreground: 225 40% 7%;
+    --secondary: 217 33% 17%;
+    --secondary-foreground: 210 40% 98%;
+    --accent: 35 45% 60%;
+    --accent-foreground: 225 40% 7%;
+
+    --muted: 217 33% 17%;
+    --muted-foreground: 215 20% 65%;
+    --success: 160 84% 39%;
+    --success-foreground: 225 40% 7%;
+    --danger: 0 84% 60%;
+    --danger-foreground: 225 40% 7%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 225 40% 7%;
+
+    --border: 217 33% 17%;
+    --input: 217 33% 17%;
+    --ring: 213 94% 68%;
+
+    --chain-ink: 214 32% 91%;
+    --chain-bg: 222 47% 11%;
+    --chain-border: 215 25% 27%;
+  }
+}
 
 @layer utilities {
   .no-scrollbar {
