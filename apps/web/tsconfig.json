@@ -21,7 +21,9 @@
     "src/**/*.tsx",
     ".next/types/**/*.ts",
     "vitest.config.ts",
-    "vitest.setup.ts"
+    "vitest.setup.ts",
+    "playwright.config.ts",
+    "e2e/**/*.ts"
   ],
-  "exclude": ["node_modules", ".next", "dist", "out"]
+  "exclude": ["node_modules", ".next", "dist", "out", "playwright-report", "test-results"]
 }
