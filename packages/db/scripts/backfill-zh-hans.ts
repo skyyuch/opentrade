@@ -20,6 +20,11 @@
  *
  * Run via:
  *   pnpm --filter @opentrade/db db:backfill:zh-hans
+ *   pnpm --filter @opentrade/db db:backfill:zh-hans -- --dry-run
+ *
+ * `--dry-run` walks the same rows and runs OpenCC for each, but does
+ * not write to the DB. Use it before a production run to size the
+ * change and double-check OpenCC output on a fresh deploy.
  *
  * Output:
  *   Backfilling Broker.displayNameZhHans...
@@ -45,6 +50,8 @@ type BackfillResult = {
 
 const BATCH_SIZE = 200;
 
+const DRY_RUN = process.argv.includes('--dry-run');
+
 const backfill = async (): Promise<BackfillResult> => {
   const result: BackfillResult = {
     processed: 0,
@@ -53,30 +60,31 @@ const backfill = async (): Promise<BackfillResult> => {
     failed: 0,
   };
 
-  // Stream brokers in pages so memory stays flat on large datasets.
-  //
-  // We deliberately do NOT use cursor pagination here. Because the WHERE
-  // clause filters on the column we're about to update, every successful
-  // update shrinks the result set monotonically. Re-issuing the same
-  // "first N rows where displayNameZhHans IS NULL" query gives us the
-  // next slice — there's no risk of repeats and no need to track a
-  // cursor (which itself becomes stale once we update past it). A
-  // skipped row (e.g. empty displayName → null conversion) would loop
-  // forever, so we break out of the loop if we've processed a full page
-  // without making progress.
+  // Stream brokers in pages with cursor-based advancement. The previous
+  // approach relied on a mutable WHERE (re-issuing `displayNameZhHans IS
+  // NULL` after each page shrank the result set), which works only when
+  // every page actually writes. Once `--dry-run` lands the WHERE clause
+  // never shrinks, so cursor pagination via `id > lastSeenId` is the
+  // single correct strategy for both modes. The stall-guard from the
+  // mutable-WHERE era is no longer needed because the cursor strictly
+  // moves forward — skipped rows (empty displayName) and failed rows
+  // are still advanced past on the next iteration.
   type BrokerPage = { id: string; slug: string; displayName: string }[];
 
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- break-driven page loop; exit condition is page.length === 0 (or stall guard)
+  let lastSeenId: string | null = null;
+
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- break-driven page loop; exit condition is page.length === 0
   while (true) {
     const page: BrokerPage = await prisma.broker.findMany({
-      where: { displayNameZhHans: null },
+      where: {
+        displayNameZhHans: null,
+        ...(lastSeenId !== null ? { id: { gt: lastSeenId } } : {}),
+      },
       select: { id: true, slug: true, displayName: true },
       orderBy: { id: 'asc' },
       take: BATCH_SIZE,
     });
     if (page.length === 0) break;
-
-    const populatedBefore = result.converted;
 
     for (const broker of page) {
       result.processed++;
@@ -86,10 +94,12 @@ const backfill = async (): Promise<BackfillResult> => {
           result.skipped++;
           continue;
         }
-        await prisma.broker.update({
-          where: { id: broker.id },
-          data: { displayNameZhHans: converted },
-        });
+        if (!DRY_RUN) {
+          await prisma.broker.update({
+            where: { id: broker.id },
+            data: { displayNameZhHans: converted },
+          });
+        }
         result.converted++;
       } catch (err) {
         result.failed++;
@@ -97,12 +107,7 @@ const backfill = async (): Promise<BackfillResult> => {
       }
     }
 
-    // Stall guard: if a full page came back but nothing was converted,
-    // every row in it was a `skipped` (or `failed`) candidate. Those
-    // rows will keep returning on the next query, so we'd loop forever.
-    // The same row count was already added to `skipped`/`failed`, so we
-    // can safely terminate.
-    if (result.converted === populatedBefore) break;
+    lastSeenId = page[page.length - 1]?.id ?? lastSeenId;
 
     console.log(`  ... processed ${result.processed} so far`);
   }
@@ -111,10 +116,12 @@ const backfill = async (): Promise<BackfillResult> => {
 };
 
 const main = async (): Promise<void> => {
-  console.log('Backfilling Broker.displayNameZhHans...');
+  console.log(
+    `Backfilling Broker.displayNameZhHans${DRY_RUN ? ' (DRY RUN — no DB writes)' : ''}...`,
+  );
   const result = await backfill();
   console.log(`  processed: ${result.processed} brokers`);
-  console.log(`  converted: ${result.converted}`);
+  console.log(`  converted: ${result.converted}${DRY_RUN ? '  (would have been written)' : ''}`);
   console.log(`  skipped:   ${result.skipped}  (empty / null displayName)`);
   console.log(`  failed:    ${result.failed}`);
   console.log('Done.');

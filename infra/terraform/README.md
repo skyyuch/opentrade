@@ -166,6 +166,28 @@ explicit.
 
 ---
 
+## Deploy checklist
+
+Phase 1 production deploy is human-in-loop until the OIDC role in
+ADR-0018 D7 lands. Run in order:
+
+1. `cd infra/terraform/environments/dev && terraform apply` — only
+   when infra has changed; otherwise skip.
+2. Push the `apps/api` image to ECR per
+   [`apps/api/README.md`](../../apps/api/README.md#push-to-ecr-phase-0-dev-environment).
+3. Apply schema + data migrations per
+   [`apps/api/README.md` §production deployment runbook](../../apps/api/README.md#production-deployment-runbook).
+   The data-side steps (`db:backfill:zh-hans` + `db:backfill:source-locale`)
+   are canonicalised in
+   [`packages/db/README.md`](../../packages/db/README.md#pre-deploy-backfill-per-adr-0026--adr-0027).
+4. Roll the ECS Fargate service. `/v1/health` HEALTHCHECK gates
+   traffic.
+
+Each step is idempotent on its own; the order matters so the new
+container observes the data shape it was compiled against.
+
+---
+
 ## What is **not** here in Phase 0
 
 - ECS service / task definition for `apps/api` — ships in Phase 1 when

@@ -44,6 +44,11 @@
  *
  * Run via:
  *   pnpm --filter @opentrade/db db:backfill:source-locale
+ *   pnpm --filter @opentrade/db db:backfill:source-locale -- --dry-run
+ *
+ * `--dry-run` runs the classifier against every NULL row but does not
+ * write to the DB. Use it before production to verify the OpenCC +
+ * Han-ratio heuristic against the actual review distribution.
  *
  * Output:
  *   Backfilling Review.sourceLocale...
@@ -63,6 +68,8 @@ const prisma = new PrismaClient();
 
 const HAN_RATIO_THRESHOLD = 0.3;
 const BATCH_SIZE = 200;
+
+const DRY_RUN = process.argv.includes('--dry-run');
 
 // CJK Unified Ideographs Basic block (U+4E00–U+9FFF) plus Extension A
 // (U+3400–U+4DBF). Covers every character a Phase 1 review is likely to
@@ -108,25 +115,30 @@ const backfill = async (): Promise<BackfillCounters> => {
 
   type ReviewPage = { id: string; title: string; body: string }[];
 
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- mutable-WHERE loop; exits via page.length === 0 or the stall guard
+  let lastSeenId: string | null = null;
+
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- break-driven page loop; exit condition is page.length === 0. Cursor advancement makes both dry-run and live modes correct (see backfill-zh-hans.ts for the same rationale).
   while (true) {
     const page: ReviewPage = await prisma.review.findMany({
-      where: { sourceLocale: null },
+      where: {
+        sourceLocale: null,
+        ...(lastSeenId !== null ? { id: { gt: lastSeenId } } : {}),
+      },
       select: { id: true, title: true, body: true },
       orderBy: { id: 'asc' },
       take: BATCH_SIZE,
     });
     if (page.length === 0) break;
 
-    const processedBefore = counters.processed;
-
     for (const review of page) {
       try {
         const locale = detectLocale(review.title, review.body);
-        await prisma.review.update({
-          where: { id: review.id },
-          data: { sourceLocale: locale },
-        });
+        if (!DRY_RUN) {
+          await prisma.review.update({
+            where: { id: review.id },
+            data: { sourceLocale: locale },
+          });
+        }
         counters.processed++;
         if (locale === 'zh-Hant') counters.zhHant++;
         else if (locale === 'zh-Hans') counters.zhHans++;
@@ -137,9 +149,7 @@ const backfill = async (): Promise<BackfillCounters> => {
       }
     }
 
-    // Stall guard: if a full page came back but `processed` did not
-    // advance, every row in it threw — they will keep returning forever.
-    if (counters.processed === processedBefore) break;
+    lastSeenId = page[page.length - 1]?.id ?? lastSeenId;
 
     console.log(`  ... processed ${counters.processed} so far`);
   }
@@ -148,9 +158,11 @@ const backfill = async (): Promise<BackfillCounters> => {
 };
 
 const main = async (): Promise<void> => {
-  console.log('Backfilling Review.sourceLocale...');
+  console.log(`Backfilling Review.sourceLocale${DRY_RUN ? ' (DRY RUN — no DB writes)' : ''}...`);
   const result = await backfill();
-  console.log(`  processed: ${result.processed} reviews`);
+  console.log(
+    `  processed: ${result.processed} reviews${DRY_RUN ? '  (would have been written)' : ''}`,
+  );
   console.log(`  zh-Hant:   ${result.zhHant}`);
   console.log(`  zh-Hans:   ${result.zhHans}`);
   console.log(`  en:        ${result.en}`);

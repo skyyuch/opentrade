@@ -133,6 +133,25 @@ docker push 371637912734.dkr.ecr.ap-southeast-1.amazonaws.com/opentrade-api:dev
 Phase 1 introduces release-tagged pushes (e.g. `:0.1.0`) via GitHub
 Actions OIDC.
 
+### Production deployment runbook
+
+Phase 1 prod deploy must run these steps in order. Each is idempotent
+on its own; the order matters so the new container observes the data
+shape it was compiled against.
+
+1. `pnpm --filter @opentrade/db db:migrate:deploy` — apply pending
+   Prisma migrations. CI / GitHub Action runs this; manual runs only
+   for break-glass.
+2. (Optional, recommended first time) `db:backfill:zh-hans --dry-run`
+   - `db:backfill:source-locale --dry-run` to preview the row counts
+     per [`packages/db/README.md`](../../packages/db/README.md#pre-deploy-backfill-per-adr-0026--adr-0027).
+3. `pnpm --filter @opentrade/db db:backfill:prod` — populate
+   `Broker.displayNameZhHans` (per ADR-0026) and `Review.sourceLocale`
+   (per ADR-0027 D8) on legacy rows. Skip-safely on re-runs.
+4. Roll the new `apps/api` container — ECS Fargate updates the service
+   with the new task definition; the `/v1/health` HEALTHCHECK gates
+   traffic.
+
 ## Endpoints
 
 | Method | Path         | Auth   | Purpose                                |
