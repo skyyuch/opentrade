@@ -157,6 +157,35 @@ new `apps/api` container becomes healthy.
 
 ---
 
+## Deprecated columns awaiting drop
+
+Cursor rule 31 forbids dropping a column without first marking it
+`@deprecated` and waiting two releases. The columns currently sitting
+inside that window are:
+
+| Column          | Replaced by        | ADR      | Drop schedule                                        |
+| --------------- | ------------------ | -------- | ---------------------------------------------------- |
+| `Review.rating` | `Review.sentiment` | ADR-0028 | Release N+2 via dedicated drop-ADR (see ADR-0028 D6) |
+
+Rules during the window:
+
+- ✅ Existing reads of the deprecated column may continue (legacy rows
+  rely on it; the M3.2 backfill keeps the new column in sync).
+- ❌ **No new code path** may read or branch on the deprecated column.
+  New code reads the replacement (`Review.sentiment`).
+- ❌ The deprecated column does not get backfilled from the new column
+  the other way around — once a row is written via the new path we
+  consider its `rating` value historical-only.
+
+When the drop ADR lands (per ADR-0028 D6 schedule), it MUST:
+
+1. Confirm the new column is non-null on every production row.
+2. Verify zero remaining read paths via `rg` over `apps/` + `packages/`.
+3. Ship a single migration that drops the column.
+4. Remove this row from the table above.
+
+---
+
 ## Soft delete discipline
 
 We never hard-delete user-scoped rows. Reasons:

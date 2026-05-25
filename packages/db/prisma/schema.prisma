@@ -382,7 +382,15 @@ model Review {
 
   title     String     @db.VarChar(200)
   body      String     @db.Text
-  /// 1-5 star rating.
+  /// @deprecated per ADR-0028 D6. Replaced by `sentiment` (three-way axis).
+  /// Kept in schema for two releases so any production tooling that reads
+  /// the legacy 1-5 column has a migration window. Scheduled drop:
+  ///   - Release N   (this ADR): annotated `@deprecated`, `sentiment` added
+  ///   - Release N+1: every submit path writes `sentiment`; backfill verified
+  ///   - Release N+2: column dropped via Prisma migration + dedicated ADR
+  /// Until the drop ADR is written, do not introduce new code paths that
+  /// read `rating`; new code reads `sentiment` and treats `rating` as
+  /// historical-data-only.
   rating    Int        @db.SmallInt
   /// Three-way sentiment per ADR-0028. Nullable during the M3 transition
   /// window — legacy rows are backfilled by `db:backfill:sentiment` (M3.2)
