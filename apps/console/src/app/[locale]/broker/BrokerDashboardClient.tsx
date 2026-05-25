@@ -1,6 +1,14 @@
 'use client';
 
-import { Bell, MessageSquareText, Star, TrendingUp } from 'lucide-react';
+import {
+  Bell,
+  MessageSquareText,
+  Minus,
+  Star,
+  ThumbsDown,
+  ThumbsUp,
+  TrendingUp,
+} from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
 
@@ -109,10 +117,7 @@ export function BrokerDashboardClient(): React.ReactNode {
               className="flex items-center justify-between pb-4 border-b border-white/5 last:border-0 last:pb-0"
             >
               <div className="flex items-center gap-4">
-                <div className="flex items-center gap-1 text-blue-400 font-bold bg-blue-500/10 px-2 py-1 rounded">
-                  <Star size={12} className="fill-blue-400" />
-                  {review.rating}
-                </div>
+                <DashboardSentimentChip sentiment={review.sentiment} rating={review.rating} t={t} />
                 <div>
                   <div className="text-sm font-bold">{review.title}</div>
                   <div className="text-xs text-white/50">
@@ -126,5 +131,54 @@ export function BrokerDashboardClient(): React.ReactNode {
         </div>
       </div>
     </div>
+  );
+}
+
+/**
+ * Per ADR-0028 D7: compact sentiment chip used in the merchant dashboard
+ * "recent reviews" mini-list. Falls back to a legacy rating caption when
+ * the row was submitted before the M3.2 backfill could classify it.
+ */
+function DashboardSentimentChip({
+  sentiment,
+  rating,
+  t,
+}: {
+  sentiment: ReviewItem['sentiment'];
+  rating: number;
+  t: ReturnType<typeof useTranslations>;
+}): React.ReactNode {
+  if (sentiment === 'POSITIVE') {
+    return (
+      <span className="inline-flex items-center gap-1 rounded bg-[#00FF88]/15 px-2 py-1 text-xs font-bold text-[#00FF88]">
+        <ThumbsUp size={12} />
+        {t('sentimentPositive')}
+      </span>
+    );
+  }
+  if (sentiment === 'NEGATIVE') {
+    return (
+      <span className="inline-flex items-center gap-1 rounded bg-red-500/15 px-2 py-1 text-xs font-bold text-red-300">
+        <ThumbsDown size={12} />
+        {t('sentimentNegative')}
+      </span>
+    );
+  }
+  if (sentiment === 'NEUTRAL') {
+    return (
+      <span className="inline-flex items-center gap-1 rounded bg-white/10 px-2 py-1 text-xs font-bold text-white/70">
+        <Minus size={12} />
+        {t('sentimentNeutral')}
+      </span>
+    );
+  }
+  return (
+    <span
+      className="inline-flex items-center gap-1 rounded bg-blue-500/10 px-2 py-1 text-xs font-bold text-blue-400"
+      title={t('legacyRatingCaptionTooltip')}
+    >
+      <Star size={12} className="fill-blue-400" />
+      {rating}
+    </span>
   );
 }

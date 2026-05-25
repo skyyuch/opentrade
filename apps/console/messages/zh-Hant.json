@@ -63,7 +63,12 @@
     "claimSuccessMessage": "你的認領申請已進入管理員審核佇列。核准後，你將獲得此證券商頁面的管理權。",
     "claimError": "認領提交失敗",
     "alreadyClaimed": "此證券商頁面已被認領。",
-    "disclaimer": "所有評論一經上鏈即不可刪除、不可篡改。"
+    "disclaimer": "所有評論一經上鏈即不可刪除、不可篡改。",
+    "sentimentPositive": "讚",
+    "sentimentNeutral": "普通",
+    "sentimentNegative": "不讚",
+    "legacyRatingCaption": "舊評分：{rating}",
+    "legacyRatingCaptionTooltip": "此評論在五星制廢除前提交，僅顯示舊評分作為參考。"
   },
   "dashboard": {
     "eyebrow": "OpenTrade Console",
@@ -246,6 +251,11 @@
     "ceNumber": "CE 編號",
     "licenses": "牌照資訊",
     "reviewsTitle": "收到的評論",
+    "sentimentPositive": "讚",
+    "sentimentNeutral": "普通",
+    "sentimentNegative": "不讚",
+    "legacyRatingCaption": "舊評分：{rating}",
+    "legacyRatingCaptionTooltip": "此評論在五星制廢除前提交，僅顯示舊評分作為參考。",
     "completeness": "資料完整度提示",
     "missingFields": "建議補充以下資料以提升可信度：",
     "noBrokerClaimed": "你尚未認領任何券商。",

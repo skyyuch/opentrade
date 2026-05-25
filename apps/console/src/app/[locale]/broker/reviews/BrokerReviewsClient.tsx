@@ -1,6 +1,6 @@
 'use client';
 
-import { ShieldAlert, Star } from 'lucide-react';
+import { Minus, ShieldAlert, ThumbsDown, ThumbsUp } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
 
@@ -69,19 +69,7 @@ export function BrokerReviewsClient(): React.ReactNode {
                   {new Date(review.createdAt).toLocaleDateString()}
                 </div>
               </div>
-              <div className="flex items-center gap-0.5">
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <Star
-                    key={`star-${review.id}-${star}`}
-                    size={16}
-                    className={
-                      star <= review.rating
-                        ? 'text-blue-400 fill-blue-400'
-                        : 'text-white/10 fill-white/10'
-                    }
-                  />
-                ))}
-              </div>
+              <SentimentChip sentiment={review.sentiment} rating={review.rating} t={t} />
             </div>
 
             <div className="text-sm text-white/80 leading-relaxed bg-black/20 p-4 rounded-xl border border-white/5">
@@ -115,6 +103,54 @@ function StatusBadge({ status }: { status: string }): React.ReactNode {
       className={`px-2 py-0.5 text-xs rounded font-bold ${styles[status] ?? 'bg-white/10 text-white/50'}`}
     >
       {status}
+    </span>
+  );
+}
+
+/**
+ * Per ADR-0028 D7: merchant-facing sentiment chip with a legacy caption
+ * fallback for null-sentiment rows. Mirrors the SentimentChip on
+ * /brokers/[slug] so the merchant sees the same axis everywhere.
+ */
+function SentimentChip({
+  sentiment,
+  rating,
+  t,
+}: {
+  sentiment: ReviewItem['sentiment'];
+  rating: number;
+  t: ReturnType<typeof useTranslations>;
+}): React.ReactNode {
+  if (sentiment === 'POSITIVE') {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full border border-[#00FF88]/40 bg-[#00FF88]/15 px-2 py-0.5 text-xs font-bold text-[#00FF88]">
+        <ThumbsUp size={12} />
+        {t('sentimentPositive')}
+      </span>
+    );
+  }
+  if (sentiment === 'NEGATIVE') {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full border border-red-400/40 bg-red-500/15 px-2 py-0.5 text-xs font-bold text-red-300">
+        <ThumbsDown size={12} />
+        {t('sentimentNegative')}
+      </span>
+    );
+  }
+  if (sentiment === 'NEUTRAL') {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full border border-white/20 bg-white/10 px-2 py-0.5 text-xs font-bold text-white/70">
+        <Minus size={12} />
+        {t('sentimentNeutral')}
+      </span>
+    );
+  }
+  return (
+    <span
+      className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] text-white/40"
+      title={t('legacyRatingCaptionTooltip')}
+    >
+      {t('legacyRatingCaption', { rating })}
     </span>
   );
 }

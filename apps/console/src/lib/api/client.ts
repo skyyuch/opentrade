@@ -406,7 +406,14 @@ export type ReviewItem = {
   id: string;
   title: string;
   body: string;
+  /** Legacy five-star value, retained until ADR-0028 D6 drop. */
   rating: number;
+  /**
+   * Per ADR-0028 D4 + D7: canonical review axis from M4 onward. Nullable
+   * for legacy rows pre-M3.2 backfill; merchant-side surfaces fall back
+   * to a legacy rating caption when null.
+   */
+  sentiment: 'POSITIVE' | 'NEUTRAL' | 'NEGATIVE' | null;
   status: string;
   createdAt: string;
 };

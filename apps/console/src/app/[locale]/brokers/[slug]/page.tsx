@@ -11,7 +11,9 @@ import {
   CheckCircle2,
   Clock,
   ExternalLink,
-  Star,
+  Minus,
+  ThumbsDown,
+  ThumbsUp,
   XCircle,
 } from 'lucide-react';
 import Link from 'next/link';
@@ -170,15 +172,7 @@ const ReviewRow = ({ review, t }: { review: ReviewItem; t: ManageTranslator }): 
   <div className="flex flex-col gap-1.5 px-4 py-3">
     <div className="flex items-center justify-between">
       <div className="flex items-center gap-2">
-        <div className="flex gap-0.5">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <Star
-              key={i}
-              className={`size-3.5 ${i < review.rating ? 'fill-warning text-warning' : 'text-muted-foreground/30'}`}
-              aria-hidden
-            />
-          ))}
-        </div>
+        <SentimentChip sentiment={review.sentiment} rating={review.rating} t={t} />
         <StatusBadge status={review.status} t={t} />
       </div>
       <time className="text-xs text-muted-foreground" dateTime={review.createdAt}>
@@ -211,6 +205,55 @@ const StatusBadge = ({ status, t }: { status: string; t: ManageTranslator }): Re
     <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
       <Clock className="size-3" aria-hidden />
       {t('pending')}
+    </span>
+  );
+};
+
+/**
+ * Per ADR-0028 D7: renders the canonical sentiment chip, or a one-line
+ * legacy caption for rows where the M3.2 backfill produced no sentiment.
+ * Stars are NEVER re-rendered here — the goal is to retire the legacy
+ * axis from every merchant-facing surface.
+ */
+const SentimentChip = ({
+  sentiment,
+  rating,
+  t,
+}: {
+  sentiment: ReviewItem['sentiment'];
+  rating: number;
+  t: ManageTranslator;
+}): ReactNode => {
+  if (sentiment === 'POSITIVE') {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-xs font-bold text-success">
+        <ThumbsUp className="size-3" aria-hidden />
+        {t('sentimentPositive')}
+      </span>
+    );
+  }
+  if (sentiment === 'NEGATIVE') {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-danger/10 px-2 py-0.5 text-xs font-bold text-danger">
+        <ThumbsDown className="size-3" aria-hidden />
+        {t('sentimentNegative')}
+      </span>
+    );
+  }
+  if (sentiment === 'NEUTRAL') {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs font-bold text-muted-foreground">
+        <Minus className="size-3" aria-hidden />
+        {t('sentimentNeutral')}
+      </span>
+    );
+  }
+  return (
+    <span
+      className="rounded-full border border-border bg-muted/40 px-2 py-0.5 text-[10px] text-muted-foreground"
+      title={t('legacyRatingCaptionTooltip')}
+    >
+      {t('legacyRatingCaption', { rating })}
     </span>
   );
 };

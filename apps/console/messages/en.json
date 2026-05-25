@@ -63,7 +63,12 @@
     "claimSuccessMessage": "Your claim request is queued for admin review. Once approved, you will gain ownership of this broker profile.",
     "claimError": "Claim submission failed",
     "alreadyClaimed": "This broker profile has already been claimed.",
-    "disclaimer": "All reviews are immutable once anchored on chain."
+    "disclaimer": "All reviews are immutable once anchored on chain.",
+    "sentimentPositive": "Positive",
+    "sentimentNeutral": "Neutral",
+    "sentimentNegative": "Negative",
+    "legacyRatingCaption": "Legacy rating: {rating}",
+    "legacyRatingCaptionTooltip": "This review was submitted before the five-star axis was retired; the legacy score is shown for reference only."
   },
   "dashboard": {
     "eyebrow": "OpenTrade Console",
@@ -246,6 +251,11 @@
     "ceNumber": "CE number",
     "licenses": "Licence information",
     "reviewsTitle": "Reviews received",
+    "sentimentPositive": "Positive",
+    "sentimentNeutral": "Neutral",
+    "sentimentNegative": "Negative",
+    "legacyRatingCaption": "Legacy rating: {rating}",
+    "legacyRatingCaptionTooltip": "This review was submitted before the five-star axis was retired; the legacy score is shown for reference only.",
     "completeness": "Profile completeness",
     "missingFields": "Consider adding the following to improve credibility:",
     "noBrokerClaimed": "You have not claimed any broker yet.",
