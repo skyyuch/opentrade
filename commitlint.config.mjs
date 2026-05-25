@@ -4,7 +4,7 @@
  * Allowed types: feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert
  * Allowed scopes (initial set, expand as we add packages):
  *   web, console, api, contracts, db, ui, shared, config,
- *   infra, docs, decisions, conversations, rules, deps, release, ci, status
+ *   infra, docs, decisions, conversations, rules, deps, release, ci, status, i18n
  *
  * `status` is reserved for `docs/03-status.md` updates per rule 97 — these
  * happen at the end of every session and deserve their own scope so they
@@ -18,6 +18,12 @@
  * `docs/conversations/`. These follow the rule 97 + rule 98 handoff
  * cadence (one per ship-worthy session) and are structurally distinct
  * from generic docs.
+ *
+ * `i18n` is reserved for translation-only changes that span both apps
+ * (e.g. renaming a sentiment label across web + console + packages/ui
+ * + schema docs in zh-Hant + zh-Hans). Mixed feat/refactor commits that
+ * happen to touch i18n strings should still use the surface scope
+ * (web / console / ui).
  */
 
 /** @type {import('@commitlint/types').UserConfig} */
@@ -62,6 +68,7 @@ const config = {
         'release',
         'ci',
         'status',
+        'i18n',
       ],
     ],
     'subject-case': [2, 'never', ['sentence-case', 'start-case', 'pascal-case', 'upper-case']],
