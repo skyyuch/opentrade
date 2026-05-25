@@ -7,7 +7,11 @@
     "incremental": true,
     "tsBuildInfoFile": "./node_modules/.cache/.tsbuildinfo",
     "allowJs": true,
-    "plugins": [{ "name": "next" }],
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
     "paths": {
       "@/*": ["./src/*"]
     }
@@ -23,7 +27,18 @@
     "vitest.config.ts",
     "vitest.setup.ts",
     "playwright.config.ts",
-    "e2e/**/*.ts"
+    "e2e/**/*.ts",
+    ".next-e2e/types/**/*.ts"
   ],
-  "exclude": ["node_modules", ".next", "dist", "out", "playwright-report", "test-results"]
+  "exclude": [
+    "node_modules",
+    ".next",
+    ".next-e2e/cache",
+    ".next-e2e/server",
+    ".next-e2e/static",
+    "dist",
+    "out",
+    "playwright-report",
+    "test-results"
+  ]
 }

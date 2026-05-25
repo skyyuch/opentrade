@@ -33,6 +33,18 @@ const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
 const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  // Build output dir is overridable so the Playwright e2e harness can
+  // build into `.next-e2e/` and avoid sharing the webpack persistent
+  // cache with the developer's long-running `pnpm dev` process.
+  // Sharing the same `.next/cache/webpack/` between two `next dev`
+  // processes (one from the user, one spawned by Playwright with a
+  // different `NEXT_PUBLIC_API_URL`) lets module bytecode poisoned
+  // with the e2e stub URL leak into the dev session — symptom is the
+  // user's app suddenly calling `127.0.0.1:4010` after an e2e run.
+  // Per cursor rule 60 the e2e harness must be hermetic; the
+  // `NEXT_DIST_DIR` env knob is how `apps/web/playwright.config.ts`
+  // enforces that.
+  distDir: process.env['NEXT_DIST_DIR'] ?? '.next',
   transpilePackages: ['@opentrade/ui', '@opentrade/shared', '@opentrade/config'],
   experimental: {
     typedRoutes: true,

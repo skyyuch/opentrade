@@ -18,6 +18,7 @@ dist/
 build/
 out/
 .next/
+.next-e2e/
 .turbo/
 .swc/
 *.tsbuildinfo

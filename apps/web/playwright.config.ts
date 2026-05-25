@@ -64,6 +64,15 @@ export default defineConfig({
         NEXT_PUBLIC_API_URL: `http://127.0.0.1:${STUB_PORT}`,
         NEXT_PUBLIC_PRIVY_APP_ID: 'e2e-placeholder-privy-app',
         NEXT_PUBLIC_CHAIN_ID: '84532',
+        // Build into a dedicated directory so the e2e run can never
+        // poison the developer's long-running `pnpm dev` cache (see
+        // the `distDir` block in next.config.mjs for the full story).
+        // Symptom we are guarding against: dev session suddenly hits
+        // 127.0.0.1:4010 (the stub port) after an e2e run, because
+        // two `next dev` processes shared `.next/cache/webpack/` and
+        // webpack returned cached module bytecode keyed by the wrong
+        // NEXT_PUBLIC_API_URL.
+        NEXT_DIST_DIR: '.next-e2e',
       },
       port: WEB_PORT,
       reuseExistingServer: !process.env['CI'],

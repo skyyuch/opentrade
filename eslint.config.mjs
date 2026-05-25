@@ -23,6 +23,7 @@ export default tseslint.config(
       '**/build/**',
       '**/out/**',
       '**/.next/**',
+      '**/.next-e2e/**',
       '**/.turbo/**',
       '**/coverage/**',
       '**/*.tsbuildinfo',
