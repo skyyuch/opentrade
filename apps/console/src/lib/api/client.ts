@@ -625,7 +625,14 @@ export type AdminReviewItem = {
   id: string;
   title: string;
   body: string;
+  /** Legacy five-star value, retained until ADR-0028 D6 drop. */
   rating: number;
+  /**
+   * Per ADR-0028 D4 + D7: canonical review axis from M4 onward. Nullable
+   * for legacy rows pre-M3.2 backfill; the console table falls back to a
+   * legacy rating caption in that case.
+   */
+  sentiment: 'POSITIVE' | 'NEUTRAL' | 'NEGATIVE' | null;
   status: string;
   txHash: string | null;
   ipfsCid: string | null;
@@ -650,12 +657,19 @@ export type AdminReviewsResponse = {
 };
 
 export const fetchAdminReviews = (
-  params?: { search?: string; status?: string; brokerSlug?: string; cursor?: string },
+  params?: {
+    search?: string;
+    status?: string;
+    sentiment?: 'POSITIVE' | 'NEUTRAL' | 'NEGATIVE';
+    brokerSlug?: string;
+    cursor?: string;
+  },
   options?: FetchOptions,
 ): Promise<AdminReviewsResponse> => {
   const query = new URLSearchParams();
   if (params?.search) query.set('search', params.search);
   if (params?.status) query.set('status', params.status);
+  if (params?.sentiment) query.set('sentiment', params.sentiment);
   if (params?.brokerSlug) query.set('brokerSlug', params.brokerSlug);
   if (params?.cursor) query.set('cursor', params.cursor);
   const qs = query.toString();

@@ -422,6 +422,12 @@ const listReviewsSchema = z.object({
   search: z.string().max(100).optional(),
   status: z.enum(['PENDING', 'CONFIRMED', 'FAILED']).optional(),
   brokerSlug: z.string().max(100).optional(),
+  // Per ADR-0028 D7: console operators filter by the canonical sentiment
+  // axis. The composite index [tenantId, brokerId, sentiment] (M3.1) is
+  // not directly useful here (no brokerId narrowing in the global view)
+  // but the sentiment column on its own is highly selective at three
+  // distinct values, so Postgres will pick a partial range scan.
+  sentiment: z.enum(['POSITIVE', 'NEUTRAL', 'NEGATIVE']).optional(),
 });
 
 adminRouter.get('/reviews', authMiddleware('admin'), async (c) => {
@@ -451,6 +457,7 @@ adminRouter.get('/reviews', authMiddleware('admin'), async (c) => {
       deletedAt: null,
       ...brokerFilter,
       ...(query.data.status ? { status: query.data.status } : {}),
+      ...(query.data.sentiment ? { sentiment: query.data.sentiment } : {}),
       ...(query.data.search
         ? {
             OR: [
@@ -487,6 +494,10 @@ adminRouter.get('/reviews', authMiddleware('admin'), async (c) => {
       title: r.title,
       body: r.body.length > 100 ? `${r.body.slice(0, 100)}...` : r.body,
       rating: r.rating,
+      // Per ADR-0028 D4 + D7: ship sentiment alongside the deprecated
+      // rating so the console table can swap its column without an extra
+      // round trip. Nullable for legacy rows pre-M3.2 backfill.
+      sentiment: (r as unknown as { sentiment: string | null }).sentiment,
       status: r.status,
       txHash: r.txHash,
       ipfsCid: r.ipfsCid,

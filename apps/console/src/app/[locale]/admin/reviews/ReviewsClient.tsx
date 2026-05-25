@@ -1,6 +1,6 @@
 'use client';
 
-import { ExternalLink, Search, ShieldAlert, Star } from 'lucide-react';
+import { ExternalLink, Minus, Search, ShieldAlert, ThumbsDown, ThumbsUp } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useCallback, useEffect, useState } from 'react';
 
@@ -12,6 +12,11 @@ import { fetchAdminReviews } from '../../../../lib/api/client';
 import type { AdminReviewItem } from '../../../../lib/api/client';
 
 const STATUSES = ['', 'PENDING', 'PUBLISHED', 'REJECTED'] as const;
+// Per ADR-0028 D7: console operators can filter the global reviews view
+// by sentiment. Empty string == "all sentiments" so the dropdown can use
+// the same idiom as the status filter.
+const SENTIMENTS = ['', 'POSITIVE', 'NEUTRAL', 'NEGATIVE'] as const;
+type SentimentFilter = (typeof SENTIMENTS)[number];
 
 export function ReviewsClient(): React.ReactNode {
   const { getAccessToken } = useOpenTradeAuth();
@@ -22,15 +27,21 @@ export function ReviewsClient(): React.ReactNode {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [sentimentFilter, setSentimentFilter] = useState<SentimentFilter>('');
 
   const loadReviews = useCallback(async () => {
     setLoading(true);
-    const token = await getAccessToken();
+    const token = getAccessToken();
     if (!token) return;
     try {
-      const params: { search?: string; status?: string } = {};
+      const params: {
+        search?: string;
+        status?: string;
+        sentiment?: 'POSITIVE' | 'NEUTRAL' | 'NEGATIVE';
+      } = {};
       if (search) params.search = search;
       if (statusFilter) params.status = statusFilter;
+      if (sentimentFilter) params.sentiment = sentimentFilter;
       const res = await fetchAdminReviews(params, { accessToken: token });
       setReviews(res.reviews);
     } catch {
@@ -38,7 +49,7 @@ export function ReviewsClient(): React.ReactNode {
     } finally {
       setLoading(false);
     }
-  }, [getAccessToken, search, statusFilter]);
+  }, [getAccessToken, search, statusFilter, sentimentFilter]);
 
   useEffect(() => {
     void loadReviews();
@@ -51,6 +62,13 @@ export function ReviewsClient(): React.ReactNode {
       REJECTED: tc('rejected'),
     };
     return map[status] ?? status;
+  };
+
+  const sentimentLabel = (s: SentimentFilter): string => {
+    if (s === 'POSITIVE') return t('sentimentPositive');
+    if (s === 'NEUTRAL') return t('sentimentNeutral');
+    if (s === 'NEGATIVE') return t('sentimentNegative');
+    return t('allSentiments');
   };
 
   return (
@@ -80,6 +98,19 @@ export function ReviewsClient(): React.ReactNode {
               </option>
             ))}
           </select>
+          <select
+            value={sentimentFilter}
+            onChange={(e) => setSentimentFilter(e.target.value as SentimentFilter)}
+            className="rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-sm focus:outline-none"
+            aria-label={t('thSentiment')}
+          >
+            <option value="">{t('allSentiments')}</option>
+            {SENTIMENTS.filter(Boolean).map((s) => (
+              <option key={`sentiment-${s}`} value={s}>
+                {sentimentLabel(s)}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
 
@@ -96,7 +127,7 @@ export function ReviewsClient(): React.ReactNode {
                   <th className="px-4 py-3">{t('thTitle')}</th>
                   <th className="px-4 py-3">{t('thBroker')}</th>
                   <th className="px-4 py-3">{t('thAuthor')}</th>
-                  <th className="px-4 py-3">{t('thRating')}</th>
+                  <th className="px-4 py-3">{t('thSentiment')}</th>
                   <th className="px-4 py-3">{t('thStatus')}</th>
                   <th className="px-4 py-3">{t('thTxHash')}</th>
                   <th className="px-4 py-3">{t('thDate')}</th>
@@ -126,10 +157,7 @@ export function ReviewsClient(): React.ReactNode {
                         {r.author.displayName ?? '—'}
                       </td>
                       <td className="px-4 py-3">
-                        <span className="inline-flex items-center gap-1 text-[#00FF88]">
-                          <Star size={14} fill="currentColor" />
-                          {r.rating}
-                        </span>
+                        <SentimentCell sentiment={r.sentiment} rating={r.rating} t={t} />
                       </td>
                       <td className="px-4 py-3">
                         <StatusBadge status={r.status} label={statusLabel(r.status)} />
@@ -182,6 +210,56 @@ function StatusBadge({ status, label }: { status: string; label: string }): Reac
       className={`rounded-full px-2.5 py-1 text-xs font-bold ${colors[status] ?? 'bg-white/10 text-white/50'}`}
     >
       {label}
+    </span>
+  );
+}
+
+/**
+ * Renders a coloured sentiment chip (POSITIVE / NEUTRAL / NEGATIVE) or, for
+ * legacy rows where the M3.2 backfill could not classify the row, the
+ * legacy five-star caption (per ADR-0028 D7). The star widget itself is
+ * NEVER re-rendered — every reader should be pulled toward the canonical
+ * sentiment axis.
+ */
+function SentimentCell({
+  sentiment,
+  rating,
+  t,
+}: {
+  sentiment: AdminReviewItem['sentiment'];
+  rating: number;
+  t: ReturnType<typeof useTranslations>;
+}): React.ReactNode {
+  if (sentiment === 'POSITIVE') {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full border border-[#00FF88]/40 bg-[#00FF88]/15 px-2 py-0.5 text-xs font-bold text-[#00FF88]">
+        <ThumbsUp size={12} />
+        {t('sentimentPositive')}
+      </span>
+    );
+  }
+  if (sentiment === 'NEGATIVE') {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full border border-red-400/40 bg-red-500/15 px-2 py-0.5 text-xs font-bold text-red-300">
+        <ThumbsDown size={12} />
+        {t('sentimentNegative')}
+      </span>
+    );
+  }
+  if (sentiment === 'NEUTRAL') {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full border border-white/20 bg-white/10 px-2 py-0.5 text-xs font-bold text-white/70">
+        <Minus size={12} />
+        {t('sentimentNeutral')}
+      </span>
+    );
+  }
+  return (
+    <span
+      className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] text-white/40"
+      title={t('legacyRatingCaptionTooltip')}
+    >
+      {t('legacyRatingCaption', { rating })}
     </span>
   );
 }
