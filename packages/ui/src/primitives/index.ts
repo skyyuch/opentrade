@@ -6,6 +6,8 @@
 
 export { Button, buttonVariants, type ButtonProps } from './button/Button';
 
+export { SentimentBadge, type SentimentBadgeProps } from './sentiment-badge/SentimentBadge';
+
 export {
   SentimentPicker,
   type Sentiment,

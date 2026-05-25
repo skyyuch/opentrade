@@ -1,10 +1,11 @@
 'use client';
 
-import { ExternalLink, Minus, Search, ShieldAlert, ThumbsDown, ThumbsUp } from 'lucide-react';
+import { ExternalLink, Search, ShieldAlert } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useCallback, useEffect, useState } from 'react';
 
 import { localizedBrokerName } from '@opentrade/shared';
+import { SentimentBadge } from '@opentrade/ui';
 
 import { useOpenTradeAuth } from '../../../../hooks/useOpenTradeAuth';
 import { fetchAdminReviews } from '../../../../lib/api/client';
@@ -215,11 +216,12 @@ function StatusBadge({ status, label }: { status: string; label: string }): Reac
 }
 
 /**
- * Renders a coloured sentiment chip (POSITIVE / NEUTRAL / NEGATIVE) or, for
+ * Renders a `SentimentBadge` (POSITIVE / NEUTRAL / NEGATIVE) or, for
  * legacy rows where the M3.2 backfill could not classify the row, the
  * legacy five-star caption (per ADR-0028 D7). The star widget itself is
  * NEVER re-rendered — every reader should be pulled toward the canonical
- * sentiment axis.
+ * sentiment axis. Chip render is delegated to the shared primitive
+ * (M6.2a) to keep the admin table aligned with散戶 + merchant surfaces.
  */
 function SentimentCell({
   sentiment,
@@ -231,28 +233,13 @@ function SentimentCell({
   t: ReturnType<typeof useTranslations>;
 }): React.ReactNode {
   if (sentiment === 'POSITIVE') {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full border border-[#00FF88]/40 bg-[#00FF88]/15 px-2 py-0.5 text-xs font-bold text-[#00FF88]">
-        <ThumbsUp size={12} />
-        {t('sentimentPositive')}
-      </span>
-    );
+    return <SentimentBadge sentiment="POSITIVE" label={t('sentimentPositive')} theme="neon" />;
   }
   if (sentiment === 'NEGATIVE') {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full border border-red-400/40 bg-red-500/15 px-2 py-0.5 text-xs font-bold text-red-300">
-        <ThumbsDown size={12} />
-        {t('sentimentNegative')}
-      </span>
-    );
+    return <SentimentBadge sentiment="NEGATIVE" label={t('sentimentNegative')} theme="neon" />;
   }
   if (sentiment === 'NEUTRAL') {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full border border-white/20 bg-white/10 px-2 py-0.5 text-xs font-bold text-white/70">
-        <Minus size={12} />
-        {t('sentimentNeutral')}
-      </span>
-    );
+    return <SentimentBadge sentiment="NEUTRAL" label={t('sentimentNeutral')} theme="neon" />;
   }
   return (
     <span

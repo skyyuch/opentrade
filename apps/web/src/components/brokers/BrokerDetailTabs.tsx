@@ -8,7 +8,6 @@ import {
   Info,
   Link as LinkIcon,
   MessageSquare,
-  Minus,
   Scale,
   ShieldCheck,
   Star,
@@ -21,7 +20,7 @@ import { useLocale, useTranslations } from 'next-intl';
 import { useCallback, useMemo, useState } from 'react';
 
 import { localizedBrokerName } from '@opentrade/shared';
-import { SentimentPicker, type Sentiment } from '@opentrade/ui';
+import { SentimentBadge, SentimentPicker, type Sentiment } from '@opentrade/ui';
 
 import { useOpenTradeAuth } from '@/hooks/useOpenTradeAuth';
 import { Link } from '@/i18n/navigation';
@@ -511,24 +510,19 @@ function ReviewCard({
           : null;
 
   // Per ADR-0028 D7: sentiment is the canonical review axis. The card
-  // renders a coloured chip for rows where sentiment is set, and falls
-  // back to a one-line caption derived from the legacy `rating` value
-  // for pre-backfill rows (no star widget — D7 explicitly forbids
-  // re-rendering stars during the deprecation window).
-  const sentimentMeta: { tone: 'positive' | 'neutral' | 'negative'; label: string } | null =
+  // renders a `SentimentBadge` (neon theme, xs size to preserve the 11px
+  // chip text the surface already shipped) for rows where sentiment is
+  // set, and falls back to a one-line caption derived from the legacy
+  // `rating` value for pre-backfill rows (no star widget — D7 explicitly
+  // forbids re-rendering stars during the deprecation window).
+  const sentimentLabel =
     review.sentiment === 'POSITIVE'
-      ? { tone: 'positive', label: t('sentimentPositive') }
+      ? t('sentimentPositive')
       : review.sentiment === 'NEUTRAL'
-        ? { tone: 'neutral', label: t('sentimentNeutral') }
+        ? t('sentimentNeutral')
         : review.sentiment === 'NEGATIVE'
-          ? { tone: 'negative', label: t('sentimentNegative') }
+          ? t('sentimentNegative')
           : null;
-  const sentimentChipClass =
-    sentimentMeta?.tone === 'positive'
-      ? 'border-[#00FF88]/40 bg-[#00FF88]/15 text-[#00FF88]'
-      : sentimentMeta?.tone === 'negative'
-        ? 'border-red-400/40 bg-red-500/15 text-red-300'
-        : 'border-white/20 bg-white/10 text-white/70';
 
   return (
     <div className="p-6 rounded-xl bg-zinc-900/50 border border-white/10 hover:border-white/20 transition-colors">
@@ -589,20 +583,14 @@ function ReviewCard({
           </div>
         </div>
         <div className="flex flex-col items-end gap-1">
-          {sentimentMeta ? (
-            <span
-              className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-bold ${sentimentChipClass}`}
-              aria-label={t('sentimentBadgeAria', { value: sentimentMeta.label })}
-            >
-              {sentimentMeta.tone === 'positive' ? (
-                <ThumbsUp size={12} />
-              ) : sentimentMeta.tone === 'negative' ? (
-                <ThumbsDown size={12} />
-              ) : (
-                <Minus size={12} />
-              )}
-              <span>{sentimentMeta.label}</span>
-            </span>
+          {review.sentiment && sentimentLabel ? (
+            <SentimentBadge
+              sentiment={review.sentiment}
+              label={sentimentLabel}
+              theme="neon"
+              size="xs"
+              ariaLabel={t('sentimentBadgeAria', { value: sentimentLabel })}
+            />
           ) : (
             // Per ADR-0028 D7: legacy row with no sentiment shows a small
             // caption derived from the deprecated five-star rating, but

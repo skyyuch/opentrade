@@ -1,8 +1,10 @@
 'use client';
 
-import { Minus, ShieldAlert, ThumbsDown, ThumbsUp } from 'lucide-react';
+import { ShieldAlert } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
+
+import { SentimentBadge } from '@opentrade/ui';
 
 import { useCurrentUser } from '../../../../hooks/useCurrentUser';
 import { useOpenTradeAuth } from '../../../../hooks/useOpenTradeAuth';
@@ -109,8 +111,9 @@ function StatusBadge({ status }: { status: string }): React.ReactNode {
 
 /**
  * Per ADR-0028 D7: merchant-facing sentiment chip with a legacy caption
- * fallback for null-sentiment rows. Mirrors the SentimentChip on
- * /brokers/[slug] so the merchant sees the same axis everywhere.
+ * fallback for null-sentiment rows. Delegates the chip render to the
+ * shared `SentimentBadge` primitive (M6.2a) so the merchant sees the
+ * exact same axis here as散戶 do on `/brokers/[slug]`.
  */
 function SentimentChip({
   sentiment,
@@ -122,28 +125,13 @@ function SentimentChip({
   t: ReturnType<typeof useTranslations>;
 }): React.ReactNode {
   if (sentiment === 'POSITIVE') {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full border border-[#00FF88]/40 bg-[#00FF88]/15 px-2 py-0.5 text-xs font-bold text-[#00FF88]">
-        <ThumbsUp size={12} />
-        {t('sentimentPositive')}
-      </span>
-    );
+    return <SentimentBadge sentiment="POSITIVE" label={t('sentimentPositive')} theme="neon" />;
   }
   if (sentiment === 'NEGATIVE') {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full border border-red-400/40 bg-red-500/15 px-2 py-0.5 text-xs font-bold text-red-300">
-        <ThumbsDown size={12} />
-        {t('sentimentNegative')}
-      </span>
-    );
+    return <SentimentBadge sentiment="NEGATIVE" label={t('sentimentNegative')} theme="neon" />;
   }
   if (sentiment === 'NEUTRAL') {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full border border-white/20 bg-white/10 px-2 py-0.5 text-xs font-bold text-white/70">
-        <Minus size={12} />
-        {t('sentimentNeutral')}
-      </span>
-    );
+    return <SentimentBadge sentiment="NEUTRAL" label={t('sentimentNeutral')} theme="neon" />;
   }
   return (
     <span

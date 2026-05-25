@@ -1,16 +1,10 @@
 'use client';
 
-import {
-  Bell,
-  MessageSquareText,
-  Minus,
-  Star,
-  ThumbsDown,
-  ThumbsUp,
-  TrendingUp,
-} from 'lucide-react';
+import { Bell, MessageSquareText, Star, TrendingUp } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
+
+import { SentimentBadge } from '@opentrade/ui';
 
 import { useCurrentUser } from '../../../hooks/useCurrentUser';
 import { useOpenTradeAuth } from '../../../hooks/useOpenTradeAuth';
@@ -136,8 +130,17 @@ export function BrokerDashboardClient(): React.ReactNode {
 
 /**
  * Per ADR-0028 D7: compact sentiment chip used in the merchant dashboard
- * "recent reviews" mini-list. Falls back to a legacy rating caption when
- * the row was submitted before the M3.2 backfill could classify it.
+ * "recent reviews" mini-list. Delegates the sentiment chip render to the
+ * shared `SentimentBadge` primitive (M6.2a) and keeps a surface-local
+ * legacy fallback for the pre-backfill window. The blue-star + raw-digit
+ * legacy chip is intentionally divergent from the other consoleSurfaces;
+ * D7 only mandates "no five-star widget for null rows", which a single
+ * star-with-digit satisfies.
+ *
+ * Note for reviewers: the shape changed from `rounded` + `py-1` to
+ * `rounded-full` + `py-0.5` as a deliberate consequence of the M6.2a
+ * consolidation — see the M6.2a commit body. Visual delta is intentional
+ * and accepted as a consistency win across the five surfaces.
  */
 function DashboardSentimentChip({
   sentiment,
@@ -149,28 +152,13 @@ function DashboardSentimentChip({
   t: ReturnType<typeof useTranslations>;
 }): React.ReactNode {
   if (sentiment === 'POSITIVE') {
-    return (
-      <span className="inline-flex items-center gap-1 rounded bg-[#00FF88]/15 px-2 py-1 text-xs font-bold text-[#00FF88]">
-        <ThumbsUp size={12} />
-        {t('sentimentPositive')}
-      </span>
-    );
+    return <SentimentBadge sentiment="POSITIVE" label={t('sentimentPositive')} theme="neon" />;
   }
   if (sentiment === 'NEGATIVE') {
-    return (
-      <span className="inline-flex items-center gap-1 rounded bg-red-500/15 px-2 py-1 text-xs font-bold text-red-300">
-        <ThumbsDown size={12} />
-        {t('sentimentNegative')}
-      </span>
-    );
+    return <SentimentBadge sentiment="NEGATIVE" label={t('sentimentNegative')} theme="neon" />;
   }
   if (sentiment === 'NEUTRAL') {
-    return (
-      <span className="inline-flex items-center gap-1 rounded bg-white/10 px-2 py-1 text-xs font-bold text-white/70">
-        <Minus size={12} />
-        {t('sentimentNeutral')}
-      </span>
-    );
+    return <SentimentBadge sentiment="NEUTRAL" label={t('sentimentNeutral')} theme="neon" />;
   }
   return (
     <span

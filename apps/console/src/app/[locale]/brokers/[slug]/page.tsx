@@ -5,22 +5,13 @@
  * Read-only for now; claim flow + response functionality is Phase 2.
  */
 
-import {
-  ArrowLeft,
-  Building2,
-  CheckCircle2,
-  Clock,
-  ExternalLink,
-  Minus,
-  ThumbsDown,
-  ThumbsUp,
-  XCircle,
-} from 'lucide-react';
+import { ArrowLeft, Building2, CheckCircle2, Clock, ExternalLink, XCircle } from 'lucide-react';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 
 import { localizedBrokerName } from '@opentrade/shared';
+import { SentimentBadge } from '@opentrade/ui';
 
 import { ClaimForm } from '../../../../components/brokers/ClaimForm';
 import { ApiClientError, fetchBroker, fetchBrokerReviews } from '../../../../lib/api/client';
@@ -210,10 +201,12 @@ const StatusBadge = ({ status, t }: { status: string; t: ManageTranslator }): Re
 };
 
 /**
- * Per ADR-0028 D7: renders the canonical sentiment chip, or a one-line
- * legacy caption for rows where the M3.2 backfill produced no sentiment.
- * Stars are NEVER re-rendered here — the goal is to retire the legacy
- * axis from every merchant-facing surface.
+ * Per ADR-0028 D7: renders the canonical sentiment chip (via the shared
+ * `SentimentBadge` primitive — semantic theme so it tracks the
+ * broker-management screen's light/dark tokens), or a one-line legacy
+ * caption for rows where the M3.2 backfill produced no sentiment. Stars
+ * are NEVER re-rendered here — the goal is to retire the legacy axis
+ * from every merchant-facing surface.
  */
 const SentimentChip = ({
   sentiment,
@@ -225,28 +218,13 @@ const SentimentChip = ({
   t: ManageTranslator;
 }): ReactNode => {
   if (sentiment === 'POSITIVE') {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-xs font-bold text-success">
-        <ThumbsUp className="size-3" aria-hidden />
-        {t('sentimentPositive')}
-      </span>
-    );
+    return <SentimentBadge sentiment="POSITIVE" label={t('sentimentPositive')} theme="semantic" />;
   }
   if (sentiment === 'NEGATIVE') {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-danger/10 px-2 py-0.5 text-xs font-bold text-danger">
-        <ThumbsDown className="size-3" aria-hidden />
-        {t('sentimentNegative')}
-      </span>
-    );
+    return <SentimentBadge sentiment="NEGATIVE" label={t('sentimentNegative')} theme="semantic" />;
   }
   if (sentiment === 'NEUTRAL') {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs font-bold text-muted-foreground">
-        <Minus className="size-3" aria-hidden />
-        {t('sentimentNeutral')}
-      </span>
-    );
+    return <SentimentBadge sentiment="NEUTRAL" label={t('sentimentNeutral')} theme="semantic" />;
   }
   return (
     <span
