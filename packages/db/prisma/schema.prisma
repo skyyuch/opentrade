@@ -343,7 +343,7 @@ enum ReviewStatus {
 /// paid-promotion-gameable surfaces (rule 00) while preserving an at-a-glance
 /// trust signal that pairs with `verifiedComplaintCount` (per ADR-0029).
 ///
-/// Rendered as `讚 / 普通 / 不讚` in zh-Hant per the 2026-05-25 meeting C1
+/// Rendered as `讚 / 普通 / 不好` in zh-Hant per the 2026-05-25 meeting C1
 /// resolution; the API uses these enum names verbatim and the UI handles the
 /// localisation.
 enum Sentiment {

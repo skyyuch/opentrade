@@ -5,8 +5,8 @@ import { SentimentPicker, type Sentiment } from './SentimentPicker';
 import type { Meta, StoryObj } from '@storybook/react';
 
 const enLabels = { positive: 'Positive', neutral: 'Neutral', negative: 'Negative' };
-const zhHantLabels = { positive: '讚', neutral: '普通', negative: '不讚' };
-const zhHansLabels = { positive: '赞', neutral: '普通', negative: '不赞' };
+const zhHantLabels = { positive: '讚', neutral: '普通', negative: '不好' };
+const zhHansLabels = { positive: '赞', neutral: '普通', negative: '不好' };
 
 const noop = (_next: Sentiment): void => {
   return;
