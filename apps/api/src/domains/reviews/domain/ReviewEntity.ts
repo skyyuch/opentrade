@@ -22,6 +22,26 @@ export type ReviewStatusValue = 'PENDING' | 'CONFIRMED' | 'FAILED';
  */
 export type ReviewSourceLocale = 'zh-Hant' | 'zh-Hans' | 'en';
 
+/**
+ * Three-way sentiment per ADR-0028 D1 — the canonical post-Phase-1.5
+ * review verdict axis. Mirrors the Prisma `Sentiment` enum at the type
+ * level so this domain file keeps its zero-infrastructure-import
+ * discipline (rule 10): we never reach into `@prisma/client` runtime
+ * values from the domain layer.
+ *
+ * Lifecycle (per ADR-0028 D4 + D6):
+ *   - M4.1 (this commit): added as **optional** on {@link SubmitReviewInput}
+ *     so the domain layer can land without forcing the presentation +
+ *     application layers to refactor in the same commit.
+ *   - M4.3: zod body schema on `POST /v1/reviews` collapses to **required**
+ *     once the IPFS-v2 + rating-derivation pieces in M4.2 are in place.
+ *   - {@link ReviewRecord}.sentiment stays nullable forever — legacy rows
+ *     created before the M3.2 backfill (or rows the backfill could not
+ *     map) carry `null`, and the UI surfaces a caption derived from
+ *     `rating` per ADR-0028 D7 instead of fabricating a value.
+ */
+export type ReviewSentiment = 'POSITIVE' | 'NEUTRAL' | 'NEGATIVE';
+
 export type SubmitReviewInput = {
   tenantId: string;
   userId: string;
@@ -29,6 +49,13 @@ export type SubmitReviewInput = {
   title: string;
   body: string;
   rating: ReviewRating;
+  /**
+   * Optional during M4.1; the M4.3 commit makes it required at the API
+   * boundary (zod body schema). Keeping it optional here lets the
+   * domain commit land without dragging routes / use case into the
+   * same diff.
+   */
+  sentiment?: ReviewSentiment;
   sourceLocale: ReviewSourceLocale;
 };
 
@@ -45,6 +72,12 @@ export type ReviewRecord = {
   body: string;
   rating: number;
   status: ReviewStatusValue;
+  /**
+   * Nullable per ADR-0028 D1 + D7. `null` means the row pre-dates the
+   * M3.2 backfill or was unmappable; consumers must not synthesise a
+   * value and instead show the historical `rating`-derived caption.
+   */
+  sentiment: ReviewSentiment | null;
   sourceLocale: ReviewSourceLocale | null;
   createdAt: Date;
   updatedAt: Date;

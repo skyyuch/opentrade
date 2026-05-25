@@ -33,6 +33,12 @@ export class PrismaReviewRepository implements IReviewRepository {
           title: data.title,
           body: data.body,
           rating: data.rating,
+          // Per ADR-0028 D1 — `sentiment` is optional on SubmitReviewInput
+          // during M4.1 (zod body makes it required in M4.3). Persist
+          // whatever the use case provides; legacy / transitional submits
+          // that omit it land as NULL and are picked up by the next
+          // backfill pass (per M3.2 idempotency).
+          sentiment: data.sentiment ?? null,
           sourceLocale: data.sourceLocale,
         },
       });
@@ -131,6 +137,7 @@ export class PrismaReviewRepository implements IReviewRepository {
     body: string;
     rating: number;
     status: string;
+    sentiment: string | null;
     sourceLocale: string | null;
     createdAt: Date;
     updatedAt: Date;
@@ -148,6 +155,11 @@ export class PrismaReviewRepository implements IReviewRepository {
       body: row.body,
       rating: row.rating,
       status: row.status as ReviewRecord['status'],
+      // Cast same pattern as `sourceLocale` / `status` — Prisma generates
+      // a string literal union for the enum but the row-shape in this
+      // hand-rolled mapper purposefully types columns as plain `string |
+      // null` to keep the mapper trivially refactorable.
+      sentiment: row.sentiment as ReviewRecord['sentiment'],
       sourceLocale: row.sourceLocale as ReviewRecord['sourceLocale'],
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
