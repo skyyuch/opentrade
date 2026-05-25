@@ -260,12 +260,105 @@ for (const b of brokers) { /* upsert by slug */ }
 
 ---
 
+## Backfill Scripts（資料遷移）
+
+當 schema 變更需要回填既有資料（per 上方「Migration 規範」嚴禁中「Migration 內含資料遷移」），**必須**寫獨立 backfill script 放在 `packages/db/scripts/`。
+
+### 強制結構（per ADR-0026 lesson + 2026-05-25 M1.2 fix）
+
+每個 backfill script 必須：
+
+1. **Cursor pagination**（**禁用** mutable-WHERE pattern）
+   - ❌ 舊 mutable-WHERE pattern（`WHERE field IS NULL` + 「每次都重新 query」）在 LIVE 模式下因為 update 收縮 WHERE 集合而「看起來」work，但在 dry-run 模式下會死迴圈（WHERE 集合永遠不縮）
+   - ✅ Cursor pagination（`WHERE id > lastSeenId`）對 LIVE + DRY_RUN 都 universally correct，且 idempotent
+2. **`--dry-run` flag 強制支援**
+   - 透過 `process.argv.includes('--dry-run')` 偵測
+   - DRY_RUN 模式下：跑 classification / transformation 邏輯但**不寫 DB**，console 印「would update」訊息
+   - LIVE 模式下：正常 `tx.update`
+3. **Idempotent**
+   - 第二次跑必須 no-op（透過 WHERE 排除已處理 rows + cursor 嚴格前進）
+4. **Wire 進 `package.json`**
+   - 個別 script：`"db:backfill:<noun>": "tsx scripts/backfill-<noun>.ts"`
+   - Production aggregator：`"db:backfill:prod": "pnpm db:backfill:<a> && pnpm db:backfill:<b>"`
+5. **記錄進 `packages/db/README.md` §Pre-deploy backfill**
+   - 註明對應的 ADR / migration ID
+   - 列出 LIVE + DRY_RUN 兩個範例 command
+6. **同步進 `apps/api/README.md` §Production deployment runbook**
+
+### 範本
+
+```ts
+// packages/db/scripts/backfill-<noun>.ts
+import { prisma } from '../src';
+
+const BATCH_SIZE = 200;
+const DRY_RUN = process.argv.includes('--dry-run');
+
+async function main() {
+ console.log(`[backfill-<noun>] mode=${DRY_RUN ? 'DRY_RUN' : 'LIVE'}`);
+
+ let lastSeenId: string | null = null;
+ let processedCount = 0;
+ let updatedCount = 0;
+
+ // eslint-disable-next-line no-constant-condition
+ while (true) {
+  const batch = await prisma.<model>.findMany({
+   where: {
+    <fieldToBackfill>: null,
+    ...(lastSeenId !== null ? { id: { gt: lastSeenId } } : {}),
+   },
+   orderBy: { id: 'asc' },
+   take: BATCH_SIZE,
+   select: { id: true, <sourceFields>: true },
+  });
+
+  if (batch.length === 0) break;
+
+  for (const row of batch) {
+   const newValue = classifyOrTransform(row);
+   processedCount++;
+   if (newValue !== null) {
+    if (!DRY_RUN) {
+     await prisma.<model>.update({ where: { id: row.id }, data: { <fieldToBackfill>: newValue } });
+    }
+    updatedCount++;
+   }
+   lastSeenId = row.id; // cursor 嚴格前進，即使 skip / dry-run 也推進
+  }
+
+  console.log(`[backfill-<noun>] processed=${processedCount} updated=${updatedCount}${DRY_RUN ? ' (dry-run)' : ''}`);
+ }
+
+ console.log(`[backfill-<noun>] done. final processed=${processedCount} updated=${updatedCount}`);
+}
+
+main()
+ .catch((err) => {
+  console.error(err);
+  process.exit(1);
+ })
+ .finally(() => prisma.$disconnect());
+```
+
+### 嚴禁
+
+- ❌ Mutable-WHERE pattern（會在 dry-run 死迴圈）
+- ❌ 不支援 `--dry-run`（production deploy 前無法 preview）
+- ❌ 跳過 `packages/db/README.md` + `apps/api/README.md` 文件更新
+- ❌ 在 `migrations/*.sql` 內寫 `UPDATE ... SET ...`（資料遷移走獨立 script）
+- ❌ 不 idempotent 的 backfill（第二次跑會壞資料）
+
+---
+
 ## 嚴禁
 
 - ❌ 用 raw SQL 繞過 Prisma（除非有充分理由 + ADR）
 - ❌ 在 schema 用 `String` 存 enum（用 Prisma `enum` 或在 app 層 zod）
 - ❌ 用 Float 存金錢（用 `Decimal` 或整數 cents）
 - ❌ N+1 query（用 `include` / `select`）
-- ❌ Migration 內含資料遷移（資料遷移用獨立 script）
+- ❌ Migration 內含資料遷移（資料遷移用獨立 script，per §Backfill Scripts）
+- ❌ Backfill script 用 mutable-WHERE 而非 cursor pagination（per §Backfill Scripts，dry-run 會死迴圈）
+- ❌ Backfill script 不支援 `--dry-run`
 - ❌ Prisma Studio 在 prod 連線
 - ❌ DB 直接從 console.aws.amazon.com 改 schema（必須 Terraform + Prisma migration）
