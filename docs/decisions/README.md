@@ -87,35 +87,36 @@ YYYY-MM-DD
 
 ## 已有 ADR 列表
 
-| #    | Title                                                      | Status             | Date       |
-| ---- | ---------------------------------------------------------- | ------------------ | ---------- |
-| 0001 | 採用 Base L2 作為主要區塊鏈                                | Accepted           | 2026-05-17 |
-| 0002 | 採用 AWS 作為唯一雲端供應商                                | Accepted           | 2026-05-17 |
-| 0003 | i18n 三語架構：繁中（預設）/ 簡中 / 英文                   | Accepted           | 2026-05-17 |
-| 0004 | Monorepo 使用 pnpm + Turborepo                             | Accepted           | 2026-05-17 |
-| 0005 | Web3 帳號抽象化使用 Privy                                  | Accepted           | 2026-05-17 |
-| 0006 | API 採用 DDD + Modular Monolith 架構                       | Accepted           | 2026-05-17 |
-| 0007 | V1 不發行自有代幣，使用積分系統                            | Accepted           | 2026-05-17 |
-| 0008 | 陪審團採分階段實作但架構保留完整性                         | Accepted           | 2026-05-17 |
-| 0009 | UI 採 Storybook 獨立工作流先行                             | Accepted           | 2026-05-17 |
-| 0010 | 用戶端與商戶後台拆兩個獨立 Next.js app                     | Accepted           | 2026-05-17 |
-| 0011 | OpenTrade UI 設計語言（Civic Trust + Web3 科技感）         | Accepted           | 2026-05-17 |
-| 0012 | 本機開發環境使用 docker-compose 跑 PostgreSQL              | Accepted           | 2026-05-17 |
-| 0013 | Pin Prisma to 6.x — defer Prisma 7 adoption                | Accepted           | 2026-05-17 |
-| 0014 | apps/api runtime architecture (env / bundle / Prisma)      | Accepted           | 2026-05-17 |
-| 0015 | packages/contracts toolchain setup                         | Accepted           | 2026-05-17 |
-| 0016 | AWS account architecture (Org, Identity Center, SSO)       | Accepted           | 2026-05-20 |
-| 0017 | Terraform IaC structure + Phase-0 full apply scope         | Accepted           | 2026-05-21 |
-| 0018 | CI/CD GitHub Actions architecture (Phase 0 scope)          | Accepted           | 2026-05-21 |
-| 0019 | ReviewRegistry contract design (Phase 1)                   | Accepted           | 2026-05-21 |
-| 0020 | Scheduled SFC broker sync (ECS + EventBridge weekly)       | Accepted           | 2026-05-22 |
-| 0021 | ReviewerSBT contract design (Phase 1)                      | Accepted           | 2026-05-22 |
-| 0022 | L2 identity verification via commitment-hash (Phase 1)     | Accepted           | 2026-05-22 |
-| 0023 | UGC translation via DeepL API (Phase 1)                    | Superseded by 0027 | 2026-05-22 |
-| 0024 | Console username/password authentication (Phase 1)         | Accepted           | 2026-05-23 |
-| 0025 | Multi-broker verification strategy (Phase 1 off-chain)     | Accepted           | 2026-05-24 |
-| 0026 | zh-Hans broker name strategy (DB column + OpenCC backfill) | Accepted           | 2026-05-24 |
-| 0027 | Deprecate UGC translation; ship reviews as author-original | Accepted           | 2026-05-24 |
+| #    | Title                                                       | Status             | Date       |
+| ---- | ----------------------------------------------------------- | ------------------ | ---------- |
+| 0001 | 採用 Base L2 作為主要區塊鏈                                 | Accepted           | 2026-05-17 |
+| 0002 | 採用 AWS 作為唯一雲端供應商                                 | Accepted           | 2026-05-17 |
+| 0003 | i18n 三語架構：繁中（預設）/ 簡中 / 英文                    | Accepted           | 2026-05-17 |
+| 0004 | Monorepo 使用 pnpm + Turborepo                              | Accepted           | 2026-05-17 |
+| 0005 | Web3 帳號抽象化使用 Privy                                   | Accepted           | 2026-05-17 |
+| 0006 | API 採用 DDD + Modular Monolith 架構                        | Accepted           | 2026-05-17 |
+| 0007 | V1 不發行自有代幣，使用積分系統                             | Accepted           | 2026-05-17 |
+| 0008 | 陪審團採分階段實作但架構保留完整性                          | Accepted           | 2026-05-17 |
+| 0009 | UI 採 Storybook 獨立工作流先行                              | Accepted           | 2026-05-17 |
+| 0010 | 用戶端與商戶後台拆兩個獨立 Next.js app                      | Accepted           | 2026-05-17 |
+| 0011 | OpenTrade UI 設計語言（Civic Trust + Web3 科技感）          | Accepted           | 2026-05-17 |
+| 0012 | 本機開發環境使用 docker-compose 跑 PostgreSQL               | Accepted           | 2026-05-17 |
+| 0013 | Pin Prisma to 6.x — defer Prisma 7 adoption                 | Accepted           | 2026-05-17 |
+| 0014 | apps/api runtime architecture (env / bundle / Prisma)       | Accepted           | 2026-05-17 |
+| 0015 | packages/contracts toolchain setup                          | Accepted           | 2026-05-17 |
+| 0016 | AWS account architecture (Org, Identity Center, SSO)        | Accepted           | 2026-05-20 |
+| 0017 | Terraform IaC structure + Phase-0 full apply scope          | Accepted           | 2026-05-21 |
+| 0018 | CI/CD GitHub Actions architecture (Phase 0 scope)           | Accepted           | 2026-05-21 |
+| 0019 | ReviewRegistry contract design (Phase 1)                    | Accepted           | 2026-05-21 |
+| 0020 | Scheduled SFC broker sync (ECS + EventBridge weekly)        | Accepted           | 2026-05-22 |
+| 0021 | ReviewerSBT contract design (Phase 1)                       | Accepted           | 2026-05-22 |
+| 0022 | L2 identity verification via commitment-hash (Phase 1)      | Accepted           | 2026-05-22 |
+| 0023 | UGC translation via DeepL API (Phase 1)                     | Superseded by 0027 | 2026-05-22 |
+| 0024 | Console username/password authentication (Phase 1)          | Accepted           | 2026-05-23 |
+| 0025 | Multi-broker verification strategy (Phase 1 off-chain)      | Accepted           | 2026-05-24 |
+| 0026 | zh-Hans broker name strategy (DB column + OpenCC backfill)  | Accepted           | 2026-05-24 |
+| 0027 | Deprecate UGC translation; ship reviews as author-original  | Accepted           | 2026-05-24 |
+| 0028 | Deprecate five-star rating in favour of three-way sentiment | Accepted           | 2026-05-25 |
 
 ---
 
