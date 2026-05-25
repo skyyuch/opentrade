@@ -19,7 +19,9 @@
     "postcss.config.mjs",
     "src/**/*.ts",
     "src/**/*.tsx",
-    ".next/types/**/*.ts"
+    ".next/types/**/*.ts",
+    "vitest.config.ts",
+    "vitest.setup.ts"
   ],
-  "exclude": ["node_modules", ".next", "dist", "out", "**/*.test.ts", "**/*.spec.ts"]
+  "exclude": ["node_modules", ".next", "dist", "out"]
 }
