@@ -192,6 +192,8 @@
     "sentimentNeutral": "Neutral",
     "sentimentNegative": "Negative",
     "sentimentBadgeAria": "Verdict: {value}",
+    "sentimentDistribution": "Verdict distribution",
+    "sentimentDistributionEmpty": "No classified verdicts yet",
     "legacyRatingCaption": "Legacy five-star score: {rating}",
     "legacyRatingCaptionTooltip": "This review was submitted before the five-star axis was retired; the legacy score is shown for reference only.",
     "ipfsContentLink": "IPFS source",

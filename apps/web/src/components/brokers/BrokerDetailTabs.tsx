@@ -128,7 +128,7 @@ function ReviewsTab({
 
   return (
     <>
-      <RatingSummary broker={broker} />
+      <SentimentDistribution broker={broker} />
       <SubmitReviewCta brokerId={broker.id} brokerName={localizedBrokerName(broker, locale)} />
 
       <div className="flex flex-col sm:flex-row justify-between items-center gap-4 pt-4 border-t border-white/5">
@@ -179,9 +179,55 @@ function ReviewsTab({
   );
 }
 
-function RatingSummary({ broker }: { broker: BrokerDetail }) {
+/**
+ * SentimentDistribution — broker detail headline widget (per ADR-0028 D7).
+ * Replaces the legacy RatingSummary five-star distribution. The headline
+ * keeps `positiveRate` because the field is still reliable: at the API
+ * layer (M4.4) the rate is computed from rows where the sentiment is
+ * known, so it remains a useful "share of positive verdicts" signal even
+ * during the deprecation window.
+ *
+ * The three-bar mini-chart uses `broker.sentimentAggregate` (M4.4) and
+ * renders each bar at a width normalised against the maximum count, so a
+ * broker with very few neutrals still gets a visible bar segment. Null
+ * sentiments are already excluded server-side (per ADR-0028 D7) so the
+ * totals here are definitive verdicts only.
+ */
+function SentimentDistribution({ broker }: { broker: BrokerDetail }) {
   const t = useTranslations('brokerDetail');
-  const starsFilled = broker.positiveRate != null ? Math.round(broker.positiveRate / 20) : 0;
+  const agg = broker.sentimentAggregate;
+  const totalKnown = agg.positive + agg.neutral + agg.negative;
+  const maxCount = Math.max(agg.positive, agg.neutral, agg.negative, 1);
+
+  const rows: {
+    key: 'positive' | 'neutral' | 'negative';
+    label: string;
+    count: number;
+    barClass: string;
+    chipClass: string;
+  }[] = [
+    {
+      key: 'positive',
+      label: t('sentimentPositive'),
+      count: agg.positive,
+      barClass: 'bg-[#00FF88]',
+      chipClass: 'text-[#00FF88]',
+    },
+    {
+      key: 'neutral',
+      label: t('sentimentNeutral'),
+      count: agg.neutral,
+      barClass: 'bg-white/40',
+      chipClass: 'text-white/70',
+    },
+    {
+      key: 'negative',
+      label: t('sentimentNegative'),
+      count: agg.negative,
+      barClass: 'bg-red-400',
+      chipClass: 'text-red-300',
+    },
+  ];
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 rounded-2xl bg-zinc-900/60 border border-white/10">
@@ -190,18 +236,7 @@ function RatingSummary({ broker }: { broker: BrokerDetail }) {
         <div className="flex items-baseline gap-2">
           <span className="text-5xl font-bold text-[#00FF88]">{broker.positiveRate ?? 0}%</span>
         </div>
-        <div className="flex items-center gap-1 mt-3">
-          {[1, 2, 3, 4, 5].map((i) => (
-            <Star
-              key={i}
-              size={18}
-              className={
-                i <= starsFilled ? 'fill-[#00FF88] text-[#00FF88]' : 'fill-white/10 text-white/10'
-              }
-            />
-          ))}
-        </div>
-        <div className="text-sm text-white/40 mt-2">
+        <div className="text-sm text-white/40 mt-3">
           {t('totalReviews', { count: broker.reviewCount })}
         </div>
         <div className="mt-4 flex flex-wrap items-center gap-2">
@@ -223,19 +258,28 @@ function RatingSummary({ broker }: { broker: BrokerDetail }) {
         </div>
       </div>
 
-      <div className="flex flex-col justify-center space-y-2.5">
-        {broker.ratingDistribution.map((row) => (
-          <div key={row.stars} className="flex items-center gap-3 text-sm">
-            <div className="flex items-center gap-1 w-12 text-white/60">
-              <span>{row.stars}</span>
-              <Star size={12} className="fill-white/60" />
-            </div>
-            <div className="flex-1 h-2 bg-white/10 rounded-full overflow-hidden">
-              <div className="h-full bg-[#00FF88]" style={{ width: `${row.percentage}%` }} />
-            </div>
-            <div className="w-8 text-right text-white/40 text-xs">{row.percentage}%</div>
-          </div>
-        ))}
+      <div className="flex flex-col justify-center gap-3" aria-label={t('sentimentDistribution')}>
+        {totalKnown === 0 ? (
+          <div className="text-sm text-white/40">{t('sentimentDistributionEmpty')}</div>
+        ) : (
+          rows.map((row) => {
+            const pct = Math.round((row.count / maxCount) * 100);
+            const sharePct = Math.round((row.count / totalKnown) * 100);
+            return (
+              <div key={row.key} className="flex items-center gap-3 text-sm">
+                <div className={`w-20 font-bold text-xs uppercase tracking-wide ${row.chipClass}`}>
+                  {row.label}
+                </div>
+                <div className="flex-1 h-2 bg-white/10 rounded-full overflow-hidden">
+                  <div className={`h-full ${row.barClass}`} style={{ width: `${pct}%` }} />
+                </div>
+                <div className="w-12 text-right text-white/40 text-xs tabular-nums">
+                  {row.count} · {sharePct}%
+                </div>
+              </div>
+            );
+          })
+        )}
       </div>
     </div>
   );

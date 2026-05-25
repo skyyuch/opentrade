@@ -192,6 +192,8 @@
     "sentimentNeutral": "普通",
     "sentimentNegative": "不赞",
     "sentimentBadgeAria": "评价：{value}",
+    "sentimentDistribution": "评价分布",
+    "sentimentDistributionEmpty": "尚无已分类的评价",
     "legacyRatingCaption": "依五星评分回推为 {rating} 星",
     "legacyRatingCaptionTooltip": "此评论在五星制废除前提交，仅显示旧评分作为参考。",
     "ipfsContentLink": "IPFS 原文",

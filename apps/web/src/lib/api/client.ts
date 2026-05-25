@@ -334,7 +334,23 @@ export type BrokerDetail = {
    * signal complementary to the review-rating distribution.
    */
   verifiedUserCount: number;
+  /**
+   * Per ADR-0028 D6: legacy five-bar distribution. Still shipped by the API
+   * for pre-M5 consumers but the broker detail page no longer renders it
+   * (M5.4 swapped the widget for SentimentDistribution).
+   */
   ratingDistribution: RatingDistributionItem[];
+  /**
+   * Per ADR-0028 D7 + M4.4: counts of POSITIVE / NEUTRAL / NEGATIVE
+   * sentiments across this broker's reviews. Null sentiments (legacy
+   * pre-backfill rows) are excluded from the totals so they do not
+   * pollute the distribution — readers see only definitive verdicts.
+   */
+  sentimentAggregate: {
+    positive: number;
+    neutral: number;
+    negative: number;
+  };
   licenses: BrokerLicense[];
   similarBrokers: SimilarBroker[];
 };
