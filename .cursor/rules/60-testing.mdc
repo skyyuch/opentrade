@@ -131,6 +131,49 @@ test('user can submit a review', async ({ page }) => {
 
 E2E 必須跑在 dev / staging 真實環境（用測試錢包與 testnet）。
 
+### E2E webServer 隔離（per M6.3 lesson）
+
+當 Playwright `webServer` block 自己 spawn `next dev`（或任何前端 dev server），**必須**用獨立 build dir，不可與 user 本機 `pnpm dev` 共用 `.next/cache/`：
+
+```ts
+// apps/web/playwright.config.ts
+webServer: [
+  {
+    command: `next dev --port ${WEB_PORT}`,
+    env: {
+      NEXT_PUBLIC_API_URL: `http://127.0.0.1:${STUB_PORT}`,
+      // ✅ 強制要求：隔離 build dir
+      NEXT_DIST_DIR: '.next-e2e',
+    },
+    // ...
+  },
+],
+```
+
+配合 `next.config.mjs`：
+
+```js
+const nextConfig = {
+  distDir: process.env['NEXT_DIST_DIR'] ?? '.next',
+  // ...
+};
+```
+
+**為什麼**：Webpack persistent cache 的 module key 不包含環境變數 hash。兩個 `next dev` 共用 `.next/cache/webpack/` 時，process A 把 `NEXT_PUBLIC_API_URL=http://127.0.0.1:4010` inline 進編譯結果寫快取後，process B 下次 recompile 會命中那份快取 → bytecode 被污染 → user 的 dev session 在瀏覽器突然向 stub port 發 fetch → `ECONNREFUSED`。
+
+**配合做的事**：
+- `.gitignore` 加 `.next-e2e/`
+- 根 `eslint.config.mjs` ignore `**/.next-e2e/**`
+- `apps/web/tsconfig.json` include `.next-e2e/types/**/*.ts`（typed routes auto-gen 在此）+ exclude `.next-e2e/{cache,server,static}`（不讓 tsc 吃 build output）
+
+### E2E 寫入路徑 vs 讀取路徑
+
+當登入流程涉及 Privy / Magic / WalletConnect 等不易 mock 的 SDK：
+
+- ✅ **寫入路徑**用 vitest + RTL component test（mock auth hook + API client）
+- ✅ **讀取路徑**用 Playwright + API stub server（不登入）
+- ❌ **避免** Playwright + 全 SDK mock 寫入路徑 — Privy provider state 深度耦合，維護成本長期超過測試價值
+
 ---
 
 ## Solidity Test (Foundry)
