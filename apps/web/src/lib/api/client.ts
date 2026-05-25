@@ -419,7 +419,21 @@ export type SubmitReviewInput = {
   brokerId: string;
   title: string;
   body: string;
-  rating: number;
+  /**
+   * Per ADR-0028 D4: sentiment is the canonical review axis from M4 onward;
+   * the API requires it and the web form (post-M5.2) always sends it. The
+   * use case synthesises a legacy `rating` value via D2 reverse mapping so
+   * the deprecated `Review.rating` column keeps satisfying its NOT NULL
+   * constraint through the D6 drop window.
+   */
+  sentiment: 'POSITIVE' | 'NEUTRAL' | 'NEGATIVE';
+  /**
+   * Per ADR-0028 D4: legacy five-star value, now optional. The web form
+   * (post-M5.2) does not send it; only kept in the type surface so an
+   * external client / future admin tool can still submit it for migration
+   * scenarios.
+   */
+  rating?: number;
   /**
    * Per ADR-0027 D2: the author's current next-intl locale. The frontend
    * always knows this (the user clicked through `[locale]` route to get
@@ -436,7 +450,10 @@ export type SubmitReviewResponse = {
     contentHash: string;
     ipfsCid: string | null;
     title: string;
+    /** Legacy five-star value, kept until ADR-0028 D6 drop. */
     rating: number;
+    /** Per ADR-0028 D4: required at submit time post-M4.3. */
+    sentiment: 'POSITIVE' | 'NEUTRAL' | 'NEGATIVE';
     status: string;
     createdAt: string;
   };

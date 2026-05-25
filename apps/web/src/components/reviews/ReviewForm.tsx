@@ -11,9 +11,10 @@
 'use client';
 
 import { usePrivy } from '@privy-io/react-auth';
-import { Star } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
+
+import { SentimentPicker, type Sentiment } from '@opentrade/ui';
 
 import { useOpenTradeAuth } from '../../hooks/useOpenTradeAuth';
 import { ApiClientError, submitReview } from '../../lib/api/client';
@@ -41,15 +42,26 @@ export const ReviewForm = ({ brokerId, brokerName }: Props): ReactNode => {
   const currentLocale = useLocale();
 
   const [state, setState] = useState<FormState>({ kind: 'idle' });
-  const [rating, setRating] = useState(0);
-  const [hoverRating, setHoverRating] = useState(0);
+  const [sentiment, setSentiment] = useState<Sentiment | null>(null);
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
+
+  // Per ADR-0028 D7: labels are caller-supplied so packages/ui keeps no
+  // next-intl coupling. We memoise so the picker's reference identity stays
+  // stable across renders.
+  const sentimentLabels = useMemo(
+    () => ({
+      positive: t('sentimentPositive'),
+      neutral: t('sentimentNeutral'),
+      negative: t('sentimentNegative'),
+    }),
+    [t],
+  );
 
   const handleSubmit = useCallback(
     async (e: FormEvent) => {
       e.preventDefault();
-      if (rating === 0 || !title.trim() || body.trim().length < 10) return;
+      if (sentiment === null || !title.trim() || body.trim().length < 10) return;
 
       setState({ kind: 'submitting' });
 
@@ -64,12 +76,12 @@ export const ReviewForm = ({ brokerId, brokerName }: Props): ReactNode => {
           currentLocale === 'zh-Hans' || currentLocale === 'en' ? currentLocale : 'zh-Hant';
 
         await submitReview(
-          { brokerId, title: title.trim(), body: body.trim(), rating, sourceLocale },
+          { brokerId, title: title.trim(), body: body.trim(), sentiment, sourceLocale },
           { accessToken },
         );
 
         setState({ kind: 'success' });
-        setRating(0);
+        setSentiment(null);
         setTitle('');
         setBody('');
       } catch (err) {
@@ -78,7 +90,7 @@ export const ReviewForm = ({ brokerId, brokerName }: Props): ReactNode => {
         setState({ kind: 'error', message });
       }
     },
-    [brokerId, rating, title, body, getAccessToken, t, currentLocale],
+    [brokerId, sentiment, title, body, getAccessToken, t, currentLocale],
   );
 
   if (!authenticated) {
@@ -120,30 +132,14 @@ export const ReviewForm = ({ brokerId, brokerName }: Props): ReactNode => {
       ) : null}
 
       <fieldset className="flex flex-col gap-1.5">
-        <legend className="text-sm font-medium">{t('ratingLabel')}</legend>
-        <div className="flex gap-1" role="radiogroup" aria-label={t('ratingLabel')}>
-          {[1, 2, 3, 4, 5].map((value) => (
-            <button
-              key={value}
-              type="button"
-              role="radio"
-              aria-checked={rating === value}
-              aria-label={t('stars', { count: value })}
-              onMouseEnter={() => setHoverRating(value)}
-              onMouseLeave={() => setHoverRating(0)}
-              onClick={() => setRating(value)}
-              className="p-0.5 transition-transform hover:scale-110"
-            >
-              <Star
-                className={`size-6 ${
-                  value <= (hoverRating || rating)
-                    ? 'fill-warning text-warning'
-                    : 'text-muted-foreground/30'
-                }`}
-              />
-            </button>
-          ))}
-        </div>
+        <legend className="text-sm font-medium">{t('sentimentLabel')}</legend>
+        <SentimentPicker
+          value={sentiment}
+          onChange={setSentiment}
+          labels={sentimentLabels}
+          groupLabel={t('sentimentLabel')}
+          disabled={state.kind === 'submitting'}
+        />
       </fieldset>
 
       <label className="flex flex-col gap-1.5">
@@ -174,7 +170,7 @@ export const ReviewForm = ({ brokerId, brokerName }: Props): ReactNode => {
 
       <button
         type="submit"
-        disabled={state.kind === 'submitting' || rating === 0}
+        disabled={state.kind === 'submitting' || sentiment === null}
         className="self-start rounded-lg bg-foreground px-5 py-2 text-sm font-medium text-background transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
       >
         {state.kind === 'submitting' ? t('submitting') : t('submit')}

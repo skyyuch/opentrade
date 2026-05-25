@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { usePrivy } from '@privy-io/react-auth';
 import {
@@ -22,6 +22,7 @@ import { Link } from '@/i18n/navigation';
 import { useOpenTradeAuth } from '@/hooks/useOpenTradeAuth';
 import { ApiClientError, reviewIpfsContentUrl, submitReview } from '@/lib/api/client';
 import { localizedBrokerName } from '@opentrade/shared';
+import { SentimentPicker, type Sentiment } from '@opentrade/ui';
 
 import type { FormEvent } from 'react';
 import type {
@@ -256,15 +257,25 @@ function SubmitReviewCta({ brokerId, brokerName }: { brokerId: string; brokerNam
   const currentLocale = useLocale();
 
   const [formState, setFormState] = useState<ReviewFormState>({ kind: 'idle' });
-  const [rating, setRating] = useState(0);
-  const [hoverRating, setHoverRating] = useState(0);
+  const [sentiment, setSentiment] = useState<Sentiment | null>(null);
   const [body, setBody] = useState('');
   const [title, setTitle] = useState('');
+
+  // Per ADR-0028 D7: labels resolved here via next-intl, then handed to the
+  // packages/ui primitive so the design system stays framework-agnostic.
+  const sentimentLabels = useMemo(
+    () => ({
+      positive: tf('sentimentPositive'),
+      neutral: tf('sentimentNeutral'),
+      negative: tf('sentimentNegative'),
+    }),
+    [tf],
+  );
 
   const handleSubmit = useCallback(
     async (e: FormEvent) => {
       e.preventDefault();
-      if (rating === 0 || body.trim().length < 10) return;
+      if (sentiment === null || body.trim().length < 10) return;
       setFormState({ kind: 'submitting' });
       try {
         const accessToken = await getAccessToken();
@@ -279,13 +290,13 @@ function SubmitReviewCta({ brokerId, brokerName }: { brokerId: string; brokerNam
             brokerId,
             title: title.trim() || brokerName,
             body: body.trim(),
-            rating,
+            sentiment,
             sourceLocale,
           },
           { accessToken },
         );
         setFormState({ kind: 'success' });
-        setRating(0);
+        setSentiment(null);
         setTitle('');
         setBody('');
       } catch (err) {
@@ -293,7 +304,7 @@ function SubmitReviewCta({ brokerId, brokerName }: { brokerId: string; brokerNam
         setFormState({ kind: 'error', message });
       }
     },
-    [brokerId, brokerName, rating, title, body, getAccessToken, tf, currentLocale],
+    [brokerId, brokerName, sentiment, title, body, getAccessToken, tf, currentLocale],
   );
 
   if (!authenticated) {
@@ -345,28 +356,14 @@ function SubmitReviewCta({ brokerId, brokerName }: { brokerId: string; brokerNam
         )}
 
         <div>
-          <div className="text-sm font-medium text-white/60 mb-2">{tf('ratingLabel')}</div>
-          <div className="flex gap-1.5">
-            {[1, 2, 3, 4, 5].map((value) => (
-              <button
-                key={value}
-                type="button"
-                onMouseEnter={() => setHoverRating(value)}
-                onMouseLeave={() => setHoverRating(0)}
-                onClick={() => setRating(value)}
-                className="p-0.5 transition-transform hover:scale-110"
-              >
-                <Star
-                  size={24}
-                  className={
-                    value <= (hoverRating || rating)
-                      ? 'fill-[#00FF88] text-[#00FF88]'
-                      : 'fill-white/10 text-white/10'
-                  }
-                />
-              </button>
-            ))}
-          </div>
+          <div className="text-sm font-medium text-white/60 mb-2">{tf('sentimentLabel')}</div>
+          <SentimentPicker
+            value={sentiment}
+            onChange={setSentiment}
+            labels={sentimentLabels}
+            groupLabel={tf('sentimentLabel')}
+            disabled={formState.kind === 'submitting'}
+          />
         </div>
 
         <div>
@@ -402,7 +399,7 @@ function SubmitReviewCta({ brokerId, brokerName }: { brokerId: string; brokerNam
         </div>
         <button
           type="submit"
-          disabled={formState.kind === 'submitting' || rating === 0}
+          disabled={formState.kind === 'submitting' || sentiment === null}
           className="px-5 py-2.5 bg-[#00FF88] text-[#050608] font-bold text-sm rounded-full hover:shadow-[0_0_15px_#00FF8840] transition-all whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {formState.kind === 'submitting' ? tf('submitting') : t('signAndPublish')}
