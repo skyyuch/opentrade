@@ -24,6 +24,7 @@ import { hydrateBrokerNames } from '../../../shared/brokerHydration.js';
 import { env } from '../../../shared/env.js';
 import { AppError, ErrorCode } from '../../../shared/errors/index.js';
 import { GetBrokerReviewsUseCase } from '../application/GetBrokerReviewsUseCase.js';
+import { GetReviewIpfsContentUseCase } from '../application/GetReviewIpfsContentUseCase.js';
 import { SubmitReviewUseCase } from '../application/SubmitReviewUseCase.js';
 import { PinataIpfsService } from '../infrastructure/PinataIpfsService.js';
 import { PrismaReviewRepository } from '../infrastructure/PrismaReviewRepository.js';
@@ -41,6 +42,7 @@ const ipfsService = new PinataIpfsService(env.PINATA_JWT);
 // only repo + IPFS now.
 const submitReview = new SubmitReviewUseCase(reviewRepo, ipfsService);
 const getBrokerReviews = new GetBrokerReviewsUseCase(reviewRepo);
+const getReviewIpfsContent = new GetReviewIpfsContentUseCase(reviewRepo, env.PINATA_GATEWAY_URL);
 
 const SOURCE_LOCALE_VALUES = ['zh-Hant', 'zh-Hans', 'en'] as const;
 
@@ -249,6 +251,29 @@ reviewsRouter.get('/broker/:slug', async (c) => {
       displayNameZhHans: broker.displayNameZhHans,
       legalName: broker.legalName,
       logoUrl: broker.logoUrl,
+    },
+  });
+});
+
+// Charset proxy for IPFS content. Registered before the `/:id` catch-all
+// so Hono's trie picks the more specific path first. The Pinata public
+// gateway returns UTF-8 bytes but omits the charset header (cosmetic bug
+// observed 2026-05-24); this endpoint re-emits them with the canonical
+// `application/json; charset=utf-8` so browsers render CJK correctly.
+reviewsRouter.get('/:id/ipfs-content', async (c) => {
+  const id = c.req.param('id');
+  const result = await getReviewIpfsContent.execute({ reviewId: id });
+  if (result === null) {
+    throw new AppError(ErrorCode.NOT_FOUND, 'Review or IPFS content not found', 404);
+  }
+  return new Response(result.content, {
+    status: 200,
+    headers: {
+      'Content-Type': result.contentType,
+      // IPFS content is content-addressed and therefore immutable; safe
+      // to cache aggressively. One hour at the browser is conservative;
+      // a CDN in front of this could push much higher.
+      'Cache-Control': 'public, max-age=3600, immutable',
     },
   });
 });

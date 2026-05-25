@@ -187,7 +187,9 @@
     "sourceLocaleZhHant": "繁體中文",
     "sourceLocaleZhHans": "簡體中文",
     "sourceLocaleEn": "英文",
-    "sourceLocaleTooltip": "原文語言：{language}"
+    "sourceLocaleTooltip": "原文語言：{language}",
+    "ipfsContentLink": "IPFS 原文",
+    "ipfsContentLinkTooltip": "查看上鏈內容原文（IPFS 不可篡改）"
   },
   "reviewForm": {
     "title": "撰寫評論",

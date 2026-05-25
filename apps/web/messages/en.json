@@ -187,7 +187,9 @@
     "sourceLocaleZhHant": "Traditional Chinese",
     "sourceLocaleZhHans": "Simplified Chinese",
     "sourceLocaleEn": "English",
-    "sourceLocaleTooltip": "Original language: {language}"
+    "sourceLocaleTooltip": "Original language: {language}",
+    "ipfsContentLink": "IPFS source",
+    "ipfsContentLinkTooltip": "View the on-chain content payload (immutable on IPFS)"
   },
   "reviewForm": {
     "title": "Write a review",

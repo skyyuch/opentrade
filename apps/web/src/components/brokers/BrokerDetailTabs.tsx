@@ -6,6 +6,7 @@ import { usePrivy } from '@privy-io/react-auth';
 import {
   CheckCircle,
   Edit3,
+  FileText,
   Info,
   Link as LinkIcon,
   MessageSquare,
@@ -19,7 +20,7 @@ import {
 } from 'lucide-react';
 import { Link } from '@/i18n/navigation';
 import { useOpenTradeAuth } from '@/hooks/useOpenTradeAuth';
-import { ApiClientError, submitReview } from '@/lib/api/client';
+import { ApiClientError, reviewIpfsContentUrl, submitReview } from '@/lib/api/client';
 import { localizedBrokerName } from '@opentrade/shared';
 
 import type { FormEvent } from 'react';
@@ -540,22 +541,38 @@ function ReviewCard({
       <p className="text-sm text-white/80 leading-relaxed mb-4">{review.body}</p>
 
       <div className="flex items-center justify-between pt-4 border-t border-white/5">
-        {review.txHash ? (
-          <a
-            href={`https://sepolia.basescan.org/tx/${review.txHash}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-1.5 px-2 py-1 rounded bg-black/30 border border-white/5 w-fit group"
-          >
-            <LinkIcon size={12} className="text-white/40" />
-            <span className="text-[10px] font-mono text-white/40 group-hover:text-white transition-colors">
-              Tx: {review.txHash.slice(0, 10)}…{review.txHash.slice(-4)}
-            </span>
-            <div className="ml-1 w-2 h-2 rounded-full bg-[#00FF88] animate-pulse" />
-          </a>
-        ) : (
-          <span className="text-[10px] text-white/30">{t('pending')}</span>
-        )}
+        <div className="flex items-center gap-2 flex-wrap">
+          {review.txHash ? (
+            <a
+              href={`https://sepolia.basescan.org/tx/${review.txHash}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 px-2 py-1 rounded bg-black/30 border border-white/5 group"
+            >
+              <LinkIcon size={12} className="text-white/40" />
+              <span className="text-[10px] font-mono text-white/40 group-hover:text-white transition-colors">
+                Tx: {review.txHash.slice(0, 10)}…{review.txHash.slice(-4)}
+              </span>
+              <div className="ml-1 w-2 h-2 rounded-full bg-[#00FF88] animate-pulse" />
+            </a>
+          ) : (
+            <span className="text-[10px] text-white/30">{t('pending')}</span>
+          )}
+          {review.ipfsCid && (
+            <a
+              href={reviewIpfsContentUrl(review.id)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 px-2 py-1 rounded bg-black/30 border border-white/5 group"
+              title={t('ipfsContentLinkTooltip')}
+            >
+              <FileText size={12} className="text-white/40" />
+              <span className="text-[10px] font-mono text-white/40 group-hover:text-white transition-colors">
+                {t('ipfsContentLink')}
+              </span>
+            </a>
+          )}
+        </div>
         <div className="flex items-center gap-3 text-white/40">
           <button className="flex items-center gap-1.5 hover:text-[#00FF88] transition-colors">
             <ThumbsUp size={14} />

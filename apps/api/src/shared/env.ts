@@ -117,6 +117,16 @@ const envSchema = z.object({
   PINATA_JWT: z.string().min(1, 'PINATA_JWT is required for IPFS review pinning'),
 
   /**
+   * Pinata gateway base URL used by the read-side IPFS proxy endpoint
+   * (`GET /v1/reviews/:id/ipfs-content`). Defaults to the public Pinata
+   * gateway. Override with a dedicated gateway URL
+   * (`https://<subdomain>.mypinata.cloud/ipfs/`) for higher rate limits
+   * or pre-signed access. Must end with a trailing slash so the CID is
+   * appended directly.
+   */
+  PINATA_GATEWAY_URL: z.string().url().default('https://gateway.pinata.cloud/ipfs/'),
+
+  /**
    * RPC URL for the target chain. Used by the outbox worker to submit
    * on-chain transactions. Defaults to Base Sepolia public RPC.
    */

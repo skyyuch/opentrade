@@ -161,6 +161,19 @@ export type ExchangeTokenResponse = {
 export const exchangeAuthToken = (privyToken: string): Promise<ExchangeTokenResponse> =>
   apiPost<ExchangeTokenResponse>('/v1/auth/exchange', { accessToken: privyToken });
 
+/**
+ * Absolute URL for the API's IPFS-content charset proxy.
+ *
+ * The web app surfaces this on the ReviewCard as a "view original
+ * (IPFS)" link. The endpoint serves the same bytes as the public
+ * Pinata gateway, but with an explicit `Content-Type:
+ * application/json; charset=utf-8` so browsers render CJK content
+ * correctly instead of falling back to Latin-1. See
+ * `apps/api/src/domains/reviews/application/GetReviewIpfsContentUseCase.ts`.
+ */
+export const reviewIpfsContentUrl = (reviewId: string): string =>
+  `${env.NEXT_PUBLIC_API_URL}/v1/reviews/${reviewId}/ipfs-content`;
+
 // ---------------------------------------------------------------------------
 // Domain-specific typed fetchers
 // ---------------------------------------------------------------------------
