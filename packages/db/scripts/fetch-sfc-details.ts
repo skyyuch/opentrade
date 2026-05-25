@@ -85,7 +85,7 @@ type SfcLicenceRecord = {
   actType: number;
   actDesc: string;
   actDescZh: string;
-  periods: Array<{ from: string; to?: string }>;
+  periods: { from: string; to?: string }[];
 };
 
 type SfcDetailJson = {
@@ -111,7 +111,14 @@ const headers: Record<string, string> = {
 };
 
 function stripNullChars(obj: unknown): unknown {
-  if (typeof obj === 'string') return obj.replace(/\0/g, '').replace(/\u0000/g, '');
+  if (typeof obj === 'string') {
+    // SFC public-register HTML occasionally embeds raw NUL bytes inside JS string
+    // literals; stripping them is required before JSON.parse and before persisting
+    // to Postgres (which rejects \u0000 in TEXT/JSON columns). Both forms appear
+    // in upstream payloads so we replace defensively.
+    // eslint-disable-next-line no-control-regex
+    return obj.replace(/\0/g, '').replace(/\u0000/g, '');
+  }
   if (Array.isArray(obj)) return obj.map(stripNullChars);
   if (obj && typeof obj === 'object') {
     const result: Record<string, unknown> = {};
@@ -129,6 +136,10 @@ function extractJsVar(html: string, varName: string): unknown {
   if (!match?.[1]) return null;
 
   try {
+    // Same NUL-byte guard as stripNullChars(): SFC pages occasionally contain
+    // both literal NUL (\u0000) and escaped "\\u0000" inside JS string literals,
+    // and Postgres TEXT/JSON columns reject either form. Run before JSON.parse.
+    /* eslint-disable no-control-regex */
     const jsonStr = match[1]
       .replace(/\\u003c/g, '<')
       .replace(/\\u003e/g, '>')
@@ -137,6 +148,7 @@ function extractJsVar(html: string, varName: string): unknown {
       .replace(/\u0000/g, '')
       .replace(/\\u0000/g, '')
       .replace(/\0/g, '');
+    /* eslint-enable no-control-regex */
     const parsed = JSON.parse(jsonStr);
     return stripNullChars(parsed);
   } catch {
@@ -168,7 +180,7 @@ type RawPersonItem = {
   fullName?: string;
   entityNameChi?: string;
   ceRef?: string;
-  regulatedActivities?: Array<{ actType?: number }>;
+  regulatedActivities?: { actType?: number }[];
 };
 
 type RawCoItem = {
@@ -206,10 +218,10 @@ type RawLicRecordItem = {
     actDesc?: string;
     cactDesc?: string;
   };
-  effectivePeriodList?: Array<{
+  effectivePeriodList?: {
     effectiveDate?: string;
     endDate?: string | null;
-  }>;
+  }[];
 };
 
 // ---------------------------------------------------------------------------
@@ -342,7 +354,7 @@ async function fetchCorpDetail(ceref: string): Promise<{
     const das = extractJsVar(daHtml, 'daData') as RawDaItem[] | null;
     if (das?.length) {
       sfcDetail.disciplinaryActions = das
-        .filter((d) => d.descriptionDtl || d.newsTitle)
+        .filter((d) => d.descriptionDtl != null || d.newsTitle != null)
         .map((d) => ({
           description: (d.descriptionDtl ?? d.newsTitle ?? '').replace(/<[^>]*>/g, '').trim(),
           ...(d.descriptionCDtl
@@ -361,7 +373,7 @@ async function fetchCorpDetail(ceref: string): Promise<{
     const prevs = extractJsVar(prevHtml, 'prevNameData') as RawPrevNameItem[] | null;
     if (prevs?.length) {
       sfcDetail.formerNames = prevs
-        .filter((p) => p.previousName || p.previousNameChi)
+        .filter((p) => p.previousName != null || p.previousNameChi != null)
         .map((p) => ({
           ...(p.previousName ? { nameEn: p.previousName } : {}),
           ...(p.previousNameChi ? { nameZh: p.previousNameChi } : {}),
@@ -450,10 +462,10 @@ async function main(): Promise<void> {
       const { addressEn, addressZh, sfcDetailJson } = await fetchCorpDetail(ceref);
 
       const hasData =
-        addressEn ||
-        addressZh ||
+        addressEn != null ||
+        addressZh != null ||
         Object.values(sfcDetailJson).some(
-          (v) => (Array.isArray(v) && v.length > 0) || (typeof v === 'object' && v !== null),
+          (v) => (Array.isArray(v) && v.length > 0) || typeof v === 'object',
         );
 
       await prisma.broker.update({
