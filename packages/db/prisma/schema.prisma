@@ -338,6 +338,20 @@ enum ReviewStatus {
   FAILED // Pipeline permanently failed (operator intervention needed).
 }
 
+/// Three-way sentiment replacing the legacy 1-5 star `rating` column per
+/// ADR-0028. The values map to the project's red-line goal of removing
+/// paid-promotion-gameable surfaces (rule 00) while preserving an at-a-glance
+/// trust signal that pairs with `verifiedComplaintCount` (per ADR-0029).
+///
+/// Rendered as `讚 / 普通 / 不讚` in zh-Hant per the 2026-05-25 meeting C1
+/// resolution; the API uses these enum names verbatim and the UI handles the
+/// localisation.
+enum Sentiment {
+  POSITIVE
+  NEUTRAL
+  NEGATIVE
+}
+
 /// An off-chain mirror of a single review submission. The authoritative copy
 /// of the content lives on IPFS (addressed by `ipfsCid`), and its tamper-proof
 /// anchor lives on-chain in ReviewRegistry (addressed by `chainReviewId` +
@@ -366,10 +380,14 @@ model Review {
   /// Transaction hash of the on-chain submission.
   txHash        String?
 
-  title  String @db.VarChar(200)
-  body   String @db.Text
+  title     String     @db.VarChar(200)
+  body      String     @db.Text
   /// 1-5 star rating.
-  rating Int    @db.SmallInt
+  rating    Int        @db.SmallInt
+  /// Three-way sentiment per ADR-0028. Nullable during the M3 transition
+  /// window — legacy rows are backfilled by `db:backfill:sentiment` (M3.2)
+  /// and the column becomes required at submit time in M4 (ADR-0028 D4).
+  sentiment Sentiment?
 
   status       ReviewStatus @default(PENDING)
   sourceLocale String?
@@ -386,6 +404,10 @@ model Review {
   @@index([tenantId, brokerId, createdAt])
   @@index([tenantId, userId])
   @@index([tenantId, status])
+  // Powers the `SentimentDistribution` aggregate on the broker detail page
+  // (per ADR-0028 D1 + D7); the (tenantId, brokerId) prefix matches every
+  // sentiment-grouped query against a single broker.
+  @@index([tenantId, brokerId, sentiment])
   @@map("reviews")
 }
 

@@ -29,6 +29,7 @@ export {
   Regulator,
   ReviewStatus,
   SbtTier,
+  Sentiment,
   UserRole,
 } from '@prisma/client';
 
