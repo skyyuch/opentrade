@@ -33,12 +33,11 @@ export class PrismaReviewRepository implements IReviewRepository {
           title: data.title,
           body: data.body,
           rating: data.rating,
-          // Per ADR-0028 D1 — `sentiment` is optional on SubmitReviewInput
-          // during M4.1 (zod body makes it required in M4.3). Persist
-          // whatever the use case provides; legacy / transitional submits
-          // that omit it land as NULL and are picked up by the next
-          // backfill pass (per M3.2 idempotency).
-          sentiment: data.sentiment ?? null,
+          // Per ADR-0028 D4 — `CreateReviewData.sentiment` is required at the
+          // repo boundary (the use case must always synthesise it), so this
+          // is a straight passthrough. Legacy NULL rows come from data
+          // predating M3.1 + M3.2 backfill, not from this code path.
+          sentiment: data.sentiment,
           sourceLocale: data.sourceLocale,
         },
       });

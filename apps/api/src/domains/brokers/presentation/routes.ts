@@ -493,7 +493,7 @@ brokersRouter.post('/admin/:slug/logo/upload', authMiddleware('admin'), async (c
     );
   }
 
-  const ext = file.name?.split('.').pop() ?? 'png';
+  const ext = file.name.split('.').pop() ?? 'png';
   const key = `logos/${slug}/${Date.now()}.${ext}`;
 
   const s3 = new S3Client({ region: env.AWS_REGION });

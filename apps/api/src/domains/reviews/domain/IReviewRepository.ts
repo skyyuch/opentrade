@@ -6,8 +6,12 @@
  * cases depend on the port — not the concrete adapter.
  */
 
-import type { ReviewRating, ReviewSentiment, SubmitReviewInput } from './ReviewEntity.js';
-import type { ReviewRecord } from './ReviewEntity.js';
+import type {
+  ReviewRating,
+  ReviewRecord,
+  ReviewSentiment,
+  SubmitReviewInput,
+} from './ReviewEntity.js';
 
 /**
  * Repository write contract. Tighter than {@link SubmitReviewInput} on

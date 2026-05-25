@@ -54,7 +54,7 @@ export class GetReviewIpfsContentUseCase {
 
   async execute(input: GetReviewIpfsContentInput): Promise<IpfsContentResult | null> {
     const review = await this.reviewRepo.findById(input.reviewId);
-    if (!review || !review.ipfsCid) {
+    if (!review?.ipfsCid) {
       return null;
     }
 
