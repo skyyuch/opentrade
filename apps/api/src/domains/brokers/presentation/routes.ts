@@ -139,7 +139,7 @@ brokersRouter.get('/:slug', async (c) => {
         where: { deletedAt: null },
         orderBy: { licenseType: 'asc' },
       },
-      reviews: { select: { rating: true } },
+      reviews: { select: { rating: true, sentiment: true } },
       _count: { select: { reviews: true } },
     },
   });
@@ -148,7 +148,8 @@ brokersRouter.get('/:slug', async (c) => {
     throw new AppError(ErrorCode.NOT_FOUND, 'Broker not found', 404);
   }
 
-  const reviews = (broker as unknown as { reviews: { rating: number }[] }).reviews;
+  const reviews = (broker as unknown as { reviews: { rating: number; sentiment: string | null }[] })
+    .reviews;
   const reviewCount = (broker as unknown as { _count: { reviews: number } })._count.reviews;
   const positiveCount = reviews.filter((r) => r.rating >= 4).length;
   const positiveRate = reviewCount > 0 ? Math.round((positiveCount / reviewCount) * 100) : null;
@@ -161,6 +162,18 @@ brokersRouter.get('/:slug', async (c) => {
       percentage: reviewCount > 0 ? Math.round((count / reviewCount) * 100) : 0,
     };
   });
+
+  // Per ADR-0028 D7 the canonical broker-level verdict is the
+  // sentiment distribution — three buckets, null rows excluded so the
+  // pre-backfill window does not skew the chart. The composite index
+  // `[tenantId, brokerId, sentiment]` added in M3.1 means this counts
+  // off the same indexed range we already scanned for the rating
+  // select above; computing it in-memory keeps the query count flat.
+  const sentimentAggregate = {
+    positive: reviews.filter((r) => r.sentiment === 'POSITIVE').length,
+    neutral: reviews.filter((r) => r.sentiment === 'NEUTRAL').length,
+    negative: reviews.filter((r) => r.sentiment === 'NEGATIVE').length,
+  };
 
   const earliestLicense = broker.licenses.reduce<Date | null>((earliest, l) => {
     if (!earliest || l.issuedAt < earliest) return l.issuedAt;
@@ -218,6 +231,7 @@ brokersRouter.get('/:slug', async (c) => {
       positiveRate,
       verifiedUserCount,
       ratingDistribution,
+      sentimentAggregate,
       licenses: broker.licenses.map((l) => ({
         regulator: l.regulator,
         licenseType: l.licenseType,

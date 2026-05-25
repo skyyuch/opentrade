@@ -237,6 +237,12 @@ reviewsRouter.get('/broker/:slug', async (c) => {
         title: r.title,
         body: r.body,
         rating: r.rating,
+        // Per ADR-0028 D1 + D7: ship the canonical sentiment axis on
+        // every review item. `null` represents legacy rows that the
+        // M3.2 backfill could not map; the ReviewCard surfaces a
+        // historical caption derived from `rating` rather than
+        // fabricating a sentiment value.
+        sentiment: r.sentiment,
         status: r.status,
         sourceLocale: r.sourceLocale,
         createdAt: r.createdAt.toISOString(),
