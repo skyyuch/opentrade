@@ -163,6 +163,13 @@ export default tseslint.config(
       '@typescript-eslint/no-unsafe-assignment': 'off',
       '@typescript-eslint/no-unsafe-call': 'off',
       '@typescript-eslint/no-unsafe-member-access': 'off',
+      // Vitest / RTL assertion expressions like
+      // `expect(repo.create).toHaveBeenCalled()` reference a method
+      // without binding `this`. The rule mistakes the assertion target
+      // for an unbound method invocation. Disabling here matches the
+      // typescript-eslint maintainers' own recommendation for test
+      // files (typescript-eslint#1303).
+      '@typescript-eslint/unbound-method': 'off',
       'import-x/no-default-export': 'off',
       'no-console': 'off',
     },

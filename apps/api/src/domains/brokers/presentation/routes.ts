@@ -22,6 +22,7 @@ import { prisma } from '@opentrade/db';
 import { authMiddleware } from '../../../http/middleware/auth.js';
 import { env } from '../../../shared/env.js';
 import { AppError, ErrorCode } from '../../../shared/errors/index.js';
+import { aggregateSentiment } from '../domain/sentimentAggregate.js';
 
 import type { AppHonoEnv } from '../../../http/types.js';
 
@@ -163,17 +164,10 @@ brokersRouter.get('/:slug', async (c) => {
     };
   });
 
-  // Per ADR-0028 D7 the canonical broker-level verdict is the
-  // sentiment distribution — three buckets, null rows excluded so the
-  // pre-backfill window does not skew the chart. The composite index
-  // `[tenantId, brokerId, sentiment]` added in M3.1 means this counts
-  // off the same indexed range we already scanned for the rating
-  // select above; computing it in-memory keeps the query count flat.
-  const sentimentAggregate = {
-    positive: reviews.filter((r) => r.sentiment === 'POSITIVE').length,
-    neutral: reviews.filter((r) => r.sentiment === 'NEUTRAL').length,
-    negative: reviews.filter((r) => r.sentiment === 'NEGATIVE').length,
-  };
+  // Per ADR-0028 D7 the canonical broker-level verdict is the sentiment
+  // distribution — see `aggregateSentiment` in the brokers domain for
+  // the bucket / null-row contract.
+  const sentimentAggregate = aggregateSentiment(reviews);
 
   const earliestLicense = broker.licenses.reduce<Date | null>((earliest, l) => {
     if (!earliest || l.issuedAt < earliest) return l.issuedAt;
