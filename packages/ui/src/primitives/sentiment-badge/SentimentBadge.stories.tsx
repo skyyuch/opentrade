@@ -1,3 +1,5 @@
+import { expect, within } from '@storybook/test';
+
 import { SentimentBadge } from './SentimentBadge';
 
 import type { Meta, StoryObj } from '@storybook/react';
@@ -40,9 +42,33 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const Positive: Story = { args: { sentiment: 'POSITIVE', label: enLabels.POSITIVE } };
-export const Neutral: Story = { args: { sentiment: 'NEUTRAL', label: enLabels.NEUTRAL } };
-export const Negative: Story = { args: { sentiment: 'NEGATIVE', label: enLabels.NEGATIVE } };
+export const Positive: Story = {
+  args: { sentiment: 'POSITIVE', label: enLabels.POSITIVE },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const badge = canvas.getByRole('status');
+    await expect(badge).toHaveAccessibleName(enLabels.POSITIVE);
+    await expect(badge).toHaveAttribute('data-sentiment', 'POSITIVE');
+  },
+};
+export const Neutral: Story = {
+  args: { sentiment: 'NEUTRAL', label: enLabels.NEUTRAL },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const badge = canvas.getByRole('status');
+    await expect(badge).toHaveAccessibleName(enLabels.NEUTRAL);
+    await expect(badge).toHaveAttribute('data-sentiment', 'NEUTRAL');
+  },
+};
+export const Negative: Story = {
+  args: { sentiment: 'NEGATIVE', label: enLabels.NEGATIVE },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const badge = canvas.getByRole('status');
+    await expect(badge).toHaveAccessibleName(enLabels.NEGATIVE);
+    await expect(badge).toHaveAttribute('data-sentiment', 'NEGATIVE');
+  },
+};
 
 export const AllSizes: Story = {
   parameters: { layout: 'padded', controls: { disable: true } },

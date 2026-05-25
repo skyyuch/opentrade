@@ -1,3 +1,4 @@
+import { expect, fn, userEvent, within } from '@storybook/test';
 import { useState } from 'react';
 
 import { SentimentPicker, type Sentiment } from './SentimentPicker';
@@ -62,11 +63,70 @@ export const Empty: Story = {
       },
     },
   },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const group = canvas.getByRole('radiogroup');
+    await expect(group).toHaveAccessibleName('Your verdict');
+    for (const name of ['Positive', 'Neutral', 'Negative']) {
+      await expect(canvas.getByRole('radio', { name })).toHaveAttribute('aria-checked', 'false');
+    }
+  },
 };
 
-export const Positive: Story = { args: { value: 'POSITIVE' } };
-export const Neutral: Story = { args: { value: 'NEUTRAL' } };
-export const Negative: Story = { args: { value: 'NEGATIVE' } };
+export const Positive: Story = {
+  args: { value: 'POSITIVE' },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByRole('radio', { name: 'Positive' })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    );
+    await expect(canvas.getByRole('radio', { name: 'Neutral' })).toHaveAttribute(
+      'aria-checked',
+      'false',
+    );
+  },
+};
+export const Neutral: Story = {
+  args: { value: 'NEUTRAL' },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByRole('radio', { name: 'Neutral' })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    );
+  },
+};
+export const Negative: Story = {
+  args: { value: 'NEGATIVE' },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByRole('radio', { name: 'Negative' })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    );
+  },
+};
+
+/**
+ * Click-through smoke test — clicks each radio in turn and asserts the
+ * onChange spy receives the matching sentiment. This is the canonical
+ * "the picker is wired correctly" story for designers + QA who want
+ * proof without spinning up `apps/web`. The same expectations are
+ * locked down in `SentimentPicker.test.tsx` as the CI gate.
+ */
+export const ClickEachOption: Story = {
+  args: { value: null, onChange: fn() },
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole('radio', { name: 'Positive' }));
+    await userEvent.click(canvas.getByRole('radio', { name: 'Neutral' }));
+    await userEvent.click(canvas.getByRole('radio', { name: 'Negative' }));
+    await expect(args.onChange).toHaveBeenNthCalledWith(1, 'POSITIVE');
+    await expect(args.onChange).toHaveBeenNthCalledWith(2, 'NEUTRAL');
+    await expect(args.onChange).toHaveBeenNthCalledWith(3, 'NEGATIVE');
+  },
+};
 
 export const AllSizes: Story = {
   parameters: { layout: 'padded', controls: { disable: true } },
