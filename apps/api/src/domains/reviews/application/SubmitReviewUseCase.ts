@@ -32,12 +32,38 @@ import { keccak256, toBytes } from 'viem';
 import { AppError, ErrorCode } from '../../../shared/errors/index.js';
 
 import type { IReviewRepository } from '../domain/IReviewRepository.js';
-import type { ReviewRecord, SubmitReviewInput } from '../domain/ReviewEntity.js';
+import type {
+  ReviewRating,
+  ReviewRecord,
+  ReviewSentiment,
+  SubmitReviewInput,
+} from '../domain/ReviewEntity.js';
 import type { IIpfsService } from '../infrastructure/IIpfsService.js';
 
 export type SubmitReviewOutput = {
   review: ReviewRecord;
 };
+
+/**
+ * Reverse of the ADR-0028 D2 backfill mapping: collapse a sentiment
+ * verdict back to a single 1–5 representative so the deprecated
+ * `Review.rating` column (NOT NULL until Release N+2 per D6) and the v2
+ * IPFS payload's backward-compat `rating` field always carry a value
+ * even when the web form has stopped sending the legacy axis.
+ *
+ * POSITIVE → 5 (top of the POS bucket from the M3.2 forward mapping)
+ * NEUTRAL  → 3
+ * NEGATIVE → 1
+ *
+ * Deliberately deterministic and lossy — the goal is to satisfy the
+ * legacy column shape, not to perfectly reverse the original author
+ * intent (which can no longer be recovered).
+ */
+function deriveRatingFromSentiment(sentiment: ReviewSentiment): ReviewRating {
+  if (sentiment === 'POSITIVE') return 5;
+  if (sentiment === 'NEUTRAL') return 3;
+  return 1;
+}
 
 export class SubmitReviewUseCase {
   constructor(
@@ -46,24 +72,25 @@ export class SubmitReviewUseCase {
   ) {}
 
   async execute(input: SubmitReviewInput): Promise<SubmitReviewOutput> {
-    if (input.rating < 1 || input.rating > 5) {
+    if (input.rating !== undefined && (input.rating < 1 || input.rating > 5)) {
       throw new AppError(ErrorCode.VALIDATION_ERROR, 'Rating must be between 1 and 5', 400);
     }
 
-    // ADR-0028 D3 — IPFS payload schema v2. The conditional spread keeps
-    // `sentiment` out of the payload string when the caller hasn't yet
-    // populated it (M4.2 transition state, before M4.3 makes the field
-    // required at the API boundary), so the keccak256 content hash
-    // stays deterministic with what would have been v1 minus a single
-    // version-bump diff. Forward readers (v2-aware) prefer `sentiment`
-    // when present; v1 readers keep parsing via `rating`.
+    const rating = input.rating ?? deriveRatingFromSentiment(input.sentiment);
+
+    // ADR-0028 D3 — IPFS payload schema v2. The new `sentiment` field is
+    // the canonical post-Phase-1.5 verdict; the legacy `rating` field is
+    // retained so v1-aware indexers (third-party readers, on-chain
+    // receipts pointing at pre-v2 CIDs) keep parsing payloads without a
+    // schema migration. Forward (v2-aware) readers prefer `sentiment`
+    // when present; the presence of the key is the v1↔v2 discriminator.
     const ipfsPayload = {
       version: 2,
       brokerId: input.brokerId,
       title: input.title,
       body: input.body,
-      ...(input.sentiment ? { sentiment: input.sentiment } : {}),
-      rating: input.rating,
+      sentiment: input.sentiment,
+      rating,
       author: input.userId,
       createdAt: new Date().toISOString(),
     };
@@ -75,6 +102,8 @@ export class SubmitReviewUseCase {
 
     const review = await this.reviewRepo.create({
       ...input,
+      rating,
+      sentiment: input.sentiment,
       contentHash,
       ipfsCid: pinResult.cid,
     });

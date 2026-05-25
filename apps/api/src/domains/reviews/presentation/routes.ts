@@ -45,6 +45,7 @@ const getBrokerReviews = new GetBrokerReviewsUseCase(reviewRepo);
 const getReviewIpfsContent = new GetReviewIpfsContentUseCase(reviewRepo, env.PINATA_GATEWAY_URL);
 
 const SOURCE_LOCALE_VALUES = ['zh-Hant', 'zh-Hans', 'en'] as const;
+const SENTIMENT_VALUES = ['POSITIVE', 'NEUTRAL', 'NEGATIVE'] as const;
 
 /**
  * Resolve the author's submit-time locale per ADR-0027 D2.
@@ -69,11 +70,21 @@ function resolveSourceLocale(
   return 'zh-Hant';
 }
 
+// Per ADR-0028 D4: `sentiment` is the required Phase-1.5+ verdict axis;
+// `rating` is kept optional during the D6 deprecation window so legacy
+// clients (pre-M5 web build) keep submitting successfully, but the
+// canonical truth flows through `sentiment`. The use case synthesises
+// the legacy `rating` value from sentiment when omitted, so callers
+// that ship only sentiment still satisfy the NOT-NULL `Review.rating`
+// column until the Release-N+2 drop migration.
 const submitReviewBodySchema = z.object({
   brokerId: z.string().uuid('brokerId must be a valid UUID'),
   title: z.string().min(1, 'title is required').max(200, 'title must be 200 chars or less'),
   body: z.string().min(10, 'body must be at least 10 characters').max(5000),
-  rating: z.number().int().min(1).max(5),
+  sentiment: z.enum(SENTIMENT_VALUES, {
+    message: 'sentiment must be one of POSITIVE, NEUTRAL, NEGATIVE',
+  }),
+  rating: z.number().int().min(1).max(5).optional(),
   sourceLocale: z.enum(SOURCE_LOCALE_VALUES).optional(),
 });
 
@@ -119,7 +130,13 @@ reviewsRouter.post('/', authMiddleware('reviewer'), async (c) => {
     brokerId: parsed.data.brokerId,
     title: parsed.data.title,
     body: parsed.data.body,
-    rating: parsed.data.rating as 1 | 2 | 3 | 4 | 5,
+    sentiment: parsed.data.sentiment,
+    // `rating` is optional post-ADR-0028 D4; pass through when present
+    // so legacy clients keep working, otherwise the use case derives a
+    // value from `sentiment` for the deprecated column.
+    ...(parsed.data.rating !== undefined
+      ? { rating: parsed.data.rating as 1 | 2 | 3 | 4 | 5 }
+      : {}),
     sourceLocale,
   });
 
@@ -135,6 +152,7 @@ reviewsRouter.post('/', authMiddleware('reviewer'), async (c) => {
         ipfsCid: result.review.ipfsCid,
         title: result.review.title,
         rating: result.review.rating,
+        sentiment: result.review.sentiment,
         status: result.review.status,
         createdAt: result.review.createdAt.toISOString(),
       },
@@ -297,6 +315,7 @@ reviewsRouter.get('/:id', async (c) => {
       title: review.title,
       body: review.body,
       rating: review.rating,
+      sentiment: review.sentiment,
       status: review.status,
       sourceLocale: review.sourceLocale,
       createdAt: review.createdAt.toISOString(),

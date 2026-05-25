@@ -48,14 +48,22 @@ export type SubmitReviewInput = {
   brokerId: string;
   title: string;
   body: string;
-  rating: ReviewRating;
   /**
-   * Optional during M4.1; the M4.3 commit makes it required at the API
-   * boundary (zod body schema). Keeping it optional here lets the
-   * domain commit land without dragging routes / use case into the
-   * same diff.
+   * Optional per ADR-0028 D4. Web form omits `rating` after M5; the
+   * use case synthesises a legacy value from `sentiment` (reverse of
+   * the M3.2 backfill table) so the deprecated `rating` column on
+   * `Review` (NOT NULL until the Release-N+2 drop migration) and the
+   * v2 IPFS payload's backward-compat `rating` field always carry a
+   * value.
    */
-  sentiment?: ReviewSentiment;
+  rating?: ReviewRating;
+  /**
+   * Required per ADR-0028 D4 — the canonical Phase-1.5+ review axis.
+   * The zod body schema on `POST /v1/reviews` enforces this at the
+   * API boundary; callers within `apps/api` must construct the input
+   * with sentiment populated.
+   */
+  sentiment: ReviewSentiment;
   sourceLocale: ReviewSourceLocale;
 };
 
