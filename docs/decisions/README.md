@@ -126,3 +126,9 @@ YYYY-MM-DD
 - ADR 一旦 `Accepted`，**不可直接修改內容**（保留歷史完整性）
 - 要推翻舊 ADR：寫一個新 ADR，將舊 ADR status 改為 `Superseded by ADR-XXXX`
 - Typo 或格式修正可直接改
+
+---
+
+## Staged / 延後 ADR
+
+對於已浮現但未到時機落筆的決策，使用 [`STAGING.md`](./STAGING.md) 追蹤觸發條件與預留編號。每項 staged 決策的 ADR 編號**已保留**，不可被新 ADR 重用。當觸發條件達成、實際撰寫 ADR 時，從 STAGING.md 移除該行並加入上方索引。
