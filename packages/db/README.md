@@ -119,29 +119,31 @@ review the diff, and either:
 - `_prisma_migrations` table tracks which migrations are applied; rerunning
   the deploy step is idempotent
 
-### Pre-deploy backfill (per ADR-0026 + ADR-0027)
+### Pre-deploy backfill (per ADR-0026 + ADR-0027 + ADR-0028)
 
-Two one-shot data migrations need to run on every fresh environment
+Three one-shot data migrations need to run on every fresh environment
 before traffic flows to it:
 
-| Script                      | Purpose                                                    | ADR      |
-| --------------------------- | ---------------------------------------------------------- | -------- |
-| `db:backfill:zh-hans`       | Populates `Broker.displayNameZhHans` via OpenCC `t → cn`   | ADR-0026 |
-| `db:backfill:source-locale` | Classifies legacy `Review.sourceLocale = null` rows        | ADR-0027 |
-| `db:backfill:prod`          | Convenience: runs both above in order, fail-fast on errors | both     |
+| Script                      | Purpose                                                     | ADR      |
+| --------------------------- | ----------------------------------------------------------- | -------- |
+| `db:backfill:zh-hans`       | Populates `Broker.displayNameZhHans` via OpenCC `t → cn`    | ADR-0026 |
+| `db:backfill:source-locale` | Classifies legacy `Review.sourceLocale = null` rows         | ADR-0027 |
+| `db:backfill:sentiment`     | Maps legacy `Review.rating` 1-5 → POSITIVE/NEUTRAL/NEGATIVE | ADR-0028 |
+| `db:backfill:prod`          | Convenience: runs all three above in order, fail-fast       | all      |
 
-Both scripts are **idempotent** (only touch rows where the target
+All three scripts are **idempotent** (only touch rows where the target
 column is `NULL`) and use cursor pagination so they are safe to re-run
 without coordination.
 
-Both also accept `--dry-run` to walk every candidate row and run the
-classifier without touching the DB — recommended on first contact with
-a fresh `DATABASE_URL`:
+All three also accept `--dry-run` to walk every candidate row and run
+the classifier without touching the DB — recommended on first contact
+with a fresh `DATABASE_URL`:
 
 ```bash
-# preview both backfills against the target environment
+# preview all backfills against the target environment
 pnpm --filter @opentrade/db db:backfill:zh-hans -- --dry-run
 pnpm --filter @opentrade/db db:backfill:source-locale -- --dry-run
+pnpm --filter @opentrade/db db:backfill:sentiment -- --dry-run
 
 # then run for real
 pnpm --filter @opentrade/db db:backfill:prod

@@ -177,9 +177,9 @@ ADR-0018 D7 lands. Run in order:
    [`apps/api/README.md`](../../apps/api/README.md#push-to-ecr-phase-0-dev-environment).
 3. Apply schema + data migrations per
    [`apps/api/README.md` §production deployment runbook](../../apps/api/README.md#production-deployment-runbook).
-   The data-side steps (`db:backfill:zh-hans` + `db:backfill:source-locale`)
-   are canonicalised in
-   [`packages/db/README.md`](../../packages/db/README.md#pre-deploy-backfill-per-adr-0026--adr-0027).
+   The data-side steps (`db:backfill:zh-hans` + `db:backfill:source-locale`
+   - `db:backfill:sentiment`) are canonicalised in
+     [`packages/db/README.md`](../../packages/db/README.md#pre-deploy-backfill-per-adr-0026--adr-0027--adr-0028).
 4. Roll the ECS Fargate service. `/v1/health` HEALTHCHECK gates
    traffic.
 
