@@ -427,6 +427,21 @@ M5.6 是 legacy caption 覆蓋兩 app：
 
 6. **rule 99 self-review 結果：M4 沒引入新 pattern** — 所有改動皆用既有（DDD 4-layer / type-only import / hand-rolled toRecord / conditional spread DTO / hand-roll prop types），無需更新任何 cursor rule。zod v4 `{ message }` API quirk 不到 rule entry 等級。M5 進 UI design system，可能會碰到 packages/ui 三色 token 加 sentiment 系列、Storybook story template 拓展 toggle-group 模式 — 那時是潛在的 rule 22（Tailwind / shadcn）or rule 21（React/Next）update 觸發點，要在 M5 收尾時 self-review。
 
+7. **每完成一個 milestone，必須同時更新 Cursor IDE Plan Mode 計畫檔** — 這個項目同時有 3 個 todo tracking 系統：
+   - 系統 A：**Cursor IDE Plan Mode** `~/.cursor/plans/會議整合_+_phase_1→2→2.5_細拆執行計畫_3aba1bce.plan.md`（user 視窗側欄看到的 14-todo 清單，**不在 git repo 內**，YAML frontmatter `status: pending|completed`）
+   - 系統 B：Session-scoped `TodoWrite` tool（agent session 內存，session 結束就消失）
+   - 系統 C：`docs/03-status.md`（git 版本化的 cross-session 進度紀錄）
+
+   M4 之前只更系統 B + C，**漏更系統 A**。User 在 M4 收尾時注意到 Plan Mode 側欄還顯示 M3/M4 為 `pending`（截圖回報）才補。M5 起手請依以下流程：
+   - 每完成一個 milestone（M5、M6...），跑：
+     ```bash
+     # 改 plan 檔內對應 todo 的 status: pending → status: completed
+     sed -i '' '/id: m5-rating-ui/,/status:/ s/status: pending/status: completed/' \
+       "$HOME/.cursor/plans/會議整合_+_phase_1→2→2.5_細拆執行計畫_3aba1bce.plan.md"
+     ```
+   - **這個檔不在 git repo**，所以不需要也不能 commit；但**必須跟 `docs/03-status.md` 更新同時做**，確保 user 在 IDE 側欄看到的 progress 與 status doc 對齊。
+   - YAML 內當前用全形括號 `（3 commits）`，半形 `(3 commits)` 對不上 — 用 `sed` range 鎖 id 比較穩。
+
 ## 新 Session 開場 Prompt（複製這段給 M5 agent）
 
 ```text
@@ -458,4 +473,13 @@ M5.6 是 legacy caption 覆蓋兩 app：
 - M5.6 `feat(web,console)`：legacy null-sentiment caption per D7 覆蓋兩 app
 
 預計 M5 全部 6 commit 內完成，typecheck 全綠 + 過 lint-staged。
+
+**重要 — M5 收尾必做（上 session lesson learned）**：這個項目除了 `docs/03-status.md`（git）和 session-scoped `TodoWrite` 之外，還有第三個 todo 系統：**Cursor IDE Plan Mode 計畫檔** `~/.cursor/plans/會議整合_+_phase_1→2→2.5_細拆執行計畫_3aba1bce.plan.md`（user IDE 側欄看到的 14-todo 清單，**不在 git repo 內**）。M5 全部 6 commit 完成 + status doc 更新後，必須跑下面的 sed 指令把 plan 檔內 `m5-rating-ui` 的 `status: pending` 改成 `status: completed`：
+
+~~~bash
+sed -i '' '/id: m5-rating-ui/,/status:/ s/status: pending/status: completed/' \
+  "$HOME/.cursor/plans/會議整合_+_phase_1→2→2.5_細拆執行計畫_3aba1bce.plan.md"
+~~~
+
+這個檔不 commit（不在 repo 內），但必須跟 status doc 同步更新，否則 user IDE 側欄會看到「M5 還是 pending」造成困惑。詳細背景看本 conversation 末段「給未來 AI 的建議」第 7 條。
 ```
