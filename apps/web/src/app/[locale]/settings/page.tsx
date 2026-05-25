@@ -34,6 +34,14 @@ export default function SettingsPage(): ReactNode {
       return;
     }
 
+    // `cancelled` flips to true via the cleanup closure below if the effect
+    // is torn down mid-await. TypeScript narrows the captured `let` to its
+    // initial `false` value because it cannot model the cleanup race, so the
+    // three `cancelled` checks below trigger no-unnecessary-condition warnings
+    // even though they are required for correctness (without them an unmounted
+    // component would call setState on every awaited branch). Disabling the
+    // rule for this useEffect body is the documented escape hatch.
+    /* eslint-disable @typescript-eslint/no-unnecessary-condition */
     let cancelled = false;
     void (async () => {
       const token = await getAccessToken();
@@ -61,6 +69,7 @@ export default function SettingsPage(): ReactNode {
     return () => {
       cancelled = true;
     };
+    /* eslint-enable @typescript-eslint/no-unnecessary-condition */
   }, [authenticated, getAccessToken]);
 
   const handleSave = useCallback(
