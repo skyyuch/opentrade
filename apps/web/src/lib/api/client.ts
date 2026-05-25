@@ -379,7 +379,15 @@ export type ReviewItem = {
   txHash: string | null;
   title: string;
   body: string;
+  /** Legacy five-star value, retained until ADR-0028 D6 drop. */
   rating: number;
+  /**
+   * Per ADR-0028 D4 + D7: the canonical review axis from M4 onward.
+   * Nullable for legacy rows that pre-date M3.2 backfill or for rows
+   * the backfill could not classify; the ReviewCard falls back to the
+   * legacy rating caption ("依五星評分回推為 X 星") for those.
+   */
+  sentiment: 'POSITIVE' | 'NEUTRAL' | 'NEGATIVE' | null;
   status: string;
   /**
    * Per ADR-0027 D2 + D6: the locale the author was browsing in at

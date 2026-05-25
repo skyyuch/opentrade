@@ -10,6 +10,7 @@ import {
   Info,
   Link as LinkIcon,
   MessageSquare,
+  Minus,
   Scale,
   ShieldCheck,
   Star,
@@ -463,6 +464,26 @@ function ReviewCard({
           ? t('sourceLocaleEn')
           : null;
 
+  // Per ADR-0028 D7: sentiment is the canonical review axis. The card
+  // renders a coloured chip for rows where sentiment is set, and falls
+  // back to a one-line caption derived from the legacy `rating` value
+  // for pre-backfill rows (no star widget — D7 explicitly forbids
+  // re-rendering stars during the deprecation window).
+  const sentimentMeta: { tone: 'positive' | 'neutral' | 'negative'; label: string } | null =
+    review.sentiment === 'POSITIVE'
+      ? { tone: 'positive', label: t('sentimentPositive') }
+      : review.sentiment === 'NEUTRAL'
+        ? { tone: 'neutral', label: t('sentimentNeutral') }
+        : review.sentiment === 'NEGATIVE'
+          ? { tone: 'negative', label: t('sentimentNegative') }
+          : null;
+  const sentimentChipClass =
+    sentimentMeta?.tone === 'positive'
+      ? 'border-[#00FF88]/40 bg-[#00FF88]/15 text-[#00FF88]'
+      : sentimentMeta?.tone === 'negative'
+        ? 'border-red-400/40 bg-red-500/15 text-red-300'
+        : 'border-white/20 bg-white/10 text-white/70';
+
   return (
     <div className="p-6 rounded-xl bg-zinc-900/50 border border-white/10 hover:border-white/20 transition-colors">
       <div className="flex justify-between items-start mb-4">
@@ -521,16 +542,33 @@ function ReviewCard({
             </div>
           </div>
         </div>
-        <div className="flex gap-1">
-          {[1, 2, 3, 4, 5].map((i) => (
-            <Star
-              key={i}
-              size={14}
-              className={
-                i <= review.rating ? 'fill-[#00FF88] text-[#00FF88]' : 'fill-white/10 text-white/10'
-              }
-            />
-          ))}
+        <div className="flex flex-col items-end gap-1">
+          {sentimentMeta ? (
+            <span
+              className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-bold ${sentimentChipClass}`}
+              aria-label={t('sentimentBadgeAria', { value: sentimentMeta.label })}
+            >
+              {sentimentMeta.tone === 'positive' ? (
+                <ThumbsUp size={12} />
+              ) : sentimentMeta.tone === 'negative' ? (
+                <ThumbsDown size={12} />
+              ) : (
+                <Minus size={12} />
+              )}
+              <span>{sentimentMeta.label}</span>
+            </span>
+          ) : (
+            // Per ADR-0028 D7: legacy row with no sentiment shows a small
+            // caption derived from the deprecated five-star rating, but
+            // NEVER renders the star widget itself — the goal is to nudge
+            // every reader toward the new axis without losing history.
+            <span
+              className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] text-white/40"
+              title={t('legacyRatingCaptionTooltip')}
+            >
+              {t('legacyRatingCaption', { rating: review.rating })}
+            </span>
+          )}
         </div>
       </div>
 

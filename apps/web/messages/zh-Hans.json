@@ -188,6 +188,12 @@
     "sourceLocaleZhHans": "简体中文",
     "sourceLocaleEn": "英文",
     "sourceLocaleTooltip": "原文语言：{language}",
+    "sentimentPositive": "赞",
+    "sentimentNeutral": "普通",
+    "sentimentNegative": "不赞",
+    "sentimentBadgeAria": "评价：{value}",
+    "legacyRatingCaption": "依五星评分回推为 {rating} 星",
+    "legacyRatingCaptionTooltip": "此评论在五星制废除前提交，仅显示旧评分作为参考。",
     "ipfsContentLink": "IPFS 原文",
     "ipfsContentLinkTooltip": "查看上链内容原文（IPFS 不可篡改）"
   },

@@ -188,6 +188,12 @@
     "sourceLocaleZhHans": "Simplified Chinese",
     "sourceLocaleEn": "English",
     "sourceLocaleTooltip": "Original language: {language}",
+    "sentimentPositive": "Positive",
+    "sentimentNeutral": "Neutral",
+    "sentimentNegative": "Negative",
+    "sentimentBadgeAria": "Verdict: {value}",
+    "legacyRatingCaption": "Legacy five-star score: {rating}",
+    "legacyRatingCaptionTooltip": "This review was submitted before the five-star axis was retired; the legacy score is shown for reference only.",
     "ipfsContentLink": "IPFS source",
     "ipfsContentLinkTooltip": "View the on-chain content payload (immutable on IPFS)"
   },
