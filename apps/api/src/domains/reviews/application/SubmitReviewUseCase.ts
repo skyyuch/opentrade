@@ -16,6 +16,14 @@
  * directly from the request (frontend next-intl locale, or `Accept-Language`
  * fallback) so the ReviewCard can render a language badge.
  *
+ * ADR-0028 D3: the IPFS payload schema bumps from v1 to v2 in this use
+ * case. v2 carries the new `sentiment` axis (the canonical post-1.5
+ * verdict) and **retains** the legacy `rating` field so v1-aware
+ * indexers (third-party readers, on-chain receipts pointing at pre-v2
+ * CIDs) keep working unchanged. The presence of the `sentiment` key is
+ * the v1↔v2 discriminator; the explicit `version: 2` is for human
+ * auditors.
+ *
  * Pure orchestration — no HTTP, no Prisma, no `process.*` direct access.
  */
 
@@ -42,11 +50,19 @@ export class SubmitReviewUseCase {
       throw new AppError(ErrorCode.VALIDATION_ERROR, 'Rating must be between 1 and 5', 400);
     }
 
+    // ADR-0028 D3 — IPFS payload schema v2. The conditional spread keeps
+    // `sentiment` out of the payload string when the caller hasn't yet
+    // populated it (M4.2 transition state, before M4.3 makes the field
+    // required at the API boundary), so the keccak256 content hash
+    // stays deterministic with what would have been v1 minus a single
+    // version-bump diff. Forward readers (v2-aware) prefer `sentiment`
+    // when present; v1 readers keep parsing via `rating`.
     const ipfsPayload = {
-      version: 1,
+      version: 2,
       brokerId: input.brokerId,
       title: input.title,
       body: input.body,
+      ...(input.sentiment ? { sentiment: input.sentiment } : {}),
       rating: input.rating,
       author: input.userId,
       createdAt: new Date().toISOString(),
