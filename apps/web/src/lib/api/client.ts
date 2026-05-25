@@ -293,7 +293,7 @@ export type SfcLicenceRecord = {
   actType: number;
   actDesc: string;
   actDescZh: string;
-  periods: Array<{ from: string; to?: string }>;
+  periods: { from: string; to?: string }[];
 };
 
 export type SfcDetailJson = {

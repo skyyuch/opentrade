@@ -1,7 +1,5 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
-import { useLocale, useTranslations } from 'next-intl';
 import { usePrivy } from '@privy-io/react-auth';
 import {
   CheckCircle,
@@ -19,13 +17,16 @@ import {
   TrendingUp,
   Users,
 } from 'lucide-react';
-import { Link } from '@/i18n/navigation';
-import { useOpenTradeAuth } from '@/hooks/useOpenTradeAuth';
-import { ApiClientError, reviewIpfsContentUrl, submitReview } from '@/lib/api/client';
+import { useLocale, useTranslations } from 'next-intl';
+import { useCallback, useMemo, useState } from 'react';
+
 import { localizedBrokerName } from '@opentrade/shared';
 import { SentimentPicker, type Sentiment } from '@opentrade/ui';
 
-import type { FormEvent } from 'react';
+import { useOpenTradeAuth } from '@/hooks/useOpenTradeAuth';
+import { Link } from '@/i18n/navigation';
+import { ApiClientError, reviewIpfsContentUrl, submitReview } from '@/lib/api/client';
+
 import type {
   BrokerDetail,
   ReviewItem,
@@ -36,6 +37,7 @@ import type {
   SfcFormerName,
   SfcLicenceRecord,
 } from '@/lib/api/client';
+import type { FormEvent } from 'react';
 
 type Tab = 'reviews' | 'license' | 'arbitration';
 type LicenseSubTab =
@@ -878,6 +880,7 @@ function ComplaintsOfficerView({ officer }: { officer: SfcComplaintsOfficer | un
 
   return (
     <div className="space-y-4">
+      {/* eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing -- empty SFC strings should also hide the block */}
       {(officer.entityName || officer.entityNameChi) && (
         <div className="text-center space-y-1">
           <div className="text-white/50">{t('corporation')}</div>
