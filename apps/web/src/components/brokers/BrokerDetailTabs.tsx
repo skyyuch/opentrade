@@ -273,8 +273,8 @@ function SentimentDistribution({ broker }: { broker: BrokerDetail }) {
                 <div className="flex-1 h-2 bg-white/10 rounded-full overflow-hidden">
                   <div className={`h-full ${row.barClass}`} style={{ width: `${pct}%` }} />
                 </div>
-                <div className="w-12 text-right text-white/40 text-xs tabular-nums">
-                  {row.count} · {sharePct}%
+                <div className="w-10 text-right text-white/40 text-xs tabular-nums">
+                  {sharePct}%
                 </div>
               </div>
             );
