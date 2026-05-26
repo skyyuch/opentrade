@@ -88,8 +88,8 @@ feedRouter.get('/recent', async (c) => {
       },
     }),
     prisma.signal.findFirst({
-      where: { tenantId: DEFAULT_TENANT_ID, outcome: { not: 'ACTIVE' } },
-      orderBy: { settledAt: 'desc' },
+      where: { tenantId: DEFAULT_TENANT_ID },
+      orderBy: { createdAt: 'desc' },
       select: {
         id: true,
         kolId: true,
