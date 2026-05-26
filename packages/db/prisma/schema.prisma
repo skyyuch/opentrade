@@ -352,6 +352,28 @@ enum Sentiment {
   NEGATIVE
 }
 
+/// Discriminator separating subjective opinion (`REVIEW`) from alleged
+/// verifiable fact (`COMPLAINT`) per ADR-0029. Both kinds share the same
+/// `Review` table and the same IPFS pin + on-chain anchor pipeline (per
+/// ADR-0019); only the surface-area UX and the verification path differ.
+///
+/// `REVIEW`     — sentiment-only, no platform verification needed; reader
+///                trust comes from the author's SBT tier + verified-broker
+///                badge (per ADR-0025).
+/// `COMPLAINT`  — alleges a fact (e.g. "platform was unreachable for 2h on
+///                2026-04-01"); REQUIRES `evidenceIpfsCid` at submit time
+///                (enforced in zod, not at the DB level since reviews don't
+///                need it); reader trust comes from `verifiedAt != null`
+///                being set by an admin (Phase 1) or by jury vote (Phase 3).
+///
+/// Existing pre-M7 rows are auto-stamped `REVIEW` via the `@default(REVIEW)`
+/// at column-add time (Postgres 11+ fast-default; no UPDATE in migration
+/// per rule 31).
+enum ReviewKind {
+  REVIEW
+  COMPLAINT
+}
+
 /// An off-chain mirror of a single review submission. The authoritative copy
 /// of the content lives on IPFS (addressed by `ipfsCid`), and its tamper-proof
 /// anchor lives on-chain in ReviewRegistry (addressed by `chainReviewId` +
@@ -400,6 +422,50 @@ model Review {
   status       ReviewStatus @default(PENDING)
   sourceLocale String?
 
+  // ===========================================================================
+  // Complaint discriminator + complaint-only fields per ADR-0029 (M7.1).
+  // All complaint-specific columns are nullable so existing review rows
+  // are valid without backfill — the `@default(REVIEW)` covers `kind`, and
+  // every other column is `?`. Application-layer zod enforces the
+  // "complaint requires evidence" constraint at submit time (per D3).
+  // ===========================================================================
+
+  /// Discriminator: `REVIEW` (subjective opinion) vs `COMPLAINT` (alleged
+  /// verifiable fact). Default `REVIEW` so existing rows are auto-stamped
+  /// at column-add time without any UPDATE statement (Postgres fast-default).
+  /// Per ADR-0029 D1.
+  kind               ReviewKind @default(REVIEW)
+  /// IPFS CID of the evidence file (PNG / JPEG / PDF, max 5MB) attached to
+  /// a complaint. Required when `kind = COMPLAINT` (enforced in API zod
+  /// schema per ADR-0029 D3); always null when `kind = REVIEW`. Pipeline
+  /// reuses the `/verify` flow's Pinata uploader.
+  evidenceIpfsCid    String?
+  /// Set when an admin (Phase 1, M7) or jury (Phase 3, future) verifies a
+  /// complaint as substantiated. `null` means either pending verification
+  /// or actively rejected (`adminNote` distinguishes); per ADR-0029 D4
+  /// rejection is non-destructive — the row stays visible with a "not
+  /// verified by platform" label per rule 00.
+  verifiedAt         DateTime?
+  /// User id of the admin who verified the complaint (Phase 1). Phase 3
+  /// will add a sibling `verifiedByJuryProposalId` and make this column
+  /// nullable when jury verification is the source — column shape is
+  /// already nullable so future ADR can layer on without schema break.
+  verifiedByUserId   String?    @db.Uuid
+  /// Foreign key target for a future broker public-response row (per C5
+  /// fold-in in ADR-0029 D6). M7.1 ships only the column; the bidirectional
+  /// `Review` self-relation lands with M10 商戶功能 (ADR-0037 staged in
+  /// `decisions/STAGING.md` S8) when the broker-side write API is built.
+  /// Until then this is plain `String?`, no relation, no integrity check.
+  respondsToReviewId String?    @db.Uuid
+  /// Admin-supplied free text. Two distinct roles per current usage:
+  ///   1. Reject reason (M7 / ADR-0029 D4): when `kind = COMPLAINT` and an
+  ///      admin rejects the verification claim — minimum 5 chars enforced
+  ///      in zod (sibling of `SbtVerificationRequest.adminNote` pattern).
+  ///   2. Future audit note for any moderation action (rule 00 «不刪、只
+  ///      標註» direction; Phase 2.5+ will deepen this).
+  /// NEVER a place to log PII (rule 50).
+  adminNote          String?    @db.Text
+
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
@@ -416,6 +482,13 @@ model Review {
   // (per ADR-0028 D1 + D7); the (tenantId, brokerId) prefix matches every
   // sentiment-grouped query against a single broker.
   @@index([tenantId, brokerId, sentiment])
+  // Powers two M7.6a aggregate queries on the broker detail page:
+  //   - `sentimentAggregate` filtered by `kind = REVIEW`
+  //   - `verifiedComplaintCount` filtered by `kind = COMPLAINT AND verifiedAt IS NOT NULL`
+  // Per ADR-0029 D1 + D5; the (tenantId, brokerId) prefix matches every
+  // single-broker query and the trailing `verifiedAt` lets Postgres skip
+  // unverified complaints in the count without a separate scan.
+  @@index([tenantId, brokerId, kind, verifiedAt])
   @@map("reviews")
 }
 

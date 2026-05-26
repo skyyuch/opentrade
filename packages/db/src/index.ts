@@ -27,6 +27,7 @@ export {
   LicenseStatus,
   LicenseType,
   Regulator,
+  ReviewKind,
   ReviewStatus,
   SbtTier,
   Sentiment,
