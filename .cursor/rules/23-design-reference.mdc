@@ -1,0 +1,96 @@
+---
+description: Design reference repo mapping — use when implementing or modifying UI pages
+globs: ["apps/web/src/**/*.tsx", "apps/console/src/**/*.tsx", "packages/ui/src/**/*.tsx"]
+alwaysApply: false
+---
+
+# Design Reference — OpenTrade-UI
+
+> 設計原型放在獨立 repo（`skyyuch/OpenTrade-UI`），已 clone 到本地固定路徑。
+> 做 UI 頁面時**必須先讀對應設計檔**，確保 pixel-level 對齊。
+
+---
+
+## 設計 Repo 位置
+
+- **本地路徑**：`/Users/skyyu/Desktop/OpenTrade-UI/`
+- **GitHub**：`https://github.com/skyyuch/OpenTrade-UI`（private）
+- **格式**：React + TypeScript + Tailwind prototype（mixed code + mock data）
+
+如果本地路徑不存在，跑：
+```bash
+cd ~/Desktop && gh repo clone skyyuch/OpenTrade-UI
+```
+
+---
+
+## 檔案對應表
+
+| 設計檔 (OpenTrade-UI) | 實作位置 (OpenTrade) | 說明 |
+|---|---|---|
+| `src/components/Home.tsx` | `apps/web/src/app/[locale]/page.tsx` | 首頁 |
+| `src/components/kol/KolList.tsx` | `apps/web/src/app/[locale]/kols/` | KOL 名錄 |
+| `src/components/kol/KolDetail.tsx` | `apps/web/src/components/kols/KolProfileClient.tsx` | KOL 個人頁 |
+| `src/components/kol/KolSignalDetail.tsx` | `apps/web/src/app/[locale]/signals/[id]/` | 訊號詳情頁 |
+| `src/components/kol/KolEmbedWidget.tsx` | `apps/web/src/components/kols/` (TBD) | KOL 嵌入小工具 |
+| `src/components/BrokerList.tsx` | `apps/web/src/app/[locale]/brokers/` | 券商名錄 |
+| `src/components/BrokerDetail.tsx` | `apps/web/src/components/brokers/` | 券商詳情頁 |
+| `src/components/BrokerDetailWrap.tsx` | `apps/web/src/components/brokers/` | 券商詳情外框 |
+| `src/components/Auth.tsx` | `apps/web/src/components/auth/` | 認證/登入 |
+| `src/components/SbtVerification.tsx` | `apps/web/src/components/` (TBD) | SBT 驗證流程 |
+| `src/components/shared/PublicLayout.tsx` | `apps/web/src/app/[locale]/layout.tsx` | 公開頁佈局 |
+| `src/components/shared/Settings.tsx` | `apps/web/src/app/[locale]/settings/` (TBD) | 設定頁 |
+| `src/components/Navigation.tsx` | `apps/web/src/components/layout/` | 導航列 |
+| `src/components/kol-console/KolConsoleLayout.tsx` | `apps/web/src/app/[locale]/kol-console/` | KOL 控制台 layout |
+| `src/components/kol-console/KolDashboard.tsx` | `apps/web/src/app/[locale]/kol-console/` | KOL 儀表板 |
+| `src/components/kol-console/KolOnboarding.tsx` | `apps/web/src/app/[locale]/kol-console/` | KOL 入駐流程 |
+| `src/components/kol-console/KolSignalList.tsx` | `apps/web/src/app/[locale]/kol-console/signals/` | KOL 訊號列表 |
+| `src/components/kol-console/KolSignalNew.tsx` | `apps/web/src/app/[locale]/kol-console/signals/new/` | 發送新訊號 |
+| `src/components/broker/BrokerLayout.tsx` | `apps/console/src/app/[locale]/broker/` | 商戶控制台 layout |
+| `src/components/broker/BrokerOverview.tsx` | `apps/console/src/app/[locale]/broker/` | 商戶總覽 |
+| `src/components/broker/BrokerProfile.tsx` | `apps/console/src/app/[locale]/broker/profile/` | 商戶資料 |
+| `src/components/broker/BrokerReviews.tsx` | `apps/console/src/app/[locale]/broker/reviews/` | 商戶評論管理 |
+| `src/components/broker/ComplaintForm.tsx` | `apps/web/src/components/brokers/` | 投訴表單 |
+| `src/components/broker/ComplaintsTab.tsx` | `apps/console/src/app/[locale]/broker/` | 投訴 Tab |
+| `src/components/admin/Admin*.tsx` | `apps/console/src/app/[locale]/admin/` | Admin 後台各頁 |
+
+---
+
+## 使用流程
+
+### 新建 / 大幅修改 UI 頁面時
+
+1. **先讀設計檔**：根據對應表找到設計檔，用 `Read` 工具讀取
+2. **比對差異**：列出設計與當前實作的 UI 差異
+3. **對齊實作**：按設計檔的佈局、間距、顏色、互動狀態對齊
+4. **回報缺漏**：如果某頁面沒有對應的設計檔，告知使用者
+
+### 注意事項
+
+- 設計檔用的是 **mock data + react-router**，實作用的是 **next-intl + App Router + real API**
+- 只參考設計檔的 **UI/UX 部分**（className、佈局、互動模式）
+- **不要**照搬設計檔的：路由方式、狀態管理方式、mock data 結構
+- 設計檔中的中文文字 → 對應到 `messages/*.json` 的 i18n key
+- 設計檔如果比實作多功能（尚未實作的按鈕/區塊），可以先留 UI 殼但 disable 互動
+
+---
+
+## 更新設計 Repo
+
+設計 repo 如果有更新，使用者需手動 pull：
+
+```bash
+cd ~/Desktop/OpenTrade-UI && git pull
+```
+
+AI agent 不可自行 push 到設計 repo。
+
+---
+
+## 嚴禁
+
+- ❌ 做 UI 頁面時跳過讀設計檔（除非確認沒有對應設計）
+- ❌ 直接複製設計檔的 import/routing 邏輯到實作
+- ❌ 把 mock data 結構帶到實作（實作走 real API type）
+- ❌ 修改設計 repo 的任何檔案
+- ❌ 設計有但 rule/ADR 禁止的功能照做（以 OpenTrade rules 為準）
