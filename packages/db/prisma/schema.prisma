@@ -435,10 +435,12 @@ model Review {
   /// at column-add time without any UPDATE statement (Postgres fast-default).
   /// Per ADR-0029 D1.
   kind               ReviewKind @default(REVIEW)
-  /// IPFS CID of the evidence file (PNG / JPEG / PDF, max 5MB) attached to
-  /// a complaint. Required when `kind = COMPLAINT` (enforced in API zod
-  /// schema per ADR-0029 D3); always null when `kind = REVIEW`. Pipeline
-  /// reuses the `/verify` flow's Pinata uploader.
+  /// IPFS CID of the evidence file (PNG / JPEG / PDF / WebP, max 10MB)
+  /// attached to a complaint. Required when `kind = COMPLAINT` (enforced
+  /// in API zod schema per ADR-0029 D3); always null when `kind = REVIEW`.
+  /// Pipeline reuses the `/verify` flow's Pinata uploader end-to-end —
+  /// see `POST /v1/auth/verify-broker/upload` for the cap + MIME allow-list
+  /// source of truth.
   evidenceIpfsCid    String?
   /// Set when an admin (Phase 1, M7) or jury (Phase 3, future) verifies a
   /// complaint as substantiated. `null` means either pending verification

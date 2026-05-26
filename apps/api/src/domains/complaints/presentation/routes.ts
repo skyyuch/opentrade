@@ -48,10 +48,19 @@ const COMPLAINT_STATUS_VALUES = ['OPEN', 'VERIFIED', 'REJECTED'] as const;
 // than `z.string().min(1)` but doesn't require pulling in a CID parser.
 const IPFS_CID_PATTERN = /^(Qm[1-9A-HJ-NP-Za-km-z]{44}|b[A-Za-z0-9]{50,})$/;
 
+// Body / title bounds match the M7.5 ComplaintForm UX: optional short
+// summary headline (≤ 80 chars) + factual narrative (10–2000 chars).
+// The DB column is `VarChar(200)` / `Text` so the tighter API caps are
+// purely UX-facing — undefined title maps to empty string before the
+// repo writes the row (the legacy review path keeps its own required
+// title with a different cap; the two endpoints intentionally differ).
 const submitComplaintBodySchema = z.object({
   brokerId: z.string().uuid('brokerId must be a valid UUID'),
-  title: z.string().min(1, 'title is required').max(200, 'title must be 200 chars or less'),
-  body: z.string().min(10, 'body must be at least 10 characters').max(5000),
+  title: z.string().max(80, 'title must be 80 chars or less').optional(),
+  body: z
+    .string()
+    .min(10, 'body must be at least 10 characters')
+    .max(2000, 'body must be 2000 chars or less'),
   evidenceIpfsCid: z
     .string()
     .regex(IPFS_CID_PATTERN, 'evidenceIpfsCid must be a valid IPFS CID')
@@ -109,7 +118,10 @@ complaintsRouter.post('/', authMiddleware('reviewer'), async (c) => {
     tenantId: DEFAULT_TENANT_ID,
     userId: user.userId,
     brokerId: parsed.data.brokerId,
-    title: parsed.data.title,
+    // Title is optional at the API layer (per M7.5 spec) — coerce
+    // undefined to empty string so the NOT-NULL DB column is satisfied
+    // without leaking the optional shape into the domain layer.
+    title: parsed.data.title ?? '',
     body: parsed.data.body,
     evidenceIpfsCid: parsed.data.evidenceIpfsCid,
     // Default `NEGATIVE` for complaints (per ADR-0029 the act of

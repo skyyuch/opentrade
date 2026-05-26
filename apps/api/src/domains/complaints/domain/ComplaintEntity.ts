@@ -46,6 +46,13 @@ export const COMPLAINT_VERIFICATION_STATUS_VALUES = [
  * web form must upload the evidence file to Pinata before calling the
  * API and pass the CID along. Body length floor is enforced at the
  * presentation zod layer (mirroring the review submit floor).
+ *
+ * `title` is a required string at the domain layer but MAY be the empty
+ * string when the user opts out of a headline summary (the M7.5 web
+ * form makes it optional and the presentation layer coerces undefined
+ * to ''). Keeping it non-nullable here matches the DB column shape
+ * (`VarChar(200)` NOT NULL) and avoids spreading the optional through
+ * the use case + repo layers.
  */
 export type SubmitComplaintInput = {
   tenantId: string;
@@ -55,9 +62,10 @@ export type SubmitComplaintInput = {
   body: string;
   /**
    * Per ADR-0029 D3: every complaint requires an evidence file. The
-   * frontend uploads to Pinata directly (PNG / JPEG / PDF, max 5MB,
-   * reusing the `/verify` flow's pipeline) and passes the resulting
-   * CID through to this use case.
+   * frontend uploads via the API's `POST /v1/auth/verify-broker/upload`
+   * endpoint (PNG / JPEG / PDF / WebP, max 10MB — the same cap as the
+   * `/verify` flow's Pinata pipeline, which this reuses end-to-end)
+   * and passes the resulting CID through to this use case.
    */
   evidenceIpfsCid: string;
   /**
