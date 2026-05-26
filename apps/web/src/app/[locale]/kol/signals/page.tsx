@@ -92,7 +92,7 @@ export default function KolSignalsPage(): ReactNode {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-bold text-white">{t('signalHistory')}</h1>
         <Link
-          href="/kol/signals"
+          href="/kol/signals/new"
           className="flex items-center gap-2 rounded-lg bg-[#00FF88] px-4 py-2 text-sm font-bold text-black transition-all hover:bg-[#00e67a]"
         >
           <Radio size={16} />

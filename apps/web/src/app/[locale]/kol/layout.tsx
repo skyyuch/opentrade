@@ -1,7 +1,7 @@
 'use client';
 
 import { usePrivy } from '@privy-io/react-auth';
-import { LayoutDashboard, Radio, Loader2, ShieldAlert, LogIn } from 'lucide-react';
+import { LayoutDashboard, Loader2, LogIn, Plus, Radio, ShieldAlert, UserPlus } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
 
@@ -13,8 +13,8 @@ import type { KolListItem } from '../../../lib/api/client';
 import type { ReactNode } from 'react';
 
 type NavItem = {
-  href: '/kol/dashboard' | '/kol/signals';
-  labelKey: 'navDashboard' | 'navSignals';
+  href: string;
+  labelKey: string;
   icon: typeof LayoutDashboard;
 };
 
@@ -33,6 +33,8 @@ export default function KolConsoleLayout({ children }: { children: ReactNode }) 
   const [loading, setLoading] = useState(true);
   const [denied, setDenied] = useState(false);
 
+  const isOnboardingPage = pathname.startsWith('/kol/onboarding');
+
   useEffect(() => {
     if (!authenticated) {
       setLoading(false);
@@ -46,9 +48,11 @@ export default function KolConsoleLayout({ children }: { children: ReactNode }) 
         setLoading(false);
         return;
       }
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- async race
       if (cancelled) return;
       try {
         const res = await fetchMyKolProfile({ accessToken: token });
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- async race
         if (cancelled) return;
         if (res.kol.status === 'APPROVED') {
           setKol(res.kol);
@@ -56,8 +60,10 @@ export default function KolConsoleLayout({ children }: { children: ReactNode }) 
           setDenied(true);
         }
       } catch {
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- async race
         if (!cancelled) setDenied(true);
       } finally {
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- async race
         if (!cancelled) setLoading(false);
       }
     })();
@@ -90,18 +96,39 @@ export default function KolConsoleLayout({ children }: { children: ReactNode }) 
     );
   }
 
+  if (isOnboardingPage) {
+    return (
+      <div className="-mt-16 relative min-h-screen pt-16">
+        <div className="pointer-events-none fixed right-[-5%] top-[-10%] z-0 h-[700px] w-[700px] rounded-full bg-[#00FF88]/10 blur-[150px]" />
+        <div className="pointer-events-none fixed bottom-[-10%] left-[-5%] z-0 h-[600px] w-[600px] rounded-full bg-purple-600/10 blur-[120px]" />
+        <div className="relative z-10">
+          <main className="mx-auto max-w-4xl p-6 lg:p-10">{children}</main>
+        </div>
+      </div>
+    );
+  }
+
   if (denied) {
     return (
       <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 px-6 text-center">
         <ShieldAlert className="h-12 w-12 text-orange-400" />
         <h2 className="text-xl font-bold text-white">{t('accessDenied')}</h2>
         <p className="max-w-md text-sm text-white/50">{t('accessDeniedDesc')}</p>
-        <Link
-          href="/kols"
-          className="mt-2 rounded-xl border border-white/20 px-6 py-3 text-sm font-medium text-white/80 transition-colors hover:bg-white/5"
-        >
-          {t('backToDirectory')}
-        </Link>
+        <div className="mt-2 flex gap-3">
+          <Link
+            href="/kol/onboarding"
+            className="flex items-center gap-2 rounded-xl bg-[#00FF88] px-6 py-3 font-bold text-black transition-all hover:bg-[#00e67a] hover:shadow-[0_0_20px_rgba(0,255,136,0.3)]"
+          >
+            <UserPlus size={18} />
+            {t('applyNow')}
+          </Link>
+          <Link
+            href="/kols"
+            className="rounded-xl border border-white/20 px-6 py-3 text-sm font-medium text-white/80 transition-colors hover:bg-white/5"
+          >
+            {t('backToDirectory')}
+          </Link>
+        </div>
       </div>
     );
   }
@@ -125,7 +152,10 @@ export default function KolConsoleLayout({ children }: { children: ReactNode }) 
             </div>
 
             {NAV_ITEMS.map((item) => {
-              const active = pathname.startsWith(item.href);
+              const active =
+                item.href === '/kol/signals'
+                  ? pathname === '/kol/signals'
+                  : pathname.startsWith(item.href);
               const Icon = item.icon;
               return (
                 <Link
@@ -142,13 +172,28 @@ export default function KolConsoleLayout({ children }: { children: ReactNode }) 
                 </Link>
               );
             })}
+
+            <Link
+              href="/kol/signals/new"
+              className={`mt-2 flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
+                pathname === '/kol/signals/new'
+                  ? 'bg-[#00FF88]/10 text-[#00FF88]'
+                  : 'text-white/60 hover:bg-white/5 hover:text-white'
+              }`}
+            >
+              <Plus size={18} />
+              {t('newSignal')}
+            </Link>
           </div>
         </aside>
 
         {/* Mobile nav */}
         <div className="sticky top-16 z-20 flex w-full gap-1 border-b border-white/10 bg-black/60 p-2 backdrop-blur-sm lg:hidden">
           {NAV_ITEMS.map((item) => {
-            const active = pathname.startsWith(item.href);
+            const active =
+              item.href === '/kol/signals'
+                ? pathname === '/kol/signals'
+                : pathname.startsWith(item.href);
             const Icon = item.icon;
             return (
               <Link
@@ -163,6 +208,17 @@ export default function KolConsoleLayout({ children }: { children: ReactNode }) 
               </Link>
             );
           })}
+          <Link
+            href="/kol/signals/new"
+            className={`flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs font-medium transition-colors ${
+              pathname === '/kol/signals/new'
+                ? 'bg-[#00FF88]/10 text-[#00FF88]'
+                : 'text-white/60 hover:bg-white/5'
+            }`}
+          >
+            <Plus size={14} />
+            {t('newSignal')}
+          </Link>
         </div>
 
         {/* Main content */}

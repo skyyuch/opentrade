@@ -69,7 +69,7 @@ export default function KolDashboardPage(): ReactNode {
           <p className="mt-1 text-sm text-white/50">{t('dashboardSubtitle')}</p>
         </div>
         <Link
-          href="/kol/signals"
+          href="/kol/signals/new"
           className="flex items-center gap-2 rounded-xl bg-[#00FF88] px-6 py-3 font-bold text-black transition-all hover:bg-[#00e67a] hover:shadow-[0_0_20px_rgba(0,255,136,0.3)]"
         >
           <Radio size={18} />
