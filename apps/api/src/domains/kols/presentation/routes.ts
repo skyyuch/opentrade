@@ -165,6 +165,85 @@ kolsRouter.get('/:slug', async (c) => {
 });
 
 // ---------------------------------------------------------------------------
+// GET /:slug/stats — KOL win-rate statistics (public)
+// ---------------------------------------------------------------------------
+
+const SETTLED_OUTCOMES = ['HIT_TARGET', 'HIT_DIRECTION', 'STOPPED', 'EXPIRED'] as const;
+const WIN_OUTCOMES = ['HIT_TARGET', 'HIT_DIRECTION'] as const;
+
+const ASSET_CLASS_BUCKET: Record<string, string> = {
+  EQUITY_HK: 'HK',
+  EQUITY_US: 'US',
+  CRYPTO: 'Crypto',
+  SPOT: 'Crypto',
+  FUTURES: 'Futures',
+  FOREX: 'Forex',
+};
+
+kolsRouter.get('/:slug/stats', async (c) => {
+  const slug = c.req.param('slug');
+  const kol = await kolRepo.findBySlug(slug);
+
+  if (!kol) {
+    throw AppError.notFound(`KOL "${slug}" not found`);
+  }
+
+  const signals = await prisma.signal.findMany({
+    where: { kolId: kol.id, tenantId: DEFAULT_TENANT_ID },
+    select: { outcome: true, assetClass: true, horizon: true },
+  });
+
+  const settled = signals.filter((s) =>
+    (SETTLED_OUTCOMES as readonly string[]).includes(s.outcome),
+  );
+  const wins = settled.filter((s) => (WIN_OUTCOMES as readonly string[]).includes(s.outcome));
+  const targetHits = settled.filter((s) => s.outcome === 'HIT_TARGET');
+  const unresolvedCount = signals.filter((s) => s.outcome === 'UNRESOLVED').length;
+
+  const directionWinRate =
+    settled.length > 0 ? Math.round((wins.length / settled.length) * 1000) / 10 : null;
+  const targetWinRate =
+    settled.length > 0 ? Math.round((targetHits.length / settled.length) * 1000) / 10 : null;
+
+  const byAsset: Record<string, { settled: number; wins: number }> = {};
+  for (const s of settled) {
+    const bucket = ASSET_CLASS_BUCKET[s.assetClass] ?? s.assetClass;
+    const entry = (byAsset[bucket] ??= { settled: 0, wins: 0 });
+    entry.settled++;
+    if ((WIN_OUTCOMES as readonly string[]).includes(s.outcome)) entry.wins++;
+  }
+  const statsByAsset: Record<string, number> = {};
+  for (const [key, val] of Object.entries(byAsset)) {
+    statsByAsset[key] = val.settled > 0 ? Math.round((val.wins / val.settled) * 1000) / 10 : 0;
+  }
+
+  const horizonBuckets = {
+    short: { settled: 0, wins: 0 },
+    mid: { settled: 0, wins: 0 },
+    long: { settled: 0, wins: 0 },
+  };
+  for (const s of settled) {
+    const bucket = s.horizon < 7 ? 'short' : s.horizon <= 30 ? 'mid' : 'long';
+    horizonBuckets[bucket].settled++;
+    if ((WIN_OUTCOMES as readonly string[]).includes(s.outcome)) horizonBuckets[bucket].wins++;
+  }
+  const statsByHorizon: Record<string, number> = {};
+  for (const [key, val] of Object.entries(horizonBuckets)) {
+    statsByHorizon[key] = val.settled > 0 ? Math.round((val.wins / val.settled) * 1000) / 10 : 0;
+  }
+
+  return c.json({
+    totalSignals: signals.length,
+    settledCount: settled.length,
+    directionWinRate,
+    targetWinRate,
+    unresolvedCount,
+    statsByAsset,
+    statsByHorizon,
+  });
+});
+
+// ---------------------------------------------------------------------------
 // POST /:slug/follow — Follow a KOL
 // ---------------------------------------------------------------------------
 
