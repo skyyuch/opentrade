@@ -16,9 +16,24 @@ export type UpsertUserInput = {
   displayName?: string | null;
 };
 
+export type NotificationPrefs = {
+  signals: boolean;
+  arbitration: boolean;
+  mentions: boolean;
+  newsletter: boolean;
+};
+
+export type PrivacyPrefs = {
+  publicProfile: boolean;
+  showWallet: boolean;
+  showSbtLevel: boolean;
+};
+
 export type UpdateProfileInput = {
   displayName?: string | null | undefined;
   preferredLocale?: string | null | undefined;
+  notificationPrefs?: NotificationPrefs | undefined;
+  privacyPrefs?: PrivacyPrefs | undefined;
 };
 
 export type IUserRepository = {

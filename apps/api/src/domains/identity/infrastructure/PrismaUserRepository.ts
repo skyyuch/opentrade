@@ -66,6 +66,10 @@ export class PrismaUserRepository implements IUserRepository {
       data: {
         ...(input.displayName !== undefined ? { displayName: input.displayName } : {}),
         ...(input.preferredLocale !== undefined ? { preferredLocale: input.preferredLocale } : {}),
+        ...(input.notificationPrefs !== undefined
+          ? { notificationPrefs: input.notificationPrefs }
+          : {}),
+        ...(input.privacyPrefs !== undefined ? { privacyPrefs: input.privacyPrefs } : {}),
       },
     });
   }

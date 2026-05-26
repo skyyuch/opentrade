@@ -49,9 +49,24 @@ const exchangeBodySchema = z.object({
   accessToken: z.string().min(1, 'accessToken is required'),
 });
 
+const notificationPrefsSchema = z.object({
+  signals: z.boolean(),
+  arbitration: z.boolean(),
+  mentions: z.boolean(),
+  newsletter: z.boolean(),
+});
+
+const privacyPrefsSchema = z.object({
+  publicProfile: z.boolean(),
+  showWallet: z.boolean(),
+  showSbtLevel: z.boolean(),
+});
+
 const updateProfileSchema = z.object({
   displayName: z.string().min(1).max(100).optional(),
   preferredLocale: z.enum(['zh-Hant', 'zh-Hans', 'en']).optional(),
+  notificationPrefs: notificationPrefsSchema.optional(),
+  privacyPrefs: privacyPrefsSchema.optional(),
 });
 
 function maskEmail(email: string): string {
@@ -145,6 +160,8 @@ identityRouter.get('/me', authMiddleware('user'), async (c) => {
       preferredLocale: user.preferredLocale,
       role: user.role,
       sbtTier: user.sbtTier,
+      notificationPrefs: (user.notificationPrefs as Record<string, boolean> | null) ?? null,
+      privacyPrefs: (user.privacyPrefs as Record<string, boolean> | null) ?? null,
       createdAt: user.createdAt.toISOString(),
     },
     claimedBroker: claimedBroker
@@ -170,13 +187,20 @@ identityRouter.patch('/me', authMiddleware('user'), async (c) => {
     });
   }
 
-  if (!parsed.data.displayName && !parsed.data.preferredLocale) {
+  if (
+    !parsed.data.displayName &&
+    !parsed.data.preferredLocale &&
+    !parsed.data.notificationPrefs &&
+    !parsed.data.privacyPrefs
+  ) {
     throw new AppError(ErrorCode.VALIDATION_ERROR, 'At least one field must be provided', 400);
   }
 
   const updated = await userRepo.updateProfile(userId, {
     displayName: parsed.data.displayName,
     preferredLocale: parsed.data.preferredLocale,
+    notificationPrefs: parsed.data.notificationPrefs,
+    privacyPrefs: parsed.data.privacyPrefs,
   });
 
   return c.json({
@@ -189,6 +213,8 @@ identityRouter.patch('/me', authMiddleware('user'), async (c) => {
       preferredLocale: updated.preferredLocale,
       role: updated.role,
       sbtTier: updated.sbtTier,
+      notificationPrefs: (updated.notificationPrefs as Record<string, boolean> | null) ?? null,
+      privacyPrefs: (updated.privacyPrefs as Record<string, boolean> | null) ?? null,
       createdAt: updated.createdAt.toISOString(),
     },
   });
