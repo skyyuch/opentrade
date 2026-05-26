@@ -192,24 +192,36 @@ complaintsRouter.get('/broker/:slug', async (c) => {
     limit: query.data.limit,
   });
 
+  const responseMap = await responseRepo.findByComplaintIds(result.items.map((item) => item.id));
+
   return c.json({
-    complaints: result.items.map((c) => ({
-      id: c.id,
-      brokerId: c.brokerId,
-      contentHash: c.contentHash,
-      ipfsCid: c.ipfsCid,
-      evidenceIpfsCid: c.evidenceIpfsCid,
-      title: c.title,
-      body: c.body,
-      sentiment: c.sentiment,
-      sourceLocale: c.sourceLocale,
-      verifiedAt: c.verifiedAt?.toISOString() ?? null,
-      // Ship adminNote on REJECTED rows so the public page can render
-      // the reject reason next to the "not verified by platform"
-      // label per ADR-0029 D4. OPEN / VERIFIED rows have null here.
-      adminNote: c.adminNote,
-      createdAt: c.createdAt.toISOString(),
-    })),
+    complaints: result.items.map((item) => {
+      const resp = responseMap.get(item.id);
+      return {
+        id: item.id,
+        brokerId: item.brokerId,
+        contentHash: item.contentHash,
+        ipfsCid: item.ipfsCid,
+        evidenceIpfsCid: item.evidenceIpfsCid,
+        title: item.title,
+        body: item.body,
+        sentiment: item.sentiment,
+        sourceLocale: item.sourceLocale,
+        verifiedAt: item.verifiedAt?.toISOString() ?? null,
+        adminNote: item.adminNote,
+        createdAt: item.createdAt.toISOString(),
+        brokerResponse: resp
+          ? {
+              id: resp.id,
+              body: resp.body,
+              contentHash: resp.contentHash,
+              ipfsCid: resp.ipfsCid,
+              sourceLocale: resp.sourceLocale,
+              createdAt: resp.createdAt.toISOString(),
+            }
+          : null,
+      };
+    }),
     nextCursor: result.nextCursor,
     broker: {
       id: broker.id,
