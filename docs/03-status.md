@@ -746,7 +746,7 @@ aws sso login --profile opentrade-dev
 - 路線圖：[`02-roadmap.md`](./02-roadmap.md)
 - 術語：[`04-glossary.md`](./04-glossary.md)
 - 架構決策：[`decisions/`](./decisions/)
-- 對話歸檔：[`conversations/`](./conversations/) — 最新 [2026-05-25 team meeting strategy](./conversations/2026-05-25-team-meeting-strategy.md)
+- 對話歸檔：[`conversations/`](./conversations/) — 最新 [2026-05-26 M7 execution pt.2](./conversations/2026-05-26-m7-execution-pt2.md)
 - GitHub: [skyyuch/opentrade](https://github.com/skyyuch/opentrade)
 
 ---
