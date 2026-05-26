@@ -152,6 +152,15 @@ const envSchema = z.object({
     .optional(),
 
   /**
+   * Address of the deployed KolSignalRegistry proxy contract. Required for
+   * the outbox worker to anchor KOL signals on-chain (ADR-0036 D4).
+   */
+  KOL_SIGNAL_REGISTRY_ADDRESS: z
+    .string()
+    .regex(/^0x[0-9a-fA-F]{40}$/)
+    .optional(),
+
+  /**
    * DeepL API key for UGC translation.
    *
    * @deprecated Per ADR-0027 (supersedes ADR-0023): the submit-time

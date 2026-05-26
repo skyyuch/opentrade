@@ -24,8 +24,9 @@
  *   - `kol.rejected`              → ack-only (per ADR-0036 D1; rule 00 applies)
  *   - `kol.claimed`               → ack-only (per ADR-0036 D9; pre-seeded KOL
  *                                    claimed by real person)
- *   - `signal.submitted`          → ack-only (per ADR-0036 D4; future Phase 2+
- *                                    will call KolSignalRegistry.emit() on-chain)
+ *   - `signal.submitted`          → calls KolSignalRegistry.emitSignal() on-chain
+ *                                    (per ADR-0036 D4; graceful skip if
+ *                                    KOL_SIGNAL_REGISTRY_ADDRESS not set)
  *   - `kol_sbt.mint_requested`    → ack-only (per ADR-0036 D3; future Phase 2+
  *                                    will call KolSbt.mint() on-chain)
  *   - `broker_response.submitted` → ack-only (per ADR-0037 D3; broker response
@@ -81,6 +82,38 @@ const REVIEWER_SBT_ABI = [
   },
 ] as const;
 
+const KOL_SIGNAL_REGISTRY_ABI = [
+  {
+    type: 'function',
+    name: 'emitSignal',
+    inputs: [
+      { name: 'kolId', type: 'bytes32' },
+      { name: 'contentHash', type: 'bytes32' },
+      { name: 'ipfsCid', type: 'string' },
+      { name: 'assetClass', type: 'uint8' },
+      { name: 'direction', type: 'uint8' },
+      { name: 'horizon', type: 'uint8' },
+    ],
+    outputs: [{ name: 'signalId', type: 'uint256' }],
+    stateMutability: 'nonpayable',
+  },
+] as const;
+
+const ASSET_CLASS_MAP: Record<string, number> = {
+  EQUITY_HK: 0,
+  EQUITY_US: 1,
+  FUTURES: 2,
+  SPOT: 3,
+  FOREX: 4,
+  CRYPTO: 5,
+};
+
+const DIRECTION_MAP: Record<string, number> = {
+  BUY: 0,
+  SELL: 1,
+  HOLD: 2,
+};
+
 function log(level: string, msg: string, data?: Record<string, unknown>) {
   const entry = { level, msg, time: new Date().toISOString(), ...data };
   process.stdout.write(JSON.stringify(entry) + '\n');
@@ -93,6 +126,7 @@ async function main() {
   const relayerKey = process.env['CHAIN_RELAYER_PRIVATE_KEY'] ?? '';
   const registryAddress = process.env['REVIEW_REGISTRY_ADDRESS'] ?? '';
   const sbtAddress = process.env['REVIEWER_SBT_ADDRESS'] ?? '';
+  const signalRegistryAddress = process.env['KOL_SIGNAL_REGISTRY_ADDRESS'] ?? '';
 
   if (!rpcUrl || !relayerKey || !registryAddress) {
     log('fatal', 'Missing required env vars', {
@@ -105,6 +139,10 @@ async function main() {
 
   if (!sbtAddress) {
     log('warn', 'REVIEWER_SBT_ADDRESS not set — sbt.mint_requested events will be skipped');
+  }
+
+  if (!signalRegistryAddress) {
+    log('warn', 'KOL_SIGNAL_REGISTRY_ADDRESS not set — signal.submitted events will be ack-only');
   }
 
   const chainId = Number(process.env['CHAIN_ID'] ?? '84532');
@@ -123,6 +161,7 @@ async function main() {
     chainId: chain.id,
     relayer: account.address,
     registry: registryAddress,
+    signalRegistry: signalRegistryAddress || '(not set)',
   });
 
   const prisma = new PrismaClient();
@@ -243,6 +282,81 @@ async function main() {
     });
   }
 
+  async function processSignalSubmitted(event: {
+    id: string;
+    aggregateId: string;
+    payload: unknown;
+  }) {
+    if (!signalRegistryAddress) {
+      log('warn', 'Skipping signal.submitted — KOL_SIGNAL_REGISTRY_ADDRESS not configured');
+      return;
+    }
+
+    const signal = await prisma.signal.findUnique({
+      where: { id: event.aggregateId },
+    });
+
+    if (!signal) {
+      throw new Error(`Signal ${event.aggregateId} not found`);
+    }
+
+    if (!signal.ipfsCid) {
+      throw new Error(`Signal ${event.aggregateId} has no ipfsCid`);
+    }
+
+    const kolIdHash = keccak256(toHex(signal.kolId));
+    const assetClassUint8 = ASSET_CLASS_MAP[signal.assetClass];
+    const directionUint8 = DIRECTION_MAP[signal.direction];
+
+    if (assetClassUint8 === undefined) {
+      throw new Error(`Unknown assetClass: ${signal.assetClass}`);
+    }
+    if (directionUint8 === undefined) {
+      throw new Error(`Unknown direction: ${signal.direction}`);
+    }
+
+    const { request } = await publicClient.simulateContract({
+      address: signalRegistryAddress as `0x${string}`,
+      abi: KOL_SIGNAL_REGISTRY_ABI,
+      functionName: 'emitSignal',
+      args: [
+        kolIdHash,
+        signal.contentHash as `0x${string}`,
+        signal.ipfsCid,
+        assetClassUint8,
+        directionUint8,
+        signal.horizon,
+      ],
+      account,
+    });
+
+    const txHash = await walletClient.writeContract(request);
+    const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash });
+
+    if (receipt.status !== 'success') {
+      throw new Error(`Signal transaction reverted: ${txHash}`);
+    }
+
+    const signalLog = receipt.logs.find(
+      (l) => l.address.toLowerCase() === signalRegistryAddress.toLowerCase(),
+    );
+    const chainSignalId = signalLog?.topics[1] ? Number(BigInt(signalLog.topics[1])) : null;
+
+    await prisma.signal.update({
+      where: { id: event.aggregateId },
+      data: {
+        chainTxHash: txHash,
+        chainSignalId,
+      },
+    });
+
+    log('info', 'Signal confirmed on-chain', {
+      signalId: event.aggregateId,
+      chainSignalId,
+      txHash,
+    });
+  }
+
   async function pollOnce() {
     const events = await prisma.outboxEvent.findMany({
       where: { processedAt: null },
@@ -293,9 +407,7 @@ async function main() {
           // transaction as the Kol row status change. Phase 2 ack-only;
           // future handlers may trigger KolSbt mint or SQS fan-out.
         } else if (event.eventType === 'signal.submitted') {
-          // ADR-0036 D4: signal emitted by KOL. Phase 2 ack-only; future
-          // Phase 2+ handler will call KolSignalRegistry.emit() on-chain
-          // (currently done inline by the API, this event is the audit trail).
+          await processSignalSubmitted(event);
         } else if (event.eventType === 'kol_sbt.mint_requested') {
           // ADR-0036 D3: KolSbt mint request. Phase 2 ack-only; future
           // handler mirrors processSbtMintRequested() pattern but targets
