@@ -46,7 +46,10 @@ const broker = {
   reviewCount: 4,
   positiveRate: 0.5,
   verifiedUserCount: 2,
-  verifiedComplaintCount: 0,
+  // M7.7: bumped to 1 to match the single VERIFIED complaint in the
+  // `complaints` fixture below. The third-tab red pill renders against
+  // this number — `> 0` means the pill is red, `= 0` grey.
+  verifiedComplaintCount: 1,
   ratingDistribution: [
     { rating: 1, count: 1 },
     { rating: 2, count: 0 },
@@ -162,6 +165,59 @@ const reviews = [
   },
 ];
 
+// M7.7: complaints fixtures exercise the full three-status matrix of
+// ADR-0029 D4 against the M7.6b broker-detail third tab.
+// - OPEN: verifiedAt = null AND adminNote = null (under review)
+// - VERIFIED: verifiedAt != null (platform substantiated the claim)
+// - REJECTED: verifiedAt = null AND adminNote != null (per rule 00
+//   «reject != delete» the body stays visible and the adminNote text
+//   is rendered inline)
+const complaints = [
+  {
+    id: 'complaint-e2e-verified',
+    brokerId: BROKER_ID,
+    contentHash: '0xverifiedcomplainthash',
+    ipfsCid: 'bafy-complaint-verified',
+    evidenceIpfsCid: 'bafy-evidence-verified',
+    title: 'Phantom trades on July statement',
+    body: 'My July statement shows two USD/HKD trades I never placed; broker support has not responded after 14 days.',
+    sentiment: 'NEGATIVE' as const,
+    sourceLocale: 'en' as const,
+    verifiedAt: '2026-05-10T00:00:00.000Z',
+    adminNote: null,
+    createdAt: '2026-04-20T00:00:00.000Z',
+  },
+  {
+    id: 'complaint-e2e-rejected',
+    brokerId: BROKER_ID,
+    contentHash: '0xrejectedcomplainthash',
+    ipfsCid: 'bafy-complaint-rejected',
+    evidenceIpfsCid: 'bafy-evidence-rejected',
+    title: 'Withdrawal fees too high',
+    body: 'Broker charged 2% withdrawal fee on a transfer above the disclosed limit.',
+    sentiment: 'NEGATIVE' as const,
+    sourceLocale: 'en' as const,
+    verifiedAt: null,
+    adminNote:
+      'Reviewed the evidence file (PDF statement). The 2% fee is disclosed in the broker tariff schedule and applies above the disclosed threshold; this is a contractual term, not a breach.',
+    createdAt: '2026-04-15T00:00:00.000Z',
+  },
+  {
+    id: 'complaint-e2e-open',
+    brokerId: BROKER_ID,
+    contentHash: '0xopencomplainthash',
+    ipfsCid: 'bafy-complaint-open',
+    evidenceIpfsCid: 'bafy-evidence-open',
+    title: 'Order rejected without reason',
+    body: 'Limit order on HSBC stock was rejected by the platform without any rejection reason in the order book.',
+    sentiment: 'NEGATIVE' as const,
+    sourceLocale: 'en' as const,
+    verifiedAt: null,
+    adminNote: null,
+    createdAt: '2026-05-22T00:00:00.000Z',
+  },
+];
+
 const sendJson = (res: ServerResponse, status: number, body: unknown): void => {
   const payload = JSON.stringify(body);
   res.statusCode = status;
@@ -186,6 +242,13 @@ const handle = (req: IncomingMessage, res: ServerResponse): void => {
     sendJson(res, 200, { reviews, nextCursor: null, broker: brokerHeader });
     return;
   }
+  // M7.7: complaints endpoint mirrors the /reviews/broker/:slug shape
+  // (per ADR-0029 D1 the wire surfaces stay distinct even though they
+  // share the underlying table).
+  if (method === 'GET' && url.startsWith(`/v1/complaints/broker/${BROKER_SLUG}`)) {
+    sendJson(res, 200, { complaints, nextCursor: null, broker: brokerHeader });
+    return;
+  }
   if (method === 'GET' && url === '/v1/health') {
     sendJson(res, 200, { ok: true });
     return;
@@ -206,6 +269,8 @@ export const SEED = {
   brokerSlug: BROKER_SLUG,
   brokerId: BROKER_ID,
   reviewCount: reviews.length,
+  complaintCount: complaints.length,
+  verifiedComplaintCount: complaints.filter((c) => c.verifiedAt !== null).length,
 };
 
 // Entrypoint when spawned as a standalone process (Playwright webServer)
