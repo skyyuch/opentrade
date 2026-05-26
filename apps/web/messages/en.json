@@ -493,6 +493,10 @@
     "assetClassCrypto": "Crypto",
     "directionBuy": "Buy",
     "directionSell": "Sell",
-    "directionHold": "Hold"
+    "directionHold": "Hold",
+    "statsTitle": "Performance",
+    "statsByAsset": "Win rate by asset class",
+    "statsByHorizon": "Win rate by horizon",
+    "unresolvedFootnote": "signals without Oracle cannot be settled automatically"
   }
 }

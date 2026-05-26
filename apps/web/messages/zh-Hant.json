@@ -493,6 +493,10 @@
     "assetClassCrypto": "加密貨幣",
     "directionBuy": "買入",
     "directionSell": "賣出",
-    "directionHold": "持有"
+    "directionHold": "持有",
+    "statsTitle": "成效數據",
+    "statsByAsset": "按資產類別勝率",
+    "statsByHorizon": "按週期勝率",
+    "unresolvedFootnote": "筆訊號無 Oracle 無法自動結算"
   }
 }

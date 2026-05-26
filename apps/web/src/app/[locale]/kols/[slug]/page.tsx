@@ -47,7 +47,7 @@ const KolProfilePage = async ({ params }: Props): Promise<ReactNode> => {
     <div className="-mt-16 relative pt-16">
       <div className="pointer-events-none fixed right-[-5%] top-[-10%] z-0 h-[700px] w-[700px] rounded-full bg-[#00FF88]/20 blur-[150px]" />
 
-      <div className="relative z-10 mx-auto max-w-4xl px-6 py-8 lg:px-10 lg:py-12">
+      <div className="relative z-10 mx-auto max-w-[1440px] px-6 py-8 lg:px-10 lg:py-12">
         <KolProfileClient
           kol={profileData.kol}
           signalCount={profileData.signalCount}
