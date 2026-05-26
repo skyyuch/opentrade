@@ -113,7 +113,7 @@ type HkKolSeed = {
   displayName: string;
   bio?: string;
   socialLinks?: Record<string, string>;
-  credentials?: Array<{ type: string; verified: boolean }>;
+  credentials?: { type: string; verified: boolean }[];
 };
 
 const seedKols = async (): Promise<void> => {
