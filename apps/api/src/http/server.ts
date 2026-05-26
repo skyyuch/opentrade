@@ -23,7 +23,9 @@ import { brokersRouter } from '../domains/brokers/index.js';
 import { complaintsRouter } from '../domains/complaints/index.js';
 import { healthRouter } from '../domains/health/index.js';
 import { identityRouter, JoseJwtService } from '../domains/identity/index.js';
+import { kolsRouter } from '../domains/kols/index.js';
 import { reviewsRouter } from '../domains/reviews/index.js';
+import { signalsRouter } from '../domains/signals/index.js';
 import { env } from '../shared/env.js';
 import { AppError } from '../shared/errors/index.js';
 
@@ -64,6 +66,8 @@ export const createServer = (): Hono<AppHonoEnv> => {
   app.route('/v1/brokers', brokersRouter);
   app.route('/v1/reviews', reviewsRouter);
   app.route('/v1/complaints', complaintsRouter);
+  app.route('/v1/kols', kolsRouter);
+  app.route('/v1/signals', signalsRouter);
   app.route('/v1/admin', adminRouter);
 
   app.notFound((c) =>
