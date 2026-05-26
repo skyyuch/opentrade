@@ -653,6 +653,19 @@ export const fetchBrokerKols = (
 // User profile
 // ---------------------------------------------------------------------------
 
+export type NotificationPrefs = {
+  signals: boolean;
+  arbitration: boolean;
+  mentions: boolean;
+  newsletter: boolean;
+};
+
+export type PrivacyPrefs = {
+  publicProfile: boolean;
+  showWallet: boolean;
+  showSbtLevel: boolean;
+};
+
 export type UserProfile = {
   id: string;
   displayName: string | null;
@@ -662,6 +675,8 @@ export type UserProfile = {
   preferredLocale: string | null;
   role: string;
   sbtTier: string;
+  notificationPrefs: NotificationPrefs | null;
+  privacyPrefs: PrivacyPrefs | null;
   createdAt: string;
 };
 
@@ -710,6 +725,8 @@ export const apiPatch = async <T>(
 export type UpdateProfileInput = {
   displayName?: string;
   preferredLocale?: string;
+  notificationPrefs?: NotificationPrefs;
+  privacyPrefs?: PrivacyPrefs;
 };
 
 export const updateMyProfile = (
