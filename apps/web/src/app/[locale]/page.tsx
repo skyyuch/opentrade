@@ -120,10 +120,9 @@ const HomePage = async (): Promise<ReactNode> => {
               </div>
             </div>
 
-            {/* Terminal Body */}
             <div className="space-y-5 p-6">
               <div className="flex gap-4 font-mono text-sm">
-                <div className="w-20 shrink-0 text-blue-400">[REVIEW]</div>
+                <div className="w-20 shrink-0 text-blue-400">{t('feedLabelReview')}</div>
                 <div className="flex-1 truncate text-white/70">{t('feedReview')}</div>
                 <div className="whitespace-nowrap text-right text-xs text-white/30">
                   {t('feedJustNow')}
@@ -131,7 +130,7 @@ const HomePage = async (): Promise<ReactNode> => {
               </div>
 
               <div className="-mx-6 flex gap-4 border-y border-[#00FF88]/20 bg-[#00FF88]/10 px-6 py-2 font-mono text-sm">
-                <div className="w-20 shrink-0 text-[#00FF88]">[SIGNAL]</div>
+                <div className="w-20 shrink-0 text-[#00FF88]">{t('feedLabelSignal')}</div>
                 <div className="flex-1 truncate text-white/70">{t('feedSignal')}</div>
                 <div className="whitespace-nowrap text-right text-xs text-white/30">
                   {t('feed2mAgo')}
@@ -139,7 +138,7 @@ const HomePage = async (): Promise<ReactNode> => {
               </div>
 
               <div className="flex gap-4 font-mono text-sm">
-                <div className="w-20 shrink-0 text-orange-400">[JURY]</div>
+                <div className="w-20 shrink-0 text-orange-400">{t('feedLabelJury')}</div>
                 <div className="flex-1 truncate text-white/70">{t('feedArbitration')}</div>
                 <div className="whitespace-nowrap text-right text-xs text-white/30">
                   {t('feed15mAgo')}
@@ -147,7 +146,7 @@ const HomePage = async (): Promise<ReactNode> => {
               </div>
 
               <div className="flex gap-4 font-mono text-sm">
-                <div className="w-20 shrink-0 text-purple-400">[VERIFY]</div>
+                <div className="w-20 shrink-0 text-purple-400">{t('feedLabelVerify')}</div>
                 <div className="flex-1 truncate text-white/70">{t('feedVerify')}</div>
                 <div className="whitespace-nowrap text-right text-xs text-white/30">
                   {t('feed18mAgo')}

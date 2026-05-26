@@ -1,3 +1,5 @@
+'use client';
+
 import { cva, type VariantProps } from 'class-variance-authority';
 import { FileText, Upload, X } from 'lucide-react';
 import { useId, useState, type DragEvent, type ReactNode } from 'react';
