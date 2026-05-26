@@ -49,7 +49,7 @@ type FeedItem =
 feedRouter.get('/recent', async (c) => {
   const limit = 10;
 
-  const [reviews, signals, complaints, latestSignalRow] = await Promise.all([
+  const [reviews, signals, complaints, settledSignals] = await Promise.all([
     prisma.review.findMany({
       where: { tenantId: DEFAULT_TENANT_ID, kind: 'REVIEW', status: 'CONFIRMED' },
       orderBy: { createdAt: 'desc' },
@@ -87,9 +87,10 @@ feedRouter.get('/recent', async (c) => {
         createdAt: true,
       },
     }),
-    prisma.signal.findFirst({
-      where: { tenantId: DEFAULT_TENANT_ID },
-      orderBy: { createdAt: 'desc' },
+    prisma.signal.findMany({
+      where: { tenantId: DEFAULT_TENANT_ID, outcome: { not: 'ACTIVE' } },
+      orderBy: { settledAt: 'desc' },
+      take: 50,
       select: {
         id: true,
         kolId: true,
@@ -98,6 +99,7 @@ feedRouter.get('/recent', async (c) => {
         entryPrice: true,
         settlePrice: true,
         outcome: true,
+        settledAt: true,
         createdAt: true,
       },
     }),
@@ -108,10 +110,7 @@ feedRouter.get('/recent', async (c) => {
   ];
 
   const kolIds = [
-    ...new Set([
-      ...signals.map((s) => s.kolId),
-      ...(latestSignalRow ? [latestSignalRow.kolId] : []),
-    ]),
+    ...new Set([...signals.map((s) => s.kolId), ...settledSignals.map((s) => s.kolId)]),
   ];
 
   const [brokers, kols] = await Promise.all([
@@ -171,38 +170,37 @@ feedRouter.get('/recent', async (c) => {
 
   items.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
-  let latestSignal: {
+  const topSignals: {
     kolName: string;
     kolVerified: boolean;
     symbol: string;
     direction: string;
-    yield: string | null;
-    createdAt: string;
-  } | null = null;
+    yield: string;
+    yieldValue: number;
+    settledAt: string;
+  }[] = [];
 
-  if (latestSignalRow) {
-    const kol = kolMap.get(latestSignalRow.kolId);
-    const entry = parseFloat(latestSignalRow.entryPrice.toString());
-    const settle = latestSignalRow.settlePrice
-      ? parseFloat(latestSignalRow.settlePrice.toString())
-      : null;
-    let yieldPct: string | null = null;
-    if (settle && entry > 0) {
-      const pct =
-        latestSignalRow.direction === 'SELL'
-          ? ((entry - settle) / entry) * 100
-          : ((settle - entry) / entry) * 100;
-      yieldPct = `${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%`;
-    }
-    latestSignal = {
+  for (const row of settledSignals) {
+    const entry = parseFloat(row.entryPrice.toString());
+    const settle = row.settlePrice ? parseFloat(row.settlePrice.toString()) : null;
+    if (!settle || entry <= 0) continue;
+    const pct =
+      row.direction === 'SELL'
+        ? ((entry - settle) / entry) * 100
+        : ((settle - entry) / entry) * 100;
+    const kol = kolMap.get(row.kolId);
+    topSignals.push({
       kolName: kol?.displayName ?? '',
       kolVerified: kol?.status === 'APPROVED',
-      symbol: latestSignalRow.symbol,
-      direction: latestSignalRow.direction,
-      yield: yieldPct,
-      createdAt: latestSignalRow.createdAt.toISOString(),
-    };
+      symbol: row.symbol,
+      direction: row.direction,
+      yield: `${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%`,
+      yieldValue: pct,
+      settledAt: (row.settledAt ?? row.createdAt).toISOString(),
+    });
   }
 
-  return c.json({ items: items.slice(0, limit), latestSignal });
+  topSignals.sort((a, b) => b.yieldValue - a.yieldValue);
+
+  return c.json({ items: items.slice(0, limit), topSignals: topSignals.slice(0, 5) });
 });

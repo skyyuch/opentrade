@@ -1067,16 +1067,17 @@ export type FeedItem =
   | { type: 'signal'; id: string; kolName: string; symbol: string; direction: string; createdAt: string }
   | { type: 'complaint'; id: string; brokerSlug: string; brokerDisplayName: string; createdAt: string };
 
-export type LatestSignal = {
+export type TopSignal = {
   kolName: string;
   kolVerified: boolean;
   symbol: string;
   direction: string;
-  yield: string | null;
-  createdAt: string;
+  yield: string;
+  yieldValue: number;
+  settledAt: string;
 };
 
-export type FeedResponse = { items: FeedItem[]; latestSignal: LatestSignal | null };
+export type FeedResponse = { items: FeedItem[]; topSignals: TopSignal[] };
 
 export const fetchRecentFeed = (options?: FetchOptions): Promise<FeedResponse> =>
   apiGet<FeedResponse>('/v1/feed/recent', options);

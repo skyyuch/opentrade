@@ -1,31 +1,31 @@
-import {
-  ArrowRight,
-  Database,
-  Globe,
-  Lock,
-  Scale,
-  ShieldCheck,
-  TrendingUp,
-  Zap,
-} from 'lucide-react';
+import { ArrowRight, Database, Lock, Scale, ShieldCheck, TrendingUp } from 'lucide-react';
 import { getTranslations } from 'next-intl/server';
 
 import { FaqSection } from '../../components/home/FaqSection';
+import { SignalCarousel } from '../../components/home/SignalCarousel';
 import { Link } from '../../i18n/navigation';
 import { fetchRecentFeed } from '../../lib/api/client';
 
-import type { FeedItem, LatestSignal } from '../../lib/api/client';
+import type { FeedItem, TopSignal } from '../../lib/api/client';
 import type { ReactNode } from 'react';
 
-function formatRelativeTime(isoDate: string): string {
+function formatRelativeTime(
+  isoDate: string,
+  labels: {
+    justNow: string;
+    minutes: (c: number) => string;
+    hours: (c: number) => string;
+    days: (c: number) => string;
+  },
+): string {
   const diff = Date.now() - new Date(isoDate).getTime();
   const mins = Math.floor(diff / 60_000);
-  if (mins < 1) return '<1m';
-  if (mins < 60) return `${mins}m`;
+  if (mins < 1) return labels.justNow;
+  if (mins < 60) return labels.minutes(mins);
   const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h`;
+  if (hours < 24) return labels.hours(hours);
   const days = Math.floor(hours / 24);
-  return `${days}d`;
+  return labels.days(days);
 }
 
 function getFeedItemConfig(
@@ -68,14 +68,21 @@ const HomePage = async (): Promise<ReactNode> => {
   ];
 
   let feedItems: FeedItem[] = [];
-  let latestSignal: LatestSignal | null = null;
+  let topSignals: TopSignal[] = [];
   try {
     const feed = await fetchRecentFeed({ next: { revalidate: 30 } });
     feedItems = feed.items;
-    latestSignal = feed.latestSignal;
+    topSignals = feed.topSignals;
   } catch {
     // Non-fatal: render empty terminal on API failure
   }
+
+  const timeLabels = {
+    justNow: t('timeJustNow'),
+    minutes: (c: number) => t('timeMinutesAgo', { count: c }),
+    hours: (c: number) => t('timeHoursAgo', { count: c }),
+    days: (c: number) => t('timeDaysAgo', { count: c }),
+  };
 
   return (
     <div className="-mt-16 relative pt-16">
@@ -201,65 +208,8 @@ const HomePage = async (): Promise<ReactNode> => {
 
             {/* Content Layout - Split View */}
             <div className="grid grid-cols-1 divide-y divide-white/5">
-              {/* Top Section: KOL Signal Highlight */}
-              <div className="relative overflow-hidden bg-gradient-to-b from-white/[0.02] to-transparent p-6 md:p-8">
-                <div className="absolute right-0 top-0 h-32 w-32 rounded-full bg-[#00FF88]/5 blur-3xl" />
-
-                <div className="mb-6 flex items-start justify-between">
-                  <h3 className="flex items-center gap-2 rounded bg-[#00FF88]/10 px-2 py-1 text-xs font-bold tracking-widest text-[#00FF88]">
-                    <Zap size={14} className="text-[#00FF88]" />
-                    {t('feedLatestSignal')}
-                  </h3>
-                  {latestSignal && (
-                    <div className="flex items-center gap-1.5 font-mono text-[10px] text-white/30">
-                      <Globe size={12} />
-                      {formatRelativeTime(latestSignal.createdAt)}
-                    </div>
-                  )}
-                </div>
-
-                {latestSignal ? (
-                  <div className="flex flex-col justify-between rounded-xl border border-[#00FF88]/20 bg-white/[0.03] p-5 transition-colors hover:bg-white/[0.05] sm:flex-row sm:items-center">
-                    <div className="mb-4 flex items-center gap-4 sm:mb-0">
-                      <div className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-white/10 bg-gradient-to-br from-zinc-800 to-black shadow-lg">
-                        <span className="font-mono text-sm font-bold text-white/80">
-                          {latestSignal.kolName.slice(0, 2).toUpperCase()}
-                        </span>
-                        {latestSignal.kolVerified && (
-                          <div className="absolute right-0 top-0 h-2 w-2 rounded-full bg-[#00FF88] shadow-[0_0_5px_#00FF88]" />
-                        )}
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2 text-base font-bold text-white">
-                          {latestSignal.kolName}
-                          {latestSignal.kolVerified && (
-                            <span className="flex items-center gap-1 rounded border border-[#00FF88]/30 bg-[#00FF88]/10 px-1.5 py-0.5 text-[9px] font-bold text-[#00FF88]">
-                              <ShieldCheck size={10} /> SBT
-                            </span>
-                          )}
-                        </div>
-                        <div className="mt-1 text-xs text-white/50">
-                          {latestSignal.direction} ${latestSignal.symbol}
-                        </div>
-                      </div>
-                    </div>
-                    {latestSignal.yield && (
-                      <div className="text-left sm:text-right">
-                        <div className="mb-1.5 text-[10px] uppercase tracking-widest text-white/40">
-                          Net Yield
-                        </div>
-                        <div className="inline-block rounded-lg bg-[#00FF88] px-3 py-1.5 font-mono text-sm font-bold text-black shadow-[0_0_15px_rgba(0,255,136,0.2)]">
-                          {latestSignal.yield}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div className="rounded-xl border border-white/10 bg-white/[0.03] p-5 text-center text-sm text-white/30">
-                    {t('terminalSync')}
-                  </div>
-                )}
-              </div>
+              {/* Top Section: KOL Signal Carousel */}
+              <SignalCarousel signals={topSignals} />
 
               {/* Bottom Section: Live Protocol Events */}
               <div className="p-6 md:p-8">
@@ -301,7 +251,7 @@ const HomePage = async (): Promise<ReactNode> => {
                             {config.content}
                           </div>
                           <div className="whitespace-nowrap text-right text-[10px] text-white/20">
-                            {formatRelativeTime(item.createdAt)}
+                            {formatRelativeTime(item.createdAt, timeLabels)}
                           </div>
                         </div>
                       );
