@@ -88,9 +88,18 @@ const submitReviewBodySchema = z.object({
   sourceLocale: z.enum(SOURCE_LOCALE_VALUES).optional(),
 });
 
+// Per M7.6a / ADR-0029 D1: explicit kind filter on the reviews list
+// endpoint. Default (omitted) is `'REVIEW'` so the public reviews tab
+// never accidentally surfaces complaint rows. Allowing `'COMPLAINT'`
+// here is for admin / debugging symmetry — the canonical complaint
+// read surface is `/v1/complaints/broker/:slug`, which ships the
+// evidence + verification metadata this endpoint cannot.
+const REVIEW_KIND_VALUES = ['REVIEW', 'COMPLAINT'] as const;
+
 const listReviewsQuerySchema = z.object({
   cursor: z.string().uuid().optional(),
   limit: z.coerce.number().int().min(1).max(50).optional(),
+  kind: z.enum(REVIEW_KIND_VALUES).optional(),
 });
 
 export const reviewsRouter = new Hono<AppHonoEnv>();
@@ -188,6 +197,9 @@ reviewsRouter.get('/broker/:slug', async (c) => {
     brokerId: broker.id,
     cursor: query.data.cursor,
     limit: query.data.limit,
+    // Repo defaults to `REVIEW` when omitted — passing through still
+    // lets an admin caller explicitly request `COMPLAINT` for parity.
+    kind: query.data.kind,
   });
 
   const userIds = [...new Set(result.items.map((r) => r.userId))];

@@ -36,6 +36,21 @@ export type ReviewListOptions = {
   brokerId: string;
   cursor?: string | undefined;
   limit?: number | undefined;
+  /**
+   * Per ADR-0029 D1 / M7.6a: the Review table is shared between true
+   * reviews and complaints via the `kind` discriminator. The reviews
+   * domain only ever wants `kind = REVIEW` rows — listing without the
+   * filter would silently return both after M7.3a, polluting the
+   * broker page's reviews tab with complaint rows.
+   *
+   * Repos MUST default to `'REVIEW'` when this is omitted so the
+   * default behaviour is correct. `'COMPLAINT'` is allowed for
+   * symmetry (admin tools that want the same paging shape across
+   * both kinds) but the canonical complaint read surface is
+   * `/v1/complaints/broker/:slug`, which carries the evidence /
+   * verification metadata this endpoint cannot ship.
+   */
+  kind?: 'REVIEW' | 'COMPLAINT' | undefined;
 };
 
 export type ReviewListResult = {

@@ -335,6 +335,14 @@ export type BrokerDetail = {
    */
   verifiedUserCount: number;
   /**
+   * Per ADR-0029 D1 + M7.6a: count of complaints against this broker
+   * that an admin has marked verified (rule 00 «reject != delete» —
+   * rejected complaints are intentionally excluded from this headline
+   * number). Used by the M7.6b third tab to gate the red pill: `> 0`
+   * renders red, `= 0` renders grey.
+   */
+  verifiedComplaintCount: number;
+  /**
    * Per ADR-0028 D6: legacy five-bar distribution. Still shipped by the API
    * for pre-M5 consumers but the broker detail page no longer renders it
    * (M5.4 swapped the widget for SentimentDistribution).

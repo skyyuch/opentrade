@@ -46,6 +46,7 @@ const broker = {
   reviewCount: 4,
   positiveRate: 0.5,
   verifiedUserCount: 2,
+  verifiedComplaintCount: 0,
   ratingDistribution: [
     { rating: 1, count: 1 },
     { rating: 2, count: 0 },

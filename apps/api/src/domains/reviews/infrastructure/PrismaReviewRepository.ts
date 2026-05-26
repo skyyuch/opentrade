@@ -71,10 +71,16 @@ export class PrismaReviewRepository implements IReviewRepository {
   async listByBroker(options: ReviewListOptions): Promise<ReviewListResult> {
     const limit = options.limit ?? 20;
 
+    // Per M7.6a: default to kind=REVIEW so the public reviews tab
+    // never shows complaint rows by accident. The legacy behaviour
+    // (no kind filter) returned both kinds silently after M7.3a
+    // landed `kind = COMPLAINT` writes through the complaints repo
+    // sharing this table.
     const where = {
       tenantId: options.tenantId,
       brokerId: options.brokerId,
       deletedAt: null,
+      kind: options.kind ?? ('REVIEW' as const),
     };
 
     const findArgs: Parameters<typeof this.prisma.review.findMany>[0] = {

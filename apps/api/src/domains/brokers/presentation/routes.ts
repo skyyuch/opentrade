@@ -63,8 +63,17 @@ brokersRouter.get('/', async (c) => {
     take: limit + 1,
     include: {
       licenses: { where: { deletedAt: null }, orderBy: { licenseType: 'asc' as const } },
-      reviews: { select: { rating: true } },
-      _count: { select: { reviews: true } },
+      // Per M7.6a / ADR-0029 D1: list-level reviewCount + positiveRate
+      // are review-only verdicts (complaints surface elsewhere). The
+      // include + _count both narrow to `kind = REVIEW` so a broker
+      // with 8 reviews + 2 verified complaints reports 8 / not 10.
+      reviews: {
+        where: { kind: 'REVIEW', deletedAt: null },
+        select: { rating: true },
+      },
+      _count: {
+        select: { reviews: { where: { kind: 'REVIEW', deletedAt: null } } },
+      },
     },
   };
 
@@ -129,6 +138,13 @@ brokersRouter.get('/', async (c) => {
 brokersRouter.get('/:slug', async (c) => {
   const slug = c.req.param('slug');
 
+  // Per M7.6a / ADR-0029 D1: the shared Review table now mixes
+  // `kind = REVIEW` rows and `kind = COMPLAINT` rows. Every aggregate
+  // on the broker detail page (reviewCount, positiveRate,
+  // ratingDistribution, sentimentAggregate) is a review-only verdict,
+  // so the include + _count filters narrow to `kind = REVIEW`.
+  // Complaints surface separately via `verifiedComplaintCount` below
+  // and via the M7.6b third tab on the broker page.
   const broker = await prisma.broker.findFirst({
     where: {
       slug,
@@ -140,8 +156,13 @@ brokersRouter.get('/:slug', async (c) => {
         where: { deletedAt: null },
         orderBy: { licenseType: 'asc' },
       },
-      reviews: { select: { rating: true, sentiment: true } },
-      _count: { select: { reviews: true } },
+      reviews: {
+        where: { kind: 'REVIEW', deletedAt: null },
+        select: { rating: true, sentiment: true },
+      },
+      _count: {
+        select: { reviews: { where: { kind: 'REVIEW', deletedAt: null } } },
+      },
     },
   });
 
@@ -166,8 +187,29 @@ brokersRouter.get('/:slug', async (c) => {
 
   // Per ADR-0028 D7 the canonical broker-level verdict is the sentiment
   // distribution — see `aggregateSentiment` in the brokers domain for
-  // the bucket / null-row contract.
+  // the bucket / null-row contract. `reviews` is already filtered to
+  // `kind = REVIEW` via the include so complaint rows (which default
+  // to sentiment = NEGATIVE in PrismaComplaintRepository) don't
+  // pollute the broker-level verdict.
   const sentimentAggregate = aggregateSentiment(reviews);
+
+  // Per M7.6a: surface "how many complaints against this broker have
+  // been admin-verified" so the M7.6b third tab can render a red pill
+  // when > 0. Rejected complaints (verifiedAt = null AND adminNote IS
+  // NOT NULL) and open complaints (both null) are intentionally
+  // excluded — only platform-confirmed complaints count toward the
+  // public credibility signal per rule 00 «reject != delete» (rejected
+  // complaints stay visible inside the tab itself but don't pull the
+  // headline number).
+  const verifiedComplaintCount = await prisma.review.count({
+    where: {
+      tenantId: DEFAULT_TENANT_ID,
+      brokerId: broker.id,
+      kind: 'COMPLAINT',
+      deletedAt: null,
+      verifiedAt: { not: null },
+    },
+  });
 
   const earliestLicense = broker.licenses.reduce<Date | null>((earliest, l) => {
     if (!earliest || l.issuedAt < earliest) return l.issuedAt;
@@ -198,7 +240,13 @@ brokersRouter.get('/:slug', async (c) => {
     },
     include: {
       licenses: { where: { deletedAt: null }, select: { licenseType: true } },
-      _count: { select: { reviews: true } },
+      // Per M7.6a: the similar-brokers right rail surfaces reviewCount
+      // as a credibility signal; complaints are intentionally excluded
+      // from that headline number for the same reason as the main
+      // broker card.
+      _count: {
+        select: { reviews: { where: { kind: 'REVIEW', deletedAt: null } } },
+      },
     },
     take: 5,
     orderBy: { displayName: 'asc' },
@@ -224,6 +272,10 @@ brokersRouter.get('/:slug', async (c) => {
       reviewCount,
       positiveRate,
       verifiedUserCount,
+      // Per M7.6a: zero when no complaints have been admin-verified.
+      // The M7.6b third tab uses this to gate the red pill — > 0 red,
+      // = 0 grey.
+      verifiedComplaintCount,
       ratingDistribution,
       sentimentAggregate,
       licenses: broker.licenses.map((l) => ({
@@ -273,15 +325,27 @@ brokersRouter.get('/:slug/owner-stats', authMiddleware('user'), async (c) => {
   const now = new Date();
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
+  // Per M7.6a / ADR-0029 D1: the merchant dashboard's review metrics
+  // are review-only by design — complaints surface separately when the
+  // M10 商戶後台 ships the complaints inbox (per STAGING.md S4 + S8).
+  // Without the kind filter here the dashboard would inflate the
+  // totalReviews counter and depress avgRating once complaints
+  // (default rating = 1) start arriving.
   const [totalReviews, monthReviews, allRatings] = await Promise.all([
     prisma.review.count({
-      where: { brokerId: broker.id, tenantId, deletedAt: null },
+      where: { brokerId: broker.id, tenantId, deletedAt: null, kind: 'REVIEW' },
     }),
     prisma.review.count({
-      where: { brokerId: broker.id, tenantId, deletedAt: null, createdAt: { gte: startOfMonth } },
+      where: {
+        brokerId: broker.id,
+        tenantId,
+        deletedAt: null,
+        kind: 'REVIEW',
+        createdAt: { gte: startOfMonth },
+      },
     }),
     prisma.review.findMany({
-      where: { brokerId: broker.id, tenantId, deletedAt: null },
+      where: { brokerId: broker.id, tenantId, deletedAt: null, kind: 'REVIEW' },
       select: { rating: true },
     }),
   ]);

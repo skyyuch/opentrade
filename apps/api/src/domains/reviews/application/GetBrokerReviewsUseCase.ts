@@ -12,6 +12,12 @@ export type GetBrokerReviewsInput = {
   brokerId: string;
   cursor?: string | undefined;
   limit?: number | undefined;
+  /**
+   * Per M7.6a: optional kind filter passed through to the repo. The
+   * repo defaults to `'REVIEW'` when omitted so the dominant caller
+   * (public reviews tab) gets the correct behaviour by default.
+   */
+  kind?: 'REVIEW' | 'COMPLAINT' | undefined;
 };
 
 export class GetBrokerReviewsUseCase {
@@ -24,6 +30,7 @@ export class GetBrokerReviewsUseCase {
       brokerId: input.brokerId,
       cursor: input.cursor,
       limit,
+      kind: input.kind,
     });
   }
 }
