@@ -1,23 +1,15 @@
 /**
- * ComplaintForm component tests (M7.7).
+ * ComplaintForm component tests (M7.7 → S22 wizard adaptation).
  *
  * Mirrors `ReviewForm.test.tsx` in shape: Vitest + RTL with module-level
  * mocks for Privy, useOpenTradeAuth, and the three API client wrappers.
- * Coverage is intentionally focused on the React-level wiring the
- * ComplaintForm uniquely owns:
  *
- *   - The viewMode state machine (loading → unauthenticated /
- *     requires-sbt / ready / success).
- *   - The two-stage submit gate (evidence upload must succeed first;
- *     submit button stays disabled until upload completes + body
- *     reaches the 10-char floor + sentiment is picked).
- *   - Client-side MIME / size validation on the evidence file (before
- *     it ever hits Pinata, per ADR-0029 D3's 10MB cap).
- *   - The success / error transitions after submitComplaint resolves.
+ * S22 redesigned the form into a 3-step wizard:
+ *   Step 1 — Guidelines (user clicks "I understand, begin filing")
+ *   Step 2 — Form details (sentiment + title + body)
+ *   Step 3 — Evidence upload + submit
  *
- * Domain logic (IPFS payload hash, sentiment default, etc.) is covered
- * by SubmitComplaintUseCase.test.ts on the API side — this file is
- * purely the React state-machine glue.
+ * Tests navigate through the wizard steps as needed.
  */
 
 import { render, screen, waitFor } from '@testing-library/react';
@@ -50,9 +42,6 @@ vi.mock('../../lib/api/client', async () => {
   };
 });
 
-// `next-intl/navigation` Link → render as a plain anchor for jsdom so we
-// don't need to set up the App Router's routing context. Same trick the
-// VerifyForm test uses (kept inline so this file is self-contained).
 vi.mock('../../i18n/navigation', () => ({
   Link: ({ href, children, ...rest }: { href: string; children: React.ReactNode }) => (
     <a href={typeof href === 'string' ? href : '#'} {...rest}>
@@ -132,6 +121,27 @@ const stubLoggedInNoSbt = (): void => {
 const fakeUploadedFile = (type = 'application/pdf', bytes = 1024, name = 'evidence.pdf'): File =>
   new File([new Uint8Array(bytes)], name, { type });
 
+/** Navigate from Step 1 (Guidelines) to Step 2 (Details). */
+const goToStep2 = async (): Promise<void> => {
+  const acceptBtn = await screen.findByText('I understand, begin filing');
+  await userEvent.click(acceptBtn);
+  await screen.findByText('Fill in complaint details');
+};
+
+/** Navigate from Step 2 to Step 3 (Evidence), filling in required fields first. */
+const goToStep3FromStep2 = async (
+  opts: { body?: string; skipBody?: boolean } = {},
+): Promise<void> => {
+  if (!opts.skipBody) {
+    const bodyInput = screen.getByPlaceholderText(/Describe what happened/);
+    await userEvent.type(bodyInput, opts.body ?? 'A long enough body for the minimum.');
+  }
+  const nextBtn = screen.getByText('Next: Upload evidence');
+  await waitFor(() => expect(nextBtn).toBeEnabled());
+  await userEvent.click(nextBtn);
+  await screen.findByText('Upload attachments & evidence');
+};
+
 afterEach(() => {
   vi.resetAllMocks();
 });
@@ -149,7 +159,7 @@ describe('ComplaintForm — view-mode gating', () => {
 
     expect(await screen.findByText('Please log in first')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Log in' })).toBeInTheDocument();
-    expect(screen.queryByText('Write your complaint')).not.toBeInTheDocument();
+    expect(screen.queryByText('Fill in complaint details')).not.toBeInTheDocument();
   });
 
   it('invokes Privy login() when the unauthenticated-gate CTA is clicked', async () => {
@@ -175,18 +185,17 @@ describe('ComplaintForm — view-mode gating', () => {
       'href',
       '/verify',
     );
-    expect(screen.queryByText('Write your complaint')).not.toBeInTheDocument();
+    expect(screen.queryByText('Fill in complaint details')).not.toBeInTheDocument();
   });
 
-  it('renders the form heading once the profile resolves with sbtTier=L2', async () => {
+  it('renders the wizard step 1 (guidelines) once the profile resolves with sbtTier=L2', async () => {
     stubLoggedInL2();
     renderForm();
 
-    expect(await screen.findByText('Write your complaint')).toBeInTheDocument();
-    // Sentiment picker, body textarea, and submit button are all
-    // present — the form is in its ready state.
-    expect(screen.getByRole('radiogroup')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Submit complaint' })).toBeInTheDocument();
+    expect(
+      await screen.findByText(`File a complaint against ${BROKER.brokerName}`),
+    ).toBeInTheDocument();
+    expect(screen.getByText('I understand, begin filing')).toBeInTheDocument();
   });
 });
 
@@ -194,17 +203,12 @@ describe('ComplaintForm — evidence upload validation', () => {
   it('rejects an unsupported file type without calling the API', async () => {
     stubLoggedInL2();
     renderForm();
-    // Wait for the form to mount.
-    await screen.findByText('Write your complaint');
+    await goToStep2();
+    await goToStep3FromStep2();
 
     const fileInput = document.querySelector<HTMLInputElement>('input[type="file"]')!;
     expect(fileInput).not.toBeNull();
 
-    // `applyAccept: false` bypasses jsdom's accept-attribute pre-filter
-    // (the input has `accept=".pdf,.jpg,..."` so a .txt file would
-    // normally be silently dropped before the change handler fires).
-    // We want to exercise the component's MIME guard, not the browser's
-    // accept gate.
     const badFile = fakeUploadedFile('text/plain', 100, 'note.txt');
     await userEvent.upload(fileInput, badFile, { applyAccept: false });
 
@@ -215,7 +219,8 @@ describe('ComplaintForm — evidence upload validation', () => {
   it('rejects a file larger than 10MB without calling the API', async () => {
     stubLoggedInL2();
     renderForm();
-    await screen.findByText('Write your complaint');
+    await goToStep2();
+    await goToStep3FromStep2();
 
     const fileInput = document.querySelector<HTMLInputElement>('input[type="file"]')!;
     const bigFile = fakeUploadedFile('application/pdf', 11 * 1024 * 1024, 'evidence.pdf');
@@ -229,7 +234,8 @@ describe('ComplaintForm — evidence upload validation', () => {
     stubLoggedInL2();
     uploadVerifyEvidenceMock.mockResolvedValue({ cid: EVIDENCE_CID });
     renderForm();
-    await screen.findByText('Write your complaint');
+    await goToStep2();
+    await goToStep3FromStep2();
 
     const fileInput = document.querySelector<HTMLInputElement>('input[type="file"]')!;
     const goodFile = fakeUploadedFile('application/pdf', 2048, 'statement.pdf');
@@ -246,21 +252,16 @@ describe('ComplaintForm — evidence upload validation', () => {
 });
 
 describe('ComplaintForm — submit gating', () => {
-  it('keeps the submit button disabled until evidence is uploaded and body is long enough', async () => {
+  it('keeps the submit button disabled until evidence is uploaded', async () => {
     stubLoggedInL2();
     uploadVerifyEvidenceMock.mockResolvedValue({ cid: EVIDENCE_CID });
     renderForm();
-    await screen.findByText('Write your complaint');
+    await goToStep2();
+    await goToStep3FromStep2();
 
-    const submit = screen.getByRole('button', { name: 'Submit complaint' });
+    const submit = screen.getByRole('button', { name: 'Confirm and submit complaint' });
     expect(submit).toBeDisabled();
 
-    // Type body first — still disabled because evidence is missing.
-    const body = screen.getByPlaceholderText(/Describe what happened/);
-    await userEvent.type(body, 'A long enough body for the ten-char minimum.');
-    expect(submit).toBeDisabled();
-
-    // Upload evidence — now the gate is open.
     const fileInput = document.querySelector<HTMLInputElement>('input[type="file"]')!;
     await userEvent.upload(fileInput, fakeUploadedFile());
 
@@ -278,10 +279,7 @@ describe('ComplaintForm — submit lifecycle', () => {
       complaint: { id: 'cmp_test_0001', createdAt: '2026-05-26T00:00:00.000Z' },
     });
     renderForm();
-    await screen.findByText('Write your complaint');
-
-    const fileInput = document.querySelector<HTMLInputElement>('input[type="file"]')!;
-    await userEvent.upload(fileInput, fakeUploadedFile());
+    await goToStep2();
 
     await userEvent.type(
       screen.getByPlaceholderText('One-line summary of the complaint'),
@@ -292,10 +290,15 @@ describe('ComplaintForm — submit lifecycle', () => {
       '  Two trades on my July statement were never authorised by me.  ',
     );
 
+    await goToStep3FromStep2({ skipBody: true });
+
+    const fileInput = document.querySelector<HTMLInputElement>('input[type="file"]')!;
+    await userEvent.upload(fileInput, fakeUploadedFile());
+
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: 'Submit complaint' })).toBeEnabled(),
+      expect(screen.getByRole('button', { name: 'Confirm and submit complaint' })).toBeEnabled(),
     );
-    await userEvent.click(screen.getByRole('button', { name: 'Submit complaint' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Confirm and submit complaint' }));
 
     await waitFor(() => {
       expect(submitComplaintMock).toHaveBeenCalledOnce();
@@ -324,19 +327,21 @@ describe('ComplaintForm — submit lifecycle', () => {
     uploadVerifyEvidenceMock.mockResolvedValue({ cid: EVIDENCE_CID });
     submitComplaintMock.mockResolvedValue({ complaint: { id: 'cmp_test_0002' } });
     renderForm();
-    await screen.findByText('Write your complaint');
+    await goToStep2();
 
-    const fileInput = document.querySelector<HTMLInputElement>('input[type="file"]')!;
-    await userEvent.upload(fileInput, fakeUploadedFile());
     await userEvent.type(
       screen.getByPlaceholderText(/Describe what happened/),
       'Body that is just long enough.',
     );
+    await goToStep3FromStep2({ skipBody: true });
+
+    const fileInput = document.querySelector<HTMLInputElement>('input[type="file"]')!;
+    await userEvent.upload(fileInput, fakeUploadedFile());
 
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: 'Submit complaint' })).toBeEnabled(),
+      expect(screen.getByRole('button', { name: 'Confirm and submit complaint' })).toBeEnabled(),
     );
-    await userEvent.click(screen.getByRole('button', { name: 'Submit complaint' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Confirm and submit complaint' }));
 
     await waitFor(() => expect(submitComplaintMock).toHaveBeenCalledOnce());
     const [payload] = submitComplaintMock.mock.calls[0]!;
@@ -344,31 +349,29 @@ describe('ComplaintForm — submit lifecycle', () => {
   });
 
   it('renders the localised RATE_LIMIT_EXCEEDED copy when submitComplaint throws', async () => {
-    // Per `translateApiError` the server-side `message` is for logs
-    // only — the UI never displays it. We assert the localised
-    // `errors.code.RATE_LIMIT_EXCEEDED` copy from en.json shows up.
     stubLoggedInL2();
     uploadVerifyEvidenceMock.mockResolvedValue({ cid: EVIDENCE_CID });
     submitComplaintMock.mockRejectedValue(
       new ApiClientError(429, 'RATE_LIMIT_EXCEEDED', 'developer-only message'),
     );
     renderForm();
-    await screen.findByText('Write your complaint');
+    await goToStep2();
 
-    const fileInput = document.querySelector<HTMLInputElement>('input[type="file"]')!;
-    await userEvent.upload(fileInput, fakeUploadedFile());
     await userEvent.type(
       screen.getByPlaceholderText(/Describe what happened/),
       'A long enough body to satisfy the minimum.',
     );
+    await goToStep3FromStep2({ skipBody: true });
+
+    const fileInput = document.querySelector<HTMLInputElement>('input[type="file"]')!;
+    await userEvent.upload(fileInput, fakeUploadedFile());
 
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: 'Submit complaint' })).toBeEnabled(),
+      expect(screen.getByRole('button', { name: 'Confirm and submit complaint' })).toBeEnabled(),
     );
-    await userEvent.click(screen.getByRole('button', { name: 'Submit complaint' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Confirm and submit complaint' }));
 
     expect(await screen.findByText(/You're going a bit too fast/)).toBeInTheDocument();
-    // Stays in the form (not success) so the user can retry.
     expect(screen.queryByText('Complaint submitted')).not.toBeInTheDocument();
   });
 });
