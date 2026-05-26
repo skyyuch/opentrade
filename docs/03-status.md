@@ -448,8 +448,8 @@ User 已拍板優先序「Phase 1 收尾 → KOL → 商戶功能」。完整計
 - ✅ ~~**M3** Rating DB layer~~（前 session 完成 — 3 commits `db4927e` + `e8f70fe` + `da7f5f4`）：M3.1 `Sentiment` enum + nullable column + index + migration + re-export；M3.2 `backfill-sentiment.ts` cursor pagination + dry-run + 串入 `db:backfill:prod` + 三 README 同步；M3.3 `Review.rating` `@deprecated` doc + README deprecation section + drop ADR checklist
 - ✅ ~~**M4** Rating API DDD layer~~（本 session 完成 — 4 commits `7d357ef` + `a28601a` + `6b22a44` + `b4345c2`）：M4.1 `ReviewSentiment` VO + `ReviewEntity.sentiment` field + `PrismaReviewRepository` create/toRecord wiring；M4.2 `SubmitReviewUseCase` IPFS payload v1→v2 atomic（含 sentiment field + 保留 rating per D3）；M4.3 `SubmitReviewInput.sentiment` required + `rating` optional + use case `deriveRatingFromSentiment` synthesise + zod body `sentiment: z.enum` required + POST + GET /:id response ship sentiment；M4.4 GET /v1/brokers/:slug 加 `sentimentAggregate { positive, neutral, negative }` + GET /v1/reviews/broker/:slug 每筆 ship `sentiment` field
 - 🟢 **M5 起點 — 下個 session 第一個 commit** Rating UX rebuild（Web + Console UI，6 commits）：(M5.1) `feat(ui)` 新 `packages/ui` `SentimentPicker` primitive + Storybook story（reuse toggle-group story 範本 + 三色 token POSITIVE/NEUTRAL/NEGATIVE + a11y keyboard nav）；(M5.2) `feat(web)` `ReviewForm` 五星選單 swap 成 `SentimentPicker` + 三語 messages（讚 / 普通 / 不讚 / Positive Neutral Negative）+ submit body 從 `rating` 改 `sentiment`；(M5.3) `feat(web)` `ReviewCard` 星列 swap 成 sentiment badge（綠/灰/紅 三色 chip 並排 sourceLocale pill 旁）+ 三語 messages；(M5.4) `feat(web)` `RatingSummary` widget 改名 `SentimentDistribution` 用 broker detail 新 `sentimentAggregate` 欄渲染三條 horizontal bar（綠/灰/紅）+ 移除既有 5-bar `ratingDistribution` 渲染（API response 仍含但不渲染）；(M5.5) `feat(console)` admin reviews 表 column 從 「Rating」改 「Sentiment」 + filter dropdown（POSITIVE/NEUTRAL/NEGATIVE/All） + admin/reviews API 對應加 query param；(M5.6) `feat(web,console)` legacy null-sentiment caption per ADR-0028 D7（顯示「依五星評分回推為 X」當 sentiment === null + rating 有值，**不渲染星**）覆蓋 ReviewCard + admin reviews 表
-- ⏳ **M6** Rating tests（3 commits）：unit + Storybook visual regression + Playwright submit happy path
-- ⏳ **M7** Complaints separation 實作（7 commits）— DB / API / admin verify / web form / aggregate / console queue / tests
+- ✅ ~~**M6** Rating tests + E2E~~（前 session 完成 — 7 commits `9ff63f6` + `ce19b80` + `1291489` + `5ca6ef0` + `82425db` + `7b309b7` + `2c87b26`，6 milestone-feature + 1 cache poisoning hotfix）
+- 🟢 **M7 起點 — 本 session 第一個 commit** Complaints separation 實作（**9 commits**：原 plan 7 + M7.6 拆 a/b + M7.0 doc tracking）— M7.0 doc tracking / M7.1 DB schema / M7.2 outbox event vocabulary / M7.3 API DDD（Submit + List + Verify use cases + zod + admin/web endpoints）/ M7.4 console admin verify/reject UI / M7.5 web ComplaintForm + EvidenceUpload primitive / M7.6a API broker detail aggregate split / M7.6b web broker detail 第三 tab / M7.7 i18n + tests
 - ⏳ **M8-M9** KOL Phase 2：ADR-0036 + ~15 implementation commits
 - ⏳ **M10** 商戶功能 Phase 2.5：ADR-0037 + 4 個新 model + DDD 全層 + console editor + web display（~15 commits）
 - ⏳ **M12** Grant application 骨架（1 commit）— 對應 6/8 Speaker 2 短文截止日
@@ -480,19 +480,35 @@ User 已拍板優先序「Phase 1 收尾 → KOL → 商戶功能」。完整計
 13. ✅ ~~**IPFS gateway charset proxy**~~ → 本 session M1.3 commit `16d7727`：`GetReviewIpfsContentUseCase` + `GET /v1/reviews/:id/ipfs-content` endpoint 強制 `Content-Type: application/json; charset=utf-8` + Web `ReviewCard` 並排「IPFS 原文」link + 3 語 i18n keys
 14. ✅ ~~**Outbox worker `verification.broker_added` noop handler**~~ → 本 session 在 `apps/api/src/tasks/outbox-worker.ts` poll loop 加 explicit ack-only `else if` 分支（per ADR-0025 D5：event 是 ledger audit trail，`user_verified_brokers` row 才是 source of truth，worker 沒 side effect 要做），不再走 `Unknown event type` warn 分支。typecheck + lint clean（唯一 lint warning 是 `brokers/routes.ts:482` pre-existing per commit 8603252）。Worker 重啟（或 production ECS 下次 deploy）後生效
 
-### 中期（M7 — 14-milestone 計畫下一步）
+### 中期（M7 — 14-milestone 計畫下一步，2026-05-26 起跑）
 
-依 [ADR-0029](./decisions/0029-complaints-vs-reviews-separation.md) 把投訴（complaint）與評論（review）拆分。預估 7 commits：
+依 [ADR-0029](./decisions/0029-complaints-vs-reviews-separation.md) 把投訴（complaint）與評論（review）拆分。預估 **9 commits**（原 plan 7 + M7.6 拆 a/b + M7.0 doc tracking）：
 
-1. **M7.1 DB schema** — `Review` 加 `kind` discriminator（`'REVIEW' | 'COMPLAINT'` enum）+ complaint-only fields（`status` 升級 `'OPEN' | 'UNDER_REVIEW' | 'RESOLVED' | 'REJECTED'`）+ `respondsToReviewId` self-reference 給商戶 broker response（C5）+ migration schema-only（per rule 31 不混資料遷移）
-2. **M7.2 outbox event vocabulary** — `complaint.submitted` / `complaint.verified` / `complaint.rejected` 三個新 event type，worker 加 ack-only handler（Phase 1 不上鏈）
-3. **M7.3 API DDD** — `SubmitComplaintUseCase` + `ListComplaintsUseCase` + `VerifyComplaintUseCase`（admin reject ≠ delete，必須記 audit reason per rule 00）+ `POST /v1/complaints` zod required + `GET /v1/complaints?status=...&brokerSlug=...`
-4. **M7.4 console admin verify/reject UI** — `/admin/complaints` 新表 + 4-state filter + reject modal 沿用 `/admin/verifications` 既有 pattern
-5. **M7.5 web complaint form** — `/brokers/:slug/complaint` 新 client component（與 review form 並列但 schema 不同：必填證據附件 IPFS + 必選 complaint category）
-6. **M7.6 web broker detail tabs** — `BrokerDetailTabs` 加第三 tab「投訴」與既有「評論」分流；review tab 顯示 verifiedComplaintCount badge
-7. **M7.7 i18n + tests** — 三語 messages + `SubmitComplaintUseCase.test.ts` + Playwright `complaint-read-path.spec.ts`
+0. **M7.0 docs(status)** — 加本段「被投訴方答辯權階段化實現追蹤」段（見下方），確保未來 agent 接 M10 / Phase 3 時看得到主軸
+1. **M7.1 feat(db) DB schema** — `Review` 加 `kind` discriminator（`enum ReviewKind { REVIEW COMPLAINT }`，`@default(REVIEW)` 給既有 row 自動補值）+ 4 個 nullable complaint columns（`evidenceIpfsCid` / `verifiedAt` / `verifiedByUserId` / `respondsToReviewId`，後者為純 column 不 wire bidirectional relation 待 M10 商戶功能再 wire）+ `adminNote String? @db.Text`（reject 原因落地，沿用 `SbtVerificationRequest.adminNote` 既有 pattern）+ composite index `[tenantId, brokerId, kind, verifiedAt]` + migration schema-only（per rule 31 嚴禁 migration 內 UPDATE；ADD COLUMN with constant DEFAULT 是 Postgres 11+ fast default 不 rewrite table）+ Prisma re-export 加 `ReviewKind`
+2. **M7.2 feat(api) outbox event vocabulary** — `complaint.submitted` / `complaint.verified` / `complaint.rejected` 三個新 event type，worker poll loop 加 explicit ack-only `else if` 分支（沿用 M1.4 後續為 `verification.broker_added` 加的 ack-only handler 同 pattern，避免 `Unknown event type` warn noise）；Phase 1 不上鏈 per ADR-0029 D7，handler 純 log + mark processed
+3. **M7.3 feat(api) API DDD** — `SubmitComplaintUseCase` + `ListComplaintsUseCase` + `VerifyComplaintUseCase`（內部分支處理 verify / reject 兩 path，避免兩個 use case 共享 65% code drift）+ `POST /v1/complaints`（zod `evidenceIpfsCid` required + `authMiddleware('verified')` L2+ gate per ADR-0029 D3）+ `GET /v1/complaints?status=...&brokerSlug=...` 公開 read + `PATCH /v1/admin/complaints/:id/verify` + `PATCH /v1/admin/complaints/:id/reject`（後者必填 `adminNote` zod min 5 max 500 chars，rule 00「reject ≠ delete」嚴守：不 set deletedAt / 不隱藏 / 不改 body）；若 commit 大小 > 250 行則拆 3a/3b/3c
+4. **M7.4 feat(console) admin verify/reject UI** — `/admin/complaints` 新表 + 4-state filter（OPEN / VERIFIED / REJECTED / ALL）+ verify button + reject modal（沿用 `/admin/verifications` 既有 RejectReasonModal pattern）+ `authMiddleware('admin')` + `AuthGate` 沿用既有 admin 權限模型，無新 role
+5. **M7.5 feat(web,ui) complaint form + EvidenceUpload primitive** — `packages/ui` 抽 `<EvidenceUpload>` primitive（PNG/JPEG/PDF + 5MB cap + Pinata pipeline reuse per ADR-0029 D3，僅用在投訴頁；`/verify` 既有 hand-rolled 上傳留待下次重構 commit）+ `apps/web` `ComplaintForm` 新 client component（與 ReviewForm 並列 schema 不同：必填 evidenceIpfsCid + 必選 sentiment 沿用 ADR-0028 三向）
+6. **M7.6a feat(api) broker detail aggregate split** — GET /v1/brokers/:slug `sentimentAggregate` query 加 `WHERE kind = 'REVIEW'` filter（避免投訴的 NEGATIVE sentiment 污染情緒分布，per ADR-0029 D5 兩個獨立 trust signal 設計）+ 加新欄位 `verifiedComplaintCount: number`（`WHERE kind = 'COMPLAINT' AND verifiedAt IS NOT NULL`，reuse M7.1 composite index）；GET /v1/reviews/broker/:slug 加 `kind` filter param 給前端 tab 分流用
+7. **M7.6b feat(web) broker detail tabs 第三 tab** — `BrokerDetailTabs` 加「投訴」tab + verifiedComplaintCount 紅色 pill（> 0 時紅 / = 0 時灰）+ 投訴 tab 內 ComplaintCard（含 verified / rejected / open 三狀態 badge + adminNote 顯示 when rejected）；review tab 不混投訴
+8. **M7.7 test(api,web,ui) + i18n** — `SubmitComplaintUseCase.test.ts` ~12 + `VerifyComplaintUseCase.test.ts`（verify + reject 兩分支）~15 + `ListComplaintsUseCase.test.ts` ~8 + `verifiedComplaintCount.test.ts` ~5 + `ComplaintForm.test.tsx` ~10 + Playwright `complaint-read-path.spec.ts` ~3（reuse `NEXT_DIST_DIR=.next-e2e` 隔離 per rule 60）+ 三語 messages（zh-Hant / zh-Hans / en）
 
-驗證點：M7.1 schema commit 必須 schema-only；M7.3 verify use case 必須 reject ≠ delete；M7.6 確保 review tab 不混 complaint。
+驗證點：M7.1 schema commit 必須 schema-only（無 UPDATE）；M7.3 verify use case 必須 reject ≠ delete；M7.6a 必須先 ship 才能 wire 6b；M7.6b 確保 review tab 不混 complaint。
+
+#### 被投訴方答辯權階段化實現追蹤
+
+被投訴方（券商）對投訴的「知情 + 答辯 + 公開回應」是 OpenTrade 公平精神的核心，但分散在三個 phase 完成。本段紀錄主軸視角，方便未來 agent 接手 M10 / Phase 3 時不會漏掉脈絡：
+
+| 階段                      | 被投訴方能做什麼                                                      | 不能做什麼                        | 對應文件                                                                                                        |
+| ------------------------- | --------------------------------------------------------------------- | --------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| Phase 1（M7，現在）       | 主動巡視自家公開頁面（`/brokers/:slug` 第三 tab）即可看到所有投訴     | 沒有通知 / 後台 / 答辯 / 公開回應 | 本 ADR-0029                                                                                                     |
+| Phase 2.5（M10 商戶功能） | 商戶後台「我的被投訴」面板 + 通知 + 對每條投訴公開回應一次（C5 機制） | 沒有正式仲裁 / 陪審               | 待寫 [ADR-0033](./decisions/STAGING.md) S4（公開回應）+ [ADR-0037](./decisions/STAGING.md) S8（商戶可編輯範圍） |
+| Phase 3（陪審團 V1）      | 7 天答辯窗口提交反駁 + 證據（質押）+ 陪審投票結果上鏈                 | —                                 | [ADR-0008](./decisions/0008-jury-phased-implementation.md)（已存在）                                            |
+
+ADR-0029 D6 已預留 `respondsToReviewId` 欄位給 M10 公開回應使用（M7.1 純加 column 不 wire bidirectional relation，等 M10 商戶 broker response API 落地時再 wire 起來不會破壞本期 schema）。Phase 3 jury 答辯機制的資料形狀也已在 ADR-0029 D4 預留（`verifiedByUserId` 在 Phase 1 是 admin user id，Phase 3 改 nullable 並加 `verifiedByJuryProposalId`）。
+
+**為什麼 Phase 1 不做商戶後台**：(a) 商戶 console 整體 self-service 生態屬於 M10 工作（per STAGING.md S8），現在加會違反 rule 96 commit 單一目的；(b) Phase 1 只有 30-50 種子用戶 + 100-200 邀請制散戶，量小到 admin 可人工聯繫商戶；(c) 投訴本身就上了公開頁面，rule 00 紅線（不刪、不隱藏）已經比 WikiFX 公平。
 
 ### 短期
 
