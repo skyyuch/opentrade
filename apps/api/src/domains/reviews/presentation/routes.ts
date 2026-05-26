@@ -259,7 +259,7 @@ reviewsRouter.get('/broker/:slug', async (c) => {
         author: {
           displayName: author?.displayName ?? null,
           sbtTier: author?.sbtTier ?? 'L1',
-          isKol: (author?.kolProfiles?.length ?? 0) > 0,
+          isKol: (author?.kolProfiles.length ?? 0) > 0,
           verifiedBrokers:
             author?.verifiedBrokers.map((b) => {
               const meta = verifiedNameMap.get(b.brokerSlug);

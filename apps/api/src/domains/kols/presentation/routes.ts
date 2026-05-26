@@ -24,8 +24,8 @@ import { ApplyKolUseCase } from '../application/ApplyKolUseCase.js';
 import { ListKolsUseCase } from '../application/ListKolsUseCase.js';
 import { PrismaKolRepository } from '../infrastructure/PrismaKolRepository.js';
 
-import type { SocialLinks } from '../domain/KolEntity.js';
 import type { AppHonoEnv } from '../../../http/types.js';
+import type { SocialLinks } from '../domain/KolEntity.js';
 
 const DEFAULT_TENANT_ID = env.DEFAULT_TENANT_ID;
 

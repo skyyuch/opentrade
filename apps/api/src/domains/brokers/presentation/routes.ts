@@ -522,7 +522,8 @@ brokersRouter.get('/:slug/owner-complaints', authMiddleware('user'), async (c) =
 
   const hasMore = complaints.length > limit;
   const items = hasMore ? complaints.slice(0, limit) : complaints;
-  const nextCursor = hasMore ? items[items.length - 1]!.id : null;
+  const lastItem = items[items.length - 1];
+  const nextCursor = hasMore && lastItem ? lastItem.id : null;
 
   return c.json({
     complaints: items.map((item) => ({

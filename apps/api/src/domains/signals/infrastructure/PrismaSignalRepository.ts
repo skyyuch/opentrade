@@ -5,9 +5,6 @@
  * are emitted in the same transaction as the Signal row mutation.
  */
 
-import type { PrismaClient } from '@prisma/client';
-import type { Decimal } from '@prisma/client/runtime/library';
-
 import type {
   ISignalRepository,
   SignalListOptions,
@@ -20,6 +17,8 @@ import type {
   AssetClassValue,
   SignalDirectionValue,
 } from '../domain/SignalEntity.js';
+import type { PrismaClient } from '@prisma/client';
+import type { Decimal } from '@prisma/client/runtime/library';
 
 function decimalToString(d: Decimal | null): string | null {
   return d ? d.toString() : null;

@@ -305,7 +305,7 @@ complaintsRouter.post('/:id/broker-response', authMiddleware('user'), async (c) 
   const broker = await prisma.broker.findFirst({
     where: { id: complaint.brokerId, tenantId, deletedAt: null },
   });
-  if (!broker || broker.claimedByUserId !== userId) {
+  if (broker?.claimedByUserId !== userId) {
     throw new AppError(ErrorCode.FORBIDDEN, 'Only the broker owner can respond to complaints', 403);
   }
 

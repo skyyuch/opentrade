@@ -7,14 +7,14 @@
 
 import type { KolRecord, KolStatusValue, ApplyKolInput } from './KolEntity.js';
 
-export interface KolListOptions {
+export type KolListOptions = {
   tenantId: string;
   status?: KolStatusValue;
   limit?: number;
   offset?: number;
-}
+};
 
-export interface IKolRepository {
+export type IKolRepository = {
   create(input: ApplyKolInput): Promise<KolRecord>;
   findById(id: string): Promise<KolRecord | null>;
   findBySlug(slug: string): Promise<KolRecord | null>;
@@ -33,4 +33,4 @@ export interface IKolRepository {
       socialLinks?: Record<string, string>;
     },
   ): Promise<KolRecord>;
-}
+};

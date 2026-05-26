@@ -46,7 +46,7 @@ export const SIGNAL_OUTCOME_VALUES = [
 export const VALID_HORIZONS = [1, 3, 7, 14, 30, 90, 180, 365] as const;
 export type ValidHorizon = (typeof VALID_HORIZONS)[number];
 
-export interface EmitSignalInput {
+export type EmitSignalInput = {
   tenantId: string;
   kolId: string;
   assetClass: AssetClassValue;
@@ -57,9 +57,9 @@ export interface EmitSignalInput {
   stoplossPrice?: string;
   horizon: ValidHorizon;
   note?: string;
-}
+};
 
-export interface SignalRecord {
+export type SignalRecord = {
   id: string;
   tenantId: string;
   kolId: string;
@@ -82,4 +82,4 @@ export interface SignalRecord {
   chainTxHash: string | null;
   createdAt: Date;
   updatedAt: Date;
-}
+};

@@ -6,16 +6,16 @@
  * OHLC data that the Settle Worker uses to determine signal outcomes.
  */
 
-export interface OhlcBar {
+export type OhlcBar = {
   symbol: string;
   open: string;
   high: string;
   low: string;
   close: string;
   timestamp: Date;
-}
+};
 
-export interface IPriceProvider {
+export type IPriceProvider = {
   readonly source: 'CHAINLINK' | 'YAHOO_FINANCE' | 'MANUAL';
   fetchOhlc(symbols: string[]): Promise<OhlcBar[]>;
-}
+};

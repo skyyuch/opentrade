@@ -1,5 +1,6 @@
 'use client';
 
+import { usePrivy } from '@privy-io/react-auth';
 import {
   AlignJustify,
   CheckCircle2,
@@ -9,16 +10,15 @@ import {
   TrendingUp,
   Youtube,
 } from 'lucide-react';
-import { usePrivy } from '@privy-io/react-auth';
 import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useState } from 'react';
+
+import type { KolListItem, KolStats, SignalItem } from '@/lib/api/client';
+import type { ReactNode } from 'react';
 
 import { useOpenTradeAuth } from '@/hooks/useOpenTradeAuth';
 import { Link } from '@/i18n/navigation';
 import { fetchKolStats, followKol, unfollowKol } from '@/lib/api/client';
-
-import type { KolListItem, KolStats, SignalItem } from '@/lib/api/client';
-import type { ReactNode } from 'react';
 
 type SignalLayout = 'timeline' | 'grid' | 'list' | 'compact';
 
@@ -48,7 +48,7 @@ export function KolProfileClient({
   useEffect(() => {
     fetchKolStats(kol.slug)
       .then(setStats)
-      .catch(() => {});
+      .catch(() => undefined);
   }, [kol.slug]);
 
   const handleFollow = useCallback(async () => {

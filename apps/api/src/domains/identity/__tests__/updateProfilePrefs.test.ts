@@ -8,7 +8,7 @@
  *   - PATCH /me at-least-one-field gate includes new pref fields
  */
 
-import { beforeEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 import type { UpdateProfileInput } from '../domain/IUserRepository.js';

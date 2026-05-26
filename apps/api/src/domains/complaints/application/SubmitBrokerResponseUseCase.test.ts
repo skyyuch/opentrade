@@ -62,6 +62,7 @@ const fixtureComplaint = (overrides: Partial<ComplaintRecord> = {}): ComplaintRe
   verifiedByUserId: null,
   adminNote: null,
   createdAt: new Date('2026-05-25T10:00:00Z'),
+  updatedAt: new Date('2026-05-25T10:00:00Z'),
   ...overrides,
 });
 
@@ -102,7 +103,7 @@ describe('SubmitBrokerResponseUseCase', () => {
 
     await useCase.execute(baseInput(), BROKER_ID);
 
-    const pinCall = ipfsService.pinJson.mock.calls[0];
+    const pinCall = ipfsService.pinJson.mock.calls[0]!;
     const payload = pinCall[0] as Record<string, unknown>;
     expect(payload).toMatchObject({
       version: 2,
@@ -122,7 +123,7 @@ describe('SubmitBrokerResponseUseCase', () => {
 
     await useCase.execute(baseInput(), BROKER_ID);
 
-    const pinName = ipfsService.pinJson.mock.calls[0][1];
+    const pinName = ipfsService.pinJson.mock.calls[0]![1];
     expect(pinName).toMatch(/^broker-response-\d+$/);
   });
 
@@ -134,7 +135,7 @@ describe('SubmitBrokerResponseUseCase', () => {
 
     await useCase.execute(baseInput(), BROKER_ID);
 
-    const createCall = responseRepo.create.mock.calls[0][0];
+    const createCall = responseRepo.create.mock.calls[0]![0];
     const expectedPayload = JSON.stringify({
       version: 2,
       kind: 'BROKER_RESPONSE',
@@ -155,7 +156,7 @@ describe('SubmitBrokerResponseUseCase', () => {
 
     await useCase.execute(baseInput(), BROKER_ID);
 
-    const createCall = responseRepo.create.mock.calls[0][0];
+    const createCall = responseRepo.create.mock.calls[0]![0];
     expect(createCall.ipfsCid).toBe(FIXED_CID);
     expect(createCall.brokerId).toBe(BROKER_ID);
   });

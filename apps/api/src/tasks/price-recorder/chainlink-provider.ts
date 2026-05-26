@@ -20,7 +20,7 @@ const CHAINLINK_FEEDS: Record<string, string> = {
 export class ChainlinkProvider implements IPriceProvider {
   readonly source = 'CHAINLINK' as const;
 
-  async fetchOhlc(symbols: string[]): Promise<OhlcBar[]> {
+  fetchOhlc(symbols: string[]): Promise<OhlcBar[]> {
     const results: OhlcBar[] = [];
     const now = new Date();
 
@@ -47,7 +47,7 @@ export class ChainlinkProvider implements IPriceProvider {
       }
     }
 
-    return results;
+    return Promise.resolve(results);
   }
 }
 

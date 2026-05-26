@@ -19,7 +19,7 @@
 
 /** @type {import('lint-staged').Config} */
 const config = {
-  '*.{ts,tsx}': 'prettier --write',
+  '*.{ts,tsx}': ['eslint --fix', 'prettier --write'],
   '*.{js,jsx,mjs,cjs}': 'prettier --write',
   '*.{json,md,yaml,yml}': 'prettier --write',
   'packages/contracts/**/*.sol': (files) => [

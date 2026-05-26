@@ -18,7 +18,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { mock, type MockProxy } from 'vitest-mock-extended';
 
-import { AppError, ErrorCode } from '../../../shared/errors/index.js';
+import { ErrorCode } from '../../../shared/errors/index.js';
 
 import { VerifyComplaintUseCase } from './VerifyComplaintUseCase.js';
 

@@ -29,21 +29,21 @@ export type SocialLinks = {
   twitter?: string;
 };
 
-export interface ApplyKolInput {
+export type ApplyKolInput = {
   userId: string;
   tenantId: string;
   displayName: string;
   bio?: string;
   socialLinks?: SocialLinks;
   credentials?: CredentialEntry[];
-}
+};
 
-export interface ClaimKolInput {
+export type ClaimKolInput = {
   userId: string;
   kolId: string;
-}
+};
 
-export interface KolRecord {
+export type KolRecord = {
   id: string;
   tenantId: string;
   userId: string | null;
@@ -59,4 +59,4 @@ export interface KolRecord {
   kolSbtMintTxHash: string | null;
   createdAt: Date;
   updatedAt: Date;
-}
+};

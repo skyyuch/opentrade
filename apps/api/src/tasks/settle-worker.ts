@@ -14,24 +14,23 @@
  * Designed to run every 5 minutes as a background task.
  */
 
-import type { PrismaClient } from '@prisma/client';
-import type { Decimal } from '@prisma/client/runtime/library';
-
 import type {
   ISignalRepository,
   SettleSignalInput,
 } from '../domains/signals/domain/ISignalRepository.js';
 import type { SignalOutcomeValue } from '../domains/signals/domain/SignalEntity.js';
+import type { PrismaClient } from '@prisma/client';
+import type { Decimal } from '@prisma/client/runtime/library';
 
-interface PriceWindow {
+type PriceWindow = {
   periodHigh: string;
   periodLow: string;
   closePrice: string;
-}
+};
 
-export interface SettleWorkerOptions {
+export type SettleWorkerOptions = {
   intervalMs: number;
-}
+};
 
 export class SettleWorker {
   private timer: ReturnType<typeof setInterval> | null = null;
@@ -53,9 +52,11 @@ export class SettleWorker {
 
     if (records.length === 0) return null;
 
-    let periodHigh = records[0]!.high;
-    let periodLow = records[0]!.low;
-    const lastRecord = records[records.length - 1]!;
+    const firstRecord = records[0];
+    if (!firstRecord) return null;
+    let periodHigh = firstRecord.high;
+    let periodLow = firstRecord.low;
+    const lastRecord = records[records.length - 1] ?? firstRecord;
 
     for (const r of records) {
       if (this.decimalGt(r.high, periodHigh)) periodHigh = r.high;

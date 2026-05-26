@@ -17,19 +17,19 @@ import { prisma } from '@opentrade/db';
 import { authMiddleware } from '../../../http/middleware/auth.js';
 import { env } from '../../../shared/env.js';
 import { AppError } from '../../../shared/errors/index.js';
+import { PrismaKolRepository } from '../../kols/infrastructure/PrismaKolRepository.js';
 import { EmitSignalUseCase } from '../application/EmitSignalUseCase.js';
 import { ListSignalsUseCase } from '../application/ListSignalsUseCase.js';
-import { PrismaSignalRepository } from '../infrastructure/PrismaSignalRepository.js';
-import { PrismaKolRepository } from '../../kols/infrastructure/PrismaKolRepository.js';
 import {
   ASSET_CLASS_VALUES,
   SIGNAL_DIRECTION_VALUES,
   VALID_HORIZONS,
 } from '../domain/SignalEntity.js';
+import { PrismaSignalRepository } from '../infrastructure/PrismaSignalRepository.js';
 
+import type { AppHonoEnv } from '../../../http/types.js';
 import type { SignalListOptions } from '../domain/ISignalRepository.js';
 import type { EmitSignalInput } from '../domain/SignalEntity.js';
-import type { AppHonoEnv } from '../../../http/types.js';
 
 const DEFAULT_TENANT_ID = env.DEFAULT_TENANT_ID;
 
@@ -69,7 +69,7 @@ signalsRouter.post('/', authMiddleware('user'), async (c) => {
   const body = emitBodySchema.parse(await c.req.json());
 
   const kol = await kolRepo.findByUserId(DEFAULT_TENANT_ID, user.userId);
-  if (!kol || kol.id !== body.kolId) {
+  if (kol?.id !== body.kolId) {
     throw AppError.notFound('KOL profile not found or does not belong to current user');
   }
 

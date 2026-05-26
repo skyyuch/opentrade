@@ -121,7 +121,10 @@ docs(rules): add task decomposition rule
 - [ ] `docs/03-status.md` 已更新進度
 - [ ] 沒有 commit secret / .env / private key
 
-Husky pre-commit hook 強制部分檢查（lint + typecheck on staged files）。
+Husky hooks 強制檢查：
+
+- **pre-commit**（lint-staged）：`eslint --fix` + `prettier --write` on staged `.ts/.tsx` files
+- **pre-push**：`pnpm turbo run typecheck --filter='!@opentrade/contracts'`（整個 project 的型別檢查）
 
 ---
 

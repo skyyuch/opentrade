@@ -29,9 +29,9 @@ import { AppError, ErrorCode } from '../../../shared/errors/index.js';
 
 import { SubmitComplaintUseCase } from './SubmitComplaintUseCase.js';
 
+import type { IIpfsService } from '../../reviews/infrastructure/IIpfsService.js';
 import type { ComplaintRecord, SubmitComplaintInput } from '../domain/ComplaintEntity.js';
 import type { CreateComplaintData, IComplaintRepository } from '../domain/IComplaintRepository.js';
-import type { IIpfsService } from '../../reviews/infrastructure/IIpfsService.js';
 
 const FIXED_CID = 'bafkreigh2akiscaildc7e2eComplaintFakeCidForUnitTest';
 const EVIDENCE_CID = 'bafybeievidencefakecidforcomplaintunittestpipelinedemo';

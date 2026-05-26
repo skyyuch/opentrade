@@ -26,16 +26,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { localizedBrokerName } from '@opentrade/shared';
 import { SentimentBadge, SentimentPicker, type Sentiment } from '@opentrade/ui';
 
-import { useOpenTradeAuth } from '@/hooks/useOpenTradeAuth';
-import { Link } from '@/i18n/navigation';
-import {
-  ApiClientError,
-  deriveComplaintStatus,
-  fetchBrokerKols,
-  reviewIpfsContentUrl,
-  submitReview,
-} from '@/lib/api/client';
-
 import type {
   BrokerDetail,
   BrokerKolItem,
@@ -49,6 +39,16 @@ import type {
   SfcPerson,
 } from '@/lib/api/client';
 import type { FormEvent } from 'react';
+
+import { useOpenTradeAuth } from '@/hooks/useOpenTradeAuth';
+import { Link } from '@/i18n/navigation';
+import {
+  ApiClientError,
+  deriveComplaintStatus,
+  fetchBrokerKols,
+  reviewIpfsContentUrl,
+  submitReview,
+} from '@/lib/api/client';
 
 type Tab = 'reviews' | 'complaints' | 'license' | 'kols' | 'arbitration';
 type LicenseSubTab =
@@ -1767,7 +1767,7 @@ function RelatedKolsTab({ brokerSlug }: { brokerSlug: string }) {
   useEffect(() => {
     fetchBrokerKols(brokerSlug)
       .then((data) => setKols(data.kols))
-      .catch(() => {})
+      .catch(() => undefined)
       .finally(() => setLoading(false));
   }, [brokerSlug]);
 

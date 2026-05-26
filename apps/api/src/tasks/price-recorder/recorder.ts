@@ -11,14 +11,13 @@
  * ECS task.
  */
 
+import type { IPriceProvider, OhlcBar } from './types.js';
 import type { PrismaClient } from '@prisma/client';
 
-import type { IPriceProvider, OhlcBar } from './types.js';
-
-export interface PriceRecorderOptions {
+export type PriceRecorderOptions = {
   intervalMs: number;
   providers: IPriceProvider[];
-}
+};
 
 export class PriceRecorder {
   private timer: ReturnType<typeof setInterval> | null = null;

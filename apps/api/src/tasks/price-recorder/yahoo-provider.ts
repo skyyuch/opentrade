@@ -28,17 +28,17 @@ export class YahooFinanceProvider implements IPriceProvider {
 
         const data = (await res.json()) as {
           chart?: {
-            result?: Array<{
+            result?: {
               indicators?: {
-                quote?: Array<{
+                quote?: {
                   open?: number[];
                   high?: number[];
                   low?: number[];
                   close?: number[];
-                }>;
+                }[];
               };
               timestamp?: number[];
-            }>;
+            }[];
           };
         };
 
@@ -62,7 +62,7 @@ export class YahooFinanceProvider implements IPriceProvider {
           high: high.toFixed(8),
           low: low.toFixed(8),
           close: close.toFixed(8),
-          timestamp: new Date(timestamps[lastIdx]! * 1000),
+          timestamp: new Date((timestamps[lastIdx] ?? 0) * 1000),
         });
       } catch {
         // Non-fatal: log and continue
