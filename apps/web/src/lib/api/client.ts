@@ -909,6 +909,19 @@ export const unfollowKol = (
 };
 
 // ---------------------------------------------------------------------------
+// KOL — My KOL profile (auth: requires KOL role)
+// ---------------------------------------------------------------------------
+
+export type MyKolProfileResponse = {
+  kol: KolListItem;
+};
+
+export const fetchMyKolProfile = (
+  options: FetchOptions,
+): Promise<MyKolProfileResponse> =>
+  apiGet<MyKolProfileResponse>('/v1/kols/me', options);
+
+// ---------------------------------------------------------------------------
 // KOL Stats — aggregated win-rate statistics
 // ---------------------------------------------------------------------------
 
