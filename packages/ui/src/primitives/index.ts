@@ -6,6 +6,13 @@
 
 export { Button, buttonVariants, type ButtonProps } from './button/Button';
 
+export {
+  EvidenceUpload,
+  type EvidenceUploadFile,
+  type EvidenceUploadLabels,
+  type EvidenceUploadProps,
+} from './evidence-upload/EvidenceUpload';
+
 export { SentimentBadge, type SentimentBadgeProps } from './sentiment-badge/SentimentBadge';
 
 export {
