@@ -1,6 +1,14 @@
 'use client';
 
-import { CheckCircle2, TrendingUp, Youtube } from 'lucide-react';
+import {
+  AlignJustify,
+  CheckCircle2,
+  GitCommit,
+  LayoutGrid,
+  List,
+  TrendingUp,
+  Youtube,
+} from 'lucide-react';
 import { usePrivy } from '@privy-io/react-auth';
 import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useState } from 'react';
@@ -11,6 +19,8 @@ import { fetchKolStats, followKol, unfollowKol } from '@/lib/api/client';
 
 import type { KolListItem, KolStats, SignalItem } from '@/lib/api/client';
 import type { ReactNode } from 'react';
+
+type SignalLayout = 'timeline' | 'grid' | 'list' | 'compact';
 
 type Props = {
   kol: KolListItem;
@@ -80,67 +90,7 @@ export function KolProfileClient({
       </aside>
 
       {/* Main content — lg:col-span-8 */}
-      <div className="space-y-4 lg:col-span-8">
-        {kol.status === 'UNCLAIMED' && (
-          <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-300">
-            {t('unverifiedBadge')} — {t('disclaimer')}
-          </div>
-        )}
-
-        <h2 className="text-lg font-bold text-white">{t('signalHistory')}</h2>
-
-        {initialSignals.length === 0 ? (
-          <p className="py-8 text-center text-white/40">{t('noSignals')}</p>
-        ) : (
-          <div className="space-y-3">
-            <p className="text-xs text-white/40">
-              {t('totalCount', { count: initialSignalTotal })}
-            </p>
-            {initialSignals.map((signal) => (
-              <Link
-                key={signal.id}
-                href={`/signals/${signal.id}`}
-                className="block rounded-lg border border-white/10 bg-white/5 p-4 transition-colors hover:border-[#00FF88]/30"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <span
-                      className={`rounded px-2 py-0.5 text-xs font-bold ${directionColor(signal.direction)}`}
-                    >
-                      {t(
-                        `direction${signal.direction.charAt(0) + signal.direction.slice(1).toLowerCase()}`,
-                      )}
-                    </span>
-                    <span className="font-medium text-white">{signal.symbol}</span>
-                    <span className="text-xs text-white/40">
-                      {t(`assetClass${assetClassKey(signal.assetClass)}`)}
-                    </span>
-                  </div>
-                  <span
-                    className={`rounded px-2 py-0.5 text-xs font-bold ${outcomeColor(signal.outcome)}`}
-                  >
-                    {t(outcomeKey(signal.outcome))}
-                  </span>
-                </div>
-                <div className="mt-2 grid grid-cols-4 gap-2 text-xs text-white/50">
-                  <div>
-                    {t('entry')}: {signal.entryPrice}
-                  </div>
-                  <div>
-                    {t('target')}: {signal.targetPrice}
-                  </div>
-                  <div>
-                    {t('stoploss')}: {signal.stoplossPrice ?? '—'}
-                  </div>
-                  <div>
-                    {t('horizon')}: {t('days', { count: signal.horizon })}
-                  </div>
-                </div>
-              </Link>
-            ))}
-          </div>
-        )}
-      </div>
+      <SignalSection kol={kol} signals={initialSignals} total={initialSignalTotal} t={t} />
     </div>
   );
 }
@@ -360,6 +310,300 @@ function StatsPanel({
           * {stats.unresolvedCount} {t('unresolvedFootnote')}
         </p>
       )}
+    </div>
+  );
+}
+
+const LAYOUT_ICONS: { key: SignalLayout; Icon: typeof GitCommit; label: string }[] = [
+  { key: 'timeline', Icon: GitCommit, label: 'Timeline' },
+  { key: 'grid', Icon: LayoutGrid, label: 'Grid' },
+  { key: 'list', Icon: List, label: 'List' },
+  { key: 'compact', Icon: AlignJustify, label: 'Compact' },
+];
+
+function SignalSection({
+  kol,
+  signals,
+  total,
+  t,
+}: {
+  kol: KolListItem;
+  signals: SignalItem[];
+  total: number;
+  t: ReturnType<typeof useTranslations<'kols'>>;
+}): ReactNode {
+  const [layout, setLayout] = useState<SignalLayout>('list');
+
+  return (
+    <div className="space-y-4 lg:col-span-8">
+      {kol.status === 'UNCLAIMED' && (
+        <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-300">
+          {t('unverifiedBadge')} — {t('disclaimer')}
+        </div>
+      )}
+
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-bold text-white">{t('signalHistory')}</h2>
+        <div className="hidden items-center gap-1 rounded-lg border border-white/10 bg-white/5 p-1 lg:flex">
+          {LAYOUT_ICONS.map(({ key, Icon, label }) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setLayout(key)}
+              title={label}
+              className={`rounded-md p-1.5 transition-colors ${
+                layout === key
+                  ? 'bg-[#00FF88]/20 text-[#00FF88]'
+                  : 'text-white/40 hover:bg-white/5 hover:text-white'
+              }`}
+            >
+              <Icon size={16} />
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {signals.length === 0 ? (
+        <p className="py-8 text-center text-white/40">{t('noSignals')}</p>
+      ) : (
+        <>
+          <p className="text-xs text-white/40">{t('totalCount', { count: total })}</p>
+
+          {layout === 'grid' && <SignalGrid signals={signals} t={t} />}
+          {layout === 'timeline' && <SignalTimeline signals={signals} t={t} />}
+          {layout === 'list' && <SignalList signals={signals} t={t} />}
+          {layout === 'compact' && <SignalCompact signals={signals} t={t} />}
+        </>
+      )}
+    </div>
+  );
+}
+
+type SignalRenderProps = {
+  signals: SignalItem[];
+  t: ReturnType<typeof useTranslations<'kols'>>;
+};
+
+function SignalList({ signals, t }: SignalRenderProps): ReactNode {
+  return (
+    <div className="space-y-3">
+      {signals.map((s) => (
+        <Link
+          key={s.id}
+          href={`/signals/${s.id}`}
+          className="flex flex-col gap-4 rounded-xl border border-white/10 bg-white/5 p-4 transition-all hover:border-[#00FF88]/30 sm:flex-row sm:items-center sm:justify-between"
+        >
+          <div className="flex items-center gap-4 sm:w-1/4">
+            <span
+              className={`rounded px-2 py-0.5 text-xs font-bold ${directionColor(s.direction)}`}
+            >
+              {t(`direction${s.direction.charAt(0) + s.direction.slice(1).toLowerCase()}`)}
+            </span>
+            <div>
+              <div className="font-bold font-mono text-white">{s.symbol}</div>
+              <div className="text-xs text-white/40">
+                {t(`assetClass${assetClassKey(s.assetClass)}`)}
+              </div>
+            </div>
+          </div>
+          <div className="flex-1 grid grid-cols-3 gap-4">
+            <div>
+              <div className="text-[10px] text-white/40">{t('entry')}</div>
+              <div className="font-mono text-sm">{s.entryPrice}</div>
+            </div>
+            <div>
+              <div className="text-[10px] text-white/40">{t('target')}</div>
+              <div className="font-mono text-sm text-[#00FF88]">{s.targetPrice}</div>
+            </div>
+            <div>
+              <div className="text-[10px] text-white/40">{t('stoploss')}</div>
+              <div className="font-mono text-sm text-red-400">{s.stoplossPrice ?? '—'}</div>
+            </div>
+          </div>
+          <div className="flex items-center justify-between sm:w-1/5 sm:flex-col sm:items-end gap-1">
+            <span className={`rounded px-2 py-0.5 text-xs font-bold ${outcomeColor(s.outcome)}`}>
+              {t(outcomeKey(s.outcome))}
+            </span>
+            <span className="text-xs text-white/50">{t('days', { count: s.horizon })}</span>
+          </div>
+        </Link>
+      ))}
+    </div>
+  );
+}
+
+function SignalGrid({ signals, t }: SignalRenderProps): ReactNode {
+  return (
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+      {signals.map((s) => (
+        <Link
+          key={s.id}
+          href={`/signals/${s.id}`}
+          className="relative flex flex-col gap-4 overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-sm transition-all hover:bg-white/10"
+        >
+          {s.outcome.includes('HIT') && (
+            <div className="pointer-events-none absolute right-0 top-0 h-32 w-32 rounded-full bg-[#00FF88]/5 blur-3xl" />
+          )}
+          {s.outcome === 'STOPPED' && (
+            <div className="pointer-events-none absolute right-0 top-0 h-32 w-32 rounded-full bg-red-500/5 blur-3xl" />
+          )}
+
+          <div className="relative z-10 flex items-start justify-between">
+            <div className="flex items-center gap-3">
+              <span
+                className={`rounded px-2 py-0.5 text-xs font-bold ${directionColor(s.direction)}`}
+              >
+                {t(`direction${s.direction.charAt(0) + s.direction.slice(1).toLowerCase()}`)}
+              </span>
+              <div>
+                <div className="font-bold font-mono text-lg text-white">{s.symbol}</div>
+                <div className="text-xs text-white/40">
+                  {t(`assetClass${assetClassKey(s.assetClass)}`)}
+                </div>
+              </div>
+            </div>
+            <span className={`rounded px-2 py-0.5 text-xs font-bold ${outcomeColor(s.outcome)}`}>
+              {t(outcomeKey(s.outcome))}
+            </span>
+          </div>
+
+          <div className="relative z-10 grid grid-cols-3 gap-2">
+            <div className="rounded-xl border border-white/5 bg-black/30 p-2.5">
+              <div className="mb-1 truncate text-[10px] text-white/40">{t('entry')}</div>
+              <div className="truncate font-mono text-sm text-white">{s.entryPrice}</div>
+            </div>
+            <div className="rounded-xl border border-white/5 bg-black/30 p-2.5">
+              <div className="mb-1 truncate text-[10px] text-white/40">{t('target')}</div>
+              <div className="truncate font-mono text-sm text-[#00FF88]">{s.targetPrice}</div>
+            </div>
+            <div className="rounded-xl border border-white/5 bg-black/30 p-2.5">
+              <div className="mb-1 truncate text-[10px] text-white/40">{t('stoploss')}</div>
+              <div className="truncate font-mono text-sm text-red-400">
+                {s.stoplossPrice ?? '—'}
+              </div>
+            </div>
+          </div>
+
+          <div className="relative z-10 flex items-center justify-between border-t border-white/5 pt-2">
+            <span className="rounded bg-black/20 px-1.5 py-0.5 text-[10px] text-white/40">
+              {t('days', { count: s.horizon })}
+            </span>
+          </div>
+        </Link>
+      ))}
+    </div>
+  );
+}
+
+function SignalTimeline({ signals, t }: SignalRenderProps): ReactNode {
+  return (
+    <div className="relative space-y-4 before:absolute before:inset-0 before:ml-5 before:-translate-x-px before:h-full before:w-0.5 before:bg-gradient-to-b before:from-white/10 before:to-transparent md:before:mx-auto md:before:translate-x-0">
+      {signals.map((s, i) => (
+        <div
+          key={s.id}
+          className={`group relative flex items-center ${i % 2 === 0 ? 'md:flex-row-reverse' : ''}`}
+        >
+          <div className="absolute left-5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2 border-white/20 bg-[#050608] md:left-1/2 md:-translate-x-1/2">
+            <div className="h-1.5 w-1.5 rounded-full bg-[#00FF88] opacity-0 transition-opacity group-hover:opacity-100" />
+          </div>
+          <div
+            className={`ml-auto w-full pl-12 md:w-[47%] md:pl-0 ${i % 2 === 0 ? 'md:ml-auto' : 'md:mr-auto'}`}
+          >
+            <Link
+              href={`/signals/${s.id}`}
+              className="relative flex flex-col gap-4 overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-sm transition-all hover:bg-white/10"
+            >
+              {s.outcome.includes('HIT') && (
+                <div className="pointer-events-none absolute right-0 top-0 h-32 w-32 rounded-full bg-[#00FF88]/5 blur-3xl" />
+              )}
+
+              <div className="relative z-10 flex items-start justify-between">
+                <div className="flex items-center gap-3">
+                  <span
+                    className={`rounded px-2 py-0.5 text-xs font-bold ${directionColor(s.direction)}`}
+                  >
+                    {t(`direction${s.direction.charAt(0) + s.direction.slice(1).toLowerCase()}`)}
+                  </span>
+                  <div>
+                    <div className="font-bold font-mono text-lg text-white">{s.symbol}</div>
+                    <div className="text-xs text-white/40">
+                      {t(`assetClass${assetClassKey(s.assetClass)}`)}
+                    </div>
+                  </div>
+                </div>
+                <span
+                  className={`rounded px-2 py-0.5 text-xs font-bold ${outcomeColor(s.outcome)}`}
+                >
+                  {t(outcomeKey(s.outcome))}
+                </span>
+              </div>
+
+              <div className="relative z-10 grid grid-cols-3 gap-2">
+                <div className="rounded-xl border border-white/5 bg-black/30 p-2.5">
+                  <div className="mb-1 truncate text-[10px] text-white/40">{t('entry')}</div>
+                  <div className="truncate font-mono text-sm text-white">{s.entryPrice}</div>
+                </div>
+                <div className="rounded-xl border border-white/5 bg-black/30 p-2.5">
+                  <div className="mb-1 truncate text-[10px] text-white/40">{t('target')}</div>
+                  <div className="truncate font-mono text-sm text-[#00FF88]">{s.targetPrice}</div>
+                </div>
+                <div className="rounded-xl border border-white/5 bg-black/30 p-2.5">
+                  <div className="mb-1 truncate text-[10px] text-white/40">{t('stoploss')}</div>
+                  <div className="truncate font-mono text-sm text-red-400">
+                    {s.stoplossPrice ?? '—'}
+                  </div>
+                </div>
+              </div>
+            </Link>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function SignalCompact({ signals, t }: SignalRenderProps): ReactNode {
+  return (
+    <div className="overflow-hidden overflow-x-auto rounded-xl border border-white/10 bg-white/5">
+      <table className="w-full min-w-[600px] text-left text-sm">
+        <thead className="border-b border-white/10 bg-black/40 text-xs text-white/40">
+          <tr>
+            <th className="px-4 py-3 font-medium">{t('signals')}</th>
+            <th className="px-4 py-3 font-medium">{t('entry')}</th>
+            <th className="px-4 py-3 font-medium">{t('target')}</th>
+            <th className="px-4 py-3 font-medium">{t('stoploss')}</th>
+            <th className="px-4 py-3 font-medium">{t('horizon')}</th>
+            <th className="px-4 py-3 text-right font-medium">{t('outcome')}</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-white/5">
+          {signals.map((s) => (
+            <tr key={s.id} className="transition-colors hover:bg-white/10">
+              <td className="px-4 py-3.5">
+                <Link href={`/signals/${s.id}`} className="flex items-center gap-2">
+                  <span
+                    className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${directionColor(s.direction)}`}
+                  >
+                    {s.direction}
+                  </span>
+                  <span className="font-bold font-mono text-white">{s.symbol}</span>
+                </Link>
+              </td>
+              <td className="px-4 py-3.5 font-mono">{s.entryPrice}</td>
+              <td className="px-4 py-3.5 font-mono text-[#00FF88]">{s.targetPrice}</td>
+              <td className="px-4 py-3.5 font-mono text-red-400">{s.stoplossPrice ?? '—'}</td>
+              <td className="px-4 py-3.5 text-white/50">{t('days', { count: s.horizon })}</td>
+              <td className="px-4 py-3.5 text-right">
+                <span
+                  className={`rounded px-2 py-0.5 text-xs font-bold ${outcomeColor(s.outcome)}`}
+                >
+                  {t(outcomeKey(s.outcome))}
+                </span>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
