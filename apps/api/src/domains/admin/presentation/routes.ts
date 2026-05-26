@@ -27,6 +27,8 @@ import { AppError, ErrorCode } from '../../../shared/errors/index.js';
 import { ListComplaintsUseCase } from '../../complaints/application/ListComplaintsUseCase.js';
 import { VerifyComplaintUseCase } from '../../complaints/application/VerifyComplaintUseCase.js';
 import { PrismaComplaintRepository } from '../../complaints/infrastructure/PrismaComplaintRepository.js';
+import { ListKolsUseCase } from '../../kols/application/ListKolsUseCase.js';
+import { PrismaKolRepository } from '../../kols/infrastructure/PrismaKolRepository.js';
 
 import type { AppHonoEnv } from '../../../http/types.js';
 
@@ -775,4 +777,109 @@ adminRouter.get('/activity', authMiddleware('admin'), async (c) => {
   activities.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
   return c.json({ activities: activities.slice(0, 15) });
+});
+
+// ---------------------------------------------------------------------------
+// KOL Admin endpoints (per ADR-0036 D1)
+// ---------------------------------------------------------------------------
+
+const kolRepo = new PrismaKolRepository(prisma);
+const listKolsUseCase = new ListKolsUseCase(kolRepo);
+
+const listKolsSchema = z.object({
+  status: z.enum(['UNCLAIMED', 'PENDING', 'APPROVED', 'REJECTED', 'SUSPENDED']).optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+  offset: z.coerce.number().int().min(0).default(0),
+});
+
+adminRouter.get('/kols', authMiddleware('admin'), async (c) => {
+  const query = listKolsSchema.parse(c.req.query());
+
+  const opts: Parameters<typeof listKolsUseCase.execute>[0] = {
+    tenantId: DEFAULT_TENANT_ID,
+    limit: query.limit,
+    offset: query.offset,
+  };
+  if (query.status !== undefined) {
+    opts.status = query.status;
+  }
+
+  const { kols, total } = await listKolsUseCase.execute(opts);
+
+  return c.json({ kols, total });
+});
+
+adminRouter.get('/kols/:id', authMiddleware('admin'), async (c) => {
+  const id = c.req.param('id');
+  const kol = await kolRepo.findById(id);
+
+  if (!kol) {
+    throw AppError.notFound(`KOL ${id} not found`);
+  }
+
+  const signalCount = await prisma.signal.count({
+    where: { kolId: kol.id },
+  });
+
+  const followerCount = await prisma.kolFollow.count({
+    where: { kolId: kol.id },
+  });
+
+  return c.json({ kol, signalCount, followerCount });
+});
+
+adminRouter.patch('/kols/:id/approve', authMiddleware('admin'), async (c) => {
+  const id = c.req.param('id');
+  const user = c.get('user');
+  const kol = await kolRepo.findById(id);
+
+  if (!kol) {
+    throw AppError.notFound(`KOL ${id} not found`);
+  }
+
+  if (kol.status !== 'PENDING') {
+    throw new AppError(ErrorCode.CONFLICT, `Cannot approve KOL in ${kol.status} status`, 409);
+  }
+
+  const updated = await kolRepo.updateStatus(id, 'APPROVED', user.userId);
+  return c.json({ kol: updated });
+});
+
+const rejectKolSchema = z.object({
+  adminNote: z.string().min(5).max(500),
+});
+
+adminRouter.patch('/kols/:id/reject', authMiddleware('admin'), async (c) => {
+  const id = c.req.param('id');
+  const kol = await kolRepo.findById(id);
+
+  if (!kol) {
+    throw AppError.notFound(`KOL ${id} not found`);
+  }
+
+  if (kol.status !== 'PENDING') {
+    throw new AppError(ErrorCode.CONFLICT, `Cannot reject KOL in ${kol.status} status`, 409);
+  }
+
+  const body = rejectKolSchema.parse(await c.req.json());
+  void body.adminNote;
+
+  const updated = await kolRepo.updateStatus(id, 'REJECTED');
+  return c.json({ kol: updated });
+});
+
+adminRouter.patch('/kols/:id/suspend', authMiddleware('admin'), async (c) => {
+  const id = c.req.param('id');
+  const kol = await kolRepo.findById(id);
+
+  if (!kol) {
+    throw AppError.notFound(`KOL ${id} not found`);
+  }
+
+  if (kol.status !== 'APPROVED') {
+    throw new AppError(ErrorCode.CONFLICT, `Cannot suspend KOL in ${kol.status} status`, 409);
+  }
+
+  const updated = await kolRepo.updateStatus(id, 'SUSPENDED');
+  return c.json({ kol: updated });
 });
