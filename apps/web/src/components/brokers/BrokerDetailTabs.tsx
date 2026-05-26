@@ -21,24 +21,10 @@ import {
   XCircle,
 } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 
 import { localizedBrokerName } from '@opentrade/shared';
 import { SentimentBadge, SentimentPicker, type Sentiment } from '@opentrade/ui';
-
-import type {
-  BrokerDetail,
-  BrokerKolItem,
-  ComplaintItem,
-  ComplaintStatus,
-  ReviewItem,
-  SfcCondition,
-  SfcDetailJson,
-  SfcDisciplinaryAction,
-  SfcLicenceRecord,
-  SfcPerson,
-} from '@/lib/api/client';
-import type { FormEvent } from 'react';
 
 import { useOpenTradeAuth } from '@/hooks/useOpenTradeAuth';
 import { Link } from '@/i18n/navigation';
@@ -48,6 +34,16 @@ import {
   fetchBrokerKols,
   reviewIpfsContentUrl,
   submitReview,
+  type BrokerDetail,
+  type BrokerKolItem,
+  type ComplaintItem,
+  type ComplaintStatus,
+  type ReviewItem,
+  type SfcCondition,
+  type SfcDetailJson,
+  type SfcDisciplinaryAction,
+  type SfcLicenceRecord,
+  type SfcPerson,
 } from '@/lib/api/client';
 
 type Tab = 'reviews' | 'complaints' | 'license' | 'kols' | 'arbitration';

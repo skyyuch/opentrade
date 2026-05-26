@@ -13,12 +13,18 @@ import {
 import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useState } from 'react';
 
-import type { KolListItem, KolStats, SignalItem } from '@/lib/api/client';
 import type { ReactNode } from 'react';
 
 import { useOpenTradeAuth } from '@/hooks/useOpenTradeAuth';
 import { Link } from '@/i18n/navigation';
-import { fetchKolStats, followKol, unfollowKol } from '@/lib/api/client';
+import {
+  fetchKolStats,
+  followKol,
+  unfollowKol,
+  type KolListItem,
+  type KolStats,
+  type SignalItem,
+} from '@/lib/api/client';
 
 type SignalLayout = 'timeline' | 'grid' | 'list' | 'compact';
 
