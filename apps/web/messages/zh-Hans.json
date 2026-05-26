@@ -16,6 +16,8 @@
     "statEncryption": "端到端加密",
     "terminalTitle": "实时链上动态",
     "terminalSync": "已同步至 IPFS / 1024 节点",
+    "feedLatestSignal": "最新 KOL 信号",
+    "feedLiveEvents": "实时协议事件",
     "feedReview": "富途控股入金解锁完成。",
     "feedSignal": "做多 $BTC 进场 68.2k",
     "feedArbitration": "已裁决 CMP-023 案件，用户胜诉。",

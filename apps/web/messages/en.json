@@ -16,6 +16,8 @@
     "statEncryption": "End-to-end encrypted",
     "terminalTitle": "Live On-chain Feed",
     "terminalSync": "Synced to IPFS / 1024 nodes",
+    "feedLatestSignal": "LATEST KOL SIGNAL",
+    "feedLiveEvents": "Live Protocol Events",
     "feedReview": "Futu Holdings deposit unblocked.",
     "feedSignal": "Long $BTC Entry 68.2k",
     "feedArbitration": "Resolved CMP-023 favoring user.",

@@ -1,11 +1,20 @@
-import { ArrowRight, Database, Lock, Scale, ShieldCheck, TrendingUp } from 'lucide-react';
+import {
+  ArrowRight,
+  Database,
+  Globe,
+  Lock,
+  Scale,
+  ShieldCheck,
+  TrendingUp,
+  Zap,
+} from 'lucide-react';
 import { getTranslations } from 'next-intl/server';
 
 import { FaqSection } from '../../components/home/FaqSection';
 import { Link } from '../../i18n/navigation';
 import { fetchRecentFeed } from '../../lib/api/client';
 
-import type { FeedItem } from '../../lib/api/client';
+import type { FeedItem, LatestSignal } from '../../lib/api/client';
 import type { ReactNode } from 'react';
 
 function formatRelativeTime(isoDate: string): string {
@@ -24,28 +33,26 @@ function getFeedItemConfig(
   labels: { review: string; signal: string; complaint: string },
 ): {
   label: string;
-  labelColor: string;
+  badgeClasses: string;
   content: string;
-  highlight?: boolean;
 } {
   switch (item.type) {
     case 'review':
       return {
         label: labels.review,
-        labelColor: 'text-blue-400',
+        badgeClasses: 'text-[#00FF88] bg-[#00FF88]/10 border-[#00FF88]/30',
         content: `${item.brokerDisplayName} — ${item.sentiment === 'POSITIVE' ? '👍' : item.sentiment === 'NEGATIVE' ? '👎' : '—'}`,
       };
     case 'signal':
       return {
         label: labels.signal,
-        labelColor: 'text-[#00FF88]',
-        content: `${item.kolName} → ${item.direction} $${item.symbol}`,
-        highlight: true,
+        badgeClasses: 'text-red-400 bg-red-400/10 border-red-400/20',
+        content: `${item.kolName} ${item.direction} $${item.symbol}`,
       };
     case 'complaint':
       return {
         label: labels.complaint,
-        labelColor: 'text-orange-400',
+        badgeClasses: 'text-purple-400 bg-purple-400/10 border-purple-400/20',
         content: `${item.brokerDisplayName}`,
       };
   }
@@ -61,9 +68,11 @@ const HomePage = async (): Promise<ReactNode> => {
   ];
 
   let feedItems: FeedItem[] = [];
+  let latestSignal: LatestSignal | null = null;
   try {
     const feed = await fetchRecentFeed({ next: { revalidate: 30 } });
     feedItems = feed.items;
+    latestSignal = feed.latestSignal;
   } catch {
     // Non-fatal: render empty terminal on API failure
   }
@@ -158,69 +167,154 @@ const HomePage = async (): Promise<ReactNode> => {
           </div>
         </div>
 
-        {/* Live Feed Terminal */}
-        <div className="relative w-full lg:w-[40%]">
-          <div className="overflow-hidden rounded-2xl border border-white/10 bg-black/80 shadow-2xl backdrop-blur-2xl">
-            {/* Terminal Header */}
-            <div className="flex items-center justify-between border-b border-white/10 bg-white/5 px-4 py-3">
-              <div className="flex gap-2">
-                <div className="h-3 w-3 rounded-full bg-red-500/50" />
-                <div className="h-3 w-3 rounded-full bg-yellow-500/50" />
-                <div className="h-3 w-3 rounded-full bg-[#00FF88]/50" />
+        {/* Unified Network Core Explorer */}
+        <div className="relative mt-16 w-full lg:mt-0 lg:w-[45%] xl:pl-6">
+          {/* Background glows */}
+          <div className="pointer-events-none absolute -left-20 top-1/2 z-0 hidden h-[300px] w-[300px] -translate-y-1/2 rounded-full bg-[#00FF88]/10 blur-[100px] lg:block" />
+          <div className="pointer-events-none absolute right-0 top-1/2 z-0 h-[200px] w-[200px] -translate-y-1/2 rounded-full bg-blue-500/10 blur-[100px]" />
+
+          {/* Unified Window */}
+          <div className="group relative z-10 mx-auto w-full max-w-[540px] overflow-hidden rounded-2xl border border-white/10 bg-[#050608]/90 shadow-2xl backdrop-blur-2xl transition-all duration-500 hover:border-white/20">
+            {/* Window Header */}
+            <div className="flex items-center justify-between border-b border-white/5 bg-white/[0.02] px-5 py-4">
+              <div className="flex items-center gap-2">
+                <div className="mr-3 flex gap-1.5">
+                  <div className="h-2.5 w-2.5 rounded-full bg-white/20" />
+                  <div className="h-2.5 w-2.5 rounded-full bg-white/20" />
+                  <div className="h-2.5 w-2.5 rounded-full bg-white/20" />
+                </div>
+                <span className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-wider text-white/40">
+                  <Database size={12} className="text-[#00FF88]" />
+                  OpenTrade Core Engine
+                </span>
               </div>
-              <div className="font-mono text-[10px] uppercase tracking-widest text-white/40">
-                {t('terminalTitle')}
+              <div className="flex items-center gap-2">
+                <span className="relative flex h-2 w-2">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#00FF88] opacity-75" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-[#00FF88]" />
+                </span>
+                <span className="hidden font-mono text-[10px] font-bold tracking-widest text-[#00FF88] sm:inline">
+                  NETWORK SYNCED
+                </span>
               </div>
             </div>
 
-            <div className="space-y-5 p-6">
-              {feedItems.length > 0 ? (
-                feedItems.slice(0, 5).map((item) => {
-                  const config = getFeedItemConfig(item, {
-                    review: t('feedLabelReview'),
-                    signal: t('feedLabelSignal'),
-                    complaint: t('feedLabelJury'),
-                  });
-                  const baseClass = 'flex gap-4 font-mono text-sm';
-                  const wrapClass = config.highlight
-                    ? `${baseClass} -mx-6 border-y border-[#00FF88]/20 bg-[#00FF88]/10 px-6 py-2`
-                    : baseClass;
-                  return (
-                    <div key={item.id} className={wrapClass}>
-                      <div className={`w-20 shrink-0 ${config.labelColor}`}>{config.label}</div>
-                      <div className="flex-1 truncate text-white/70">{config.content}</div>
-                      <div className="whitespace-nowrap text-right text-xs text-white/30">
-                        {formatRelativeTime(item.createdAt)}
+            {/* Content Layout - Split View */}
+            <div className="grid grid-cols-1 divide-y divide-white/5">
+              {/* Top Section: KOL Signal Highlight */}
+              <div className="relative overflow-hidden bg-gradient-to-b from-white/[0.02] to-transparent p-6 md:p-8">
+                <div className="absolute right-0 top-0 h-32 w-32 rounded-full bg-[#00FF88]/5 blur-3xl" />
+
+                <div className="mb-6 flex items-start justify-between">
+                  <h3 className="flex items-center gap-2 rounded bg-[#00FF88]/10 px-2 py-1 text-xs font-bold tracking-widest text-[#00FF88]">
+                    <Zap size={14} className="text-[#00FF88]" />
+                    {t('feedLatestSignal')}
+                  </h3>
+                  {latestSignal && (
+                    <div className="flex items-center gap-1.5 font-mono text-[10px] text-white/30">
+                      <Globe size={12} />
+                      {formatRelativeTime(latestSignal.createdAt)}
+                    </div>
+                  )}
+                </div>
+
+                {latestSignal ? (
+                  <div className="flex flex-col justify-between rounded-xl border border-[#00FF88]/20 bg-white/[0.03] p-5 transition-colors hover:bg-white/[0.05] sm:flex-row sm:items-center">
+                    <div className="mb-4 flex items-center gap-4 sm:mb-0">
+                      <div className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-white/10 bg-gradient-to-br from-zinc-800 to-black shadow-lg">
+                        <span className="font-mono text-sm font-bold text-white/80">
+                          {latestSignal.kolName.slice(0, 2).toUpperCase()}
+                        </span>
+                        {latestSignal.kolVerified && (
+                          <div className="absolute right-0 top-0 h-2 w-2 rounded-full bg-[#00FF88] shadow-[0_0_5px_#00FF88]" />
+                        )}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2 text-base font-bold text-white">
+                          {latestSignal.kolName}
+                          {latestSignal.kolVerified && (
+                            <span className="flex items-center gap-1 rounded border border-[#00FF88]/30 bg-[#00FF88]/10 px-1.5 py-0.5 text-[9px] font-bold text-[#00FF88]">
+                              <ShieldCheck size={10} /> SBT
+                            </span>
+                          )}
+                        </div>
+                        <div className="mt-1 text-xs text-white/50">
+                          {latestSignal.direction} ${latestSignal.symbol}
+                        </div>
                       </div>
                     </div>
-                  );
-                })
-              ) : (
-                <div className="py-4 text-center font-mono text-sm text-white/30">
-                  {t('terminalSync')}
-                </div>
-              )}
+                    {latestSignal.yield && (
+                      <div className="text-left sm:text-right">
+                        <div className="mb-1.5 text-[10px] uppercase tracking-widest text-white/40">
+                          Net Yield
+                        </div>
+                        <div className="inline-block rounded-lg bg-[#00FF88] px-3 py-1.5 font-mono text-sm font-bold text-black shadow-[0_0_15px_rgba(0,255,136,0.2)]">
+                          {latestSignal.yield}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="rounded-xl border border-white/10 bg-white/[0.03] p-5 text-center text-sm text-white/30">
+                    {t('terminalSync')}
+                  </div>
+                )}
+              </div>
 
-              {/* Terminal Footer */}
-              <div className="mt-6 flex items-center justify-between border-t border-white/5 pt-4">
-                <div className="flex items-center gap-2">
-                  <Database size={14} className="text-white/30" />
-                  <span className="font-mono text-xs text-white/40">{t('terminalSync')}</span>
+              {/* Bottom Section: Live Protocol Events */}
+              <div className="p-6 md:p-8">
+                <div className="mb-6 flex items-center justify-between">
+                  <h3 className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-[#00FF88]">
+                    <span className="relative flex h-2 w-2">
+                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#00FF88] opacity-75" />
+                      <span className="relative inline-flex h-2 w-2 rounded-full bg-[#00FF88]" />
+                    </span>
+                    {t('feedLiveEvents')}
+                  </h3>
+                  <div className="flex gap-1.5">
+                    {[1, 2, 3, 4].map((i) => (
+                      <div
+                        key={i}
+                        className="h-3 w-1 animate-pulse rounded-sm bg-[#00FF88]/50"
+                        style={{ animationDelay: `${i * 150}ms` }}
+                      />
+                    ))}
+                  </div>
                 </div>
-                <div className="flex gap-1">
-                  {[1, 2, 3, 4, 5].map((i) => (
-                    <div
-                      key={i}
-                      className="h-3 w-1 animate-pulse rounded-sm bg-[#00FF88]/50"
-                      style={{ animationDelay: `${i * 150}ms` }}
-                    />
-                  ))}
+
+                <div className="space-y-4 font-mono text-xs">
+                  {feedItems.length > 0 ? (
+                    feedItems.slice(0, 4).map((item) => {
+                      const config = getFeedItemConfig(item, {
+                        review: 'REVIEW',
+                        signal: 'SIGNAL',
+                        complaint: 'VERIFY',
+                      });
+                      return (
+                        <div key={item.id} className="group flex items-center gap-3 transition-all">
+                          <div
+                            className={`w-14 shrink-0 rounded border text-center text-[10px] font-bold py-1 ${config.badgeClasses}`}
+                          >
+                            {config.label}
+                          </div>
+                          <div className="flex-1 truncate text-white/60 transition-colors group-hover:text-white">
+                            {config.content}
+                          </div>
+                          <div className="whitespace-nowrap text-right text-[10px] text-white/20">
+                            {formatRelativeTime(item.createdAt)}
+                          </div>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <div className="py-4 text-center text-sm text-white/30">
+                      {t('terminalSync')}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
           </div>
-          {/* Decorative glow */}
-          <div className="pointer-events-none absolute left-1/2 top-1/2 -z-10 h-[120%] w-[120%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-gradient-to-r from-[#00FF88]/10 to-blue-500/10 blur-[100px]" />
         </div>
       </section>
 
