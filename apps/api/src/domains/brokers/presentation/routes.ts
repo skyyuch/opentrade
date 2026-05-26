@@ -4,6 +4,8 @@
  * Endpoints:
  *   GET    /                  — List brokers (public, paginated)
  *   GET    /:slug             — Get a single broker by slug (public)
+ *   GET    /:slug/owner-stats — Merchant dashboard stats (auth: owner)
+ *   GET    /:slug/owner-complaints — Merchant complaint inbox (auth: owner)
  *   POST   /:slug/claim       — Submit a claim request (auth: user+)
  *   PATCH  /:slug             — Update claimed broker profile (auth: owner)
  *   GET    /admin/claims      — List claim requests (auth: admin)
@@ -358,13 +360,136 @@ brokersRouter.get('/:slug/owner-stats', authMiddleware('user'), async (c) => {
   const positiveRate =
     allRatings.length > 0 ? Math.round((positiveCount / allRatings.length) * 100) : null;
 
+  const [totalComplaints, openComplaints, respondedComplaints] = await Promise.all([
+    prisma.review.count({
+      where: { brokerId: broker.id, tenantId, deletedAt: null, kind: 'COMPLAINT' },
+    }),
+    prisma.review.count({
+      where: {
+        brokerId: broker.id,
+        tenantId,
+        deletedAt: null,
+        kind: 'COMPLAINT',
+        responses: { none: {} },
+      },
+    }),
+    prisma.review.count({
+      where: {
+        brokerId: broker.id,
+        tenantId,
+        deletedAt: null,
+        kind: 'COMPLAINT',
+        responses: { some: {} },
+      },
+    }),
+  ]);
+
   return c.json({
     stats: {
       totalReviews,
       monthReviews,
       avgRating,
       positiveRate,
+      totalComplaints,
+      openComplaints,
+      respondedComplaints,
     },
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Merchant complaint inbox (per ADR-0037)
+// ---------------------------------------------------------------------------
+
+const ownerComplaintsQuerySchema = z.object({
+  responded: z.enum(['true', 'false']).optional(),
+  cursor: z.string().uuid().optional(),
+  limit: z.coerce.number().int().min(1).max(50).optional(),
+});
+
+brokersRouter.get('/:slug/owner-complaints', authMiddleware('user'), async (c) => {
+  const slug = c.req.param('slug');
+  const { userId, tenantId } = c.get('user');
+
+  const broker = await prisma.broker.findFirst({
+    where: { slug, tenantId, deletedAt: null },
+  });
+  if (!broker) {
+    throw new AppError(ErrorCode.NOT_FOUND, 'Broker not found', 404);
+  }
+  if (broker.claimedByUserId !== userId) {
+    throw new AppError(ErrorCode.FORBIDDEN, 'Only the broker owner can view complaints', 403);
+  }
+
+  const query = ownerComplaintsQuerySchema.safeParse(c.req.query());
+  if (!query.success) {
+    throw new AppError(ErrorCode.VALIDATION_ERROR, 'Invalid query parameters', 400, {
+      details: { issues: query.error.issues },
+    });
+  }
+
+  const limit = Math.min(query.data.limit ?? 20, 50);
+
+  const respondedFilter =
+    query.data.responded === 'true'
+      ? { some: {} as const }
+      : query.data.responded === 'false'
+        ? { none: {} as const }
+        : undefined;
+
+  const complaints = await prisma.review.findMany({
+    where: {
+      brokerId: broker.id,
+      tenantId,
+      deletedAt: null,
+      kind: 'COMPLAINT',
+      ...(respondedFilter ? { responses: respondedFilter } : {}),
+      ...(query.data.cursor ? { id: { lt: query.data.cursor } } : {}),
+    },
+    include: {
+      responses: {
+        select: {
+          id: true,
+          body: true,
+          contentHash: true,
+          ipfsCid: true,
+          sourceLocale: true,
+          createdAt: true,
+        },
+        take: 1,
+      },
+    },
+    orderBy: { createdAt: 'desc' },
+    take: limit + 1,
+  });
+
+  const hasMore = complaints.length > limit;
+  const items = hasMore ? complaints.slice(0, limit) : complaints;
+  const nextCursor = hasMore ? items[items.length - 1]!.id : null;
+
+  return c.json({
+    complaints: items.map((item) => ({
+      id: item.id,
+      title: item.title,
+      body: item.body,
+      sentiment: item.sentiment,
+      sourceLocale: item.sourceLocale,
+      evidenceIpfsCid: item.evidenceIpfsCid,
+      verifiedAt: item.verifiedAt?.toISOString() ?? null,
+      adminNote: item.adminNote,
+      createdAt: item.createdAt.toISOString(),
+      brokerResponse: item.responses[0]
+        ? {
+            id: item.responses[0].id,
+            body: item.responses[0].body,
+            contentHash: item.responses[0].contentHash,
+            ipfsCid: item.responses[0].ipfsCid,
+            sourceLocale: item.responses[0].sourceLocale,
+            createdAt: item.responses[0].createdAt.toISOString(),
+          }
+        : null,
+    })),
+    nextCursor,
   });
 });
 
