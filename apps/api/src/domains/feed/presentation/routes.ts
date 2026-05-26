@@ -88,7 +88,11 @@ feedRouter.get('/recent', async (c) => {
       },
     }),
     prisma.signal.findMany({
-      where: { tenantId: DEFAULT_TENANT_ID, outcome: { not: 'ACTIVE' } },
+      where: {
+        tenantId: DEFAULT_TENANT_ID,
+        outcome: { not: 'ACTIVE' },
+        settledAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+      },
       orderBy: { settledAt: 'desc' },
       take: 50,
       select: {
