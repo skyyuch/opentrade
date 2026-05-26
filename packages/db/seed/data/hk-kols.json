@@ -1,0 +1,208 @@
+[
+  {
+    "slug": "shentan-caifu",
+    "displayName": "沈大師（沈振盈）",
+    "bio": "資深股評人，曾任多間證券行研究部主管，香港財經節目常客",
+    "socialLinks": { "youtube": "https://www.youtube.com/@shentan" }
+  },
+  {
+    "slug": "tonytsoi",
+    "displayName": "蔡陽光 Tony Tsoi",
+    "bio": "財經 KOL，擅長港股技術分析及短線操作",
+    "socialLinks": { "youtube": "https://www.youtube.com/@tonytsoi" }
+  },
+  {
+    "slug": "limchungkei",
+    "displayName": "林祖輝",
+    "bio": "林祖輝投資策略頻道，關注港股及環球市場動態",
+    "socialLinks": { "youtube": "https://www.youtube.com/@limchungkei" }
+  },
+  {
+    "slug": "edwardlam",
+    "displayName": "林一鳴博士",
+    "bio": "經濟學博士，前銀行首席經濟師，財經專欄作家",
+    "socialLinks": { "youtube": "https://www.youtube.com/@DrEdwardLam" }
+  },
+  {
+    "slug": "louiskwong",
+    "displayName": "鄺健銘 Louis Kwong",
+    "bio": "港股分析師，技術分析講師，專注窩輪及牛熊證策略",
+    "socialLinks": { "youtube": "https://www.youtube.com/@louiskwong" }
+  },
+  {
+    "slug": "queenieschannel",
+    "displayName": "Queenie 投資日記",
+    "bio": "女性投資者視角，分享美股及 ETF 投資心得",
+    "socialLinks": {
+      "youtube": "https://www.youtube.com/@QueenieInvest",
+      "instagram": "https://www.instagram.com/queenieinvest"
+    }
+  },
+  {
+    "slug": "davidwebb",
+    "displayName": "David Webb 韋伯",
+    "bio": "獨立股評人及企業管治倡議者，Webb-site.com 創辦人",
+    "socialLinks": { "twitter": "https://twitter.com/webbdavid" }
+  },
+  {
+    "slug": "samsonhoi",
+    "displayName": "許紹祐 Samson Hoi",
+    "bio": "資深分析員，專注衍生工具及期權策略教學",
+    "socialLinks": { "youtube": "https://www.youtube.com/@samsonhoi" }
+  },
+  {
+    "slug": "bennychung",
+    "displayName": "鍾保羅 Benny Chung",
+    "bio": "港股技術分析 YouTuber，每日收市報告",
+    "socialLinks": { "youtube": "https://www.youtube.com/@bennychung" }
+  },
+  {
+    "slug": "peterlincfa",
+    "displayName": "林柏承 Peter Lin",
+    "bio": "CFA 持牌分析師，專注港美股基本面分析",
+    "credentials": [{ "type": "CFA", "verified": false }],
+    "socialLinks": { "youtube": "https://www.youtube.com/@PeterLinCFA" }
+  },
+  {
+    "slug": "jackytalkfinance",
+    "displayName": "Jacky 講投資",
+    "bio": "用簡單語言拆解複雜金融產品，適合新手投資者",
+    "socialLinks": {
+      "youtube": "https://www.youtube.com/@jackytalkfinance",
+      "instagram": "https://www.instagram.com/jackytalkfinance"
+    }
+  },
+  {
+    "slug": "raymondsiu",
+    "displayName": "蕭若元 Raymond Siu",
+    "bio": "前港股分析師，專注細價股及 IPO 分析",
+    "socialLinks": { "youtube": "https://www.youtube.com/@raymondsiu" }
+  },
+  {
+    "slug": "vincentchan",
+    "displayName": "陳智思 Vincent Chan",
+    "bio": "獨立財經評論人，專注金融科技及數碼資產",
+    "socialLinks": { "twitter": "https://twitter.com/vincentchan_hk" }
+  },
+  {
+    "slug": "alextam",
+    "displayName": "譚志源 Alex Tam",
+    "bio": "前基金經理，分享價值投資策略及環球宏觀觀點",
+    "socialLinks": { "youtube": "https://www.youtube.com/@alextam" }
+  },
+  {
+    "slug": "kongstocktalk",
+    "displayName": "港股Talk",
+    "bio": "港股即市分析頻道，每日提供技術圖表及入市建議",
+    "socialLinks": { "youtube": "https://www.youtube.com/@kongstocktalk" }
+  },
+  {
+    "slug": "rickywong",
+    "displayName": "黃國英 Ricky Wong",
+    "bio": "股評人，豐盛金融集團 CEO，香港財經節目常客",
+    "socialLinks": { "youtube": "https://www.youtube.com/@rickywong" }
+  },
+  {
+    "slug": "eddiecheung",
+    "displayName": "張智威 Eddie Cheung",
+    "bio": "前渣打銀行外匯策略師，專注外匯及商品市場分析",
+    "socialLinks": { "youtube": "https://www.youtube.com/@eddiecheung" }
+  },
+  {
+    "slug": "alvinlam",
+    "displayName": "林嘉麒 Alvin Lam",
+    "bio": "獨立財經作家，關注美股科技板塊及加密貨幣",
+    "socialLinks": {
+      "youtube": "https://www.youtube.com/@alvinlam",
+      "twitter": "https://twitter.com/alvinlam_hk"
+    }
+  },
+  {
+    "slug": "stockpicking-hk",
+    "displayName": "選股達人 HK",
+    "bio": "專門研究港股中小型股份，發掘被低估股票",
+    "socialLinks": { "youtube": "https://www.youtube.com/@stockpickinghk" }
+  },
+  {
+    "slug": "karenau",
+    "displayName": "Karen Au 區慧賢",
+    "bio": "女性財經 KOL，專注 ESG 投資及退休規劃",
+    "socialLinks": {
+      "youtube": "https://www.youtube.com/@karenau",
+      "instagram": "https://www.instagram.com/karenau_invest"
+    }
+  },
+  {
+    "slug": "steveleung",
+    "displayName": "梁耀鉞 Steve Leung",
+    "bio": "技術分析導師，每週發布港股市場展望",
+    "socialLinks": { "youtube": "https://www.youtube.com/@steveleung" }
+  },
+  {
+    "slug": "crypto-mak",
+    "displayName": "麥佬 Crypto Mak",
+    "bio": "加密貨幣分析師，專注 BTC/ETH 及 DeFi 生態",
+    "socialLinks": {
+      "youtube": "https://www.youtube.com/@cryptomak",
+      "twitter": "https://twitter.com/crypto_mak_hk"
+    }
+  },
+  {
+    "slug": "johnchan-options",
+    "displayName": "陳啟宗 John Chan",
+    "bio": "期權策略專家，前衍生產品交易員",
+    "socialLinks": { "youtube": "https://www.youtube.com/@johnchan" }
+  },
+  {
+    "slug": "mandywu-finance",
+    "displayName": "Mandy Wu 胡曼蒂",
+    "bio": "財經網紅，專注年輕人理財教育及基金投資入門",
+    "socialLinks": {
+      "youtube": "https://www.youtube.com/@mandywu",
+      "instagram": "https://www.instagram.com/mandywu_finance"
+    }
+  },
+  {
+    "slug": "hk-etf-guru",
+    "displayName": "ETF 達人",
+    "bio": "專注港股及美股 ETF 配置，分享被動投資策略",
+    "socialLinks": { "youtube": "https://www.youtube.com/@hketfguru" }
+  },
+  {
+    "slug": "williamso",
+    "displayName": "蘇子健 William So",
+    "bio": "基金經理出身，分享環球宏觀經濟及資產配置見解",
+    "socialLinks": { "youtube": "https://www.youtube.com/@williamso" }
+  },
+  {
+    "slug": "fxmaster-hk",
+    "displayName": "外匯高手 FX Master",
+    "bio": "專注主要貨幣對及商品 CFD 交易策略",
+    "socialLinks": { "youtube": "https://www.youtube.com/@fxmasterhk" }
+  },
+  {
+    "slug": "patrickwong",
+    "displayName": "黃智勤 Patrick Wong",
+    "bio": "SFC 持牌投資顧問（Type 4），專注高淨值客戶資產管理",
+    "credentials": [{ "type": "SFC_TYPE_4", "verified": false }],
+    "socialLinks": { "youtube": "https://www.youtube.com/@patrickwong" }
+  },
+  {
+    "slug": "harrylau",
+    "displayName": "劉偉聰 Harry Lau",
+    "bio": "前高盛分析員，專注科技股及 IPO 前瞻分析",
+    "socialLinks": {
+      "youtube": "https://www.youtube.com/@harrylau",
+      "twitter": "https://twitter.com/harrylau_hk"
+    }
+  },
+  {
+    "slug": "daisy-investor",
+    "displayName": "Daisy 投資筆記",
+    "bio": "分享月供股票及長線投資心得，適合普通打工仔",
+    "socialLinks": {
+      "youtube": "https://www.youtube.com/@daisyinvestor",
+      "instagram": "https://www.instagram.com/daisyinvestor"
+    }
+  }
+]

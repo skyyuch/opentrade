@@ -18,7 +18,7 @@ import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { PrismaClient } from '@prisma/client';
+import { Prisma, PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
 import { syncBrokers } from '../src/sfc/sync-brokers.js';
@@ -108,6 +108,65 @@ const seedAdminUser = async (): Promise<void> => {
   console.log(`  ✔ admin user username="${username}" id=${result.id} role=${result.role}`);
 };
 
+type HkKolSeed = {
+  slug: string;
+  displayName: string;
+  bio?: string;
+  socialLinks?: Record<string, string>;
+  credentials?: Array<{ type: string; verified: boolean }>;
+};
+
+const seedKols = async (): Promise<void> => {
+  const jsonPath = resolve(__dirname, '../seed/data/hk-kols.json');
+  let data: HkKolSeed[];
+  try {
+    data = JSON.parse(readFileSync(jsonPath, 'utf-8')) as HkKolSeed[];
+  } catch {
+    console.log('  ⚠ seed/data/hk-kols.json not found. Skipping KOL seed.');
+    return;
+  }
+
+  const tenant = await prisma.tenant.findUnique({ where: { code: 'hk' } });
+  if (!tenant) {
+    console.log('  ⚠ Tenant "hk" not found. Skipping KOL seed.');
+    return;
+  }
+
+  let created = 0;
+  let updated = 0;
+
+  for (const kol of data) {
+    const socialLinksValue = kol.socialLinks ?? Prisma.JsonNull;
+    const credentialsValue = kol.credentials ?? Prisma.JsonNull;
+
+    const result = await prisma.kol.upsert({
+      where: { slug: kol.slug },
+      update: {
+        displayName: kol.displayName,
+        bio: kol.bio ?? null,
+        socialLinks: socialLinksValue,
+        credentials: credentialsValue,
+      },
+      create: {
+        tenantId: tenant.id,
+        slug: kol.slug,
+        displayName: kol.displayName,
+        bio: kol.bio ?? null,
+        socialLinks: socialLinksValue,
+        credentials: credentialsValue,
+        status: 'UNCLAIMED',
+      },
+    });
+    if (result.createdAt.getTime() === result.updatedAt.getTime()) {
+      created++;
+    } else {
+      updated++;
+    }
+  }
+
+  console.log(`  ✔ KOLs: ${created} created, ${updated} updated (${data.length} total)`);
+};
+
 const main = async (): Promise<void> => {
   console.log('Seeding @opentrade/db...');
   console.log('• Tenants');
@@ -116,6 +175,8 @@ const main = async (): Promise<void> => {
   await seedAdminUser();
   console.log('• SFC Brokers');
   await seedBrokers();
+  console.log('• HK KOLs');
+  await seedKols();
   console.log('Done.');
 };
 
