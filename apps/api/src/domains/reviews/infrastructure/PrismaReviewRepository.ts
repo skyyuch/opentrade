@@ -70,22 +70,39 @@ export class PrismaReviewRepository implements IReviewRepository {
 
   async listByBroker(options: ReviewListOptions): Promise<ReviewListResult> {
     const limit = options.limit ?? 20;
+    const sort = options.sort ?? 'latest';
 
-    // Per M7.6a: default to kind=REVIEW so the public reviews tab
-    // never shows complaint rows by accident. The legacy behaviour
-    // (no kind filter) returned both kinds silently after M7.3a
-    // landed `kind = COMPLAINT` writes through the complaints repo
-    // sharing this table.
-    const where = {
+    const where: Record<string, unknown> = {
       tenantId: options.tenantId,
       brokerId: options.brokerId,
       deletedAt: null,
       kind: options.kind ?? ('REVIEW' as const),
     };
 
+    if (options.authorFilter === 'verified') {
+      where['user'] = { sbtTier: { not: 'L1' } };
+    } else if (options.authorFilter === 'kol') {
+      where['user'] = { kolProfiles: { some: { status: 'APPROVED' } } };
+    }
+
+    const orderBy =
+      sort === 'positive_first'
+        ? [
+            { sentiment: { sort: 'desc' as const, nulls: 'last' as const } },
+            { createdAt: 'desc' as const },
+            { id: 'desc' as const },
+          ]
+        : sort === 'negative_first'
+          ? [
+              { sentiment: { sort: 'asc' as const, nulls: 'last' as const } },
+              { createdAt: 'desc' as const },
+              { id: 'desc' as const },
+            ]
+          : [{ createdAt: 'desc' as const }, { id: 'desc' as const }];
+
     const findArgs: Parameters<typeof this.prisma.review.findMany>[0] = {
       where,
-      orderBy: [{ createdAt: 'desc' as const }, { id: 'desc' as const }],
+      orderBy,
       take: limit + 1,
     };
 

@@ -5,7 +5,12 @@
  * cursor-based pagination for infinite scroll UX.
  */
 
-import type { IReviewRepository, ReviewListResult } from '../domain/IReviewRepository.js';
+import type {
+  IReviewRepository,
+  ReviewAuthorFilter,
+  ReviewListResult,
+  ReviewSort,
+} from '../domain/IReviewRepository.js';
 
 export type GetBrokerReviewsInput = {
   tenantId: string;
@@ -18,6 +23,8 @@ export type GetBrokerReviewsInput = {
    * (public reviews tab) gets the correct behaviour by default.
    */
   kind?: 'REVIEW' | 'COMPLAINT' | undefined;
+  sort?: ReviewSort | undefined;
+  authorFilter?: ReviewAuthorFilter | undefined;
 };
 
 export class GetBrokerReviewsUseCase {
@@ -31,6 +38,8 @@ export class GetBrokerReviewsUseCase {
       cursor: input.cursor,
       limit,
       kind: input.kind,
+      sort: input.sort,
+      authorFilter: input.authorFilter,
     });
   }
 }

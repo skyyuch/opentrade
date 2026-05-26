@@ -95,11 +95,15 @@ const submitReviewBodySchema = z.object({
 // read surface is `/v1/complaints/broker/:slug`, which ships the
 // evidence + verification metadata this endpoint cannot.
 const REVIEW_KIND_VALUES = ['REVIEW', 'COMPLAINT'] as const;
+const REVIEW_SORT_VALUES = ['latest', 'positive_first', 'negative_first'] as const;
+const REVIEW_AUTHOR_FILTER_VALUES = ['all', 'verified', 'kol'] as const;
 
 const listReviewsQuerySchema = z.object({
   cursor: z.string().uuid().optional(),
   limit: z.coerce.number().int().min(1).max(50).optional(),
   kind: z.enum(REVIEW_KIND_VALUES).optional(),
+  sort: z.enum(REVIEW_SORT_VALUES).optional(),
+  authorFilter: z.enum(REVIEW_AUTHOR_FILTER_VALUES).optional(),
 });
 
 export const reviewsRouter = new Hono<AppHonoEnv>();
@@ -197,9 +201,9 @@ reviewsRouter.get('/broker/:slug', async (c) => {
     brokerId: broker.id,
     cursor: query.data.cursor,
     limit: query.data.limit,
-    // Repo defaults to `REVIEW` when omitted — passing through still
-    // lets an admin caller explicitly request `COMPLAINT` for parity.
     kind: query.data.kind,
+    sort: query.data.sort,
+    authorFilter: query.data.authorFilter === 'all' ? undefined : query.data.authorFilter,
   });
 
   const userIds = [...new Set(result.items.map((r) => r.userId))];
@@ -216,14 +220,8 @@ reviewsRouter.get('/broker/:slug', async (c) => {
       id: true,
       displayName: true,
       sbtTier: true,
-      // Per ADR-0025: review cards surface the author's verified-broker
-      // list as a public credibility signal. UserVerifiedBroker keys by
-      // slug (not brokerId) so we can't `include` the broker row;
-      // instead we collect every slug across the page and resolve their
-      // names via `hydrateBrokerNames` in one query below. Per cursor
-      // rule 51 we then ship both `displayName` + `legalName` so the
-      // ReviewCard renders in the reader's locale.
       verifiedBrokers: { select: { brokerSlug: true } },
+      kolProfiles: { where: { status: 'APPROVED' }, select: { id: true }, take: 1 },
     },
   });
 
@@ -261,6 +259,7 @@ reviewsRouter.get('/broker/:slug', async (c) => {
         author: {
           displayName: author?.displayName ?? null,
           sbtTier: author?.sbtTier ?? 'L1',
+          isKol: (author?.kolProfiles?.length ?? 0) > 0,
           verifiedBrokers:
             author?.verifiedBrokers.map((b) => {
               const meta = verifiedNameMap.get(b.brokerSlug);

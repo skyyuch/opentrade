@@ -31,6 +31,9 @@ export type CreateReviewData = Omit<SubmitReviewInput, 'rating' | 'sentiment'> &
   ipfsCid: string;
 };
 
+export type ReviewSort = 'latest' | 'positive_first' | 'negative_first';
+export type ReviewAuthorFilter = 'all' | 'verified' | 'kol';
+
 export type ReviewListOptions = {
   tenantId: string;
   brokerId: string;
@@ -51,6 +54,8 @@ export type ReviewListOptions = {
    * verification metadata this endpoint cannot ship.
    */
   kind?: 'REVIEW' | 'COMPLAINT' | undefined;
+  sort?: ReviewSort | undefined;
+  authorFilter?: ReviewAuthorFilter | undefined;
 };
 
 export type ReviewListResult = {
