@@ -1,21 +1,20 @@
 /**
- * `/verify` — L2 SBT verification UI.
+ * `/verify` — L2 SBT verification wizard.
  *
- * UX flow (per ADR-0022 + Google dark crypto design):
- *   1. User selects broker (searchable combobox; locale-aware label)
- *   2. User drag-drops or picks a statement file (PDF/JPG/PNG/WebP, max 10MB)
- *   3. File is uploaded to IPFS via POST /v1/auth/verify-broker/upload
- *      → server returns the CID; raw bytes are never stored in our DB
- *   4. Browser computes commitment = keccak256(walletAddress, brokerSlug,
- *      ipfsCid, randomSalt32) locally
- *   5. User submits → POST /v1/auth/verify-broker stores the request,
- *      admin reviews, on approval the outbox triggers an on-chain SBT mint
+ * 3-step wizard with left progress tracker (sticky sidebar) + right content:
+ *   Step 1: Select broker + upload evidence
+ *   Step 2: Commitment hash generation with decorative terminal animation
+ *   Step 3: Submit → pending/approved/rejected status card
+ *
+ * Per ADR-0022 + ADR-0025: keeps all real API calls (uploadVerifyEvidence,
+ * POST /v1/auth/verify-broker, fetchVerificationStatus) + Privy auth gate.
  */
 
 'use client';
 
 import { usePrivy } from '@privy-io/react-auth';
 import {
+  ArrowRight,
   Check,
   CheckCircle2,
   ChevronDown,
@@ -26,6 +25,7 @@ import {
   RefreshCw,
   Search,
   Shield,
+  Terminal,
   Upload,
   X,
   XCircle,
@@ -58,9 +58,6 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
 type Broker = {
   slug: string;
-  // Per ADR-0026: keep the local Broker shape aligned with the API's
-  // three-column contract (TC + SC + EN) so callers can pipe these
-  // values into `localizedBrokerName()` without runtime guards.
   displayName: string;
   displayNameZhHans: string | null;
   legalName: string;
@@ -73,29 +70,11 @@ type VerifyFormProps = {
 type UploadedFile = {
   file: File;
   cid: string;
-  /** Local object URL for image thumbnail preview. Null for non-image files. */
   previewUrl: string | null;
 };
 
-// `localizedBrokerName` is the canonical helper from `@opentrade/shared`
-// (per cursor rule 51). The previous inline `brokerNameForSlug` lookup
-// against the SSR-shipped 100-broker pool was a fallback that silently
-// degraded to the raw slug whenever the user's verified broker sat
-// beyond the first page — visible regression on /verify "已驗證的券商".
-// All call sites now consume the API-shipped `{displayName, legalName}`
-// columns directly and pipe them through `localizedBrokerName()`.
-
-/**
- * `idle`            — fresh user, no record yet → show form
- * `pending`         — has a PENDING request → show pending card (no form)
- * `rejected`        — latest record is REJECTED → show rejected card with retry
- * `approved`        — has ≥ 1 verified broker but no follow-up activity →
- *                     show summary with "verify another broker" CTA per
- *                     ADR-0025 D1 (a user may verify multiple brokers).
- * `adding`          — user pressed "verify another broker"; show form again
- *                     with already-verified brokers excluded from the picker.
- */
 type ViewMode = 'loading' | 'idle' | 'pending' | 'rejected' | 'approved' | 'adding';
+type WizardStep = 1 | 2 | 3;
 
 export const VerifyForm = ({ brokers }: VerifyFormProps) => {
   const t = useTranslations('verify');
@@ -109,6 +88,7 @@ export const VerifyForm = ({ brokers }: VerifyFormProps) => {
   const [latestVerification, setLatestVerification] = useState<VerificationStatusItem | null>(null);
   const [verifiedBrokers, setVerifiedBrokers] = useState<VerifiedBrokerEntry[]>([]);
   const [viewMode, setViewMode] = useState<ViewMode>('loading');
+  const [wizardStep, setWizardStep] = useState<WizardStep>(1);
   const [brokerSlug, setBrokerSlug] = useState('');
   const [uploaded, setUploaded] = useState<UploadedFile | null>(null);
   const [commitment, setCommitment] = useState('');
@@ -117,6 +97,10 @@ export const VerifyForm = ({ brokers }: VerifyFormProps) => {
   const [isDragging, setIsDragging] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Terminal animation logs for step 2
+  const [terminalLogs, setTerminalLogs] = useState<string[]>([]);
+  const [hashReady, setHashReady] = useState(false);
 
   useEffect(() => {
     if (!authenticated) {
@@ -145,22 +129,15 @@ export const VerifyForm = ({ brokers }: VerifyFormProps) => {
       if (profileRes) setProfile(profileRes.user);
 
       const latest = statusRes?.verifications[0] ?? null;
-      const brokers = statusRes?.verifiedBrokers ?? [];
+      const vBrokers = statusRes?.verifiedBrokers ?? [];
       setLatestVerification(latest);
-      setVerifiedBrokers(brokers);
+      setVerifiedBrokers(vBrokers);
 
-      // Status-machine resolution per ADR-0025 D1:
-      //   - PENDING wins over everything → user sees pending card.
-      //   - REJECTED wins over historical APPROVEDs → rejected card with
-      //     retry, because the rejected request is the latest activity.
-      //   - Otherwise: if the user has any approved brokers, show the
-      //     approved summary that lets them add another broker.
-      //   - Else (fresh user) → form.
       if (latest?.status === 'PENDING') {
         setViewMode('pending');
       } else if (latest?.status === 'REJECTED') {
         setViewMode('rejected');
-      } else if (brokers.length > 0 || profileRes?.user.sbtTier === 'L2') {
+      } else if (vBrokers.length > 0 || profileRes?.user.sbtTier === 'L2') {
         setViewMode('approved');
       } else {
         setViewMode('idle');
@@ -170,9 +147,10 @@ export const VerifyForm = ({ brokers }: VerifyFormProps) => {
     return () => controller.abort();
   }, [authenticated, getAccessToken]);
 
-  // Reset commitment when broker or uploaded file changes.
   useEffect(() => {
     setCommitment('');
+    setHashReady(false);
+    setTerminalLogs([]);
   }, [brokerSlug, uploaded?.cid]);
 
   const handleFile = useCallback(
@@ -200,11 +178,6 @@ export const VerifyForm = ({ brokers }: VerifyFormProps) => {
           return { file: selectedFile, cid: res.cid, previewUrl };
         });
       } catch (err) {
-        // Most upload failures are network glitches; the API does emit
-        // structured `details.reason` on validation rejections (file_too_large
-        // / invalid_file_type) which `translateApiError` will surface verbatim.
-        // Anything unrecognised falls back to the legacy `verify.uploadFailed`
-        // copy since users care about retry guidance more than internals.
         setError(translateApiError(err, tErrors, t('uploadFailed')));
       } finally {
         setIsUploading(false);
@@ -213,7 +186,6 @@ export const VerifyForm = ({ brokers }: VerifyFormProps) => {
     [getAccessToken, t, tErrors],
   );
 
-  // Revoke each preview URL when it's replaced or on unmount, to avoid memory leaks.
   useEffect(() => {
     const url = uploaded?.previewUrl;
     if (!url) return undefined;
@@ -241,32 +213,63 @@ export const VerifyForm = ({ brokers }: VerifyFormProps) => {
     if (uploaded?.previewUrl) URL.revokeObjectURL(uploaded.previewUrl);
     setUploaded(null);
     setCommitment('');
+    setHashReady(false);
+    setTerminalLogs([]);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  const computeCommitment = () => {
+  const startHashComputation = () => {
     if (!brokerSlug || !uploaded || !profile?.walletAddressFull) return;
 
     setIsComputing(true);
-    setTimeout(() => {
-      const saltBytes = crypto.getRandomValues(new Uint8Array(32));
-      const saltHex: `0x${string}` = `0x${Array.from(saltBytes)
-        .map((b) => b.toString(16).padStart(2, '0'))
-        .join('')}`;
+    setTerminalLogs([]);
+    setHashReady(false);
 
-      const hash = keccak256(
-        encodePacked(
-          ['address', 'string', 'string', 'bytes32'],
-          [profile.walletAddressFull as `0x${string}`, brokerSlug, uploaded.cid, saltHex],
-        ),
-      );
-      setCommitment(hash);
-      setIsComputing(false);
-    }, 400);
+    const logs = [
+      '[System] Initializing keccak256 engine...',
+      '[Engine] Loading wallet address parameter...',
+      `[Engine] Broker slug: ${brokerSlug}`,
+      `[IPFS] Content identifier: ${uploaded.cid.slice(0, 16)}...`,
+      '[Crypto] Generating random 32-byte salt...',
+      '[Crypto] Computing encodePacked(address, string, string, bytes32)...',
+      '[keccak256] Hashing packed data...',
+    ];
+
+    let idx = 0;
+    const interval = setInterval(() => {
+      if (idx < logs.length) {
+        setTerminalLogs((prev) => [...prev, logs[idx] ?? '']);
+        idx++;
+      } else {
+        clearInterval(interval);
+
+        // Real keccak256 computation
+        const saltBytes = crypto.getRandomValues(new Uint8Array(32));
+        const saltHex: `0x${string}` = `0x${Array.from(saltBytes)
+          .map((b) => b.toString(16).padStart(2, '0'))
+          .join('')}`;
+
+        const hash = keccak256(
+          encodePacked(
+            ['address', 'string', 'string', 'bytes32'],
+            [profile.walletAddressFull as `0x${string}`, brokerSlug, uploaded.cid, saltHex],
+          ),
+        );
+
+        setCommitment(hash);
+        setTerminalLogs((prev) => [
+          ...prev,
+          '[System] Proof generation successful.',
+          `[Result] Commitment: ${hash}`,
+        ]);
+        setHashReady(true);
+        setIsComputing(false);
+      }
+    }, 450);
   };
 
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (e?: FormEvent) => {
+    e?.preventDefault();
     if (!brokerSlug || !uploaded || !commitment) return;
 
     setSubmitting(true);
@@ -284,17 +287,10 @@ export const VerifyForm = ({ brokers }: VerifyFormProps) => {
         },
         { accessToken: token },
       );
-      // We synthesise a local PENDING row instead of refetching status,
-      // for instant UI transition. Per cursor rule 51 the new
-      // VerificationStatusItem shape carries broker name columns; we
-      // resolve them from the SSR-shipped broker pool because the user
-      // just picked the broker from the same pool seconds ago, so the
-      // hit rate is 100% by construction.
       const pickedBroker = brokers.find((b) => b.slug === brokerSlug);
       setLatestVerification({
         id: 'pending-local',
         brokerSlug,
-        // Per ADR-0026: ship all three name columns (TC + SC + EN).
         brokerDisplayName: pickedBroker?.displayName ?? brokerSlug,
         brokerDisplayNameZhHans: pickedBroker?.displayNameZhHans ?? null,
         brokerLegalName: pickedBroker?.legalName ?? null,
@@ -306,12 +302,7 @@ export const VerifyForm = ({ brokers }: VerifyFormProps) => {
       });
       setViewMode('pending');
     } catch (err) {
-      // The API distinguishes the two CONFLICT sub-cases via
-      // `details.reason` (`pending_exists` vs `broker_already_verified`)
-      // — `translateApiError` resolves them to localised strings; any
-      // unmapped error falls back to the generic `errors.code.*` copy.
       setError(translateApiError(err, tErrors));
-    } finally {
       setSubmitting(false);
     }
   };
@@ -321,15 +312,17 @@ export const VerifyForm = ({ brokers }: VerifyFormProps) => {
     setBrokerSlug('');
     setUploaded(null);
     setCommitment('');
+    setHashReady(false);
+    setTerminalLogs([]);
     setError(null);
+    setWizardStep(1);
     if (fileInputRef.current) fileInputRef.current.value = '';
     setViewMode('idle');
   };
 
   // -------------------------------------------------------------------------
-  // Render
+  // Auth gate
   // -------------------------------------------------------------------------
-
   if (!authenticated) {
     return (
       <div className="flex flex-col items-center gap-4 rounded-2xl border border-white/10 bg-white/5 p-10 text-center">
@@ -360,7 +353,10 @@ export const VerifyForm = ({ brokers }: VerifyFormProps) => {
         verifiedBrokers={verifiedBrokers}
         locale={locale}
         canAddMore={verifiedBrokers.length < brokers.length}
-        onAddAnother={() => setViewMode('adding')}
+        onAddAnother={() => {
+          setViewMode('adding');
+          setWizardStep(1);
+        }}
       />
     );
   }
@@ -400,183 +396,310 @@ export const VerifyForm = ({ brokers }: VerifyFormProps) => {
     );
   }
 
-  const canCompute = Boolean(brokerSlug && uploaded && profile?.walletAddressFull);
-  const canSubmit = Boolean(brokerSlug && uploaded && commitment && !submitting);
+  // -------------------------------------------------------------------------
+  // Wizard
+  // -------------------------------------------------------------------------
+  const canProceedToStep2 = Boolean(brokerSlug && uploaded);
+  const canSubmit = Boolean(commitment && hashReady && !submitting);
 
   return (
-    <form onSubmit={(e) => void handleSubmit(e)} className="space-y-8">
-      <h2 className="border-b border-white/10 pb-4 text-2xl font-bold">{t('formTitle')}</h2>
+    <div className="grid grid-cols-1 gap-10 lg:grid-cols-12 lg:gap-16">
+      {/* Left: Progress Tracker */}
+      <div className="lg:col-span-3">
+        <div className="sticky top-24 space-y-6">
+          <h3 className="text-sm font-bold uppercase tracking-widest text-white/40">
+            {t('wizard.protocol')}
+          </h3>
 
-      {/* Broker selection */}
-      <div className="space-y-3">
-        <label htmlFor="broker-combobox" className="block text-sm font-bold text-white/80">
-          {t('brokerSlug')}
-        </label>
-        <BrokerCombobox
-          initialBrokers={brokers}
-          locale={locale}
-          value={brokerSlug}
-          onChange={setBrokerSlug}
-          excludeSlugs={verifiedBrokers.map((b) => b.brokerSlug)}
-        />
-      </div>
-
-      {/* File upload */}
-      <div className="space-y-3">
-        <label className="flex items-center justify-between text-sm font-bold text-white/80">
-          <span>{t('uploadLabel')}</span>
-          <span className="text-xs font-normal text-white/40">{t('uploadSizeHint')}</span>
-        </label>
-
-        <div
-          className={`group relative w-full overflow-hidden rounded-xl border-2 border-dashed p-8 transition-all
-            ${isDragging ? 'border-[#00FF88] bg-[#00FF88]/5' : 'border-white/20 bg-white/5 hover:border-white/40 hover:bg-white/10'}
-            ${uploaded ? 'border-blue-500/50 bg-blue-500/5 hover:border-blue-500/60' : ''}
-            ${!uploaded ? 'cursor-pointer' : ''}`}
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
-          onClick={() => !uploaded && !isUploading && fileInputRef.current?.click()}
-        >
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) void handleFile(file);
-            }}
-            className="hidden"
-            accept=".pdf,.jpg,.jpeg,.png,.webp"
-          />
-
-          {isUploading ? (
-            <div className="flex flex-col items-center justify-center gap-3">
-              <div className="flex size-12 items-center justify-center rounded-full bg-[#00FF88]/15">
-                <div className="size-5 animate-spin rounded-full border-2 border-[#00FF88]/30 border-t-[#00FF88]" />
-              </div>
-              <span className="text-sm font-bold text-white">{t('uploadingFile')}</span>
-            </div>
-          ) : uploaded ? (
-            <div className="z-10 flex flex-col items-center justify-center">
-              {uploaded.previewUrl ? (
-                <div className="mb-3 flex size-32 items-center justify-center overflow-hidden rounded-xl border border-white/10 bg-black/40">
-                  <img
-                    src={uploaded.previewUrl}
-                    alt={uploaded.file.name}
-                    className="size-full object-cover"
-                  />
+          <div className="space-y-3">
+            {[
+              { s: 1 as const, title: t('wizard.step1Title'), desc: t('wizard.step1Desc') },
+              { s: 2 as const, title: t('wizard.step2Title'), desc: t('wizard.step2Desc') },
+              { s: 3 as const, title: t('wizard.step3Title'), desc: t('wizard.step3Desc') },
+            ].map((step) => {
+              const isActive = wizardStep === step.s;
+              const isPassed = wizardStep > step.s;
+              return (
+                <div
+                  key={step.s}
+                  className={`flex items-start gap-4 rounded-xl p-4 transition-all ${isActive ? 'border border-white/20 bg-white/5 shadow-lg' : 'opacity-60'}`}
+                >
+                  <div
+                    className={`flex size-8 shrink-0 items-center justify-center rounded-full border-2 ${isPassed ? 'border-[#00FF88] bg-[#00FF88] text-black' : isActive ? 'border-[#00FF88] text-[#00FF88]' : 'border-white/20 text-white/40'}`}
+                  >
+                    {isPassed ? (
+                      <Check size={14} strokeWidth={3} />
+                    ) : (
+                      <span className="text-sm font-bold">{step.s}</span>
+                    )}
+                  </div>
+                  <div>
+                    <div className={`font-bold ${isActive ? 'text-white' : 'text-white/60'}`}>
+                      {step.title}
+                    </div>
+                    <div className="mt-1 text-xs text-white/40">{step.desc}</div>
+                  </div>
                 </div>
-              ) : (
-                <div className="mb-3 flex size-12 items-center justify-center rounded-full bg-blue-500/20 text-blue-400">
-                  <FileText size={24} />
-                </div>
-              )}
-              <span className="mb-1 max-w-xs truncate font-bold text-white">
-                {uploaded.file.name}
-              </span>
-              <span className="mb-4 text-sm text-white/50">
-                {(uploaded.file.size / 1024 / 1024).toFixed(2)} MB
-              </span>
-              <div className="mb-3 flex items-center gap-2 rounded-full bg-[#00FF88]/10 px-3 py-1 font-mono text-xs text-[#00FF88]">
-                <span className="text-white/40">{t('ipfsCid')}:</span>
-                <span className="truncate" title={uploaded.cid}>
-                  {uploaded.cid.slice(0, 10)}...{uploaded.cid.slice(-6)}
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleRemoveFile();
-                }}
-                className="flex items-center gap-1 rounded-full bg-red-500/10 px-3 py-1.5 text-xs text-red-400 transition-colors hover:text-red-300"
-              >
-                <X size={14} /> {t('removeFile')}
-              </button>
-            </div>
-          ) : (
-            <div className="pointer-events-none flex flex-col items-center justify-center">
-              <div className="mb-4 flex size-12 items-center justify-center rounded-full bg-white/5 text-white/50 transition-transform group-hover:scale-110">
-                <Upload size={24} />
-              </div>
-              <span className="mb-2 font-bold text-white">{t('uploadDropTitle')}</span>
-              <span className="max-w-xs text-center text-sm text-white/40">
-                {t('uploadDropDesc')}
-              </span>
-            </div>
-          )}
-        </div>
-        <p className="pt-1 text-xs text-white/40">{t('uploadIpfsHint')}</p>
-      </div>
+              );
+            })}
+          </div>
 
-      {/* Commitment hash */}
-      <div className="space-y-3">
-        <label className="block text-sm font-bold text-white/80">{t('commitmentLabel')}</label>
-        <div className="relative">
-          <div className="flex min-h-[50px] w-full items-center overflow-hidden rounded-xl border border-white/10 bg-black/40 px-4 py-3.5">
-            {commitment ? (
-              <span className="break-all font-mono text-sm text-[#00FF88]">{commitment}</span>
-            ) : (
-              <button
-                type="button"
-                disabled={!canCompute || isComputing}
-                onClick={computeCommitment}
-                className="flex h-full w-full items-center justify-center gap-2 text-white/40 transition-colors hover:text-white disabled:pointer-events-none"
-              >
-                {isComputing ? (
-                  <span className="flex animate-pulse items-center gap-2 font-bold text-white">
-                    <Lock size={16} /> {t('computing')}
-                  </span>
-                ) : (
-                  <>
-                    <Lock size={16} />{' '}
-                    {canCompute ? t('computeCommitment') : t('computeCommitmentReady')}
-                  </>
-                )}
-              </button>
-            )}
+          {/* SBT warning callout */}
+          <div className="flex items-start gap-3 rounded-xl border border-orange-500/20 bg-orange-500/10 p-4">
+            <Shield size={16} className="mt-0.5 shrink-0 text-orange-400" />
+            <p className="text-xs leading-relaxed text-orange-200/80">{t('wizard.sbtWarning')}</p>
           </div>
         </div>
-        <p className="pt-1 text-xs text-white/40">{t('commitmentHint')}</p>
       </div>
 
-      {error && (
-        <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
-          {t('errorTitle')}: {error}
-        </div>
-      )}
+      {/* Right: Content Area */}
+      <div className="lg:col-span-9">
+        {/* STEP 1: Select broker + upload */}
+        {wizardStep === 1 && (
+          <div className="animate-in slide-in-from-right-4 space-y-8 duration-500">
+            <div>
+              <h2 className="mb-2 text-2xl font-bold">{t('wizard.step1Heading')}</h2>
+              <p className="text-sm text-white/50">{t('wizard.step1Subtitle')}</p>
+            </div>
 
-      <button
-        type="submit"
-        disabled={!canSubmit}
-        className="flex w-full items-center justify-center gap-2 rounded-xl py-4 text-lg font-bold transition-all enabled:bg-blue-600 enabled:text-white enabled:shadow-[0_0_20px_rgba(37,99,235,0.4)] enabled:hover:bg-blue-500 disabled:cursor-not-allowed disabled:bg-blue-600/20 disabled:text-blue-200/30"
-      >
-        {submitting ? t('submitting') : t('submit')}
-      </button>
+            {/* Broker selection */}
+            <div className="space-y-3">
+              <label htmlFor="broker-combobox" className="block text-sm font-bold text-white/80">
+                {t('brokerSlug')}
+              </label>
+              <BrokerCombobox
+                initialBrokers={brokers}
+                locale={locale}
+                value={brokerSlug}
+                onChange={setBrokerSlug}
+                excludeSlugs={verifiedBrokers.map((b) => b.brokerSlug)}
+              />
+            </div>
 
-      <p className="text-center text-xs text-white/30">{t('disclaimer')}</p>
-    </form>
+            {/* File upload */}
+            <div className="space-y-3">
+              <label className="flex items-center justify-between text-sm font-bold text-white/80">
+                <span>{t('uploadLabel')}</span>
+                <span className="text-xs font-normal text-white/40">{t('uploadSizeHint')}</span>
+              </label>
+
+              <div
+                className={`group relative w-full overflow-hidden rounded-xl border-2 border-dashed p-8 transition-all
+                  ${isDragging ? 'border-[#00FF88] bg-[#00FF88]/5' : 'border-white/20 bg-white/5 hover:border-white/40 hover:bg-white/10'}
+                  ${uploaded ? 'border-blue-500/50 bg-blue-500/5 hover:border-blue-500/60' : ''}
+                  ${!uploaded ? 'cursor-pointer' : ''}`}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                onClick={() => !uploaded && !isUploading && fileInputRef.current?.click()}
+              >
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) void handleFile(file);
+                  }}
+                  className="hidden"
+                  accept=".pdf,.jpg,.jpeg,.png,.webp"
+                />
+
+                {isUploading ? (
+                  <div className="flex flex-col items-center justify-center gap-3">
+                    <div className="flex size-12 items-center justify-center rounded-full bg-[#00FF88]/15">
+                      <div className="size-5 animate-spin rounded-full border-2 border-[#00FF88]/30 border-t-[#00FF88]" />
+                    </div>
+                    <span className="text-sm font-bold text-white">{t('uploadingFile')}</span>
+                  </div>
+                ) : uploaded ? (
+                  <div className="z-10 flex flex-col items-center justify-center">
+                    {uploaded.previewUrl ? (
+                      <div className="mb-3 flex size-32 items-center justify-center overflow-hidden rounded-xl border border-white/10 bg-black/40">
+                        <img
+                          src={uploaded.previewUrl}
+                          alt={uploaded.file.name}
+                          className="size-full object-cover"
+                        />
+                      </div>
+                    ) : (
+                      <div className="mb-3 flex size-12 items-center justify-center rounded-full bg-blue-500/20 text-blue-400">
+                        <FileText size={24} />
+                      </div>
+                    )}
+                    <span className="mb-1 max-w-xs truncate font-bold text-white">
+                      {uploaded.file.name}
+                    </span>
+                    <span className="mb-4 text-sm text-white/50">
+                      {(uploaded.file.size / 1024 / 1024).toFixed(2)} MB
+                    </span>
+                    <div className="mb-3 flex items-center gap-2 rounded-full bg-[#00FF88]/10 px-3 py-1 font-mono text-xs text-[#00FF88]">
+                      <span className="text-white/40">{t('ipfsCid')}:</span>
+                      <span className="truncate" title={uploaded.cid}>
+                        {uploaded.cid.slice(0, 10)}...{uploaded.cid.slice(-6)}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRemoveFile();
+                      }}
+                      className="flex items-center gap-1 rounded-full bg-red-500/10 px-3 py-1.5 text-xs text-red-400 transition-colors hover:text-red-300"
+                    >
+                      <X size={14} /> {t('removeFile')}
+                    </button>
+                  </div>
+                ) : (
+                  <div className="pointer-events-none flex flex-col items-center justify-center">
+                    <div className="mb-4 flex size-12 items-center justify-center rounded-full bg-white/5 text-white/50 transition-transform group-hover:scale-110">
+                      <Upload size={24} />
+                    </div>
+                    <span className="mb-2 font-bold text-white">{t('uploadDropTitle')}</span>
+                    <span className="max-w-xs text-center text-sm text-white/40">
+                      {t('uploadDropDesc')}
+                    </span>
+                  </div>
+                )}
+              </div>
+              <p className="pt-1 text-xs text-white/40">{t('uploadIpfsHint')}</p>
+            </div>
+
+            {error && (
+              <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+                {error}
+              </div>
+            )}
+
+            <div className="flex justify-end pt-4">
+              <button
+                type="button"
+                disabled={!canProceedToStep2}
+                onClick={() => {
+                  setError(null);
+                  setWizardStep(2);
+                }}
+                className="flex items-center gap-2 rounded-xl bg-white px-8 py-3 font-bold text-black transition-all hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-30"
+              >
+                {t('wizard.next')} <ArrowRight size={18} />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* STEP 2: Hash computation with terminal animation */}
+        {wizardStep === 2 && (
+          <div className="animate-in slide-in-from-right-4 space-y-8 duration-500">
+            <div>
+              <h2 className="mb-2 flex items-center gap-2 text-2xl font-bold">
+                <Fingerprint size={24} className="text-[#00FF88]" />
+                {t('wizard.step2Heading')}
+              </h2>
+              <p className="text-sm text-white/50">{t('wizard.step2Subtitle')}</p>
+            </div>
+
+            {/* Terminal */}
+            <div className="overflow-hidden rounded-2xl border border-white/10 bg-zinc-950 shadow-2xl">
+              <div className="flex items-center gap-2 border-b border-white/10 bg-white/5 px-4 py-3">
+                <Terminal size={14} className="text-white/40" />
+                <span className="font-mono text-xs text-white/40">keccak256-engine</span>
+              </div>
+
+              <div className="h-64 space-y-2 overflow-y-auto p-6 font-mono text-xs sm:text-sm">
+                {terminalLogs.length === 0 && !isComputing && (
+                  <div className="flex h-full items-center justify-center">
+                    <button
+                      type="button"
+                      onClick={startHashComputation}
+                      className="flex items-center gap-3 rounded-xl border border-[#00FF88]/30 bg-[#00FF88]/10 px-6 py-4 font-sans text-base font-bold text-[#00FF88] transition-all hover:bg-[#00FF88]/20 hover:shadow-[0_0_20px_rgba(0,255,136,0.2)]"
+                    >
+                      <Lock size={20} /> {t('wizard.startCompute')}
+                    </button>
+                  </div>
+                )}
+                {terminalLogs.map((log, i) => (
+                  <div
+                    key={i}
+                    className={`flex items-start gap-3 ${
+                      log.includes('[Result]')
+                        ? 'mt-4 font-bold text-[#00FF88]'
+                        : log.includes('[Crypto]')
+                          ? 'text-blue-400'
+                          : log.includes('[System]')
+                            ? 'text-white/70'
+                            : 'text-white/50'
+                    }`}
+                  >
+                    <span className="shrink-0 opacity-30">{String(i + 1).padStart(2, '0')}</span>
+                    <span className="break-all">{log}</span>
+                  </div>
+                ))}
+                {isComputing && (
+                  <div className="flex items-center gap-2 text-[#00FF88]">
+                    <span className="opacity-30">
+                      {String(terminalLogs.length + 1).padStart(2, '0')}
+                    </span>
+                    <span className="h-4 w-2 animate-pulse bg-[#00FF88]" />
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Hash result card */}
+            {hashReady && commitment && (
+              <div className="animate-in slide-in-from-bottom-2 flex items-center justify-between rounded-xl border border-[#00FF88]/20 bg-[#00FF88]/10 p-6 duration-300">
+                <div>
+                  <div className="mb-1 text-xs font-bold uppercase tracking-widest text-[#00FF88]">
+                    {t('wizard.commitmentGenerated')}
+                  </div>
+                  <div className="break-all font-mono text-sm text-white lg:text-base">
+                    {commitment}
+                  </div>
+                </div>
+                <CheckCircle2 size={32} className="ml-4 shrink-0 text-[#00FF88]" />
+              </div>
+            )}
+
+            {error && (
+              <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+                {t('errorTitle')}: {error}
+              </div>
+            )}
+
+            <div className="flex justify-between pt-4">
+              <button
+                type="button"
+                onClick={() => setWizardStep(1)}
+                className="px-6 py-3 text-white/50 transition-colors hover:text-white"
+              >
+                {t('wizard.back')}
+              </button>
+              <button
+                type="button"
+                disabled={!canSubmit}
+                onClick={() => void handleSubmit()}
+                className="flex items-center gap-2 rounded-xl px-8 py-3 font-bold transition-all disabled:cursor-not-allowed disabled:opacity-30 enabled:bg-[#00FF88] enabled:text-black enabled:shadow-[0_0_20px_rgba(0,255,136,0.3)] enabled:hover:bg-[#00e67a]"
+              >
+                {submitting ? t('submitting') : t('submit')} <ArrowRight size={18} />
+              </button>
+            </div>
+
+            <p className="text-center text-xs text-white/30">{t('disclaimer')}</p>
+          </div>
+        )}
+      </div>
+    </div>
   );
 };
 
 // =========================================================================
-// BrokerCombobox — searchable broker picker
+// BrokerCombobox — searchable broker picker (unchanged from prior version)
 // =========================================================================
-// Server-side debounced search via /v1/brokers?search=...&limit=50.
-// Local fallback filtering on the initial 100-broker batch shipped from SSR
-// so the dropdown feels instant before the API responds.
 
 type BrokerComboboxProps = {
   initialBrokers: Broker[];
   locale: string;
   value: string;
   onChange: (slug: string) => void;
-  /**
-   * Slugs the user has already been verified for. Per ADR-0025 D2 they
-   * cannot re-verify these, so we filter them from both the initial list
-   * and incoming search results to avoid the user picking a broker that
-   * the API will then reject.
-   */
   excludeSlugs?: string[];
 };
 
@@ -598,17 +721,10 @@ const BrokerCombobox = ({
   const [remoteBrokers, setRemoteBrokers] = useState<Broker[] | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // Cache the full Broker record for the currently-selected slug so its label
-  // survives even after remoteBrokers is cleared (which happens when the
-  // search input goes empty after a pick). Without this, picking a broker
-  // that was NOT in the initial 100-broker SSR pool would leave the input
-  // blank because the lookup chain remoteBrokers → initialBrokers fails on
-  // both pools.
   const [selectedBroker, setSelectedBroker] = useState<Broker | null>(
     () => initialBrokers.find((b) => b.slug === value) ?? null,
   );
 
-  // Reconcile the cache when `value` changes from outside (e.g. parent reset).
   useEffect(() => {
     if (!value) {
       setSelectedBroker(null);
@@ -620,7 +736,6 @@ const BrokerCombobox = ({
     if (found) setSelectedBroker(found);
   }, [value, remoteBrokers, initialBrokers, selectedBroker]);
 
-  // Click-outside closes the dropdown.
   useEffect(() => {
     if (!open) return undefined;
     const handler = (e: MouseEvent) => {
@@ -630,8 +745,6 @@ const BrokerCombobox = ({
     return () => document.removeEventListener('mousedown', handler);
   }, [open]);
 
-  // Debounced server search. Reset to initial when query < 2 chars to avoid
-  // hammering the API on single-character noise.
   useEffect(() => {
     const trimmed = search.trim();
     if (trimmed.length < 2) {
@@ -654,7 +767,6 @@ const BrokerCombobox = ({
             setRemoteBrokers(
               res.brokers.map((b) => ({
                 slug: b.slug,
-                // Per ADR-0026: forward all three name columns.
                 displayName: b.displayName,
                 displayNameZhHans: b.displayNameZhHans,
                 legalName: b.legalName,
@@ -675,8 +787,6 @@ const BrokerCombobox = ({
     };
   }, [search]);
 
-  // List shown in dropdown: remote results (when searching) or initial 100.
-  // For initial-list mode we also locally filter so the typing feels instant.
   const visibleBrokers = useMemo(() => {
     const excluded = new Set(excludeSlugs ?? []);
     const filterExcluded = (list: Broker[]) =>
@@ -695,8 +805,6 @@ const BrokerCombobox = ({
   }, [remoteBrokers, search, initialBrokers, excludeSlugs]);
 
   const handleSelect = (broker: Broker) => {
-    // Cache the full record first so the input keeps the label even after
-    // setSearch('') triggers setRemoteBrokers(null) below.
     setSelectedBroker(broker);
     onChange(broker.slug);
     setOpen(false);
@@ -716,7 +824,6 @@ const BrokerCombobox = ({
 
   return (
     <div ref={containerRef} className="relative">
-      {/* Trigger button / search input */}
       <div
         className={`flex w-full items-center gap-2 rounded-xl border bg-white/5 px-4 py-3 transition-colors
           ${open ? 'border-[#00FF88] ring-1 ring-[#00FF88]' : 'border-white/10 hover:border-white/20'}`}
@@ -757,7 +864,6 @@ const BrokerCombobox = ({
         )}
       </div>
 
-      {/* Dropdown */}
       {open && (
         <div className="absolute left-0 right-0 top-full z-30 mt-2 overflow-hidden rounded-xl border border-white/10 bg-zinc-950/95 shadow-2xl backdrop-blur-md">
           {loading && (
@@ -990,11 +1096,6 @@ const VerifyApprovedCard = ({
           </div>
           <ul className="space-y-2">
             {verifiedBrokers.map((b) => {
-              // Per cursor rule 51 + ADR-0026: API ships all three name
-              // columns directly on each entry, so we never look up the
-              // SSR-shipped 100-broker pool here — that pool may not
-              // include the verified broker if it sits beyond the first
-              // page.
               const name = localizedBrokerName(
                 {
                   slug: b.brokerSlug,
@@ -1040,47 +1141,6 @@ const VerifyApprovedCard = ({
           </button>
         </div>
       )}
-    </div>
-  );
-};
-
-export const VerifySteps = () => {
-  const t = useTranslations('verify');
-
-  const steps = [
-    { icon: Upload, title: t('steps.step1Title'), desc: t('steps.step1Desc') },
-    { icon: Fingerprint, title: t('steps.step2Title'), desc: t('steps.step2Desc') },
-    { icon: Shield, title: t('steps.step3Title'), desc: t('steps.step3Desc') },
-    { icon: CheckCircle2, title: t('steps.step4Title'), desc: t('steps.step4Desc') },
-  ];
-
-  return (
-    <div className="space-y-6">
-      <h3 className="border-b border-white/10 pb-4 text-lg font-bold">{t('steps.title')}</h3>
-      <div className="space-y-4">
-        {steps.map((step, i) => {
-          const Icon = step.icon;
-          return (
-            <div
-              key={i}
-              className="flex gap-4 rounded-2xl border border-white/10 bg-white/5 p-5 transition-all hover:border-white/20 hover:bg-white/10"
-            >
-              <div className="flex size-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/50">
-                <Icon size={18} aria-hidden />
-              </div>
-              <div className="flex-1">
-                <div className="mb-1 flex items-center justify-between">
-                  <h4 className="font-bold text-white">{step.title}</h4>
-                  <span className="font-mono text-xs text-white/30">
-                    {String(i + 1).padStart(2, '0')}
-                  </span>
-                </div>
-                <p className="text-sm leading-relaxed text-white/50">{step.desc}</p>
-              </div>
-            </div>
-          );
-        })}
-      </div>
     </div>
   );
 };

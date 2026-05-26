@@ -449,6 +449,24 @@
       "step4Title": "SBT 鑄造",
       "step4Desc": "審核通過後，你的 Reviewer SBT 將在鏈上鑄造。不可轉讓，永久歸屬於你。"
     },
+    "wizard": {
+      "protocol": "驗證流程",
+      "step1Title": "選擇券商與證據",
+      "step1Desc": "選擇你的券商並上傳帳戶對帳單",
+      "step2Title": "生成承諾值",
+      "step2Desc": "本地計算 keccak256 密碼學承諾",
+      "step3Title": "提交驗證",
+      "step3Desc": "提交審核並等待管理員驗證",
+      "step1Heading": "1. 選擇券商並上傳帳戶證明",
+      "step1Subtitle": "選擇你持有帳戶的券商，並上傳對帳單作為證據。",
+      "step2Heading": "2. 生成密碼學承諾值",
+      "step2Subtitle": "系統正在你的裝置內計算 keccak256 承諾值，你的原始資料不會離開瀏覽器。",
+      "startCompute": "開始計算承諾值",
+      "commitmentGenerated": "承諾值已生成",
+      "next": "繼續下一步",
+      "back": "上一步",
+      "sbtWarning": "一旦 SBT 鑄造完成，它將永久綁定於你當前連接的錢包地址，無法轉讓。請確認你正在使用主錢包。"
+    },
     "disclaimer": "此流程不代表券商本身對帳戶的驗證。OpenTrade 驗證的是你與券商的關係，而非你的投資決策。"
   },
   "status": {

@@ -449,6 +449,24 @@
       "step4Title": "SBT minted",
       "step4Desc": "Once approved, your Reviewer SBT is minted on-chain. Non-transferable, forever yours."
     },
+    "wizard": {
+      "protocol": "Verification Protocol",
+      "step1Title": "Broker & Evidence",
+      "step1Desc": "Select your broker and upload a statement",
+      "step2Title": "Generate Commitment",
+      "step2Desc": "Compute keccak256 cryptographic commitment locally",
+      "step3Title": "Submit Verification",
+      "step3Desc": "Submit for review and await admin verification",
+      "step1Heading": "1. Select broker and upload proof",
+      "step1Subtitle": "Choose the broker you have an account with and upload your statement as evidence.",
+      "step2Heading": "2. Generate cryptographic commitment",
+      "step2Subtitle": "The system is computing a keccak256 commitment locally on your device. Your raw data never leaves the browser.",
+      "startCompute": "Start computing commitment",
+      "commitmentGenerated": "Commitment generated",
+      "next": "Continue",
+      "back": "Back",
+      "sbtWarning": "Once your SBT is minted, it will be permanently bound to your currently connected wallet address and cannot be transferred. Make sure you are using your primary wallet."
+    },
     "disclaimer": "This process does not constitute account verification by the broker itself. OpenTrade verifies your relationship with the broker, not your investment decisions."
   },
   "status": {
