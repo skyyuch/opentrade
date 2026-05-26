@@ -313,6 +313,57 @@ brokersRouter.get('/:slug', async (c) => {
 });
 
 // ---------------------------------------------------------------------------
+// GET /:slug/kols — Related KOLs for a broker (public)
+// Phase 1 approach (plan scheme B): returns APPROVED KOLs with at
+// least one signal, platform-wide. Phase 3 will introduce true
+// broker↔KOL association via signal symbol matching.
+// ---------------------------------------------------------------------------
+
+const brokerKolsQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(20).default(6),
+});
+
+brokersRouter.get('/:slug/kols', async (c) => {
+  const slug = c.req.param('slug');
+
+  const broker = await prisma.broker.findFirst({
+    where: { slug, tenantId: DEFAULT_TENANT_ID, deletedAt: null },
+    select: { id: true },
+  });
+
+  if (!broker) {
+    throw new AppError(ErrorCode.NOT_FOUND, 'Broker not found', 404);
+  }
+
+  const query = brokerKolsQuerySchema.parse(c.req.query());
+
+  const kols = await prisma.kol.findMany({
+    where: {
+      tenantId: DEFAULT_TENANT_ID,
+      status: 'APPROVED',
+      signals: { some: {} },
+    },
+    orderBy: { createdAt: 'desc' },
+    take: query.limit,
+    include: {
+      _count: { select: { signals: true, followers: true } },
+    },
+  });
+
+  return c.json({
+    kols: kols.map((k) => ({
+      id: k.id,
+      slug: k.slug,
+      displayName: k.displayName,
+      avatarUrl: k.avatarUrl,
+      iamSmartVerified: k.iamSmartVerified,
+      signalCount: (k as unknown as { _count: { signals: number } })._count.signals,
+      followerCount: (k as unknown as { _count: { followers: number } })._count.followers,
+    })),
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Broker owner stats (for merchant dashboard)
 // ---------------------------------------------------------------------------
 
