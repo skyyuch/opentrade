@@ -790,6 +790,66 @@ export const rejectVerification = (id: string, adminNote: string, options?: Fetc
   apiPost<{ status: string }>(`/v1/auth/admin/verifications/${id}/reject`, { adminNote }, options);
 
 // ---------------------------------------------------------------------------
+// Admin — complaint moderation per ADR-0029
+//
+// `status` filter is the derived OPEN / VERIFIED / REJECTED tri-state
+// (per ADR-0029 D4, computed from `verifiedAt` + `adminNote`); the API
+// translates it into a `where` clause server-side. Verify and reject
+// are PATCH operations matching the ADR-0029 D4 URL spec.
+// ---------------------------------------------------------------------------
+
+export type AdminComplaintStatus = 'OPEN' | 'VERIFIED' | 'REJECTED';
+
+export type AdminComplaintItem = {
+  id: string;
+  title: string;
+  body: string;
+  sentiment: 'POSITIVE' | 'NEUTRAL' | 'NEGATIVE' | null;
+  status: AdminComplaintStatus;
+  evidenceIpfsCid: string;
+  ipfsCid: string | null;
+  contentHash: string;
+  verifiedAt: string | null;
+  verifiedByUserId: string | null;
+  adminNote: string | null;
+  broker: {
+    slug: string;
+    displayName: string;
+    displayNameZhHans: string | null;
+    legalName: string | null;
+  } | null;
+  author: { id: string; displayName: string | null } | null;
+  createdAt: string;
+};
+
+export type AdminComplaintsResponse = {
+  complaints: AdminComplaintItem[];
+  nextCursor: string | null;
+};
+
+export const fetchAdminComplaints = (
+  status?: AdminComplaintStatus,
+  options?: FetchOptions,
+): Promise<AdminComplaintsResponse> => {
+  const search = status ? `?status=${status}` : '';
+  return apiGet<AdminComplaintsResponse>(`/v1/admin/complaints${search}`, options);
+};
+
+export const verifyComplaint = (id: string, options?: FetchOptions) =>
+  apiPatch<{ complaint: { id: string; verifiedAt: string | null } }>(
+    `/v1/admin/complaints/${id}/verify`,
+    {},
+    options,
+  );
+
+export const rejectComplaint = (id: string, adminNote: string, options?: FetchOptions) =>
+  apiPatch<{ complaint: { id: string; adminNote: string | null } }>(
+    `/v1/admin/complaints/${id}/reject`,
+    { adminNote },
+    options,
+  );
+
+// ---------------------------------------------------------------------------
 // Broker owner — stats
 // ---------------------------------------------------------------------------
 

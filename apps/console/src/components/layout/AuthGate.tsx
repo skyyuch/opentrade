@@ -14,6 +14,7 @@
 
 import {
   Activity,
+  AlertTriangle,
   BadgeCheck,
   Building2,
   Eye,
@@ -229,6 +230,12 @@ export const AuthGate = ({ children }: Props): ReactNode => {
       path: '/admin/reviews',
       icon: Star,
       label: t('nav.reviews'),
+    },
+    {
+      href: '/admin/complaints',
+      path: '/admin/complaints',
+      icon: AlertTriangle,
+      label: t('nav.complaints'),
     },
     {
       href: '/admin/brokers',
