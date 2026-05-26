@@ -872,6 +872,26 @@ export const unfollowKol = (
 };
 
 // ---------------------------------------------------------------------------
+// KOL Stats — aggregated win-rate statistics
+// ---------------------------------------------------------------------------
+
+export type KolStats = {
+  totalSignals: number;
+  settledCount: number;
+  directionWinRate: number | null;
+  targetWinRate: number | null;
+  unresolvedCount: number;
+  statsByAsset: Record<string, number>;
+  statsByHorizon: Record<string, number>;
+};
+
+export const fetchKolStats = (
+  slug: string,
+  options?: FetchOptions,
+): Promise<KolStats> =>
+  apiGet<KolStats>(`/v1/kols/${slug}/stats`, options);
+
+// ---------------------------------------------------------------------------
 // Signals — public list + detail (per ADR-0036)
 // ---------------------------------------------------------------------------
 
