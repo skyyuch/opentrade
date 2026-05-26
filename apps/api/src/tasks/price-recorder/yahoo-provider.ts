@@ -2,58 +2,43 @@
  * Yahoo Finance price provider.
  *
  * Fetches hourly OHLC data for traditional finance symbols (HK equities,
- * US equities, forex, futures). Uses the public Yahoo Finance v8 API.
+ * US equities, forex, futures, crypto). Uses the `yahoo-finance2` npm
+ * package which handles cookie/crumb rotation automatically.
  *
- * Per ADR-0036 D7: this is the primary source for non-crypto assets.
+ * Per ADR-0036 D7: primary source for all asset classes.
+ * Architecture supports future swap to a paid provider (Twelve Data, etc.)
+ * via the IPriceProvider interface without changing consumers.
  */
 
+import YahooFinance from 'yahoo-finance2';
+
 import type { IPriceProvider, OhlcBar } from './types.js';
+
+const yf = new YahooFinance();
 
 export class YahooFinanceProvider implements IPriceProvider {
   readonly source = 'YAHOO_FINANCE' as const;
 
   async fetchOhlc(symbols: string[]): Promise<OhlcBar[]> {
     const results: OhlcBar[] = [];
-    const now = Math.floor(Date.now() / 1000);
-    const oneHourAgo = now - 3600;
+    const now = new Date();
+    const twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60 * 1000);
 
     for (const symbol of symbols) {
       try {
-        const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1h&period1=${oneHourAgo}&period2=${now}`;
-        const res = await fetch(url, {
-          headers: { 'User-Agent': 'OpenTrade/1.0' },
+        const chart = await yf.chart(symbol, {
+          period1: twoHoursAgo,
+          period2: now,
+          interval: '1h',
         });
 
-        if (!res.ok) continue;
+        const quotes = chart.quotes;
+        if (quotes.length === 0) continue;
 
-        const data = (await res.json()) as {
-          chart?: {
-            result?: {
-              indicators?: {
-                quote?: {
-                  open?: number[];
-                  high?: number[];
-                  low?: number[];
-                  close?: number[];
-                }[];
-              };
-              timestamp?: number[];
-            }[];
-          };
-        };
+        const last = quotes[quotes.length - 1];
+        if (!last) continue;
 
-        const result = data.chart?.result?.[0];
-        const quote = result?.indicators?.quote?.[0];
-        const timestamps = result?.timestamp;
-
-        if (!quote || !timestamps || timestamps.length === 0) continue;
-
-        const lastIdx = timestamps.length - 1;
-        const open = quote.open?.[lastIdx];
-        const high = quote.high?.[lastIdx];
-        const low = quote.low?.[lastIdx];
-        const close = quote.close?.[lastIdx];
-
+        const { open, high, low, close, date } = last;
         if (open == null || high == null || low == null || close == null) continue;
 
         results.push({
@@ -62,10 +47,10 @@ export class YahooFinanceProvider implements IPriceProvider {
           high: high.toFixed(8),
           low: low.toFixed(8),
           close: close.toFixed(8),
-          timestamp: new Date((timestamps[lastIdx] ?? 0) * 1000),
+          timestamp: date,
         });
       } catch {
-        // Non-fatal: log and continue
+        // Non-fatal: individual symbol failure shouldn't stop others
       }
     }
 
