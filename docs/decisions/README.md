@@ -120,6 +120,7 @@ YYYY-MM-DD
 | 0029 | Separate complaints from reviews via `kind` discriminator   | Accepted           | 2026-05-25 |
 | 0031 | iAM Smart identity provider interface (Phase 2)             | Accepted           | 2026-05-26 |
 | 0036 | KOL signal architecture (Phase 2)                           | Accepted           | 2026-05-26 |
+| 0037 | Merchant Phase 2.5 — broker response + editable scope       | Accepted           | 2026-05-26 |
 
 ---
 
