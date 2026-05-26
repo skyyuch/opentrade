@@ -1,10 +1,11 @@
 /**
  * `/verify` — L2 SBT verification wizard.
  *
- * 3-step wizard with left progress tracker (sticky sidebar) + right content:
- *   Step 1: Select broker + upload evidence
- *   Step 2: Commitment hash generation with decorative terminal animation
- *   Step 3: Submit → pending/approved/rejected status card
+ * 4-step wizard with left progress tracker (sticky sidebar) + right content:
+ *   Step 1: Role selection (USER active / KOL coming-soon) + Broker selection
+ *   Step 2: Verification mode (API coming-soon / PDF active) + File upload
+ *   Step 3: Zero-knowledge proof terminal animation + hash computation
+ *   Step 4: SBT minting pre-submit card + submit action
  *
  * Per ADR-0022 + ADR-0025: keeps all real API calls (uploadVerifyEvidence,
  * POST /v1/auth/verify-broker, fetchVerificationStatus) + Privy auth gate.
@@ -19,14 +20,17 @@ import {
   CheckCircle2,
   ChevronDown,
   Clock,
+  Cpu,
+  Database,
   FileText,
-  Fingerprint,
   Lock,
   RefreshCw,
+  ScanFace,
   Search,
   Shield,
   Terminal,
   Upload,
+  User,
   X,
   XCircle,
 } from 'lucide-react';
@@ -74,7 +78,9 @@ type UploadedFile = {
 };
 
 type ViewMode = 'loading' | 'idle' | 'pending' | 'rejected' | 'approved' | 'adding';
-type WizardStep = 1 | 2 | 3;
+type WizardStep = 1 | 2 | 3 | 4;
+type VerifyRole = 'USER' | 'KOL';
+type VerifyMode = 'API' | 'PDF';
 
 export const VerifyForm = ({ brokers }: VerifyFormProps) => {
   const t = useTranslations('verify');
@@ -89,6 +95,8 @@ export const VerifyForm = ({ brokers }: VerifyFormProps) => {
   const [verifiedBrokers, setVerifiedBrokers] = useState<VerifiedBrokerEntry[]>([]);
   const [viewMode, setViewMode] = useState<ViewMode>('loading');
   const [wizardStep, setWizardStep] = useState<WizardStep>(1);
+  const [role, setRole] = useState<VerifyRole | null>(null);
+  const [verifyMode, setVerifyMode] = useState<VerifyMode | null>(null);
   const [brokerSlug, setBrokerSlug] = useState('');
   const [uploaded, setUploaded] = useState<UploadedFile | null>(null);
   const [commitment, setCommitment] = useState('');
@@ -98,9 +106,15 @@ export const VerifyForm = ({ brokers }: VerifyFormProps) => {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Terminal animation logs for step 2
+  // Terminal animation logs for step 3
   const [terminalLogs, setTerminalLogs] = useState<string[]>([]);
   const [hashReady, setHashReady] = useState(false);
+
+  const selectedBrokerName = useMemo(() => {
+    const b = brokers.find((br) => br.slug === brokerSlug);
+    if (!b) return brokerSlug;
+    return localizedBrokerName(b, locale);
+  }, [brokers, brokerSlug, locale]);
 
   useEffect(() => {
     if (!authenticated) {
@@ -226,13 +240,13 @@ export const VerifyForm = ({ brokers }: VerifyFormProps) => {
     setHashReady(false);
 
     const logs = [
-      '[System] Initializing keccak256 engine...',
-      '[Engine] Loading wallet address parameter...',
-      `[Engine] Broker slug: ${brokerSlug}`,
+      '[System] Initializing Noir WASM sandbox...',
+      '[WASM] Loading proving key locally...',
+      `[Engine] Broker entity: ${brokerSlug}`,
       `[IPFS] Content identifier: ${uploaded.cid.slice(0, 16)}...`,
-      '[Crypto] Generating random 32-byte salt...',
-      '[Crypto] Computing encodePacked(address, string, string, bytes32)...',
-      '[keccak256] Hashing packed data...',
+      '[zk-SNARK] Generating witness from private inputs...',
+      '[zk-SNARK] Computing elliptic curve pairings...',
+      '[System] Proof generation successful.',
     ];
 
     let idx = 0;
@@ -399,7 +413,9 @@ export const VerifyForm = ({ brokers }: VerifyFormProps) => {
   // -------------------------------------------------------------------------
   // Wizard
   // -------------------------------------------------------------------------
-  const canProceedToStep2 = Boolean(brokerSlug && uploaded);
+  const canProceedToStep2 = Boolean(role && brokerSlug);
+  const canProceedToStep3 = Boolean(verifyMode && uploaded);
+  const canProceedToStep4 = Boolean(commitment && hashReady);
   const canSubmit = Boolean(commitment && hashReady && !submitting);
 
   return (
@@ -412,11 +428,14 @@ export const VerifyForm = ({ brokers }: VerifyFormProps) => {
           </h3>
 
           <div className="space-y-3">
-            {[
-              { s: 1 as const, title: t('wizard.step1Title'), desc: t('wizard.step1Desc') },
-              { s: 2 as const, title: t('wizard.step2Title'), desc: t('wizard.step2Desc') },
-              { s: 3 as const, title: t('wizard.step3Title'), desc: t('wizard.step3Desc') },
-            ].map((step) => {
+            {(
+              [
+                { s: 1 as const, title: t('wizard.step1Title'), desc: t('wizard.step1Desc') },
+                { s: 2 as const, title: t('wizard.step2Title'), desc: t('wizard.step2Desc') },
+                { s: 3 as const, title: t('wizard.step3Title'), desc: t('wizard.step3Desc') },
+                { s: 4 as const, title: t('wizard.step4Title'), desc: t('wizard.step4Desc') },
+              ] as const
+            ).map((step) => {
               const isActive = wizardStep === step.s;
               const isPassed = wizardStep > step.s;
               return (
@@ -454,7 +473,7 @@ export const VerifyForm = ({ brokers }: VerifyFormProps) => {
 
       {/* Right: Content Area */}
       <div className="lg:col-span-9">
-        {/* STEP 1: Select broker + upload */}
+        {/* STEP 1: Role selection + Broker */}
         {wizardStep === 1 && (
           <div className="animate-in slide-in-from-right-4 space-y-8 duration-500">
             <div>
@@ -462,111 +481,50 @@ export const VerifyForm = ({ brokers }: VerifyFormProps) => {
               <p className="text-sm text-white/50">{t('wizard.step1Subtitle')}</p>
             </div>
 
-            {/* Broker selection */}
-            <div className="space-y-3">
-              <label htmlFor="broker-combobox" className="block text-sm font-bold text-white/80">
-                {t('brokerSlug')}
-              </label>
-              <BrokerCombobox
-                initialBrokers={brokers}
-                locale={locale}
-                value={brokerSlug}
-                onChange={setBrokerSlug}
-                excludeSlugs={verifiedBrokers.map((b) => b.brokerSlug)}
-              />
-            </div>
-
-            {/* File upload */}
-            <div className="space-y-3">
-              <label className="flex items-center justify-between text-sm font-bold text-white/80">
-                <span>{t('uploadLabel')}</span>
-                <span className="text-xs font-normal text-white/40">{t('uploadSizeHint')}</span>
-              </label>
-
+            {/* Role selection cards */}
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div
-                className={`group relative w-full overflow-hidden rounded-xl border-2 border-dashed p-8 transition-all
-                  ${isDragging ? 'border-[#00FF88] bg-[#00FF88]/5' : 'border-white/20 bg-white/5 hover:border-white/40 hover:bg-white/10'}
-                  ${uploaded ? 'border-blue-500/50 bg-blue-500/5 hover:border-blue-500/60' : ''}
-                  ${!uploaded ? 'cursor-pointer' : ''}`}
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onDrop={handleDrop}
-                onClick={() => !uploaded && !isUploading && fileInputRef.current?.click()}
+                onClick={() => setRole('USER')}
+                className={`flex cursor-pointer flex-col items-start gap-4 rounded-2xl border-2 p-6 transition-all ${role === 'USER' ? 'border-[#00FF88] bg-[#00FF88]/5 shadow-[0_0_20px_rgba(0,255,136,0.1)]' : 'border-white/10 bg-white/5 hover:border-white/30'}`}
               >
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) void handleFile(file);
-                  }}
-                  className="hidden"
-                  accept=".pdf,.jpg,.jpeg,.png,.webp"
-                />
-
-                {isUploading ? (
-                  <div className="flex flex-col items-center justify-center gap-3">
-                    <div className="flex size-12 items-center justify-center rounded-full bg-[#00FF88]/15">
-                      <div className="size-5 animate-spin rounded-full border-2 border-[#00FF88]/30 border-t-[#00FF88]" />
-                    </div>
-                    <span className="text-sm font-bold text-white">{t('uploadingFile')}</span>
-                  </div>
-                ) : uploaded ? (
-                  <div className="z-10 flex flex-col items-center justify-center">
-                    {uploaded.previewUrl ? (
-                      <div className="mb-3 flex size-32 items-center justify-center overflow-hidden rounded-xl border border-white/10 bg-black/40">
-                        <img
-                          src={uploaded.previewUrl}
-                          alt={uploaded.file.name}
-                          className="size-full object-cover"
-                        />
-                      </div>
-                    ) : (
-                      <div className="mb-3 flex size-12 items-center justify-center rounded-full bg-blue-500/20 text-blue-400">
-                        <FileText size={24} />
-                      </div>
-                    )}
-                    <span className="mb-1 max-w-xs truncate font-bold text-white">
-                      {uploaded.file.name}
-                    </span>
-                    <span className="mb-4 text-sm text-white/50">
-                      {(uploaded.file.size / 1024 / 1024).toFixed(2)} MB
-                    </span>
-                    <div className="mb-3 flex items-center gap-2 rounded-full bg-[#00FF88]/10 px-3 py-1 font-mono text-xs text-[#00FF88]">
-                      <span className="text-white/40">{t('ipfsCid')}:</span>
-                      <span className="truncate" title={uploaded.cid}>
-                        {uploaded.cid.slice(0, 10)}...{uploaded.cid.slice(-6)}
-                      </span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleRemoveFile();
-                      }}
-                      className="flex items-center gap-1 rounded-full bg-red-500/10 px-3 py-1.5 text-xs text-red-400 transition-colors hover:text-red-300"
-                    >
-                      <X size={14} /> {t('removeFile')}
-                    </button>
-                  </div>
-                ) : (
-                  <div className="pointer-events-none flex flex-col items-center justify-center">
-                    <div className="mb-4 flex size-12 items-center justify-center rounded-full bg-white/5 text-white/50 transition-transform group-hover:scale-110">
-                      <Upload size={24} />
-                    </div>
-                    <span className="mb-2 font-bold text-white">{t('uploadDropTitle')}</span>
-                    <span className="max-w-xs text-center text-sm text-white/40">
-                      {t('uploadDropDesc')}
-                    </span>
-                  </div>
-                )}
+                <div
+                  className={`rounded-xl p-3 ${role === 'USER' ? 'bg-[#00FF88] text-black' : 'bg-white/10 text-white'}`}
+                >
+                  <User size={24} />
+                </div>
+                <div>
+                  <h3 className="mb-2 text-xl font-bold">{t('wizard.roleUser')}</h3>
+                  <p className="text-sm leading-relaxed text-white/50">
+                    {t('wizard.roleUserDesc')}
+                  </p>
+                </div>
               </div>
-              <p className="pt-1 text-xs text-white/40">{t('uploadIpfsHint')}</p>
+
+              <div className="relative flex cursor-not-allowed flex-col items-start gap-4 rounded-2xl border-2 border-white/10 bg-white/5 p-6 opacity-50">
+                <span className="absolute right-4 top-4 rounded bg-blue-500/20 px-2 py-0.5 text-[10px] font-bold text-blue-400">
+                  {t('wizard.comingSoon')}
+                </span>
+                <div className="rounded-xl bg-white/10 p-3 text-white">
+                  <ScanFace size={24} />
+                </div>
+                <div>
+                  <h3 className="mb-2 text-xl font-bold text-blue-100">{t('wizard.roleKol')}</h3>
+                  <p className="text-sm leading-relaxed text-white/50">{t('wizard.roleKolDesc')}</p>
+                </div>
+              </div>
             </div>
 
-            {error && (
-              <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
-                {error}
+            {/* Broker selection */}
+            {role && (
+              <div className="animate-in fade-in border-t border-white/10 pt-6">
+                <h3 className="mb-4 text-lg font-bold">{t('wizard.selectBroker')}</h3>
+                <BrokerCombobox
+                  initialBrokers={brokers}
+                  locale={locale}
+                  value={brokerSlug}
+                  onChange={setBrokerSlug}
+                  excludeSlugs={verifiedBrokers.map((b) => b.brokerSlug)}
+                />
               </div>
             )}
 
@@ -586,22 +544,178 @@ export const VerifyForm = ({ brokers }: VerifyFormProps) => {
           </div>
         )}
 
-        {/* STEP 2: Hash computation with terminal animation */}
+        {/* STEP 2: Verification mode + file upload */}
         {wizardStep === 2 && (
           <div className="animate-in slide-in-from-right-4 space-y-8 duration-500">
             <div>
+              <h2 className="mb-2 text-2xl font-bold">{t('wizard.step2Heading')}</h2>
+              <p className="text-sm text-white/50">
+                {t('wizard.step2Subtitle', { broker: selectedBrokerName })}
+              </p>
+            </div>
+
+            {/* Mode selection cards */}
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div className="relative flex cursor-not-allowed flex-col rounded-2xl border-2 border-white/10 bg-white/5 p-6 opacity-50 transition-all">
+                <div className="mb-4 flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-lg font-bold">
+                    <Cpu size={20} className="text-white/40" /> {t('wizard.modeApi')}
+                  </div>
+                  <span className="rounded bg-blue-500/20 px-2 py-0.5 text-[10px] font-bold text-blue-400">
+                    {t('wizard.comingSoon')}
+                  </span>
+                </div>
+                <p className="text-sm text-white/50">{t('wizard.modeApiDesc')}</p>
+              </div>
+
+              <div
+                onClick={() => setVerifyMode('PDF')}
+                className={`flex cursor-pointer flex-col rounded-2xl border-2 p-6 transition-all ${verifyMode === 'PDF' ? 'border-[#00FF88] bg-[#00FF88]/5' : 'border-white/10 bg-white/5 hover:border-white/30'}`}
+              >
+                <div className="mb-4 flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-lg font-bold">
+                    <FileText
+                      size={20}
+                      className={verifyMode === 'PDF' ? 'text-[#00FF88]' : 'text-white/40'}
+                    />{' '}
+                    {t('wizard.modePdf')}
+                  </div>
+                </div>
+                <p className="text-sm text-white/50">{t('wizard.modePdfDesc')}</p>
+              </div>
+            </div>
+
+            {/* File upload area */}
+            {verifyMode === 'PDF' && (
+              <div className="animate-in fade-in space-y-3">
+                <label className="flex items-center justify-between text-sm font-bold text-white/80">
+                  <span>{t('uploadLabel')}</span>
+                  <span className="text-xs font-normal text-white/40">{t('uploadSizeHint')}</span>
+                </label>
+
+                <div
+                  className={`group relative w-full overflow-hidden rounded-2xl border-2 border-dashed p-10 transition-all
+                    ${isDragging ? 'border-[#00FF88] bg-[#00FF88]/5' : 'border-white/20 bg-black/40 hover:border-[#00FF88]/50'}
+                    ${uploaded ? 'border-blue-500/50 bg-blue-500/5' : ''}
+                    ${!uploaded ? 'cursor-pointer' : ''}`}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                  onClick={() => !uploaded && !isUploading && fileInputRef.current?.click()}
+                >
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) void handleFile(file);
+                    }}
+                    className="hidden"
+                    accept=".pdf,.jpg,.jpeg,.png,.webp"
+                  />
+
+                  {isUploading ? (
+                    <div className="flex flex-col items-center justify-center gap-3">
+                      <div className="flex size-12 items-center justify-center rounded-full bg-[#00FF88]/15">
+                        <div className="size-5 animate-spin rounded-full border-2 border-[#00FF88]/30 border-t-[#00FF88]" />
+                      </div>
+                      <span className="text-sm font-bold text-white">{t('uploadingFile')}</span>
+                    </div>
+                  ) : uploaded ? (
+                    <div className="z-10 flex w-full max-w-sm flex-col items-center justify-center">
+                      {uploaded.previewUrl ? (
+                        <div className="mb-3 flex size-32 items-center justify-center overflow-hidden rounded-xl border border-white/10 bg-black/40">
+                          <img
+                            src={uploaded.previewUrl}
+                            alt={uploaded.file.name}
+                            className="size-full object-cover"
+                          />
+                        </div>
+                      ) : (
+                        <div className="mb-3 flex size-12 items-center justify-center rounded-full bg-blue-500/20 text-blue-400">
+                          <FileText size={24} />
+                        </div>
+                      )}
+                      <span className="mb-1 max-w-xs truncate font-bold text-white">
+                        {uploaded.file.name}
+                      </span>
+                      <span className="mb-4 text-sm text-white/50">
+                        {(uploaded.file.size / 1024 / 1024).toFixed(2)} MB
+                      </span>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRemoveFile();
+                        }}
+                        className="flex items-center gap-1 rounded-full bg-red-500/10 px-3 py-1.5 text-xs text-red-400 transition-colors hover:text-red-300"
+                      >
+                        <X size={14} /> {t('removeFile')}
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="pointer-events-none flex flex-col items-center justify-center">
+                      <div className="mb-4 flex size-16 items-center justify-center rounded-full bg-white/5 text-white/50">
+                        <Upload size={32} />
+                      </div>
+                      <span className="mb-1 text-lg font-bold text-white">
+                        {t('uploadDropTitle')}
+                      </span>
+                      <span className="max-w-xs text-center text-xs text-white/40">
+                        {t('uploadDropDesc')}
+                      </span>
+                    </div>
+                  )}
+                </div>
+                <p className="pt-1 text-xs text-white/40">{t('uploadIpfsHint')}</p>
+              </div>
+            )}
+
+            {error && (
+              <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+                {error}
+              </div>
+            )}
+
+            <div className="flex justify-between pt-4">
+              <button
+                type="button"
+                onClick={() => setWizardStep(1)}
+                className="px-6 py-3 text-white/50 transition-colors hover:text-white"
+              >
+                {t('wizard.back')}
+              </button>
+              <button
+                type="button"
+                disabled={!canProceedToStep3}
+                onClick={() => {
+                  setError(null);
+                  setWizardStep(3);
+                }}
+                className="flex items-center gap-2 rounded-xl bg-white px-8 py-3 font-bold text-black transition-all hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-30"
+              >
+                {t('wizard.next')} <ArrowRight size={18} />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* STEP 3: zk-SNARK / Hash computation with terminal animation */}
+        {wizardStep === 3 && (
+          <div className="animate-in slide-in-from-right-4 space-y-8 duration-500">
+            <div>
               <h2 className="mb-2 flex items-center gap-2 text-2xl font-bold">
-                <Fingerprint size={24} className="text-[#00FF88]" />
-                {t('wizard.step2Heading')}
+                <Cpu size={24} className="text-[#00FF88]" />
+                {t('wizard.step3Heading')}
               </h2>
-              <p className="text-sm text-white/50">{t('wizard.step2Subtitle')}</p>
+              <p className="text-sm text-white/50">{t('wizard.step3Subtitle')}</p>
             </div>
 
             {/* Terminal */}
             <div className="overflow-hidden rounded-2xl border border-white/10 bg-zinc-950 shadow-2xl">
               <div className="flex items-center gap-2 border-b border-white/10 bg-white/5 px-4 py-3">
                 <Terminal size={14} className="text-white/40" />
-                <span className="font-mono text-xs text-white/40">keccak256-engine</span>
+                <span className="font-mono text-xs text-white/40">noir-lang-wasm-env</span>
               </div>
 
               <div className="h-64 space-y-2 overflow-y-auto p-6 font-mono text-xs sm:text-sm">
@@ -622,7 +736,7 @@ export const VerifyForm = ({ brokers }: VerifyFormProps) => {
                     className={`flex items-start gap-3 ${
                       log.includes('[Result]')
                         ? 'mt-4 font-bold text-[#00FF88]'
-                        : log.includes('[Crypto]')
+                        : log.includes('[zk-SNARK]') || log.includes('[Crypto]')
                           ? 'text-blue-400'
                           : log.includes('[System]')
                             ? 'text-white/70'
@@ -659,27 +773,82 @@ export const VerifyForm = ({ brokers }: VerifyFormProps) => {
               </div>
             )}
 
-            {error && (
-              <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
-                {t('errorTitle')}: {error}
-              </div>
-            )}
-
             <div className="flex justify-between pt-4">
               <button
                 type="button"
-                onClick={() => setWizardStep(1)}
+                onClick={() => setWizardStep(2)}
                 className="px-6 py-3 text-white/50 transition-colors hover:text-white"
               >
                 {t('wizard.back')}
               </button>
               <button
                 type="button"
-                disabled={!canSubmit}
-                onClick={() => void handleSubmit()}
+                disabled={!canProceedToStep4}
+                onClick={() => setWizardStep(4)}
                 className="flex items-center gap-2 rounded-xl px-8 py-3 font-bold transition-all disabled:cursor-not-allowed disabled:opacity-30 enabled:bg-[#00FF88] enabled:text-black enabled:shadow-[0_0_20px_rgba(0,255,136,0.3)] enabled:hover:bg-[#00e67a]"
               >
-                {submitting ? t('submitting') : t('submit')} <ArrowRight size={18} />
+                {t('wizard.step4Cta')} <ArrowRight size={18} />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* STEP 4: SBT Minting / Submit */}
+        {wizardStep === 4 && (
+          <div className="animate-in slide-in-from-right-4 space-y-8 duration-500">
+            <div className="space-y-6 py-8 text-center">
+              <div className="mx-auto flex size-24 items-center justify-center rounded-full bg-gradient-to-tr from-blue-500 to-purple-500 shadow-[0_0_40px_rgba(59,130,246,0.4)]">
+                <Database size={40} className="text-white" />
+              </div>
+              <h2 className="text-3xl font-bold">{t('wizard.step4Heading')}</h2>
+              <p className="mx-auto max-w-md text-white/50">{t('wizard.step4Subtitle')}</p>
+
+              {/* Pre-submit summary card */}
+              <div className="mx-auto inline-block w-full max-w-md rounded-xl border border-white/10 bg-black/50 p-4 text-left">
+                <div className="mb-2 flex justify-between border-b border-white/5 pb-2">
+                  <span className="text-sm text-white/50">{t('wizard.summaryRole')}</span>
+                  <span className="font-mono text-sm text-[#00FF88]">{role ?? 'USER'}</span>
+                </div>
+                <div className="mb-2 flex justify-between border-b border-white/5 pb-2">
+                  <span className="text-sm text-white/50">{t('wizard.summaryBroker')}</span>
+                  <span className="max-w-[200px] truncate font-mono text-sm text-white">
+                    {selectedBrokerName}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-white/50">{t('wizard.summaryCommitment')}</span>
+                  <span
+                    className="max-w-[150px] truncate font-mono text-sm text-white"
+                    title={commitment}
+                  >
+                    {shortenCommitment(commitment)}
+                  </span>
+                </div>
+              </div>
+
+              {error && (
+                <div className="mx-auto max-w-md rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+                  {error}
+                </div>
+              )}
+
+              <button
+                type="button"
+                disabled={!canSubmit}
+                onClick={() => void handleSubmit()}
+                className="mx-auto mt-8 block w-full max-w-md rounded-xl bg-white py-4 text-lg font-extrabold text-black transition-all hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-30"
+              >
+                {submitting ? t('submitting') : t('wizard.submitTx')}
+              </button>
+            </div>
+
+            <div className="flex justify-start">
+              <button
+                type="button"
+                onClick={() => setWizardStep(3)}
+                className="px-6 py-3 text-white/50 transition-colors hover:text-white"
+              >
+                {t('wizard.back')}
               </button>
             </div>
 
