@@ -2,6 +2,7 @@
 
 import { usePrivy } from '@privy-io/react-auth';
 import {
+  AlertCircle,
   AlertTriangle,
   CheckCircle,
   Edit3,
@@ -312,19 +313,17 @@ function ComplaintsTab({
         brokerSlug={broker.slug}
       />
 
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pt-4 border-t border-white/5">
-        <h3 className="font-bold flex items-center gap-2">
-          <AlertTriangle size={16} className="text-orange-400" />
-          {t('complaintsListHeading')}
-        </h3>
+      <div className="flex items-center justify-between border-b border-white/5 pb-4 pt-4">
+        <div>
+          <h3 className="font-bold flex items-center gap-2">
+            <MessageSquare size={16} />
+            {t('complaintsListHeading')}
+          </h3>
+          <p className="text-xs text-white/40 mt-1">{t('complaintsDisclaimer')}</p>
+        </div>
         <span className="text-xs text-white/40">
           {t('complaintsListCount', { count: totalCount })}
         </span>
-      </div>
-
-      <div className="flex items-start gap-2 text-xs text-white/40 px-1">
-        <Info size={12} className="mt-0.5 flex-shrink-0" />
-        <span>{t('complaintsDisclaimer')}</span>
       </div>
 
       <div className="space-y-4">
@@ -479,37 +478,35 @@ function ComplaintCard({
         {complaint.body}
       </p>
 
-      {status === 'REJECTED' && complaint.adminNote && (
-        // Per ADR-0029 D4: the admin reject reason is shipped to the
-        // public surface so readers see WHY the platform did not
-        // substantiate the complaint. This block is intentionally
-        // styled subdued (no red) — the verdict pill above carries the
-        // emotional weight; this is the explanation.
-        <div className="mb-4 p-3 rounded-lg bg-white/5 border border-white/10">
-          <div className="text-[10px] uppercase tracking-wide font-bold text-white/40 mb-1">
-            {t('adminNoteHeading')}
-          </div>
-          <p className="text-xs text-white/60 leading-relaxed whitespace-pre-wrap">
-            {complaint.adminNote}
-          </p>
-        </div>
-      )}
-
       {complaint.brokerResponse && (
-        <div className="mb-4 p-4 rounded-xl bg-blue-500/5 border border-blue-500/20">
-          <div className="text-[10px] uppercase tracking-wide font-bold text-blue-400 mb-2">
+        <div className="mb-4 bg-blue-950/30 border border-blue-500/20 rounded-lg p-4 relative overflow-hidden">
+          <div className="absolute top-0 left-0 w-1 h-full bg-blue-500" />
+          <div className="font-bold text-xs text-blue-400 mb-2 flex items-center gap-1.5">
+            <ShieldCheck size={14} />
             {t('brokerResponseHeading')}
           </div>
-          <p className="text-sm text-white/80 leading-relaxed whitespace-pre-wrap mb-2">
+          <p className="text-sm text-blue-100/80 leading-relaxed pl-2 border-l-2 border-blue-500/20 whitespace-pre-wrap mb-2">
             {complaint.brokerResponse.body}
           </p>
-          <div className="flex items-center gap-3 text-[10px] text-white/30">
+          <div className="flex items-center gap-3 text-[10px] text-white/30 mt-2">
             <span>{new Date(complaint.brokerResponse.createdAt).toLocaleDateString(locale)}</span>
             <span className="flex items-center gap-1 font-mono">
               <LinkIcon size={10} />
               {complaint.brokerResponse.contentHash.slice(0, 10)}…
             </span>
           </div>
+        </div>
+      )}
+
+      {status === 'REJECTED' && complaint.adminNote && (
+        <div className="mb-4 bg-white/5 border border-white/10 rounded-lg p-4">
+          <div className="font-bold text-xs text-white/50 mb-2 flex items-center gap-1.5">
+            <AlertCircle size={14} />
+            {t('adminNoteHeading')}
+          </div>
+          <p className="text-sm text-white/60 leading-relaxed italic whitespace-pre-wrap">
+            {complaint.adminNote}
+          </p>
         </div>
       )}
 

@@ -1,46 +1,36 @@
 /**
- * Client-side complaint submission form (M7.5c).
+ * Client-side complaint submission form (M7.5c → S22.1 wizard redesign).
  *
- * Architecture mirrors `VerifyForm` (multi-state view + Pinata-via-API
- * upload) and `SubmitReviewCta` (sentiment-picker + body + sourceLocale)
- * but cleanly separates the two state machines:
+ * Per Google design reference `ComplaintForm.tsx`:
+ *   Step 1 — Guidelines / notices (new)
+ *   Step 2 — Form details (sentiment + title + body)
+ *   Step 3 — Evidence upload
+ *   Success — Confirmation card
  *
+ * Architecture mirrors the existing `VerifyForm` 3-step wizard pattern
+ * introduced in S19. The auth gates (loading / unauth / requires-sbt) fire
+ * before the wizard is reached.
+ *
+ * State machines:
  *   - `viewMode` — gates the entire surface (loading / unauth / needs L2
- *     SBT / ready / success). Decided once on mount + when auth flips.
+ *     SBT / ready / success).
+ *   - `wizardStep` — within "ready" view, tracks 1 | 2 | 3
  *   - `uploadState` — owns the EvidenceUpload primitive lifecycle
- *     (idle → uploading → uploaded) plus the most recent upload error
- *     surfaced under the drop-zone.
- *   - `formState` — owns the submit lifecycle once the form is ready
- *     (idle → submitting → success | error).
- *
- * Authorisation gate:
- *   POST /v1/complaints requires `authMiddleware('reviewer')` (L2-
- *   equivalent per the auth hierarchy), so a plain logged-in user with
- *   `sbtTier === 'NONE'` would be rejected with a 403 at submit time.
- *   We pre-fetch `/v1/auth/me` on mount to give a friendlier UX:
- *   non-L2 users see a "verify a broker first" CTA that links to
- *   `/verify` instead of having to discover the requirement by failing.
- *
- * Pinata flow:
- *   The same `POST /v1/auth/verify-broker/upload` endpoint that backs
- *   `/verify` is reused end-to-end per ADR-0029 D3 (10MB cap, PNG /
- *   JPEG / PDF / WebP). We never touch Pinata client-side; the host
- *   passes the raw File to `uploadVerifyEvidence` which returns the
- *   IPFS CID. The CID is then submitted with the complaint body.
- *
- * Per rule 10: `EvidenceUpload` and `SentimentPicker` are caller-label
- * primitives — every visible string is resolved here via next-intl,
- * then handed down through props.
- *
- * Per ADR-0029 D6: `respondsToReviewId` (broker public-response wiring)
- * is schema-only in Phase 1; the form intentionally does NOT expose it.
- * The merchant-side write API lands with M10 商戶後台 (`STAGING.md` S8).
+ *   - `formState` — owns the submit lifecycle (idle → submitting → error)
  */
 
 'use client';
 
 import { usePrivy } from '@privy-io/react-auth';
-import { AlertCircle, CheckCircle, ChevronRight, ShieldCheck } from 'lucide-react';
+import {
+  AlertCircle,
+  AlertTriangle,
+  ArrowLeft,
+  CheckCircle,
+  ChevronRight,
+  Info,
+  ShieldCheck,
+} from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
@@ -75,6 +65,7 @@ type Props = {
 };
 
 type ViewMode = 'loading' | 'unauthenticated' | 'requires-sbt' | 'ready' | 'success';
+type WizardStep = 1 | 2 | 3;
 
 type UploadState =
   | { status: 'idle'; error: string | null }
@@ -92,6 +83,7 @@ export const ComplaintForm = ({ brokerId, brokerSlug, brokerName }: Props): Reac
   const { getAccessToken } = useOpenTradeAuth();
 
   const [viewMode, setViewMode] = useState<ViewMode>('loading');
+  const [wizardStep, setWizardStep] = useState<WizardStep>(1);
   const [profile, setProfile] = useState<UserProfile | null>(null);
 
   const [uploadState, setUploadState] = useState<UploadState>({ status: 'idle', error: null });
@@ -121,8 +113,6 @@ export const ComplaintForm = ({ brokerId, brokerSlug, brokerName }: Props): Reac
     [tReview],
   );
 
-  // Resolve view mode once auth settles. Re-runs when authenticated flips
-  // (login / logout) so the gate stays accurate without a manual reload.
   useEffect(() => {
     if (!authenticated) {
       setViewMode('unauthenticated');
@@ -145,8 +135,6 @@ export const ComplaintForm = ({ brokerId, brokerSlug, brokerName }: Props): Reac
       if (controller.signal.aborted) return;
 
       if (!profileRes) {
-        // Network blip — fall through to ready and let submit fail with
-        // a localised error rather than blocking the entire surface.
         setViewMode('ready');
         return;
       }
@@ -158,7 +146,6 @@ export const ComplaintForm = ({ brokerId, brokerSlug, brokerName }: Props): Reac
     return () => controller.abort();
   }, [authenticated, getAccessToken]);
 
-  // Object-URL cleanup for image previews (mirrors VerifyForm:217-221).
   useEffect(() => {
     if (uploadState.status !== 'uploaded') return undefined;
     const url = uploadState.uploaded.previewUrl;
@@ -307,33 +294,31 @@ export const ComplaintForm = ({ brokerId, brokerSlug, brokerName }: Props): Reac
 
   if (viewMode === 'success') {
     return (
-      <div className="rounded-xl bg-[#00FF88]/5 border border-[#00FF88]/20 p-6">
-        <div className="flex items-start gap-3">
-          <CheckCircle size={20} className="mt-0.5 shrink-0 text-[#00FF88]" />
-          <div className="flex-1">
-            <h3 className="font-bold text-[#00FF88]">{t('successTitle')}</h3>
-            <p className="mt-1 text-sm text-white/60">{t('successMessage')}</p>
-            <div className="mt-5 flex flex-wrap gap-3">
-              <Link
-                href={`/brokers/${brokerSlug}`}
-                className="rounded-full bg-[#00FF88] px-5 py-2.5 text-sm font-bold text-[#050608] transition-all hover:shadow-[0_0_15px_#00FF8840]"
-              >
-                {t('successBackToBroker')}
-              </Link>
-              <Link
-                href="/brokers"
-                className="rounded-full border border-white/20 bg-white/5 px-5 py-2.5 text-sm font-bold text-white/70 hover:border-white/40 hover:bg-white/10"
-              >
-                {t('successBrowseBrokers')}
-              </Link>
-            </div>
-          </div>
+      <div className="text-center py-10 space-y-6">
+        <div className="w-24 h-24 bg-[#00FF88]/20 text-[#00FF88] rounded-full flex items-center justify-center mx-auto mb-6">
+          <CheckCircle size={48} />
+        </div>
+        <h2 className="text-3xl font-bold text-white">{t('successTitle')}</h2>
+        <p className="text-white/60 max-w-md mx-auto">{t('successMessage')}</p>
+        <div className="pt-8 flex flex-col gap-3 max-w-xs mx-auto">
+          <Link
+            href={`/brokers/${brokerSlug}`}
+            className="w-full py-3 bg-[#00FF88] text-black font-bold rounded-xl hover:bg-[#00e67a] transition-all text-center"
+          >
+            {t('successBackToBroker')}
+          </Link>
+          <Link
+            href="/brokers"
+            className="w-full py-3 bg-white/5 text-white font-bold rounded-xl border border-white/10 hover:bg-white/10 transition-all text-center"
+          >
+            {t('successBrowseBrokers')}
+          </Link>
         </div>
       </div>
     );
   }
 
-  // ── Ready: render the form ─────────────────────────────────────────────
+  // ── Ready: 3-step wizard ──────────────────────────────────────────────
 
   const bodyTrimmedLength = body.trim().length;
   const isUploadReady = uploadState.status === 'uploaded';
@@ -342,118 +327,215 @@ export const ComplaintForm = ({ brokerId, brokerSlug, brokerName }: Props): Reac
   const canSubmit =
     isUploadReady && isBodyValid && isSentimentValid && formState.kind !== 'submitting';
 
+  const stepLabels = [t('wizard.step1'), t('wizard.step2'), t('wizard.step3')];
+
   return (
-    <form
-      onSubmit={(e) => void handleSubmit(e)}
-      className="space-y-6 rounded-2xl bg-zinc-900/60 border border-white/10 p-6 md:p-8 backdrop-blur-xl"
-    >
-      <div className="space-y-1">
-        <div className="text-xs font-bold uppercase tracking-wider text-[#00FF88]">
-          {t('formEyebrow')}
-        </div>
-        <h2 className="text-xl font-bold text-white md:text-2xl">{t('formTitle')}</h2>
-        <p className="text-sm text-white/50">
-          {t('formSubtitle', { broker: brokerName })}
-          {profile?.displayName ? ` · ${profile.displayName}` : null}
-        </p>
+    <div className="space-y-8">
+      {/* Progress Steps Indicator */}
+      <div className="flex items-center justify-between overflow-hidden relative">
+        <div className="absolute top-4 left-0 w-full h-[1px] bg-white/10 -z-10" />
+        {[1, 2, 3].map((step) => (
+          <div key={step} className="flex flex-col items-center gap-2 bg-[#050608] px-2">
+            <div
+              className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold border-2 transition-colors ${
+                wizardStep >= step
+                  ? 'bg-[#00FF88]/20 border-[#00FF88] text-[#00FF88]'
+                  : 'bg-zinc-900 border-white/10 text-white/40'
+              }`}
+            >
+              {step}
+            </div>
+            <span
+              className={`text-xs font-bold ${wizardStep >= step ? 'text-[#00FF88]' : 'text-white/40'}`}
+            >
+              {stepLabels[step - 1]}
+            </span>
+          </div>
+        ))}
       </div>
 
-      {formState.kind === 'error' && (
-        <div className="rounded-lg bg-red-500/10 border border-red-500/20 px-4 py-3 text-sm text-red-400">
-          <span className="font-bold">{t('errorTitle')}: </span>
-          {formState.message}
+      {/* STEP 1: Guidelines */}
+      {wizardStep === 1 && (
+        <div className="space-y-6 animate-in fade-in">
+          <h2 className="text-2xl font-bold text-white">
+            {t('wizard.guidelinesTitle', { broker: brokerName })}
+          </h2>
+          <div className="bg-orange-500/10 border border-orange-500/20 rounded-2xl p-6 text-sm text-orange-400 space-y-4">
+            <h3 className="font-bold flex items-center gap-2 text-base">
+              <AlertTriangle size={18} />
+              {t('wizard.guidelinesHeading')}
+            </h3>
+            <p className="text-orange-300/80">{t('wizard.guidelinesIntro')}</p>
+            <ul className="list-disc pl-5 space-y-2 text-orange-300/80">
+              <li>{t('wizard.guidelinesRule1')}</li>
+              <li>{t('wizard.guidelinesRule2')}</li>
+              <li>{t('wizard.guidelinesRule3')}</li>
+              <li>{t('wizard.guidelinesRule4')}</li>
+            </ul>
+          </div>
+          <button
+            type="button"
+            onClick={() => setWizardStep(2)}
+            className="w-full py-4 bg-[#00FF88] text-black font-bold rounded-xl hover:bg-[#00e67a] hover:shadow-[0_0_20px_#00FF8840] transition-all"
+          >
+            {t('wizard.guidelinesAccept')}
+          </button>
         </div>
       )}
 
-      <div className="space-y-2">
-        <label className="text-sm font-medium text-white/70">{t('evidenceLabel')}</label>
-        <EvidenceUpload
-          status={uploadState.status === 'uploaded' ? 'uploaded' : uploadState.status}
-          uploaded={uploadState.status === 'uploaded' ? uploadState.uploaded : null}
-          acceptAttribute={ACCEPT_ATTRIBUTE}
-          onFileSelected={(file) => void handleFileSelected(file)}
-          onRemove={handleRemoveEvidence}
-          labels={evidenceLabels}
-          theme="neon"
-          disabled={formState.kind === 'submitting'}
-        />
-        {uploadState.status === 'idle' && uploadState.error ? (
-          <p className="text-xs text-red-400">{uploadState.error}</p>
-        ) : null}
-      </div>
+      {/* STEP 2: Form Details */}
+      {wizardStep === 2 && (
+        <div className="space-y-6 animate-in fade-in">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setWizardStep(1)}
+              className="flex items-center gap-1 text-sm text-white/50 hover:text-white transition-colors"
+            >
+              <ArrowLeft size={14} />
+              {t('wizard.back')}
+            </button>
+          </div>
 
-      <fieldset className="space-y-2">
-        <legend className="text-sm font-medium text-white/70">{t('sentimentLabel')}</legend>
-        <SentimentPicker
-          value={sentiment}
-          onChange={setSentiment}
-          labels={sentimentLabels}
-          groupLabel={t('sentimentLabel')}
-          disabled={formState.kind === 'submitting'}
-        />
-      </fieldset>
+          <h2 className="text-2xl font-bold text-white">{t('wizard.formHeading')}</h2>
 
-      <label className="block space-y-2">
-        <span className="flex items-baseline justify-between text-sm font-medium text-white/70">
-          {t('titleLabel')}
-          <span className="text-xs font-normal text-white/40">{t('titleOptional')}</span>
-        </span>
-        <input
-          type="text"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder={t('titlePlaceholder')}
-          maxLength={TITLE_MAX}
-          disabled={formState.kind === 'submitting'}
-          className="w-full rounded-lg border border-white/10 bg-black/30 px-4 py-2.5 text-sm text-white outline-none placeholder:text-white/30 focus:border-[#00FF88]/40 transition-colors disabled:opacity-60"
-        />
-      </label>
+          {formState.kind === 'error' && (
+            <div className="rounded-lg bg-red-500/10 border border-red-500/20 px-4 py-3 text-sm text-red-400">
+              <span className="font-bold">{t('errorTitle')}: </span>
+              {formState.message}
+            </div>
+          )}
 
-      <label className="block space-y-2">
-        <span className="flex items-baseline justify-between text-sm font-medium text-white/70">
-          {t('bodyLabel')}
-          <span
-            className={
-              bodyTrimmedLength > BODY_MAX
-                ? 'text-xs font-normal text-red-400'
-                : 'text-xs font-normal text-white/40'
-            }
-          >
-            {bodyTrimmedLength}/{BODY_MAX}
-          </span>
-        </span>
-        <textarea
-          value={body}
-          onChange={(e) => setBody(e.target.value)}
-          placeholder={t('bodyPlaceholder')}
-          required
-          minLength={BODY_MIN}
-          maxLength={BODY_MAX}
-          rows={6}
-          disabled={formState.kind === 'submitting'}
-          className="w-full resize-y rounded-lg border border-white/10 bg-black/30 px-4 py-2.5 text-sm text-white outline-none placeholder:text-white/30 focus:border-[#00FF88]/40 transition-colors disabled:opacity-60"
-        />
-        <p className="text-xs text-white/40">{t('bodyHint')}</p>
-      </label>
+          <div className="space-y-5 bg-white/5 border border-white/10 p-6 rounded-2xl">
+            <fieldset className="space-y-2">
+              <legend className="text-sm font-bold text-white/70">{t('sentimentLabel')}</legend>
+              <SentimentPicker
+                value={sentiment}
+                onChange={setSentiment}
+                labels={sentimentLabels}
+                groupLabel={t('sentimentLabel')}
+                disabled={formState.kind === 'submitting'}
+              />
+            </fieldset>
 
-      <div className="flex flex-col gap-3 border-t border-white/5 pt-5 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-xs text-white/40">{t('immutableHint')}</p>
-        <div className="flex flex-wrap items-center gap-3">
-          <Link
-            href={`/brokers/${brokerSlug}`}
-            className="rounded-full border border-white/20 bg-white/5 px-4 py-2 text-sm font-medium text-white/70 hover:border-white/40 hover:bg-white/10"
-          >
-            {t('cancel')}
-          </Link>
+            <div className="space-y-2">
+              <label className="text-sm font-bold text-white/70 flex justify-between">
+                <span>{t('titleLabel')}</span>
+                <span className="text-xs text-white/30 font-normal">{t('titleOptional')}</span>
+              </label>
+              <input
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder={t('titlePlaceholder')}
+                maxLength={TITLE_MAX}
+                disabled={formState.kind === 'submitting'}
+                className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#00FF88] transition-colors disabled:opacity-60"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-bold text-white/70 flex justify-between">
+                <span>{t('bodyLabel')}</span>
+                <span
+                  className={
+                    bodyTrimmedLength > BODY_MAX
+                      ? 'text-xs font-normal text-red-400'
+                      : 'text-xs font-normal text-white/30'
+                  }
+                >
+                  {bodyTrimmedLength}/{BODY_MAX}
+                </span>
+              </label>
+              <textarea
+                value={body}
+                onChange={(e) => setBody(e.target.value)}
+                placeholder={t('bodyPlaceholder')}
+                required
+                minLength={BODY_MIN}
+                maxLength={BODY_MAX}
+                rows={6}
+                disabled={formState.kind === 'submitting'}
+                className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#00FF88] min-h-[150px] resize-none transition-colors disabled:opacity-60"
+              />
+              <p className="text-xs text-white/40">{t('bodyHint')}</p>
+            </div>
+          </div>
+
           <button
-            type="submit"
-            disabled={!canSubmit}
-            className="rounded-full bg-[#00FF88] px-6 py-2.5 text-sm font-bold text-[#050608] transition-all hover:shadow-[0_0_15px_#00FF8840] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:shadow-none"
+            type="button"
+            disabled={!isBodyValid || !isSentimentValid}
+            onClick={() => setWizardStep(3)}
+            className="w-full py-4 bg-[#00FF88] text-black font-bold rounded-xl hover:bg-[#00e67a] hover:shadow-[0_0_20px_#00FF8840] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {formState.kind === 'submitting' ? t('submitting') : t('submit')}
+            {t('wizard.nextEvidence')}
           </button>
         </div>
-      </div>
-    </form>
+      )}
+
+      {/* STEP 3: Evidence Upload + Submit */}
+      {wizardStep === 3 && (
+        <form onSubmit={(e) => void handleSubmit(e)} className="space-y-6 animate-in fade-in">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setWizardStep(2)}
+              className="flex items-center gap-1 text-sm text-white/50 hover:text-white transition-colors"
+            >
+              <ArrowLeft size={14} />
+              {t('wizard.back')}
+            </button>
+          </div>
+
+          <h2 className="text-2xl font-bold text-white">{t('wizard.evidenceHeading')}</h2>
+
+          <div className="bg-blue-500/10 border border-blue-500/20 p-4 rounded-xl flex gap-3 text-sm text-blue-300">
+            <Info className="shrink-0 mt-0.5 text-blue-400" size={18} />
+            <p className="leading-relaxed">{t('wizard.evidenceHint')}</p>
+          </div>
+
+          {formState.kind === 'error' && (
+            <div className="rounded-lg bg-red-500/10 border border-red-500/20 px-4 py-3 text-sm text-red-400">
+              <span className="font-bold">{t('errorTitle')}: </span>
+              {formState.message}
+            </div>
+          )}
+
+          <div className="bg-white/5 border border-white/10 p-6 rounded-2xl space-y-4">
+            <EvidenceUpload
+              status={uploadState.status === 'uploaded' ? 'uploaded' : uploadState.status}
+              uploaded={uploadState.status === 'uploaded' ? uploadState.uploaded : null}
+              acceptAttribute={ACCEPT_ATTRIBUTE}
+              onFileSelected={(file) => void handleFileSelected(file)}
+              onRemove={handleRemoveEvidence}
+              labels={evidenceLabels}
+              theme="neon"
+              disabled={formState.kind === 'submitting'}
+            />
+            {uploadState.status === 'idle' && uploadState.error ? (
+              <p className="text-xs text-red-400">{uploadState.error}</p>
+            ) : null}
+          </div>
+
+          <div className="space-y-3">
+            <p className="text-xs text-white/40">{t('immutableHint')}</p>
+            <button
+              type="submit"
+              disabled={!canSubmit}
+              className="w-full py-4 bg-[#00FF88] text-black font-bold rounded-xl hover:bg-[#00e67a] hover:shadow-[0_0_20px_#00FF8840] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {formState.kind === 'submitting' ? t('submitting') : t('wizard.submitFinal')}
+            </button>
+          </div>
+        </form>
+      )}
+
+      {/* Profile display */}
+      {profile?.displayName && (
+        <p className="text-xs text-white/30 text-center">
+          {t('formSubtitle', { broker: brokerName })} · {profile.displayName}
+        </p>
+      )}
+    </div>
   );
 };

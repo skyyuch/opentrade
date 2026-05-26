@@ -337,6 +337,25 @@
       "reviewDesc": "管理员会在 1-2 个工作日内审核证据并标注是否验证通过。即使被驳回，投诉内容仍会保留在链上，仅平台不为其背书。",
       "immutableTitle": "永久公开",
       "immutableDesc": "投诉内容上 IPFS 后不可删除、不可修改。请仅描述事实，避免人身攻击。"
+    },
+    "wizard": {
+      "step1": "须知",
+      "step2": "详情",
+      "step3": "证据",
+      "guidelinesTitle": "发起针对 {broker} 的投诉",
+      "guidelinesHeading": "投诉与争议调解须知",
+      "guidelinesIntro": "本平台提供去中心化的行政介入机制。在提交之前，请详阅以下规定：",
+      "guidelinesRule1": "您必须持有可验证的券商开户证明或交易记录（如对账单截图或出入金记录）。",
+      "guidelinesRule2": "恶意、虚假或缺乏证据的投诉将遭到驳回，并可能影响您的账户信誉。",
+      "guidelinesRule3": "所有提供的资料都会经过加密存储于 IPFS，仅限管理员查看原始文件。",
+      "guidelinesRule4": "投诉内容一旦提交即永久记录，无法删除或修改。请确保所述皆为事实。",
+      "guidelinesAccept": "我已了解，开始填写",
+      "back": "上一步",
+      "formHeading": "填写投诉详情",
+      "nextEvidence": "下一步：上传证据",
+      "evidenceHeading": "上传附件与证据",
+      "evidenceHint": "请提供截图、对话记录或对账单。这有助于管理员加速核实您的问题。资料将被加密处理。",
+      "submitFinal": "确认并提交投诉"
     }
   },
   "settings": {

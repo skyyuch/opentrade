@@ -337,6 +337,25 @@
       "reviewDesc": "Admins review every complaint within 1-2 business days and label whether the claim was substantiated. Even rejected complaints stay published on chain — only the platform's verification stamp is withheld.",
       "immutableTitle": "Permanent record",
       "immutableDesc": "Once a complaint is pinned to IPFS it cannot be deleted or modified. Stick to facts and avoid personal attacks."
+    },
+    "wizard": {
+      "step1": "Notice",
+      "step2": "Details",
+      "step3": "Evidence",
+      "guidelinesTitle": "File a complaint against {broker}",
+      "guidelinesHeading": "Complaint & Dispute Resolution Notice",
+      "guidelinesIntro": "This platform provides decentralised administrative intervention mechanisms. Before submitting, please read the following rules:",
+      "guidelinesRule1": "You must hold verifiable proof of your account or trading history with the broker (e.g. statement screenshots or deposit/withdrawal records).",
+      "guidelinesRule2": "Malicious, fraudulent, or unsupported complaints will be rejected and may impact your account reputation.",
+      "guidelinesRule3": "All submitted materials are encrypted and stored on IPFS. Only administrators can view original files.",
+      "guidelinesRule4": "Complaint content is permanently recorded once submitted and cannot be deleted or modified. Ensure all statements are factual.",
+      "guidelinesAccept": "I understand, begin filing",
+      "back": "Previous step",
+      "formHeading": "Fill in complaint details",
+      "nextEvidence": "Next: Upload evidence",
+      "evidenceHeading": "Upload attachments & evidence",
+      "evidenceHint": "Please provide screenshots, chat logs, or statements. This helps administrators verify your issue faster. Data will be encrypted.",
+      "submitFinal": "Confirm and submit complaint"
     }
   },
   "settings": {

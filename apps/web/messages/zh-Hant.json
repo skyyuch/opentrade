@@ -337,6 +337,25 @@
       "reviewDesc": "管理員會在 1-2 個工作天內審核證據並標註是否驗證通過。即使被駁回，投訴內容仍會保留在鏈上，僅平台不為其背書。",
       "immutableTitle": "永久公開",
       "immutableDesc": "投訴內容上 IPFS 後不可刪除、不可修改。請僅描述事實，避免人身攻擊。"
+    },
+    "wizard": {
+      "step1": "須知",
+      "step2": "詳情",
+      "step3": "證據",
+      "guidelinesTitle": "發起針對 {broker} 的投訴",
+      "guidelinesHeading": "投訴與爭議調解須知",
+      "guidelinesIntro": "本平台提供去中心化的行政介入機制。在提交之前，請詳閱以下規定：",
+      "guidelinesRule1": "您必須持有可驗證的券商開戶證明或交易紀錄（如對帳單截圖或出入金紀錄）。",
+      "guidelinesRule2": "惡意、虛假或缺乏證據的投訴將遭到駁回，並可能影響您的帳戶信譽。",
+      "guidelinesRule3": "所有提供的資料都會經過加密存儲於 IPFS，僅限管理員查看原始檔案。",
+      "guidelinesRule4": "投訴內容一旦提交即永久記錄，無法刪除或修改。請確保所述皆為事實。",
+      "guidelinesAccept": "我已了解，開始填寫",
+      "back": "上一步",
+      "formHeading": "填寫投訴詳情",
+      "nextEvidence": "下一步：上傳證據",
+      "evidenceHeading": "上傳附件與證據",
+      "evidenceHint": "請提供截圖、對話紀錄或對帳單。這有助於管理員加速核實您的問題。資料將被加密處理。",
+      "submitFinal": "確認並提交投訴"
     }
   },
   "settings": {
