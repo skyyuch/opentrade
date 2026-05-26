@@ -24,6 +24,8 @@ export { getDbEnv, type DbEnv } from './env.js';
 // Frontend code MUST consume these via `import type` (verified by
 // tsconfig.base.json's `verbatimModuleSyntax: true`).
 export {
+  AssetClass,
+  KolStatus,
   LicenseStatus,
   LicenseType,
   Regulator,
@@ -31,16 +33,21 @@ export {
   ReviewStatus,
   SbtTier,
   Sentiment,
+  SignalDirection,
+  SignalOutcome,
   UserRole,
 } from '@prisma/client';
 
 export type {
   Broker,
   BrokerLicense,
+  Kol,
+  KolFollow,
   OutboxEvent,
   Prisma,
   PrismaClient,
   Review,
+  Signal,
   Tenant,
   User,
 } from '@prisma/client';

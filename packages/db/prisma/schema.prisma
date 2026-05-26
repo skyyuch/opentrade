@@ -112,6 +112,8 @@ model Tenant {
   sbtVerificationRequests SbtVerificationRequest[]
   brokerClaimRequests     BrokerClaimRequest[]
   userVerifiedBrokers     UserVerifiedBroker[]
+  kols                    Kol[]
+  signals                 Signal[]
 
   @@map("tenants")
 }
@@ -147,6 +149,8 @@ model User {
   reviews                 Review[]
   sbtVerificationRequests SbtVerificationRequest[]
   verifiedBrokers         UserVerifiedBroker[]
+  kolProfiles             Kol[]
+  kolFollows              KolFollow[]
 
   @@unique([tenantId, privyId])
   @@index([tenantId, role])
@@ -326,6 +330,54 @@ model BrokerClaimRequest {
   @@index([tenantId, status])
   @@index([tenantId, brokerId])
   @@map("broker_claim_requests")
+}
+
+// =============================================================================
+// KOL Enums (per ADR-0036)
+// =============================================================================
+
+/// Lifecycle status of a KOL profile. Pre-seeded profiles start UNCLAIMED;
+/// real users applying go through PENDING → APPROVED/REJECTED. Admin can
+/// suspend any KOL at any time. Per ADR-0036 D1 + D9.
+enum KolStatus {
+  UNCLAIMED  // Pre-seeded by admin, not yet claimed by the real person.
+  PENDING    // User applied; waiting admin review.
+  APPROVED   // Active KOL; can emit signals.
+  REJECTED   // Admin rejected the application.
+  SUSPENDED  // Admin suspended (post-approval); cannot emit new signals.
+}
+
+/// Broad asset class for KOL signals. Per ADR-0036 D5: unrestricted symbol
+/// input, but this enum classifies which oracle pipeline handles settlement.
+enum AssetClass {
+  EQUITY_HK
+  EQUITY_US
+  FUTURES
+  SPOT
+  FOREX
+  CRYPTO
+}
+
+/// Direction of a KOL signal call. Per ADR-0036 D4.
+enum SignalDirection {
+  BUY
+  SELL
+  HOLD
+}
+
+/// Terminal state of a settled signal. Per ADR-0036 D6:
+///   - HIT_TARGET:     price touched target during horizon (best outcome)
+///   - HIT_DIRECTION:  price moved in correct direction but didn't reach target
+///   - STOPPED:        price touched stoploss (immediate loss)
+///   - EXPIRED:        horizon elapsed, direction wrong, no target/stoploss touch
+///   - UNRESOLVED:     no oracle coverage for this symbol
+enum SignalOutcome {
+  ACTIVE
+  HIT_TARGET
+  HIT_DIRECTION
+  STOPPED
+  EXPIRED
+  UNRESOLVED
 }
 
 /// Lifecycle status of a review as it moves through the submission pipeline.
@@ -509,6 +561,107 @@ model ReviewTranslation {
 
   @@unique([reviewId, locale])
   @@map("review_translations")
+}
+
+// =============================================================================
+// KOL Models (per ADR-0036)
+// =============================================================================
+
+/// A KOL (Key Opinion Leader / 財演) profile. Pre-seeded profiles (UNCLAIMED)
+/// exist before the real person claims them; claimed + approved profiles can
+/// emit signals. Per ADR-0036 D1, D9.
+///
+/// KolSbt is an independent soulbound token parallel to ReviewerSbt (ADR-0036
+/// D3). The `kolSbtTokenId` / `kolSbtMintTxHash` columns mirror the pattern
+/// established in User.sbtTokenId / sbtMintTxHash.
+model Kol {
+  id              String    @id @default(uuid()) @db.Uuid
+  tenantId        String    @db.Uuid
+  userId          String?   @db.Uuid
+  slug            String    @unique
+  displayName     String
+  bio             String?   @db.Text
+  avatarUrl       String?
+  status          KolStatus @default(UNCLAIMED)
+  /// JSON: { youtube?: string, instagram?: string, twitter?: string }
+  socialLinks     Json?
+  /// JSON array: [{ type: "CFA"|"SFC_TYPE_4"|..., verified: boolean, verifiedAt?: string }]
+  credentials     Json?
+  iamSmartVerified Boolean  @default(false)
+  kolSbtTokenId   Int?
+  kolSbtMintTxHash String?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  tenant    Tenant     @relation(fields: [tenantId], references: [id])
+  user      User?      @relation(fields: [userId], references: [id])
+  signals   Signal[]
+  followers KolFollow[]
+
+  @@index([tenantId, status])
+  @@index([tenantId, userId])
+  @@map("kols")
+}
+
+/// A single signal (call) emitted by a KOL. Immutable once on-chain per
+/// project red line (no deletion, no modification). Per ADR-0036 D4-D7.
+///
+/// Settlement fields (settledAt, settlePrice, periodHigh, periodLow) are
+/// populated by the Settle Worker (M9.2) when the horizon expires and oracle
+/// data is available. Signals without oracle coverage reach UNRESOLVED.
+model Signal {
+  id            String          @id @default(uuid()) @db.Uuid
+  tenantId      String          @db.Uuid
+  kolId         String          @db.Uuid
+  assetClass    AssetClass
+  symbol        String
+  direction     SignalDirection
+  entryPrice    Decimal         @db.Decimal(20, 8)
+  targetPrice   Decimal         @db.Decimal(20, 8)
+  stoplossPrice Decimal?        @db.Decimal(20, 8)
+  horizon       Int             @db.SmallInt
+  note          String?         @db.VarChar(500)
+  outcome       SignalOutcome   @default(ACTIVE)
+  settledAt     DateTime?
+  settlePrice   Decimal?        @db.Decimal(20, 8)
+  periodHigh    Decimal?        @db.Decimal(20, 8)
+  periodLow     Decimal?        @db.Decimal(20, 8)
+
+  contentHash   String
+  ipfsCid       String?
+  chainSignalId Int?
+  chainTxHash   String?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  kol    Kol    @relation(fields: [kolId], references: [id])
+
+  @@index([tenantId, kolId, createdAt])
+  @@index([tenantId, outcome])
+  @@index([tenantId, symbol])
+  @@index([tenantId, assetClass])
+  @@map("signals")
+}
+
+/// User-KOL follow relationship. Foundation for future paid subscription
+/// (Phase 5+ per ADR-0036 D8). Per ADR-0036 D8.
+model KolFollow {
+  id     String @id @default(uuid()) @db.Uuid
+  userId String @db.Uuid
+  kolId  String @db.Uuid
+
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+  kol  Kol  @relation(fields: [kolId], references: [id])
+
+  @@unique([userId, kolId])
+  @@index([kolId])
+  @@map("kol_follows")
 }
 
 /// Transactional outbox for cross-domain domain events (per ADR-0006 outbox
