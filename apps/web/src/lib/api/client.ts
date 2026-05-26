@@ -489,6 +489,57 @@ export const submitReview = (
 ): Promise<SubmitReviewResponse> => apiPost<SubmitReviewResponse>('/v1/reviews', input, options);
 
 // ---------------------------------------------------------------------------
+// Complaints — per ADR-0029. Complaints share the Review pipeline with a
+// `kind = COMPLAINT` discriminator and a required evidence IPFS CID. The
+// server zod schema lives in `apps/api/src/domains/complaints/presentation/
+// routes.ts` (see M7.5a for the title-optional / body-2000 cap that this
+// shape mirrors). Submission requires the L2 reviewer SBT — non-L2 users
+// must complete `/verify` first.
+// ---------------------------------------------------------------------------
+
+export type ComplaintSentiment = 'POSITIVE' | 'NEUTRAL' | 'NEGATIVE';
+
+export type SubmitComplaintInput = {
+  brokerId: string;
+  /** Optional short headline (≤ 80 chars). Empty / undefined is allowed. */
+  title?: string;
+  body: string;
+  /** IPFS CID of the evidence file pinned via {@link uploadVerifyEvidence}. */
+  evidenceIpfsCid: string;
+  /**
+   * Per ADR-0028 + ADR-0029: complaints carry the same three-way axis as
+   * reviews. Server defaults to `NEGATIVE` when omitted (the act of
+   * complaining IS a negative-toned signal) but the surfaced web form
+   * always sends an explicit value.
+   */
+  sentiment: ComplaintSentiment;
+  /** Per ADR-0027 D2: the author's current next-intl locale. */
+  sourceLocale: 'zh-Hant' | 'zh-Hans' | 'en';
+};
+
+export type SubmitComplaintResponse = {
+  complaint: {
+    id: string;
+    brokerId: string;
+    contentHash: string;
+    ipfsCid: string | null;
+    evidenceIpfsCid: string;
+    title: string;
+    sentiment: ComplaintSentiment | null;
+    sourceLocale: 'zh-Hant' | 'zh-Hans' | 'en' | null;
+    verifiedAt: string | null;
+    adminNote: string | null;
+    createdAt: string;
+  };
+};
+
+export const submitComplaint = (
+  input: SubmitComplaintInput,
+  options: FetchOptions,
+): Promise<SubmitComplaintResponse> =>
+  apiPost<SubmitComplaintResponse>('/v1/complaints', input, options);
+
+// ---------------------------------------------------------------------------
 // User profile
 // ---------------------------------------------------------------------------
 
