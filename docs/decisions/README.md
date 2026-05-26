@@ -118,6 +118,8 @@ YYYY-MM-DD
 | 0027 | Deprecate UGC translation; ship reviews as author-original  | Accepted           | 2026-05-24 |
 | 0028 | Deprecate five-star rating in favour of three-way sentiment | Accepted           | 2026-05-25 |
 | 0029 | Separate complaints from reviews via `kind` discriminator   | Accepted           | 2026-05-25 |
+| 0031 | iAM Smart identity provider interface (Phase 2)             | Accepted           | 2026-05-26 |
+| 0036 | KOL signal architecture (Phase 2)                           | Accepted           | 2026-05-26 |
 
 ---
 
