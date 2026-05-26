@@ -5,6 +5,7 @@ import {
   AlertTriangle,
   CheckCircle,
   Edit3,
+  ExternalLink,
   FileText,
   Info,
   Link as LinkIcon,
@@ -41,26 +42,25 @@ import type {
   ComplaintItem,
   ComplaintStatus,
   ReviewItem,
-  SfcPerson,
-  SfcComplaintsOfficer,
   SfcCondition,
+  SfcDetailJson,
   SfcDisciplinaryAction,
-  SfcFormerName,
   SfcLicenceRecord,
+  SfcPerson,
 } from '@/lib/api/client';
 import type { FormEvent } from 'react';
 
 type Tab = 'reviews' | 'complaints' | 'license' | 'kols' | 'arbitration';
 type LicenseSubTab =
-  | 'details'
-  | 'address'
-  | 'principals'
-  | 'reps'
-  | 'complaints'
+  | 'overview'
+  | 'licensedActivities'
   | 'conditions'
+  | 'responsibleOfficers'
+  | 'representatives'
   | 'disciplinary'
-  | 'formerNames'
-  | 'history';
+  | 'complianceHistory'
+  | 'relatedEntities'
+  | 'documents';
 
 type Props = {
   broker: BrokerDetail;
@@ -1033,19 +1033,19 @@ function ReviewCard({
 }
 
 function LicenseTab({ broker }: { broker: BrokerDetail }) {
-  const [subTab, setSubTab] = useState<LicenseSubTab>('details');
+  const [subTab, setSubTab] = useState<LicenseSubTab>('overview');
   const t = useTranslations('brokerDetail');
 
   const subTabs: { key: LicenseSubTab; label: string }[] = [
-    { key: 'details', label: t('licenseSubTabLicense') },
-    { key: 'address', label: t('licenseSubTabAddress') },
-    { key: 'principals', label: t('licenseSubTabPrincipals') },
-    { key: 'reps', label: t('licenseSubTabReps') },
-    { key: 'complaints', label: t('licenseSubTabComplaints') },
+    { key: 'overview', label: t('licenseSubTabOverview') },
+    { key: 'licensedActivities', label: t('licenseSubTabLicensedActivities') },
     { key: 'conditions', label: t('licenseSubTabConditions') },
+    { key: 'responsibleOfficers', label: t('licenseSubTabResponsibleOfficers') },
+    { key: 'representatives', label: t('licenseSubTabRepresentatives') },
     { key: 'disciplinary', label: t('licenseSubTabDisciplinary') },
-    { key: 'formerNames', label: t('licenseSubTabFormerNames') },
-    { key: 'history', label: t('licenseSubTabHistory') },
+    { key: 'complianceHistory', label: t('licenseSubTabComplianceHistory') },
+    { key: 'relatedEntities', label: t('licenseSubTabRelatedEntities') },
+    { key: 'documents', label: t('licenseSubTabDocuments') },
   ];
 
   const detail = broker.sfcDetailJson;
@@ -1076,31 +1076,31 @@ function LicenseTab({ broker }: { broker: BrokerDetail }) {
         </div>
 
         <div className="space-y-4 text-sm animate-in fade-in duration-300">
-          {subTab === 'details' && <LicenseDetails broker={broker} />}
-          {subTab === 'address' && <AddressesView addresses={detail?.addresses} />}
-          {subTab === 'principals' && (
-            <PersonTable
-              persons={detail?.principals}
-              headerLabel={t('licenseSubTabPrincipals')}
-              emptyText={t('noData')}
-            />
-          )}
-          {subTab === 'reps' && (
-            <PersonTable
-              persons={detail?.representatives}
-              headerLabel={t('licenseSubTabReps')}
-              emptyText={t('noData')}
-            />
-          )}
-          {subTab === 'complaints' && <ComplaintsOfficerView officer={detail?.complaintsOfficer} />}
+          {subTab === 'overview' && <OverviewView broker={broker} />}
+          {subTab === 'licensedActivities' && <LicensedActivitiesView broker={broker} />}
           {subTab === 'conditions' && (
             <ConditionsView sfo={detail?.conditionsSfo} amlo={detail?.conditionsAmlo} />
           )}
+          {subTab === 'responsibleOfficers' && (
+            <PersonTable
+              persons={detail?.principals}
+              headerLabel={t('licenseSubTabResponsibleOfficers')}
+              emptyText={t('noData')}
+            />
+          )}
+          {subTab === 'representatives' && (
+            <PersonTable
+              persons={detail?.representatives}
+              headerLabel={t('licenseSubTabRepresentatives')}
+              emptyText={t('noData')}
+            />
+          )}
           {subTab === 'disciplinary' && <DisciplinaryView actions={detail?.disciplinaryActions} />}
-          {subTab === 'formerNames' && <FormerNamesView names={detail?.formerNames} />}
-          {subTab === 'history' && (
+          {subTab === 'complianceHistory' && (
             <LicenseRecordsView sfo={detail?.licenseRecordsSfo} amlo={detail?.licenseRecordsAmlo} />
           )}
+          {subTab === 'relatedEntities' && <RelatedEntitiesView detail={detail} />}
+          {subTab === 'documents' && <DocumentsView broker={broker} />}
         </div>
       </div>
 
@@ -1112,10 +1112,13 @@ function LicenseTab({ broker }: { broker: BrokerDetail }) {
   );
 }
 
-function LicenseDetails({ broker }: { broker: BrokerDetail }) {
+function OverviewView({ broker }: { broker: BrokerDetail }) {
   const t = useTranslations('brokerDetail');
+  const detail = broker.sfcDetailJson;
+  const officer = detail?.complaintsOfficer;
+
   return (
-    <>
+    <div className="space-y-6">
       <div className="grid grid-cols-3 py-3 border-b border-white/5">
         <span className="text-white/40">{t('corpName')}</span>
         <span className="col-span-2 font-bold">
@@ -1141,40 +1144,151 @@ function LicenseDetails({ broker }: { broker: BrokerDetail }) {
           </span>
         </div>
       )}
-    </>
+
+      {detail?.addresses && detail.addresses.length > 0 && (
+        <div className="mt-4 space-y-4 bg-black/20 rounded-xl border border-white/5 overflow-hidden">
+          <div className="font-bold text-white px-4 py-3 bg-white/5">{t('businessAddresses')}</div>
+          <div className="px-4 pb-4 space-y-3">
+            {detail.addresses.map((addr, i) => (
+              <div
+                key={i}
+                className="p-3 bg-white/5 rounded-lg border border-white/5 hover:border-white/10 transition-colors"
+              >
+                <p className="text-white/80">{addr.addressEn}</p>
+                {addr.addressZh && addr.addressZh !== addr.addressEn && (
+                  <p className="text-white/50 mt-1">{addr.addressZh}</p>
+                )}
+                {addr.isPrimary && (
+                  <span className="inline-block mt-2 text-[10px] px-2 py-0.5 rounded bg-[#00FF88]/10 text-[#00FF88] border border-[#00FF88]/20">
+                    {t('primaryAddress')}
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {officer && (
+        <div className="mt-4 space-y-3">
+          <div className="font-bold text-white">{t('contactDetails')}</div>
+          <div className="overflow-x-auto rounded-xl border border-white/10">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-teal-900/40 text-[#00FF88] border-b border-white/10">
+                <tr>
+                  <th className="p-4 font-bold border-r border-white/5">{t('telephone')}</th>
+                  <th className="p-4 font-bold border-r border-white/5">{t('fax')}</th>
+                  <th className="p-4 font-bold border-r border-white/5">{t('email')}</th>
+                  <th className="p-4 font-bold">{t('postalAddress')}</th>
+                </tr>
+              </thead>
+              <tbody className="bg-black/20">
+                <tr className="hover:bg-white/5 transition-colors">
+                  <td className="p-4 text-white/80 border-r border-white/5">
+                    {officer.tel ?? '-'}
+                  </td>
+                  <td className="p-4 text-white/80 border-r border-white/5">
+                    {officer.fax ?? '-'}
+                  </td>
+                  <td className="p-4 border-r border-white/5">
+                    {officer.email ? (
+                      <a
+                        href={`mailto:${officer.email}`}
+                        className="text-[#00FF88] hover:underline"
+                      >
+                        {officer.email}
+                      </a>
+                    ) : (
+                      '-'
+                    )}
+                  </td>
+                  <td className="p-4 text-white/80">{officer.address ?? '-'}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
-function AddressesView({
-  addresses,
-}: {
-  addresses: NonNullable<BrokerDetail['sfcDetailJson']>['addresses'] | undefined;
-}) {
+function LicensedActivitiesView({ broker }: { broker: BrokerDetail }) {
   const t = useTranslations('brokerDetail');
-  if (!addresses || addresses.length === 0) {
-    return <p className="text-white/40 py-4">{t('noData')}</p>;
-  }
+  const detail = broker.sfcDetailJson;
+  const sfo = detail?.licenseRecordsSfo;
+
+  const raDescriptions: Record<number, { en: string; zh: string }> = {
+    1: { en: 'Dealing in Securities', zh: '證券交易' },
+    2: { en: 'Dealing in Futures Contracts', zh: '期貨合約交易' },
+    3: { en: 'Leveraged Foreign Exchange Trading', zh: '槓桿式外匯交易' },
+    4: { en: 'Advising on Securities', zh: '就證券提供意見' },
+    5: { en: 'Advising on Futures Contracts', zh: '就期貨合約提供意見' },
+    6: { en: 'Advising on Corporate Finance', zh: '就機構融資提供意見' },
+    7: { en: 'Providing Automated Trading Services', zh: '提供自動化交易服務' },
+    8: { en: 'Securities Margin Financing', zh: '提供證券保證金融資' },
+    9: { en: 'Asset Management', zh: '提供資產管理' },
+  };
+
+  const locale = useLocale();
+  const isZh = locale === 'zh-Hant' || locale === 'zh-Hans';
+
+  const activeActivities = sfo ? [...new Set(sfo.map((r) => r.actType))].sort((a, b) => a - b) : [];
+
   return (
-    <div className="space-y-4 bg-black/20 rounded-xl border border-white/5 overflow-hidden">
-      <div className="font-bold text-white px-4 py-3 bg-white/5">{t('businessAddresses')}</div>
-      <div className="px-4 pb-4 space-y-4">
-        {addresses.map((addr, i) => (
-          <div
-            key={i}
-            className="p-3 bg-white/5 rounded-lg border border-white/5 hover:border-white/10 transition-colors"
-          >
-            <p className="text-white/80">{addr.addressEn}</p>
-            {addr.addressZh && addr.addressZh !== addr.addressEn && (
-              <p className="text-white/50 mt-1">{addr.addressZh}</p>
-            )}
-            {addr.isPrimary && (
-              <span className="inline-block mt-2 text-[10px] px-2 py-0.5 rounded bg-[#00FF88]/10 text-[#00FF88] border border-[#00FF88]/20">
-                {t('primaryAddress')}
+    <div className="space-y-6">
+      <div className="font-bold text-white mb-2">{t('licensedActivitiesHeading')}</div>
+
+      {activeActivities.length === 0 ? (
+        <p className="text-white/40 py-4">{t('noData')}</p>
+      ) : (
+        <div className="grid gap-3">
+          {activeActivities.map((ra) => {
+            const desc = raDescriptions[ra];
+            const records = sfo?.filter((r) => r.actType === ra) ?? [];
+            const isActive = records.some((r) => r.periods.some((p) => !p.to));
+            return (
+              <div
+                key={ra}
+                className="p-4 rounded-xl bg-black/20 border border-white/5 hover:border-white/10 transition-colors"
+              >
+                <div className="flex items-center gap-3 mb-2">
+                  <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-[#00FF88]/10 text-[#00FF88] font-bold text-xs">
+                    {ra}
+                  </span>
+                  <div className="flex-1">
+                    <div className="font-bold text-white text-sm">
+                      {isZh ? (desc?.zh ?? `RA${ra}`) : (desc?.en ?? `RA${ra}`)}
+                    </div>
+                    <div className="text-xs text-white/40">{isZh ? desc?.en : desc?.zh}</div>
+                  </div>
+                  {isActive && (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#00FF88]/10 text-[#00FF88] border border-[#00FF88]/20">
+                      {t('licenseActive')}
+                    </span>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {broker.licenses.length > 0 && (
+        <div className="mt-4 p-4 rounded-xl bg-white/5 border border-white/5">
+          <div className="text-xs text-white/40 mb-2">{t('licenseTypeSummary')}</div>
+          <div className="flex flex-wrap gap-2">
+            {broker.licenses.map((l, i) => (
+              <span
+                key={i}
+                className="text-[10px] uppercase font-bold px-2 py-1 bg-white/5 border border-white/10 rounded text-white/70"
+              >
+                {l.licenseType.replace('HK_SFC_TYPE_', 'Type ')}
               </span>
-            )}
+            ))}
           </div>
-        ))}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1230,58 +1344,6 @@ function PersonTable({
                 ))}
               </tr>
             ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
-
-function ComplaintsOfficerView({ officer }: { officer: SfcComplaintsOfficer | undefined }) {
-  const t = useTranslations('brokerDetail');
-  if (!officer) {
-    return <p className="text-white/40 py-4">{t('noData')}</p>;
-  }
-
-  return (
-    <div className="space-y-4">
-      {/* eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing -- empty SFC strings should also hide the block */}
-      {(officer.entityName || officer.entityNameChi) && (
-        <div className="text-center space-y-1">
-          <div className="text-white/50">{t('corporation')}</div>
-          <div className="font-bold">
-            {officer.entityName}
-            {officer.entityNameChi && ` ${officer.entityNameChi}`}
-            {officer.ceRef && <span className="text-white/40 ml-1">({officer.ceRef})</span>}
-          </div>
-        </div>
-      )}
-      <div className="font-bold text-white">{t('contactDetails')}</div>
-      <div className="overflow-x-auto rounded-xl border border-white/10">
-        <table className="w-full text-left text-sm">
-          <thead className="bg-teal-900/40 text-[#00FF88] border-b border-white/10">
-            <tr>
-              <th className="p-4 font-bold border-r border-white/5">{t('telephone')}</th>
-              <th className="p-4 font-bold border-r border-white/5">{t('fax')}</th>
-              <th className="p-4 font-bold border-r border-white/5">{t('email')}</th>
-              <th className="p-4 font-bold">{t('postalAddress')}</th>
-            </tr>
-          </thead>
-          <tbody className="bg-black/20">
-            <tr className="hover:bg-white/5 transition-colors">
-              <td className="p-4 text-white/80 border-r border-white/5">{officer.tel ?? '-'}</td>
-              <td className="p-4 text-white/80 border-r border-white/5">{officer.fax ?? '-'}</td>
-              <td className="p-4 border-r border-white/5">
-                {officer.email ? (
-                  <a href={`mailto:${officer.email}`} className="text-[#00FF88] hover:underline">
-                    {officer.email}
-                  </a>
-                ) : (
-                  '-'
-                )}
-              </td>
-              <td className="p-4 text-white/80">{officer.address ?? '-'}</td>
-            </tr>
           </tbody>
         </table>
       </div>
@@ -1446,8 +1508,9 @@ function DisciplinaryView({ actions }: { actions: SfcDisciplinaryAction[] | unde
   );
 }
 
-function FormerNamesView({ names }: { names: SfcFormerName[] | undefined }) {
+function RelatedEntitiesView({ detail }: { detail: SfcDetailJson | null | undefined }) {
   const t = useTranslations('brokerDetail');
+  const names = detail?.formerNames;
   return (
     <div className="space-y-4">
       <div className="font-bold mb-2">{t('formerNamesRecord')}</div>
@@ -1480,6 +1543,82 @@ function FormerNamesView({ names }: { names: SfcFormerName[] | undefined }) {
             )}
           </tbody>
         </table>
+      </div>
+    </div>
+  );
+}
+
+function DocumentsView({ broker }: { broker: BrokerDetail }) {
+  const t = useTranslations('brokerDetail');
+  const detail = broker.sfcDetailJson;
+  const actions =
+    detail?.disciplinaryActions?.filter(
+      (a): a is SfcDisciplinaryAction & { url: string } => !!a.url,
+    ) ?? [];
+
+  return (
+    <div className="space-y-6">
+      <div className="font-bold text-white mb-2">{t('documentsHeading')}</div>
+
+      <div className="space-y-3">
+        <a
+          href={`https://apps.sfc.hk/publicregWeb/corp/${broker.ceNumber ?? ''}/`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-3 p-4 rounded-xl bg-black/20 border border-white/5 hover:border-[#00FF88]/30 transition-colors group"
+        >
+          <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-[#00FF88]/10 text-[#00FF88]">
+            <ShieldCheck size={18} />
+          </div>
+          <div className="flex-1">
+            <div className="font-bold text-sm text-white group-hover:text-[#00FF88] transition-colors">
+              {t('sfcRegistryLink')}
+            </div>
+            <div className="text-xs text-white/40">{t('sfcRegistryLinkDesc')}</div>
+          </div>
+          <ExternalLink
+            size={16}
+            className="text-white/30 group-hover:text-[#00FF88] transition-colors"
+          />
+        </a>
+
+        {actions.length > 0 && (
+          <>
+            <div className="text-xs text-white/50 mt-4 mb-2 font-bold uppercase tracking-wide">
+              {t('pressReleases')}
+            </div>
+            {actions.map((a, i) => (
+              <a
+                key={i}
+                href={a.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-3 p-4 rounded-xl bg-black/20 border border-white/5 hover:border-red-500/30 transition-colors group"
+              >
+                <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-red-500/10 text-red-400">
+                  <FileText size={18} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-bold text-sm text-white group-hover:text-red-300 transition-colors truncate">
+                    {decodeHtmlEntities(a.description)}
+                  </div>
+                  {a.date && <div className="text-xs text-white/40 mt-0.5">{a.date}</div>}
+                </div>
+                <ExternalLink
+                  size={16}
+                  className="text-white/30 shrink-0 group-hover:text-red-300 transition-colors"
+                />
+              </a>
+            ))}
+          </>
+        )}
+
+        {actions.length === 0 && (
+          <div className="p-6 rounded-xl bg-white/5 border border-white/5 border-dashed text-center">
+            <FileText size={32} className="text-white/20 mx-auto mb-3" />
+            <p className="text-sm text-white/40">{t('noDocuments')}</p>
+          </div>
+        )}
       </div>
     </div>
   );
