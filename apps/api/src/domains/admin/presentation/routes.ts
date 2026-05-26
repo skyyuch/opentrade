@@ -24,6 +24,9 @@ import { authMiddleware } from '../../../http/middleware/auth.js';
 import { hydrateBrokerNames } from '../../../shared/brokerHydration.js';
 import { env } from '../../../shared/env.js';
 import { AppError, ErrorCode } from '../../../shared/errors/index.js';
+import { ListComplaintsUseCase } from '../../complaints/application/ListComplaintsUseCase.js';
+import { VerifyComplaintUseCase } from '../../complaints/application/VerifyComplaintUseCase.js';
+import { PrismaComplaintRepository } from '../../complaints/infrastructure/PrismaComplaintRepository.js';
 
 import type { AppHonoEnv } from '../../../http/types.js';
 
@@ -520,6 +523,179 @@ adminRouter.get('/reviews', authMiddleware('admin'), async (c) => {
       createdAt: r.createdAt.toISOString(),
     })),
     nextCursor,
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Complaint admin moderation per ADR-0029 D4 (M7.3c)
+//
+// The admin domain owns the cross-domain `/v1/admin/...` URL space (the
+// existing `/admin/users`, `/admin/reviews`, `/admin/stats` lineage). The
+// complaint Phase-1 moderation endpoints land here rather than in
+// `complaints/presentation/routes.ts` so the URL spec from ADR-0029 D4
+// (`/v1/admin/complaints/:id/{verify,reject}`) holds without re-mounting
+// complaintsRouter under two prefixes. The actual write happens through
+// `VerifyComplaintUseCase` so the rule 00 «reject != delete» invariant
+// is encoded in one testable place.
+// ---------------------------------------------------------------------------
+
+const adminComplaintRepo = new PrismaComplaintRepository(prisma);
+const adminListComplaints = new ListComplaintsUseCase(adminComplaintRepo);
+const adminVerifyComplaint = new VerifyComplaintUseCase(adminComplaintRepo);
+
+const listAdminComplaintsSchema = z.object({
+  cursor: z.string().uuid().optional(),
+  limit: z.coerce.number().int().min(1).max(50).optional(),
+  brokerSlug: z.string().max(100).optional(),
+  status: z.enum(['OPEN', 'VERIFIED', 'REJECTED']).optional(),
+});
+
+adminRouter.get('/complaints', authMiddleware('admin'), async (c) => {
+  const query = listAdminComplaintsSchema.safeParse(c.req.query());
+  if (!query.success) {
+    throw new AppError(ErrorCode.VALIDATION_ERROR, 'Invalid query parameters', 400, {
+      details: { issues: query.error.issues },
+    });
+  }
+
+  let brokerId: string | undefined;
+  if (query.data.brokerSlug) {
+    const broker = await prisma.broker.findFirst({
+      where: { slug: query.data.brokerSlug, tenantId: DEFAULT_TENANT_ID, deletedAt: null },
+      select: { id: true },
+    });
+    if (!broker) {
+      return c.json({ complaints: [], nextCursor: null });
+    }
+    brokerId = broker.id;
+  }
+
+  const result = await adminListComplaints.execute({
+    tenantId: DEFAULT_TENANT_ID,
+    brokerId,
+    status: query.data.status,
+    cursor: query.data.cursor,
+    limit: query.data.limit,
+  });
+
+  // Hydrate broker + author display names for the console table —
+  // mirror /admin/reviews shape so the console list cell components
+  // can be reused (per cursor rule 51 + ADR-0026 ship all three name
+  // columns so the admin sees TC + SC + EN).
+  const brokerIds = [...new Set(result.items.map((it) => it.brokerId))];
+  const userIds = [...new Set(result.items.map((it) => it.userId))];
+
+  const [brokers, users] = await Promise.all([
+    prisma.broker.findMany({
+      where: { id: { in: brokerIds }, tenantId: DEFAULT_TENANT_ID },
+      select: {
+        id: true,
+        slug: true,
+        displayName: true,
+        displayNameZhHans: true,
+        legalName: true,
+      },
+    }),
+    prisma.user.findMany({
+      where: { id: { in: userIds } },
+      select: { id: true, displayName: true },
+    }),
+  ]);
+
+  const brokerMap = new Map(brokers.map((b) => [b.id, b]));
+  const userMap = new Map(users.map((u) => [u.id, u]));
+
+  return c.json({
+    complaints: result.items.map((cplt) => {
+      const broker = brokerMap.get(cplt.brokerId);
+      const author = userMap.get(cplt.userId);
+      const status: 'OPEN' | 'VERIFIED' | 'REJECTED' =
+        cplt.verifiedAt !== null ? 'VERIFIED' : cplt.adminNote !== null ? 'REJECTED' : 'OPEN';
+      return {
+        id: cplt.id,
+        title: cplt.title,
+        body: cplt.body.length > 200 ? `${cplt.body.slice(0, 200)}...` : cplt.body,
+        sentiment: cplt.sentiment,
+        status,
+        evidenceIpfsCid: cplt.evidenceIpfsCid,
+        ipfsCid: cplt.ipfsCid,
+        contentHash: cplt.contentHash,
+        verifiedAt: cplt.verifiedAt?.toISOString() ?? null,
+        verifiedByUserId: cplt.verifiedByUserId,
+        adminNote: cplt.adminNote,
+        broker: broker
+          ? {
+              slug: broker.slug,
+              displayName: broker.displayName,
+              displayNameZhHans: broker.displayNameZhHans,
+              legalName: broker.legalName,
+            }
+          : null,
+        author: author ? { id: author.id, displayName: author.displayName } : null,
+        createdAt: cplt.createdAt.toISOString(),
+      };
+    }),
+    nextCursor: result.nextCursor,
+  });
+});
+
+adminRouter.patch('/complaints/:id/verify', authMiddleware('admin'), async (c) => {
+  const id = c.req.param('id');
+  const adminUser = c.get('user');
+
+  const result = await adminVerifyComplaint.execute({
+    kind: 'verify',
+    complaintId: id,
+    adminUserId: adminUser.userId,
+  });
+
+  return c.json({
+    complaint: {
+      id: result.complaint.id,
+      verifiedAt: result.complaint.verifiedAt?.toISOString() ?? null,
+      verifiedByUserId: result.complaint.verifiedByUserId,
+      adminNote: result.complaint.adminNote,
+    },
+  });
+});
+
+const rejectComplaintBodySchema = z.object({
+  // Per ADR-0029 D4 — the reject reason is mandatory and stored in
+  // `Review.adminNote` so the public page can render the platform's
+  // rationale alongside the "not verified by platform" label. Mirrors
+  // the SbtVerificationRequest reject pattern (`/admin/verifications/:id/reject`).
+  adminNote: z
+    .string()
+    .min(5, 'adminNote must be at least 5 characters')
+    .max(500, 'adminNote must be 500 characters or less'),
+});
+
+adminRouter.patch('/complaints/:id/reject', authMiddleware('admin'), async (c) => {
+  const id = c.req.param('id');
+  const adminUser = c.get('user');
+
+  const rawBody: unknown = await c.req.json();
+  const parsed = rejectComplaintBodySchema.safeParse(rawBody);
+  if (!parsed.success) {
+    throw new AppError(ErrorCode.VALIDATION_ERROR, 'Invalid reject reason', 400, {
+      details: { issues: parsed.error.issues },
+    });
+  }
+
+  const result = await adminVerifyComplaint.execute({
+    kind: 'reject',
+    complaintId: id,
+    adminUserId: adminUser.userId,
+    adminNote: parsed.data.adminNote,
+  });
+
+  return c.json({
+    complaint: {
+      id: result.complaint.id,
+      verifiedAt: result.complaint.verifiedAt?.toISOString() ?? null,
+      verifiedByUserId: result.complaint.verifiedByUserId,
+      adminNote: result.complaint.adminNote,
+    },
   });
 });
 
