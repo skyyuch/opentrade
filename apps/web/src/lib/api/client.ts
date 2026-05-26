@@ -922,6 +922,57 @@ export const fetchMyKolProfile = (
   apiGet<MyKolProfileResponse>('/v1/kols/me', options);
 
 // ---------------------------------------------------------------------------
+// KOL — Apply to become a KOL (POST /v1/kols/apply)
+// ---------------------------------------------------------------------------
+
+export type ApplyKolInput = {
+  displayName: string;
+  bio?: string;
+  socialLinks?: {
+    youtube?: string;
+    instagram?: string;
+    twitter?: string;
+  };
+  credentials?: { type: string; verified: false }[];
+};
+
+export type ApplyKolResponse = {
+  kol: KolListItem;
+};
+
+export const applyKol = (
+  input: ApplyKolInput,
+  options: FetchOptions,
+): Promise<ApplyKolResponse> =>
+  apiPost<ApplyKolResponse>('/v1/kols/apply', input, options);
+
+// ---------------------------------------------------------------------------
+// Signals — Submit a new signal (POST /v1/signals)
+// ---------------------------------------------------------------------------
+
+export type SubmitSignalInput = {
+  kolId: string;
+  assetClass: AssetClass;
+  symbol: string;
+  direction: SignalDirection;
+  entryPrice: string;
+  targetPrice: string;
+  stoplossPrice?: string;
+  horizon: number;
+  note?: string;
+};
+
+export type SubmitSignalResponse = {
+  signal: SignalItem;
+};
+
+export const submitSignal = (
+  input: SubmitSignalInput,
+  options: FetchOptions,
+): Promise<SubmitSignalResponse> =>
+  apiPost<SubmitSignalResponse>('/v1/signals', input, options);
+
+// ---------------------------------------------------------------------------
 // KOL Stats — aggregated win-rate statistics
 // ---------------------------------------------------------------------------
 
