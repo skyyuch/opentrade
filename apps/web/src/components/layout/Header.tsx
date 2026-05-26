@@ -17,6 +17,7 @@ const LOCALES = [
 
 const NAV_LINKS = [
   { href: '/brokers', key: 'brokers' },
+  { href: '/kols', key: 'kolDirectory' },
   { href: '/verify', key: 'verify' },
 ] as const;
 
@@ -50,54 +51,56 @@ export const Header = (): ReactNode => {
 
   return (
     <header className="sticky top-0 z-50 border-b border-white/5 bg-transparent backdrop-blur-md">
-      <div className="container mx-auto flex h-16 items-center justify-between px-4">
+      <div className="mx-auto flex h-16 items-center justify-between px-6 lg:px-10">
         {/* Logo */}
-        <Link href="/" className="text-lg font-bold tracking-tight text-foreground">
-          OpenTrade
+        <Link href="/" className="flex items-center gap-3">
+          <div className="flex h-8 w-8 items-center justify-center rounded-sm bg-[#00FF88] rotate-45">
+            <div className="h-4 w-4 -rotate-45 border-2 border-[#050608]" />
+          </div>
+          <span className="text-2xl font-bold uppercase tracking-tight text-white">OpenTrade</span>
         </Link>
 
         {/* Desktop nav */}
-        <nav className="hidden items-center gap-1 md:flex">
+        <nav className="hidden items-center gap-8 md:flex">
           {NAV_LINKS.map(({ href, key }) => {
             const isActive = pathname === href || pathname.startsWith(`${href}/`);
             return (
               <Link
                 key={href}
                 href={href}
-                className={`relative px-4 py-2 text-sm font-medium transition-colors ${
-                  isActive ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'
+                className={`text-sm font-medium transition-colors ${
+                  isActive
+                    ? 'border-b-2 border-[#00FF88] pb-[3px] text-[#00FF88]'
+                    : 'text-white/60 hover:text-[#00FF88]'
                 }`}
               >
                 {t(key)}
-                {isActive && (
-                  <span className="absolute bottom-0 left-4 right-4 h-0.5 rounded-full bg-amber-400" />
-                )}
               </Link>
             );
           })}
         </nav>
 
-        {/* Right side: locale switcher + auth */}
+        {/* Right side: locale, KOL Portal, auth */}
         <div className="hidden items-center gap-4 md:flex">
-          {/* Locale switcher (globe icon + dropdown) */}
+          {/* Locale switcher */}
           <div ref={localeRef} className="relative">
             <button
               type="button"
               onClick={() => setLocaleOpen((prev) => !prev)}
-              className="rounded-md p-2 text-muted-foreground transition-colors hover:text-foreground"
+              className="rounded-md p-2 text-white/40 transition-colors hover:text-white"
               aria-label="Switch language"
             >
               <Globe className="size-4" />
             </button>
             {localeOpen && (
-              <div className="absolute right-0 top-full mt-1 min-w-[140px] rounded-md border border-border bg-background py-1 shadow-lg">
+              <div className="absolute right-0 top-full mt-1 min-w-[140px] rounded-md border border-white/10 bg-zinc-900 py-1 shadow-lg">
                 {LOCALES.map(({ code, label }) => (
                   <Link
                     key={code}
                     href={pathname}
                     locale={code}
                     onClick={() => setLocaleOpen(false)}
-                    className="block px-4 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                    className="block px-4 py-2 text-sm text-white/60 transition-colors hover:bg-white/10 hover:text-white"
                   >
                     {label}
                   </Link>
@@ -106,32 +109,38 @@ export const Header = (): ReactNode => {
             )}
           </div>
 
+          {/* KOL Portal link */}
+          <a
+            href="/kol"
+            className="hidden text-xs font-mono uppercase text-white/40 transition-colors hover:text-white rounded-full border border-white/10 px-3 py-1.5 lg:block"
+          >
+            {t('kolPortal')}
+          </a>
+
           {authenticated ? (
             <div className="flex items-center gap-3">
               {walletAddress && (
-                <span className="rounded-md bg-muted px-2.5 py-1 text-xs font-mono text-muted-foreground">
+                <button
+                  type="button"
+                  onClick={() => void logout()}
+                  className="flex items-center gap-2 rounded-full border border-white/10 bg-zinc-800 px-5 py-2 text-sm font-bold text-white transition-all hover:bg-zinc-700"
+                >
+                  <div className="h-5 w-5 rounded-full bg-gradient-to-tr from-blue-500 to-purple-500" />
                   {shortenAddress(walletAddress)}
-                </span>
+                </button>
               )}
               <Link
                 href="/settings"
-                className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+                className="text-sm text-white/60 transition-colors hover:text-white"
               >
                 {t('settings')}
               </Link>
-              <button
-                type="button"
-                onClick={() => void logout()}
-                className="text-sm text-muted-foreground transition-colors hover:text-foreground"
-              >
-                {t('logout')}
-              </button>
             </div>
           ) : (
             <button
               type="button"
               onClick={() => void login()}
-              className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
+              className="rounded-full bg-[#00FF88] px-5 py-2.5 text-sm font-bold text-[#050608] transition-all hover:bg-[#00D170]"
             >
               {t('login')}
             </button>
@@ -151,7 +160,7 @@ export const Header = (): ReactNode => {
 
       {/* Mobile menu panel */}
       {mobileOpen && (
-        <div className="border-t border-border px-4 py-4 md:hidden">
+        <div className="border-t border-white/5 px-6 py-4 md:hidden">
           <nav className="flex flex-col gap-3">
             {NAV_LINKS.map(({ href, key }) => {
               const isActive = pathname === href || pathname.startsWith(`${href}/`);
@@ -160,25 +169,31 @@ export const Header = (): ReactNode => {
                   key={href}
                   href={href}
                   onClick={() => setMobileOpen(false)}
-                  className={`text-sm font-medium ${
-                    isActive ? 'text-foreground' : 'text-muted-foreground'
-                  }`}
+                  className={`text-sm font-medium ${isActive ? 'text-[#00FF88]' : 'text-white/60'}`}
                 >
                   {t(key)}
                 </Link>
               );
             })}
+            <a
+              href="/kol"
+              onClick={() => setMobileOpen(false)}
+              className="text-sm font-medium text-white/60"
+            >
+              {t('kolPortal')}
+            </a>
           </nav>
+
           {/* Mobile locale switcher */}
-          <div className="mt-4 flex items-center gap-3 border-t border-border pt-4">
-            <Globe className="size-4 text-muted-foreground" />
+          <div className="mt-4 flex items-center gap-3 border-t border-white/10 pt-4">
+            <Globe className="size-4 text-white/40" />
             {LOCALES.map(({ code, label }) => (
               <Link
                 key={code}
                 href={pathname}
                 locale={code}
                 onClick={() => setMobileOpen(false)}
-                className="text-xs text-muted-foreground"
+                className="text-xs text-white/60"
               >
                 {label}
               </Link>
@@ -186,25 +201,25 @@ export const Header = (): ReactNode => {
           </div>
 
           {/* Mobile auth */}
-          <div className="mt-4 border-t border-border pt-4">
+          <div className="mt-4 border-t border-white/10 pt-4">
             {authenticated ? (
               <div className="flex flex-col gap-2">
                 {walletAddress && (
-                  <span className="text-xs font-mono text-muted-foreground">
+                  <span className="text-xs font-mono text-white/40">
                     {shortenAddress(walletAddress)}
                   </span>
                 )}
                 <Link
                   href="/settings"
                   onClick={() => setMobileOpen(false)}
-                  className="text-sm text-muted-foreground"
+                  className="text-sm text-white/60"
                 >
                   {t('settings')}
                 </Link>
                 <button
                   type="button"
                   onClick={() => void logout()}
-                  className="text-left text-sm text-muted-foreground"
+                  className="text-left text-sm text-white/60"
                 >
                   {t('logout')}
                 </button>
@@ -213,7 +228,7 @@ export const Header = (): ReactNode => {
               <button
                 type="button"
                 onClick={() => void login()}
-                className="w-full rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white"
+                className="w-full rounded-full bg-[#00FF88] px-5 py-2.5 text-sm font-bold text-[#050608]"
               >
                 {t('login')}
               </button>

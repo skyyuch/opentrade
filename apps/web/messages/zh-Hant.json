@@ -31,9 +31,11 @@
   "nav": {
     "home": "首頁",
     "brokers": "證券商",
+    "kolDirectory": "KOL 目錄",
     "verify": "身份驗證",
     "settings": "帳號設定",
     "status": "系統狀態",
+    "kolPortal": "KOL Portal",
     "login": "登入",
     "logout": "登出"
   },
@@ -82,6 +84,7 @@
     "clearFilters": "清除所有篩選",
     "loadMore": "載入更多",
     "viewDetails": "查看詳情",
+    "hasDisciplinary": "有紀律行動",
     "disclaimer": "本頁所列資料來源為香港證監會公開紀錄，不構成任何投資建議。"
   },
   "brokerDetail": {
