@@ -988,6 +988,9 @@ export type BrokerOwnerStatsResponse = {
     monthReviews: number;
     avgRating: number | null;
     positiveRate: number | null;
+    totalComplaints: number;
+    openComplaints: number;
+    respondedComplaints: number;
   };
 };
 
@@ -1004,3 +1007,77 @@ export const updateBrokerProfile = (
   options?: FetchOptions,
 ): Promise<{ broker: BrokerDetail }> =>
   apiPatch<{ broker: BrokerDetail }>(`/v1/brokers/${slug}`, data, options);
+
+// ---------------------------------------------------------------------------
+// Broker owner — complaint inbox per ADR-0037
+// ---------------------------------------------------------------------------
+
+export type BrokerResponseItem = {
+  id: string;
+  body: string;
+  contentHash: string;
+  ipfsCid: string | null;
+  sourceLocale: string | null;
+  createdAt: string;
+};
+
+export type OwnerComplaintItem = {
+  id: string;
+  title: string;
+  body: string;
+  sentiment: 'POSITIVE' | 'NEUTRAL' | 'NEGATIVE' | null;
+  sourceLocale: string | null;
+  evidenceIpfsCid: string | null;
+  verifiedAt: string | null;
+  adminNote: string | null;
+  createdAt: string;
+  brokerResponse: BrokerResponseItem | null;
+};
+
+export type OwnerComplaintsResponse = {
+  complaints: OwnerComplaintItem[];
+  nextCursor: string | null;
+};
+
+export const fetchOwnerComplaints = (
+  slug: string,
+  params?: { responded?: 'true' | 'false'; cursor?: string },
+  options?: FetchOptions,
+): Promise<OwnerComplaintsResponse> => {
+  const query = new URLSearchParams();
+  if (params?.responded) query.set('responded', params.responded);
+  if (params?.cursor) query.set('cursor', params.cursor);
+  const qs = query.toString();
+  return apiGet<OwnerComplaintsResponse>(
+    `/v1/brokers/${slug}/owner-complaints${qs ? `?${qs}` : ''}`,
+    options,
+  );
+};
+
+export type SubmitBrokerResponsePayload = {
+  body: string;
+  sourceLocale?: string;
+};
+
+export type SubmitBrokerResponseResponse = {
+  response: {
+    id: string;
+    complaintId: string;
+    body: string;
+    contentHash: string;
+    ipfsCid: string | null;
+    sourceLocale: string | null;
+    createdAt: string;
+  };
+};
+
+export const submitBrokerResponse = (
+  complaintId: string,
+  payload: SubmitBrokerResponsePayload,
+  options?: FetchOptions,
+): Promise<SubmitBrokerResponseResponse> =>
+  apiPost<SubmitBrokerResponseResponse>(
+    `/v1/complaints/${complaintId}/broker-response`,
+    payload,
+    options,
+  );
