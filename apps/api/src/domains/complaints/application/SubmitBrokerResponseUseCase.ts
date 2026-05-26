@@ -21,10 +21,12 @@
 import { keccak256, toBytes } from 'viem';
 
 import type { IIpfsService } from '../../reviews/infrastructure/IIpfsService.js';
-import type { BrokerResponseRecord } from '../domain/BrokerResponseEntity.js';
-import type { IComplaintRepository } from '../domain/IComplaintRepository.js';
+import type {
+  BrokerResponseRecord,
+  SubmitBrokerResponseInput,
+} from '../domain/BrokerResponseEntity.js';
 import type { IBrokerResponseRepository } from '../domain/IBrokerResponseRepository.js';
-import type { SubmitBrokerResponseInput } from '../domain/BrokerResponseEntity.js';
+import type { IComplaintRepository } from '../domain/IComplaintRepository.js';
 
 export type SubmitBrokerResponseOutput = {
   response: BrokerResponseRecord;

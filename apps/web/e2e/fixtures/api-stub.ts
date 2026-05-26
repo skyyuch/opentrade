@@ -186,6 +186,14 @@ const complaints = [
     verifiedAt: '2026-05-10T00:00:00.000Z',
     adminNote: null,
     createdAt: '2026-04-20T00:00:00.000Z',
+    brokerResponse: {
+      id: 'rsp-e2e-verified',
+      body: 'We have investigated and found a system error that caused two erroneous trades. Both have been reversed and credited back to your account.',
+      contentHash: '0xbrokerresponsehash01',
+      ipfsCid: 'bafy-broker-response-verified',
+      sourceLocale: 'en',
+      createdAt: '2026-04-25T00:00:00.000Z',
+    },
   },
   {
     id: 'complaint-e2e-rejected',
@@ -201,6 +209,7 @@ const complaints = [
     adminNote:
       'Reviewed the evidence file (PDF statement). The 2% fee is disclosed in the broker tariff schedule and applies above the disclosed threshold; this is a contractual term, not a breach.',
     createdAt: '2026-04-15T00:00:00.000Z',
+    brokerResponse: null,
   },
   {
     id: 'complaint-e2e-open',
@@ -215,6 +224,7 @@ const complaints = [
     verifiedAt: null,
     adminNote: null,
     createdAt: '2026-05-22T00:00:00.000Z',
+    brokerResponse: null,
   },
 ];
 
