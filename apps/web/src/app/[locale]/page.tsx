@@ -3,8 +3,53 @@ import { getTranslations } from 'next-intl/server';
 
 import { FaqSection } from '../../components/home/FaqSection';
 import { Link } from '../../i18n/navigation';
+import { fetchRecentFeed } from '../../lib/api/client';
 
+import type { FeedItem } from '../../lib/api/client';
 import type { ReactNode } from 'react';
+
+function formatRelativeTime(isoDate: string): string {
+  const diff = Date.now() - new Date(isoDate).getTime();
+  const mins = Math.floor(diff / 60_000);
+  if (mins < 1) return '<1m';
+  if (mins < 60) return `${mins}m`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h`;
+  const days = Math.floor(hours / 24);
+  return `${days}d`;
+}
+
+function getFeedItemConfig(
+  item: FeedItem,
+  labels: { review: string; signal: string; complaint: string },
+): {
+  label: string;
+  labelColor: string;
+  content: string;
+  highlight?: boolean;
+} {
+  switch (item.type) {
+    case 'review':
+      return {
+        label: labels.review,
+        labelColor: 'text-blue-400',
+        content: `${item.brokerDisplayName} — ${item.sentiment === 'POSITIVE' ? '👍' : item.sentiment === 'NEGATIVE' ? '👎' : '—'}`,
+      };
+    case 'signal':
+      return {
+        label: labels.signal,
+        labelColor: 'text-[#00FF88]',
+        content: `${item.kolName} → ${item.direction} $${item.symbol}`,
+        highlight: true,
+      };
+    case 'complaint':
+      return {
+        label: labels.complaint,
+        labelColor: 'text-orange-400',
+        content: `${item.brokerDisplayName}`,
+      };
+  }
+}
 
 const HomePage = async (): Promise<ReactNode> => {
   const t = await getTranslations('home');
@@ -14,6 +59,14 @@ const HomePage = async (): Promise<ReactNode> => {
     { question: t('faqQ2'), answer: t('faqA2') },
     { question: t('faqQ3'), answer: t('faqA3') },
   ];
+
+  let feedItems: FeedItem[] = [];
+  try {
+    const feed = await fetchRecentFeed({ next: { revalidate: 30 } });
+    feedItems = feed.items;
+  } catch {
+    // Non-fatal: render empty terminal on API failure
+  }
 
   return (
     <div className="-mt-16 relative pt-16">
@@ -121,37 +174,32 @@ const HomePage = async (): Promise<ReactNode> => {
             </div>
 
             <div className="space-y-5 p-6">
-              <div className="flex gap-4 font-mono text-sm">
-                <div className="w-20 shrink-0 text-blue-400">{t('feedLabelReview')}</div>
-                <div className="flex-1 truncate text-white/70">{t('feedReview')}</div>
-                <div className="whitespace-nowrap text-right text-xs text-white/30">
-                  {t('feedJustNow')}
+              {feedItems.length > 0 ? (
+                feedItems.slice(0, 5).map((item) => {
+                  const config = getFeedItemConfig(item, {
+                    review: t('feedLabelReview'),
+                    signal: t('feedLabelSignal'),
+                    complaint: t('feedLabelJury'),
+                  });
+                  const baseClass = 'flex gap-4 font-mono text-sm';
+                  const wrapClass = config.highlight
+                    ? `${baseClass} -mx-6 border-y border-[#00FF88]/20 bg-[#00FF88]/10 px-6 py-2`
+                    : baseClass;
+                  return (
+                    <div key={item.id} className={wrapClass}>
+                      <div className={`w-20 shrink-0 ${config.labelColor}`}>{config.label}</div>
+                      <div className="flex-1 truncate text-white/70">{config.content}</div>
+                      <div className="whitespace-nowrap text-right text-xs text-white/30">
+                        {formatRelativeTime(item.createdAt)}
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="py-4 text-center font-mono text-sm text-white/30">
+                  {t('terminalSync')}
                 </div>
-              </div>
-
-              <div className="-mx-6 flex gap-4 border-y border-[#00FF88]/20 bg-[#00FF88]/10 px-6 py-2 font-mono text-sm">
-                <div className="w-20 shrink-0 text-[#00FF88]">{t('feedLabelSignal')}</div>
-                <div className="flex-1 truncate text-white/70">{t('feedSignal')}</div>
-                <div className="whitespace-nowrap text-right text-xs text-white/30">
-                  {t('feed2mAgo')}
-                </div>
-              </div>
-
-              <div className="flex gap-4 font-mono text-sm">
-                <div className="w-20 shrink-0 text-orange-400">{t('feedLabelJury')}</div>
-                <div className="flex-1 truncate text-white/70">{t('feedArbitration')}</div>
-                <div className="whitespace-nowrap text-right text-xs text-white/30">
-                  {t('feed15mAgo')}
-                </div>
-              </div>
-
-              <div className="flex gap-4 font-mono text-sm">
-                <div className="w-20 shrink-0 text-purple-400">{t('feedLabelVerify')}</div>
-                <div className="flex-1 truncate text-white/70">{t('feedVerify')}</div>
-                <div className="whitespace-nowrap text-right text-xs text-white/30">
-                  {t('feed18mAgo')}
-                </div>
-              </div>
+              )}
 
               {/* Terminal Footer */}
               <div className="mt-6 flex items-center justify-between border-t border-white/5 pt-4">

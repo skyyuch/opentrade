@@ -1058,3 +1058,18 @@ export const fetchKolSignals = (
   return apiGet<SignalsResponse>(`/v1/kols/${slug}/signals${qs ? `?${qs}` : ''}`, options);
 };
 
+// ---------------------------------------------------------------------------
+// Feed — recent platform activity (GET /v1/feed/recent)
+// ---------------------------------------------------------------------------
+
+export type FeedItem =
+  | { type: 'review'; id: string; brokerSlug: string; brokerDisplayName: string; sentiment: string | null; createdAt: string }
+  | { type: 'signal'; id: string; kolName: string; symbol: string; direction: string; createdAt: string }
+  | { type: 'complaint'; id: string; brokerSlug: string; brokerDisplayName: string; createdAt: string };
+
+export type FeedResponse = { items: FeedItem[] };
+
+export const fetchRecentFeed = (options?: FetchOptions): Promise<FeedResponse> =>
+  apiGet<FeedResponse>('/v1/feed/recent', options);
+
+

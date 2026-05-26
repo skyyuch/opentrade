@@ -21,6 +21,7 @@ import { cors } from 'hono/cors';
 import { adminRouter } from '../domains/admin/index.js';
 import { brokersRouter } from '../domains/brokers/index.js';
 import { complaintsRouter } from '../domains/complaints/index.js';
+import { feedRouter } from '../domains/feed/index.js';
 import { healthRouter } from '../domains/health/index.js';
 import { identityRouter, JoseJwtService } from '../domains/identity/index.js';
 import { kolsRouter } from '../domains/kols/index.js';
@@ -66,6 +67,7 @@ export const createServer = (): Hono<AppHonoEnv> => {
   app.route('/v1/brokers', brokersRouter);
   app.route('/v1/reviews', reviewsRouter);
   app.route('/v1/complaints', complaintsRouter);
+  app.route('/v1/feed', feedRouter);
   app.route('/v1/kols', kolsRouter);
   app.route('/v1/signals', signalsRouter);
   app.route('/v1/admin', adminRouter);
