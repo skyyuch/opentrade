@@ -456,6 +456,24 @@ function ComplaintCard({
         </div>
       )}
 
+      {complaint.brokerResponse && (
+        <div className="mb-4 p-4 rounded-xl bg-blue-500/5 border border-blue-500/20">
+          <div className="text-[10px] uppercase tracking-wide font-bold text-blue-400 mb-2">
+            {t('brokerResponseHeading')}
+          </div>
+          <p className="text-sm text-white/80 leading-relaxed whitespace-pre-wrap mb-2">
+            {complaint.brokerResponse.body}
+          </p>
+          <div className="flex items-center gap-3 text-[10px] text-white/30">
+            <span>{new Date(complaint.brokerResponse.createdAt).toLocaleDateString(locale)}</span>
+            <span className="flex items-center gap-1 font-mono">
+              <LinkIcon size={10} />
+              {complaint.brokerResponse.contentHash.slice(0, 10)}…
+            </span>
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center justify-between pt-4 border-t border-white/5">
         <div className="flex items-center gap-2 flex-wrap">
           {complaint.evidenceIpfsCid && (

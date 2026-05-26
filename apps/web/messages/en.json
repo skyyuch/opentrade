@@ -246,7 +246,8 @@
     "verifiedAtCaption": "Verified on {date}",
     "sourceLocaleZhHant": "Traditional Chinese",
     "sourceLocaleZhHans": "Simplified Chinese",
-    "sourceLocaleEn": "English"
+    "sourceLocaleEn": "English",
+    "brokerResponseHeading": "Broker response"
   },
   "complaintForm": {
     "eyebrow": "Complaint",

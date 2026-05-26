@@ -563,6 +563,15 @@ export const submitComplaint = (
  */
 export type ComplaintStatus = 'OPEN' | 'VERIFIED' | 'REJECTED';
 
+export type BrokerResponseDisplay = {
+  id: string;
+  body: string;
+  contentHash: string;
+  ipfsCid: string | null;
+  sourceLocale: string | null;
+  createdAt: string;
+};
+
 export type ComplaintItem = {
   id: string;
   brokerId: string;
@@ -582,6 +591,8 @@ export type ComplaintItem = {
    * Always null for OPEN / VERIFIED rows.
    */
   adminNote: string | null;
+  /** Per ADR-0037: broker response nested object, null if not yet responded. */
+  brokerResponse: BrokerResponseDisplay | null;
   createdAt: string;
 };
 

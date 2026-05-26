@@ -246,7 +246,8 @@
     "verifiedAtCaption": "于 {date} 核实",
     "sourceLocaleZhHant": "繁体中文",
     "sourceLocaleZhHans": "简体中文",
-    "sourceLocaleEn": "English"
+    "sourceLocaleEn": "English",
+    "brokerResponseHeading": "券商回应"
   },
   "complaintForm": {
     "eyebrow": "客户投诉",

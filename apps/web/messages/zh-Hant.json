@@ -246,7 +246,8 @@
     "verifiedAtCaption": "於 {date} 核實",
     "sourceLocaleZhHant": "繁體中文",
     "sourceLocaleZhHans": "簡體中文",
-    "sourceLocaleEn": "English"
+    "sourceLocaleEn": "English",
+    "brokerResponseHeading": "券商回應"
   },
   "complaintForm": {
     "eyebrow": "客訴投訴",
