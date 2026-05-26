@@ -18,6 +18,16 @@
  *                                    delete» — DB row stays visible, the event
  *                                    is the audit trail entry not a destructive
  *                                    side effect)
+ *   - `kol.applied`               → ack-only (per ADR-0036; Phase 2 audit trail)
+ *   - `kol.approved`              → ack-only (per ADR-0036 D1; future KolSbt mint
+ *                                    trigger lands with kol_sbt.mint_requested)
+ *   - `kol.rejected`              → ack-only (per ADR-0036 D1; rule 00 applies)
+ *   - `kol.claimed`               → ack-only (per ADR-0036 D9; pre-seeded KOL
+ *                                    claimed by real person)
+ *   - `signal.submitted`          → ack-only (per ADR-0036 D4; future Phase 2+
+ *                                    will call KolSignalRegistry.emit() on-chain)
+ *   - `kol_sbt.mint_requested`    → ack-only (per ADR-0036 D3; future Phase 2+
+ *                                    will call KolSbt.mint() on-chain)
  *
  * Per ADR-0006 outbox pattern: the API writes events to the DB in the same
  * transaction as the business entity. This worker reads them and submits the
@@ -270,6 +280,23 @@ async function main() {
           // MUST NOT mutate the body. Acknowledging the event is the entirety
           // of Phase 1 behaviour. Phase 3 jury vote handlers and Phase 2 SQS
           // fan-out land in successor ADRs.
+        } else if (
+          event.eventType === 'kol.applied' ||
+          event.eventType === 'kol.approved' ||
+          event.eventType === 'kol.rejected' ||
+          event.eventType === 'kol.claimed'
+        ) {
+          // ADR-0036 D1/D9: KOL lifecycle events emitted in the same
+          // transaction as the Kol row status change. Phase 2 ack-only;
+          // future handlers may trigger KolSbt mint or SQS fan-out.
+        } else if (event.eventType === 'signal.submitted') {
+          // ADR-0036 D4: signal emitted by KOL. Phase 2 ack-only; future
+          // Phase 2+ handler will call KolSignalRegistry.emit() on-chain
+          // (currently done inline by the API, this event is the audit trail).
+        } else if (event.eventType === 'kol_sbt.mint_requested') {
+          // ADR-0036 D3: KolSbt mint request. Phase 2 ack-only; future
+          // handler mirrors processSbtMintRequested() pattern but targets
+          // the KolSbt contract address instead of ReviewerSBT.
         } else {
           log('warn', `Unknown event type: ${event.eventType}`, {
             eventId: event.id,
