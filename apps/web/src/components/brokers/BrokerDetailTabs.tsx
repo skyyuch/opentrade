@@ -168,6 +168,34 @@ function TabBar({
   );
 }
 
+type ReviewSortOption = 'latest' | 'positive_first' | 'negative_first';
+type ReviewFilterOption = 'all' | 'verified' | 'kol';
+
+const SENTIMENT_ORDER: Record<string, number> = { POSITIVE: 3, NEUTRAL: 2, NEGATIVE: 1 };
+
+function sortAndFilterReviews(
+  reviews: ReviewItem[],
+  sort: ReviewSortOption,
+  filter: ReviewFilterOption,
+): ReviewItem[] {
+  let filtered = reviews;
+
+  if (filter === 'verified') {
+    filtered = filtered.filter((r) => r.author && r.author.sbtTier !== 'L1');
+  } else if (filter === 'kol') {
+    filtered = filtered.filter((r) => r.author?.isKol);
+  }
+
+  if (sort === 'latest') return filtered;
+
+  return [...filtered].sort((a, b) => {
+    const aVal = SENTIMENT_ORDER[a.sentiment ?? ''] ?? 0;
+    const bVal = SENTIMENT_ORDER[b.sentiment ?? ''] ?? 0;
+    if (sort === 'positive_first') return bVal - aVal;
+    return aVal - bVal;
+  });
+}
+
 function ReviewsTab({
   broker,
   reviews,
@@ -178,6 +206,13 @@ function ReviewsTab({
   locale: string;
 }) {
   const t = useTranslations('brokerDetail');
+  const [sortOption, setSortOption] = useState<ReviewSortOption>('latest');
+  const [authorFilter, setAuthorFilter] = useState<ReviewFilterOption>('all');
+
+  const displayedReviews = useMemo(
+    () => sortAndFilterReviews(reviews, sortOption, authorFilter),
+    [reviews, sortOption, authorFilter],
+  );
 
   return (
     <>
@@ -189,36 +224,40 @@ function ReviewsTab({
           <MessageSquare size={16} /> {t('latestReviews')}
         </h3>
         <div className="flex gap-2">
-          <select className="bg-zinc-900 border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none">
-            <option>{t('sortLatest')}</option>
-            <option>{t('sortHighest')}</option>
-            <option>{t('sortLowest')}</option>
+          <select
+            value={sortOption}
+            onChange={(e) => setSortOption(e.target.value as ReviewSortOption)}
+            className="bg-zinc-900 border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none"
+          >
+            <option value="latest">{t('sortLatest')}</option>
+            <option value="positive_first">{t('sortHighest')}</option>
+            <option value="negative_first">{t('sortLowest')}</option>
           </select>
-          <select className="bg-zinc-900 border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none">
-            <option>{t('filterAll')}</option>
-            <option>{t('filterVerified')}</option>
-            <option>{t('filterKol')}</option>
+          <select
+            value={authorFilter}
+            onChange={(e) => setAuthorFilter(e.target.value as ReviewFilterOption)}
+            className="bg-zinc-900 border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none"
+          >
+            <option value="all">{t('filterAll')}</option>
+            <option value="verified">{t('filterVerified')}</option>
+            <option value="kol">{t('filterKol')}</option>
           </select>
         </div>
       </div>
 
-      {/* Per ADR-0027 D6: tell the reader up front that reviews ship in the
-        author's original language and no machine translation runs. The
-        per-card badge below shows which language each individual review
-        was written in. */}
       <div className="flex items-start gap-2 text-xs text-white/40 px-1">
         <Info size={12} className="mt-0.5 flex-shrink-0" />
         <span>{t('reviewDisclaimer')}</span>
       </div>
 
       <div className="space-y-4">
-        {reviews.length === 0 ? (
+        {displayedReviews.length === 0 ? (
           <div className="py-20 flex flex-col items-center justify-center text-center border border-white/5 rounded-2xl bg-white/5 border-dashed">
             <Star size={40} className="text-white/20 mb-4" />
             <h3 className="text-lg font-bold text-white mb-2">{t('noReviews')}</h3>
           </div>
         ) : (
-          reviews.map((review) => (
+          displayedReviews.map((review) => (
             <ReviewCard
               key={review.id}
               review={review}

@@ -386,6 +386,7 @@ export type AuthorVerifiedBroker = {
 export type ReviewAuthor = {
   displayName: string | null;
   sbtTier: string;
+  isKol: boolean;
   /**
    * Brokers the author has been verified for. Per ADR-0025 these are
    * surfaced as credibility badges on the review card; the API exposes
