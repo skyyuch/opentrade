@@ -6,10 +6,18 @@
  * override: `["node", "dist/tasks/outbox-worker.js"]`.
  *
  * Currently handles:
- *   - `review.submitted`         → calls ReviewRegistry.submitReview() on-chain
- *   - `sbt.mint_requested`       → calls ReviewerSBT.mint() on-chain (per ADR-0021/0022)
+ *   - `review.submitted`          → calls ReviewRegistry.submitReview() on-chain
+ *   - `sbt.mint_requested`        → calls ReviewerSBT.mint() on-chain (per ADR-0021/0022)
  *   - `verification.broker_added` → ack-only (per ADR-0025 D5; ledger audit trail
- *                                   with no Phase 1 on-chain side effect)
+ *                                    with no Phase 1 on-chain side effect)
+ *   - `complaint.submitted`       → ack-only (per ADR-0029 D7; complaint stays
+ *                                    off-chain in Phase 1, on-chain anchor lands
+ *                                    in Phase 3 with the jury entry-point)
+ *   - `complaint.verified`        → ack-only (per ADR-0029 D7)
+ *   - `complaint.rejected`        → ack-only (per ADR-0029 D7; rule 00 «reject !=
+ *                                    delete» — DB row stays visible, the event
+ *                                    is the audit trail entry not a destructive
+ *                                    side effect)
  *
  * Per ADR-0006 outbox pattern: the API writes events to the DB in the same
  * transaction as the business entity. This worker reads them and submits the
@@ -246,6 +254,22 @@ async function main() {
           // the worker has nothing to do in Phase 1 (multi-broker verification
           // stays off-chain per ADR-0025 D1, with ReviewerSBT v2 deferred to
           // Phase 2). Ack-only: fall through to `processedAt` update below.
+        } else if (
+          event.eventType === 'complaint.submitted' ||
+          event.eventType === 'complaint.verified' ||
+          event.eventType === 'complaint.rejected'
+        ) {
+          // ADR-0029 D7: complaint vocabulary stays off-chain in Phase 1.
+          // The Review row (kind = COMPLAINT) IS the source of truth; the
+          // events are emitted in the same transaction as the row insert /
+          // verifiedAt update / adminNote update so a future indexer or the
+          // Phase 3 jury entry-point can replay the audit trail.
+          //
+          // For `complaint.rejected` specifically: rule 00 «reject != delete»
+          // — the worker MUST NOT touch the Review row, MUST NOT set deletedAt,
+          // MUST NOT mutate the body. Acknowledging the event is the entirety
+          // of Phase 1 behaviour. Phase 3 jury vote handlers and Phase 2 SQS
+          // fan-out land in successor ADRs.
         } else {
           log('warn', `Unknown event type: ${event.eventType}`, {
             eventId: event.id,
