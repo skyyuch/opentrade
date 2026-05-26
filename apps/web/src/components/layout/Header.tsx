@@ -1,7 +1,7 @@
 'use client';
 
 import { usePrivy } from '@privy-io/react-auth';
-import { Globe, Menu, X } from 'lucide-react';
+import { Globe, LogOut, Menu, Settings, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
@@ -31,7 +31,9 @@ export const Header = (): ReactNode => {
   const { authenticated, login, logout, user } = usePrivy();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [localeOpen, setLocaleOpen] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
   const localeRef = useRef<HTMLDivElement>(null);
+  const accountRef = useRef<HTMLDivElement>(null);
 
   const walletAddress = user?.wallet?.address;
 
@@ -43,6 +45,9 @@ export const Header = (): ReactNode => {
     const handleClickOutside = (e: MouseEvent) => {
       if (localeRef.current && !localeRef.current.contains(e.target as Node)) {
         setLocaleOpen(false);
+      }
+      if (accountRef.current && !accountRef.current.contains(e.target as Node)) {
+        setAccountOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -118,23 +123,46 @@ export const Header = (): ReactNode => {
           </a>
 
           {authenticated ? (
-            <div className="flex items-center gap-3">
-              {walletAddress && (
-                <button
-                  type="button"
-                  onClick={() => void logout()}
-                  className="flex items-center gap-2 rounded-full border border-white/10 bg-zinc-800 px-5 py-2 text-sm font-bold text-white transition-all hover:bg-zinc-700"
-                >
-                  <div className="h-5 w-5 rounded-full bg-gradient-to-tr from-blue-500 to-purple-500" />
-                  {shortenAddress(walletAddress)}
-                </button>
-              )}
-              <Link
-                href="/settings"
-                className="text-sm text-white/60 transition-colors hover:text-white"
+            <div ref={accountRef} className="relative">
+              <button
+                type="button"
+                onClick={() => setAccountOpen((prev) => !prev)}
+                className="flex items-center gap-2 rounded-full border border-white/10 bg-zinc-800 px-5 py-2 text-sm font-bold text-white transition-all hover:bg-zinc-700"
               >
-                {t('settings')}
-              </Link>
+                <div className="h-5 w-5 rounded-full bg-gradient-to-tr from-blue-500 to-purple-500" />
+                {walletAddress ? shortenAddress(walletAddress) : t('settings')}
+              </button>
+              {accountOpen && (
+                <div className="absolute right-0 top-full mt-2 min-w-[180px] overflow-hidden rounded-xl border border-white/10 bg-zinc-900 py-1 shadow-xl">
+                  {walletAddress && (
+                    <div className="border-b border-white/5 px-4 py-2.5">
+                      <span className="block text-[11px] text-white/40">Wallet</span>
+                      <span className="font-mono text-xs text-white/70">
+                        {shortenAddress(walletAddress)}
+                      </span>
+                    </div>
+                  )}
+                  <Link
+                    href="/settings"
+                    onClick={() => setAccountOpen(false)}
+                    className="flex items-center gap-3 px-4 py-2.5 text-sm text-white/70 transition-colors hover:bg-white/5 hover:text-white"
+                  >
+                    <Settings size={14} className="text-white/40" />
+                    {t('settings')}
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAccountOpen(false);
+                      void logout();
+                    }}
+                    className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-red-400/80 transition-colors hover:bg-white/5 hover:text-red-400"
+                  >
+                    <LogOut size={14} />
+                    {t('logout')}
+                  </button>
+                </div>
+              )}
             </div>
           ) : (
             <button
