@@ -713,3 +713,33 @@ model OutboxEvent {
   @@index([tenantId, aggregateType, aggregateId])
   @@map("outbox_events")
 }
+
+// ---------------------------------------------------------------------------
+// Price Recorder (per ADR-0036 D7)
+//
+// Off-chain hourly OHLC price data used by the Settle Worker (M9.2) to
+// determine signal outcomes. Sources: Chainlink (crypto) + Yahoo Finance
+// (traditional finance). Cron-polled every hour.
+// ---------------------------------------------------------------------------
+
+enum PriceSource {
+  CHAINLINK
+  YAHOO_FINANCE
+  MANUAL
+}
+
+model PriceRecord {
+  id         String      @id @default(uuid()) @db.Uuid
+  symbol     String      @db.VarChar(30)
+  source     PriceSource
+  open       Decimal     @db.Decimal(20, 8)
+  high       Decimal     @db.Decimal(20, 8)
+  low        Decimal     @db.Decimal(20, 8)
+  close      Decimal     @db.Decimal(20, 8)
+  timestamp  DateTime
+  createdAt  DateTime    @default(now())
+
+  @@unique([symbol, source, timestamp])
+  @@index([symbol, timestamp])
+  @@map("price_records")
+}
