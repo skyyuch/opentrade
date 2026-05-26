@@ -127,19 +127,21 @@ model Tenant {
 ///   - `displayName` is user-controlled and not treated as PII.
 ///   - `privyId` is an opaque external identifier; not PII on its own.
 model User {
-  id              String   @id @default(uuid()) @db.Uuid
-  tenantId        String   @db.Uuid
-  privyId         String
-  walletAddress   String?  @unique
-  email           String?
-  displayName     String?
-  preferredLocale String?
-  role            UserRole @default(USER)
-  sbtTier         SbtTier  @default(L1)
-  sbtTokenId      Int?
-  sbtMintTxHash   String?
-  username        String?  @unique
-  passwordHash    String?
+  id                String   @id @default(uuid()) @db.Uuid
+  tenantId          String   @db.Uuid
+  privyId           String
+  walletAddress     String?  @unique
+  email             String?
+  displayName       String?
+  preferredLocale   String?
+  role              UserRole @default(USER)
+  sbtTier           SbtTier  @default(L1)
+  sbtTokenId        Int?
+  sbtMintTxHash     String?
+  username          String?  @unique
+  passwordHash      String?
+  notificationPrefs Json?
+  privacyPrefs      Json?
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
