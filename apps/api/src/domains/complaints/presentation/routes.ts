@@ -27,7 +27,9 @@ import { env } from '../../../shared/env.js';
 import { AppError, ErrorCode } from '../../../shared/errors/index.js';
 import { PinataIpfsService } from '../../reviews/infrastructure/PinataIpfsService.js';
 import { ListComplaintsUseCase } from '../application/ListComplaintsUseCase.js';
+import { SubmitBrokerResponseUseCase } from '../application/SubmitBrokerResponseUseCase.js';
 import { SubmitComplaintUseCase } from '../application/SubmitComplaintUseCase.js';
+import { PrismaBrokerResponseRepository } from '../infrastructure/PrismaBrokerResponseRepository.js';
 import { PrismaComplaintRepository } from '../infrastructure/PrismaComplaintRepository.js';
 
 import type { AppHonoEnv } from '../../../http/types.js';
@@ -35,8 +37,14 @@ import type { AppHonoEnv } from '../../../http/types.js';
 const DEFAULT_TENANT_ID = env.DEFAULT_TENANT_ID;
 
 const complaintRepo = new PrismaComplaintRepository(prisma);
+const responseRepo = new PrismaBrokerResponseRepository(prisma);
 const ipfsService = new PinataIpfsService(env.PINATA_JWT);
 const submitComplaint = new SubmitComplaintUseCase(complaintRepo, ipfsService);
+const submitBrokerResponse = new SubmitBrokerResponseUseCase(
+  complaintRepo,
+  responseRepo,
+  ipfsService,
+);
 const listComplaints = new ListComplaintsUseCase(complaintRepo);
 
 const SOURCE_LOCALE_VALUES = ['zh-Hant', 'zh-Hans', 'en'] as const;
@@ -222,6 +230,8 @@ complaintsRouter.get('/:id', async (c) => {
     throw new AppError(ErrorCode.NOT_FOUND, 'Complaint not found', 404);
   }
 
+  const brokerResponse = await responseRepo.findByComplaintId(id);
+
   return c.json({
     complaint: {
       id: complaint.id,
@@ -236,6 +246,100 @@ complaintsRouter.get('/:id', async (c) => {
       verifiedAt: complaint.verifiedAt?.toISOString() ?? null,
       adminNote: complaint.adminNote,
       createdAt: complaint.createdAt.toISOString(),
+      brokerResponse: brokerResponse
+        ? {
+            id: brokerResponse.id,
+            body: brokerResponse.body,
+            contentHash: brokerResponse.contentHash,
+            ipfsCid: brokerResponse.ipfsCid,
+            sourceLocale: brokerResponse.sourceLocale,
+            createdAt: brokerResponse.createdAt.toISOString(),
+          }
+        : null,
     },
   });
+});
+
+// ---------------------------------------------------------------------------
+// Broker public response per ADR-0037
+// ---------------------------------------------------------------------------
+
+const brokerResponseBodySchema = z.object({
+  body: z
+    .string()
+    .min(10, 'body must be at least 10 characters')
+    .max(2000, 'body must be 2000 chars or less'),
+  sourceLocale: z.enum(SOURCE_LOCALE_VALUES).optional(),
+});
+
+complaintsRouter.post('/:id/broker-response', authMiddleware('user'), async (c) => {
+  const complaintId = c.req.param('id');
+  const rawBody: unknown = await c.req.json();
+  const parsed = brokerResponseBodySchema.safeParse(rawBody);
+
+  if (!parsed.success) {
+    throw new AppError(ErrorCode.VALIDATION_ERROR, 'Invalid broker response', 400, {
+      details: { issues: parsed.error.issues },
+    });
+  }
+
+  const { userId, tenantId } = c.get('user');
+
+  const complaint = await complaintRepo.findById(complaintId);
+  if (!complaint) {
+    throw new AppError(ErrorCode.NOT_FOUND, 'Complaint not found', 404);
+  }
+
+  const broker = await prisma.broker.findFirst({
+    where: { id: complaint.brokerId, tenantId, deletedAt: null },
+  });
+  if (!broker || broker.claimedByUserId !== userId) {
+    throw new AppError(ErrorCode.FORBIDDEN, 'Only the broker owner can respond to complaints', 403);
+  }
+
+  const acceptFirst = c.req.header('Accept-Language')?.split(',')[0]?.trim();
+  const sourceLocale =
+    parsed.data.sourceLocale ??
+    (acceptFirst === 'zh-Hant' || acceptFirst === 'zh-Hans' || acceptFirst === 'en'
+      ? acceptFirst
+      : 'zh-Hant');
+
+  try {
+    const result = await submitBrokerResponse.execute(
+      {
+        tenantId,
+        userId,
+        complaintId,
+        body: parsed.data.body,
+        sourceLocale,
+      },
+      broker.id,
+    );
+
+    const logger = c.get('logger');
+    logger.info(
+      { responseId: result.response.id, complaintId, brokerId: broker.id },
+      'Broker response submitted',
+    );
+
+    return c.json(
+      {
+        response: {
+          id: result.response.id,
+          complaintId: result.response.respondsToReviewId,
+          body: result.response.body,
+          contentHash: result.response.contentHash,
+          ipfsCid: result.response.ipfsCid,
+          sourceLocale: result.response.sourceLocale,
+          createdAt: result.response.createdAt.toISOString(),
+        },
+      },
+      201,
+    );
+  } catch (err) {
+    if (err instanceof Error && err.message.includes('already exists')) {
+      throw new AppError(ErrorCode.CONFLICT, 'A response already exists for this complaint', 409);
+    }
+    throw err;
+  }
 });
