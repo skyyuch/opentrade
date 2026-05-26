@@ -28,6 +28,9 @@
  *                                    will call KolSignalRegistry.emit() on-chain)
  *   - `kol_sbt.mint_requested`    → ack-only (per ADR-0036 D3; future Phase 2+
  *                                    will call KolSbt.mint() on-chain)
+ *   - `broker_response.submitted` → ack-only (per ADR-0037 D3; broker response
+ *                                    stays off-chain in Phase 2.5, Phase 3+ may
+ *                                    add on-chain anchoring or SQS fan-out)
  *
  * Per ADR-0006 outbox pattern: the API writes events to the DB in the same
  * transaction as the business entity. This worker reads them and submits the
@@ -297,6 +300,11 @@ async function main() {
           // ADR-0036 D3: KolSbt mint request. Phase 2 ack-only; future
           // handler mirrors processSbtMintRequested() pattern but targets
           // the KolSbt contract address instead of ReviewerSBT.
+        } else if (event.eventType === 'broker_response.submitted') {
+          // ADR-0037 D3: broker response to a complaint stays off-chain in
+          // Phase 2.5. The Review row with respondsToReviewId set IS the
+          // source of truth; this event is the audit trail entry. Phase 3+
+          // may add on-chain anchoring or SQS fan-out.
         } else {
           log('warn', `Unknown event type: ${event.eventType}`, {
             eventId: event.id,
