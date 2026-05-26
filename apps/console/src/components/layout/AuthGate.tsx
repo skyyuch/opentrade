@@ -28,6 +28,7 @@ import {
   Shield,
   Star,
   Store,
+  TrendingUp,
   Users,
 } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
@@ -236,6 +237,12 @@ export const AuthGate = ({ children }: Props): ReactNode => {
       path: '/admin/complaints',
       icon: AlertTriangle,
       label: t('nav.complaints'),
+    },
+    {
+      href: '/admin/kols',
+      path: '/admin/kols',
+      icon: TrendingUp,
+      label: t('nav.kols'),
     },
     {
       href: '/admin/brokers',

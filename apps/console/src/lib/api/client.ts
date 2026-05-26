@@ -850,6 +850,135 @@ export const rejectComplaint = (id: string, adminNote: string, options?: FetchOp
   );
 
 // ---------------------------------------------------------------------------
+// Admin — KOL management per ADR-0036
+// ---------------------------------------------------------------------------
+
+export type KolStatus = 'UNCLAIMED' | 'PENDING' | 'APPROVED' | 'REJECTED' | 'SUSPENDED';
+
+export type KolSocialLinks = {
+  youtube?: string;
+  instagram?: string;
+  twitter?: string;
+};
+
+export type KolCredential = {
+  type: string;
+  verified: boolean;
+  verifiedAt?: string;
+};
+
+export type AdminKolItem = {
+  id: string;
+  slug: string;
+  displayName: string;
+  bio: string | null;
+  avatarUrl: string | null;
+  status: KolStatus;
+  socialLinks: KolSocialLinks | null;
+  credentials: KolCredential[] | null;
+  iamSmartVerified: boolean;
+  userId: string | null;
+  kolSbtTokenId: number | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type AdminKolDetailResponse = {
+  kol: AdminKolItem;
+  signalCount: number;
+  followerCount: number;
+};
+
+export type AdminKolsResponse = {
+  kols: AdminKolItem[];
+  total: number;
+};
+
+export const fetchAdminKols = (
+  params?: { status?: KolStatus; limit?: number; offset?: number },
+  options?: FetchOptions,
+): Promise<AdminKolsResponse> => {
+  const query = new URLSearchParams();
+  if (params?.status) query.set('status', params.status);
+  if (params?.limit !== undefined) query.set('limit', String(params.limit));
+  if (params?.offset !== undefined) query.set('offset', String(params.offset));
+  const qs = query.toString();
+  return apiGet<AdminKolsResponse>(`/v1/admin/kols${qs ? `?${qs}` : ''}`, options);
+};
+
+export const fetchAdminKolDetail = (
+  id: string,
+  options?: FetchOptions,
+): Promise<AdminKolDetailResponse> =>
+  apiGet<AdminKolDetailResponse>(`/v1/admin/kols/${id}`, options);
+
+export const approveKol = (
+  id: string,
+  options?: FetchOptions,
+): Promise<{ kol: AdminKolItem }> =>
+  apiPatch<{ kol: AdminKolItem }>(`/v1/admin/kols/${id}/approve`, {}, options);
+
+export const rejectKol = (
+  id: string,
+  adminNote: string,
+  options?: FetchOptions,
+): Promise<{ kol: AdminKolItem }> =>
+  apiPatch<{ kol: AdminKolItem }>(`/v1/admin/kols/${id}/reject`, { adminNote }, options);
+
+export const suspendKol = (
+  id: string,
+  options?: FetchOptions,
+): Promise<{ kol: AdminKolItem }> =>
+  apiPatch<{ kol: AdminKolItem }>(`/v1/admin/kols/${id}/suspend`, {}, options);
+
+// ---------------------------------------------------------------------------
+// Admin — Signals read-only list per ADR-0036
+// ---------------------------------------------------------------------------
+
+export type SignalOutcome = 'ACTIVE' | 'HIT_TARGET' | 'HIT_DIRECTION' | 'STOPPED' | 'EXPIRED' | 'UNRESOLVED';
+export type SignalDirection = 'BUY' | 'SELL' | 'HOLD';
+export type AssetClass = 'EQUITY_HK' | 'EQUITY_US' | 'FUTURES' | 'SPOT' | 'FOREX' | 'CRYPTO';
+
+export type AdminSignalItem = {
+  id: string;
+  kolId: string;
+  assetClass: AssetClass;
+  symbol: string;
+  direction: SignalDirection;
+  entryPrice: string;
+  targetPrice: string;
+  stoplossPrice: string | null;
+  horizon: number;
+  note: string | null;
+  outcome: SignalOutcome;
+  settledAt: string | null;
+  settlePrice: string | null;
+  periodHigh: string | null;
+  periodLow: string | null;
+  contentHash: string;
+  createdAt: string;
+};
+
+export type AdminSignalsResponse = {
+  signals: AdminSignalItem[];
+  total: number;
+};
+
+export const fetchAdminSignals = (
+  params?: { kolId?: string; symbol?: string; outcome?: SignalOutcome; limit?: number; offset?: number },
+  options?: FetchOptions,
+): Promise<AdminSignalsResponse> => {
+  const query = new URLSearchParams();
+  if (params?.kolId) query.set('kolId', params.kolId);
+  if (params?.symbol) query.set('symbol', params.symbol);
+  if (params?.outcome) query.set('outcome', params.outcome);
+  if (params?.limit !== undefined) query.set('limit', String(params.limit));
+  if (params?.offset !== undefined) query.set('offset', String(params.offset));
+  const qs = query.toString();
+  return apiGet<AdminSignalsResponse>(`/v1/signals${qs ? `?${qs}` : ''}`, options);
+};
+
+// ---------------------------------------------------------------------------
 // Broker owner — stats
 // ---------------------------------------------------------------------------
 
