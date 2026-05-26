@@ -547,6 +547,75 @@ export const submitComplaint = (
 ): Promise<SubmitComplaintResponse> =>
   apiPost<SubmitComplaintResponse>('/v1/complaints', input, options);
 
+/**
+ * Per ADR-0029 D4: the public complaint card surfaces a derived
+ * verification status. The server doesn't ship the discriminator as a
+ * column — it's derived from the `(verifiedAt, adminNote)` pair so the
+ * web computes it from the two timestamps once at render time.
+ *
+ *   - OPEN:     verifiedAt = null AND adminNote = null
+ *   - VERIFIED: verifiedAt != null  (adminNote may be stale; ignored)
+ *   - REJECTED: verifiedAt = null AND adminNote != null
+ *
+ * Per rule 00 «reject != delete» the body / title / evidence stay
+ * visible in all three statuses; the badge + adminNote control the
+ * verdict text only.
+ */
+export type ComplaintStatus = 'OPEN' | 'VERIFIED' | 'REJECTED';
+
+export type ComplaintItem = {
+  id: string;
+  brokerId: string;
+  contentHash: string;
+  ipfsCid: string | null;
+  /** Per ADR-0029 D3: every complaint carries an evidence CID. */
+  evidenceIpfsCid: string;
+  title: string;
+  body: string;
+  sentiment: ComplaintSentiment | null;
+  sourceLocale: 'zh-Hant' | 'zh-Hans' | 'en' | null;
+  /** ISO-8601 string when an admin has verified the complaint; null otherwise. */
+  verifiedAt: string | null;
+  /**
+   * Per ADR-0029 D4: populated when an admin rejected the complaint
+   * (verdict text shown next to the "not verified by platform" pill).
+   * Always null for OPEN / VERIFIED rows.
+   */
+  adminNote: string | null;
+  createdAt: string;
+};
+
+export type BrokerComplaintsResponse = {
+  complaints: ComplaintItem[];
+  nextCursor: string | null;
+  broker: {
+    id: string;
+    slug: string;
+    displayName: string;
+    displayNameZhHans: string | null;
+    legalName: string | null;
+    logoUrl: string | null;
+  };
+};
+
+/**
+ * Derives the public status badge from the two timestamps + adminNote
+ * (per ADR-0029 D4). Co-located with the type so consumers don't
+ * reinvent the logic — the M7.6b ComplaintCard and any future surface
+ * (M10 商戶後台 inbox per STAGING.md S4) share this single helper.
+ */
+export const deriveComplaintStatus = (complaint: ComplaintItem): ComplaintStatus => {
+  if (complaint.verifiedAt) return 'VERIFIED';
+  if (complaint.adminNote) return 'REJECTED';
+  return 'OPEN';
+};
+
+export const fetchBrokerComplaints = (
+  slug: string,
+  options?: FetchOptions,
+): Promise<BrokerComplaintsResponse> =>
+  apiGet<BrokerComplaintsResponse>(`/v1/complaints/broker/${slug}`, options);
+
 // ---------------------------------------------------------------------------
 // User profile
 // ---------------------------------------------------------------------------

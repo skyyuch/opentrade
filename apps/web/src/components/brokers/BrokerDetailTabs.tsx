@@ -2,6 +2,7 @@
 
 import { usePrivy } from '@privy-io/react-auth';
 import {
+  AlertTriangle,
   CheckCircle,
   Edit3,
   FileText,
@@ -9,12 +10,14 @@ import {
   Link as LinkIcon,
   MessageSquare,
   Scale,
+  ShieldAlert,
   ShieldCheck,
   Star,
   ThumbsDown,
   ThumbsUp,
   TrendingUp,
   Users,
+  XCircle,
 } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useCallback, useMemo, useState } from 'react';
@@ -24,10 +27,17 @@ import { SentimentBadge, SentimentPicker, type Sentiment } from '@opentrade/ui';
 
 import { useOpenTradeAuth } from '@/hooks/useOpenTradeAuth';
 import { Link } from '@/i18n/navigation';
-import { ApiClientError, reviewIpfsContentUrl, submitReview } from '@/lib/api/client';
+import {
+  ApiClientError,
+  deriveComplaintStatus,
+  reviewIpfsContentUrl,
+  submitReview,
+} from '@/lib/api/client';
 
 import type {
   BrokerDetail,
+  ComplaintItem,
+  ComplaintStatus,
   ReviewItem,
   SfcPerson,
   SfcComplaintsOfficer,
@@ -38,7 +48,7 @@ import type {
 } from '@/lib/api/client';
 import type { FormEvent } from 'react';
 
-type Tab = 'reviews' | 'license' | 'arbitration';
+type Tab = 'reviews' | 'complaints' | 'license' | 'arbitration';
 type LicenseSubTab =
   | 'details'
   | 'address'
@@ -53,10 +63,11 @@ type LicenseSubTab =
 type Props = {
   broker: BrokerDetail;
   reviews: ReviewItem[];
+  complaints: ComplaintItem[];
   locale: string;
 };
 
-export function BrokerDetailTabs({ broker, reviews, locale }: Props) {
+export function BrokerDetailTabs({ broker, reviews, complaints, locale }: Props) {
   const [activeTab, setActiveTab] = useState<Tab>('reviews');
 
   return (
@@ -66,6 +77,9 @@ export function BrokerDetailTabs({ broker, reviews, locale }: Props) {
 
         {activeTab === 'reviews' && (
           <ReviewsTab broker={broker} reviews={reviews} locale={locale} />
+        )}
+        {activeTab === 'complaints' && (
+          <ComplaintsTab broker={broker} complaints={complaints} locale={locale} />
         )}
         {activeTab === 'license' && <LicenseTab broker={broker} />}
         {activeTab === 'arbitration' && <ArbitrationTab />}
@@ -86,28 +100,66 @@ function TabBar({
   broker: BrokerDetail;
 }) {
   const t = useTranslations('brokerDetail');
-  const tabs: { key: Tab; label: string; extra?: string }[] = [
+
+  // Per M7.6b: the complaints tab carries a pill that goes red when
+  // > 0 verified complaints exist, grey when 0. This is the public
+  // credibility signal — rejected complaints intentionally don't
+  // colour the pill (per rule 00 «reject != delete»; rejected entries
+  // remain visible inside the tab but don't drive the headline).
+  const hasVerifiedComplaints = broker.verifiedComplaintCount > 0;
+
+  type TabDescriptor = {
+    key: Tab;
+    label: string;
+    pill?:
+      | {
+          text: string;
+          variant: 'neutral' | 'danger';
+          title?: string;
+        }
+      | undefined;
+  };
+
+  const tabs: TabDescriptor[] = [
     { key: 'reviews', label: `${t('tabReviews')} (${broker.reviewCount})` },
+    {
+      key: 'complaints',
+      label: t('tabComplaints'),
+      pill: {
+        text: String(broker.verifiedComplaintCount),
+        variant: hasVerifiedComplaints ? 'danger' : 'neutral',
+        title: hasVerifiedComplaints
+          ? t('tabComplaintsPillVerifiedTooltip', { count: broker.verifiedComplaintCount })
+          : t('tabComplaintsPillEmptyTooltip'),
+      },
+    },
     { key: 'license', label: t('tabLicense') },
-    { key: 'arbitration', label: t('tabArbitration'), extra: '0' },
+    { key: 'arbitration', label: t('tabArbitration'), pill: { text: '0', variant: 'neutral' } },
   ];
 
   return (
-    <div className="flex border-b border-white/10">
+    <div className="flex border-b border-white/10 overflow-x-auto no-scrollbar">
       {tabs.map((tab) => (
         <button
           key={tab.key}
           onClick={() => onTabChange(tab.key)}
-          className={`px-6 py-3 font-bold text-sm border-b-2 transition-colors flex items-center gap-2 ${
+          className={`px-6 py-3 font-bold text-sm border-b-2 transition-colors flex items-center gap-2 whitespace-nowrap ${
             activeTab === tab.key
               ? 'border-[#00FF88] text-[#00FF88]'
               : 'border-transparent text-white/50 hover:text-white'
           }`}
         >
           {tab.label}
-          {tab.extra !== undefined && (
-            <span className="px-1.5 py-0.5 rounded-full bg-white/10 text-[10px] text-white">
-              {tab.extra}
+          {tab.pill && (
+            <span
+              title={tab.pill.title}
+              className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+                tab.pill.variant === 'danger'
+                  ? 'bg-red-500/15 text-red-400 border border-red-500/30'
+                  : 'bg-white/10 text-white'
+              }`}
+            >
+              {tab.pill.text}
             </span>
           )}
         </button>
@@ -177,6 +229,270 @@ function ReviewsTab({
         )}
       </div>
     </>
+  );
+}
+
+/**
+ * ComplaintsTab — broker detail third tab per M7.6b / ADR-0029.
+ *
+ * Renders the full complaint list (OPEN / VERIFIED / REJECTED) with a
+ * status badge per row plus the admin reject reason inline when the
+ * status is REJECTED. Per rule 00 «reject != delete» rejected
+ * complaints stay visible exactly as authored; only the badge text
+ * changes to communicate the platform's assessment.
+ *
+ * The CTA at the top points to `/brokers/{slug}/complaints/new`
+ * (M7.5c) — only L2-verified users can submit, but the gate happens
+ * on the new-complaint page itself rather than here so the link is
+ * always navigable.
+ */
+function ComplaintsTab({
+  broker,
+  complaints,
+  locale,
+}: {
+  broker: BrokerDetail;
+  complaints: ComplaintItem[];
+  locale: string;
+}) {
+  const t = useTranslations('brokerDetail');
+  const tc = useTranslations('complaintCard');
+
+  const verifiedCount = broker.verifiedComplaintCount;
+  const totalCount = complaints.length;
+  const openCount = complaints.filter((c) => deriveComplaintStatus(c) === 'OPEN').length;
+  const rejectedCount = complaints.filter((c) => deriveComplaintStatus(c) === 'REJECTED').length;
+
+  return (
+    <>
+      <ComplaintsSummaryCard
+        verifiedCount={verifiedCount}
+        openCount={openCount}
+        rejectedCount={rejectedCount}
+        totalCount={totalCount}
+        brokerSlug={broker.slug}
+      />
+
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pt-4 border-t border-white/5">
+        <h3 className="font-bold flex items-center gap-2">
+          <AlertTriangle size={16} className="text-orange-400" />
+          {t('complaintsListHeading')}
+        </h3>
+        <span className="text-xs text-white/40">
+          {t('complaintsListCount', { count: totalCount })}
+        </span>
+      </div>
+
+      <div className="flex items-start gap-2 text-xs text-white/40 px-1">
+        <Info size={12} className="mt-0.5 flex-shrink-0" />
+        <span>{t('complaintsDisclaimer')}</span>
+      </div>
+
+      <div className="space-y-4">
+        {complaints.length === 0 ? (
+          <div className="py-20 flex flex-col items-center justify-center text-center border border-white/5 rounded-2xl bg-white/5 border-dashed">
+            <ShieldCheck size={40} className="text-white/20 mb-4" />
+            <h3 className="text-lg font-bold text-white mb-2">{t('noComplaints')}</h3>
+            <p className="text-white/40 text-sm max-w-sm">{t('noComplaintsDesc')}</p>
+          </div>
+        ) : (
+          complaints.map((complaint) => (
+            <ComplaintCard key={complaint.id} complaint={complaint} locale={locale} t={tc} />
+          ))
+        )}
+      </div>
+    </>
+  );
+}
+
+function ComplaintsSummaryCard({
+  verifiedCount,
+  openCount,
+  rejectedCount,
+  totalCount,
+  brokerSlug,
+}: {
+  verifiedCount: number;
+  openCount: number;
+  rejectedCount: number;
+  totalCount: number;
+  brokerSlug: string;
+}) {
+  const t = useTranslations('brokerDetail');
+  const hasVerified = verifiedCount > 0;
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 rounded-2xl bg-zinc-900/60 border border-white/10">
+      <div className="flex flex-col justify-center items-center md:items-start md:border-r border-white/10 md:pr-6">
+        <div className="text-white/50 mb-2 font-medium">{t('verifiedComplaintsHeadline')}</div>
+        <div className="flex items-baseline gap-2">
+          <span className={`text-5xl font-bold ${hasVerified ? 'text-red-400' : 'text-[#00FF88]'}`}>
+            {verifiedCount}
+          </span>
+        </div>
+        <div className="text-sm text-white/40 mt-3">
+          {t('totalComplaintsCaption', { count: totalCount })}
+        </div>
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          {openCount > 0 && (
+            <div className="flex items-center gap-2 text-xs text-orange-400 bg-orange-400/10 px-3 py-1.5 rounded-full font-bold">
+              <AlertTriangle size={14} />
+              {t('openComplaintsBadge', { count: openCount })}
+            </div>
+          )}
+          {rejectedCount > 0 && (
+            <div className="flex items-center gap-2 text-xs text-white/60 bg-white/5 px-3 py-1.5 rounded-full">
+              <XCircle size={14} />
+              {t('rejectedComplaintsBadge', { count: rejectedCount })}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="flex flex-col justify-center items-start gap-3">
+        <p className="text-sm text-white/60 leading-relaxed">{t('complaintsHowto')}</p>
+        <Link
+          href={`/brokers/${brokerSlug}/complaints/new`}
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-orange-400/15 border border-orange-400/30 text-orange-300 text-sm font-bold hover:bg-orange-400/25 transition-colors"
+        >
+          <ShieldAlert size={14} />
+          {t('submitComplaintCta')}
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+function ComplaintCard({
+  complaint,
+  locale,
+  t,
+}: {
+  complaint: ComplaintItem;
+  locale: string;
+  t: ReturnType<typeof useTranslations<'complaintCard'>>;
+}) {
+  const status = deriveComplaintStatus(complaint);
+
+  // Per ADR-0029 D4: each status maps to a distinct visual treatment so
+  // a reader can scan the list and immediately see the verdict mix.
+  // - OPEN: orange (under review)
+  // - VERIFIED: red (platform-confirmed against the broker)
+  // - REJECTED: grey (platform reviewed and did not substantiate, but
+  //   the body stays visible per rule 00 «reject != delete»)
+  const statusMeta: Record<
+    ComplaintStatus,
+    { label: string; chipClass: string; Icon: typeof AlertTriangle }
+  > = {
+    OPEN: {
+      label: t('statusOpen'),
+      chipClass: 'bg-orange-400/15 text-orange-300 border-orange-400/30',
+      Icon: AlertTriangle,
+    },
+    VERIFIED: {
+      label: t('statusVerified'),
+      chipClass: 'bg-red-500/15 text-red-300 border-red-500/30',
+      Icon: ShieldAlert,
+    },
+    REJECTED: {
+      label: t('statusRejected'),
+      chipClass: 'bg-white/10 text-white/60 border-white/15',
+      Icon: XCircle,
+    },
+  };
+  const { label: statusLabel, chipClass, Icon: StatusIcon } = statusMeta[status];
+
+  const sourceLocaleLabel: string | null =
+    complaint.sourceLocale === 'zh-Hant'
+      ? t('sourceLocaleZhHant')
+      : complaint.sourceLocale === 'zh-Hans'
+        ? t('sourceLocaleZhHans')
+        : complaint.sourceLocale === 'en'
+          ? t('sourceLocaleEn')
+          : null;
+
+  return (
+    <div className="p-6 rounded-xl bg-zinc-900/50 border border-white/10 hover:border-white/20 transition-colors">
+      <div className="flex justify-between items-start mb-4 gap-3">
+        <div className="flex flex-col gap-1 min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <span
+              className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[10px] font-bold ${chipClass}`}
+              title={t('statusTooltip', { status: statusLabel })}
+            >
+              <StatusIcon size={12} />
+              {statusLabel}
+            </span>
+            {sourceLocaleLabel && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded-full border border-white/10 bg-white/5 text-white/50">
+                {sourceLocaleLabel}
+              </span>
+            )}
+          </div>
+          <div className="text-xs text-white/40">
+            {new Date(complaint.createdAt).toLocaleDateString(locale)}
+          </div>
+        </div>
+      </div>
+
+      {complaint.title && <h4 className="font-semibold text-sm mb-1">{complaint.title}</h4>}
+      <p className="text-sm text-white/80 leading-relaxed mb-4 whitespace-pre-wrap">
+        {complaint.body}
+      </p>
+
+      {status === 'REJECTED' && complaint.adminNote && (
+        // Per ADR-0029 D4: the admin reject reason is shipped to the
+        // public surface so readers see WHY the platform did not
+        // substantiate the complaint. This block is intentionally
+        // styled subdued (no red) — the verdict pill above carries the
+        // emotional weight; this is the explanation.
+        <div className="mb-4 p-3 rounded-lg bg-white/5 border border-white/10">
+          <div className="text-[10px] uppercase tracking-wide font-bold text-white/40 mb-1">
+            {t('adminNoteHeading')}
+          </div>
+          <p className="text-xs text-white/60 leading-relaxed whitespace-pre-wrap">
+            {complaint.adminNote}
+          </p>
+        </div>
+      )}
+
+      <div className="flex items-center justify-between pt-4 border-t border-white/5">
+        <div className="flex items-center gap-2 flex-wrap">
+          {complaint.evidenceIpfsCid && (
+            <a
+              href={`https://gateway.pinata.cloud/ipfs/${complaint.evidenceIpfsCid}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 px-2 py-1 rounded bg-black/30 border border-white/5 group"
+              title={t('evidenceLinkTooltip')}
+            >
+              <FileText size={12} className="text-white/40" />
+              <span className="text-[10px] font-mono text-white/40 group-hover:text-white transition-colors">
+                {t('evidenceLink')}
+              </span>
+            </a>
+          )}
+          {complaint.contentHash && (
+            <span
+              className="flex items-center gap-1.5 px-2 py-1 rounded bg-black/30 border border-white/5"
+              title={t('contentHashTooltip')}
+            >
+              <LinkIcon size={12} className="text-white/30" />
+              <span className="text-[10px] font-mono text-white/30">
+                {complaint.contentHash.slice(0, 10)}…{complaint.contentHash.slice(-4)}
+              </span>
+            </span>
+          )}
+        </div>
+        {status === 'VERIFIED' && complaint.verifiedAt && (
+          <div className="text-[10px] text-red-300/70">
+            {t('verifiedAtCaption', {
+              date: new Date(complaint.verifiedAt).toLocaleDateString(locale),
+            })}
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 

@@ -11,9 +11,14 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 
 import { BrokerDetailTabs } from '@/components/brokers/BrokerDetailTabs';
 import { Link } from '@/i18n/navigation';
-import { ApiClientError, fetchBroker, fetchBrokerReviews } from '@/lib/api/client';
+import {
+  ApiClientError,
+  fetchBroker,
+  fetchBrokerComplaints,
+  fetchBrokerReviews,
+} from '@/lib/api/client';
 
-import type { BrokerDetail, ReviewItem } from '@/lib/api/client';
+import type { BrokerDetail, ComplaintItem, ReviewItem } from '@/lib/api/client';
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 
@@ -39,7 +44,7 @@ const BrokerDetailPage = async ({ params }: Props): Promise<ReactNode> => {
 
   const t = await getTranslations('brokerDetail');
 
-  const { broker, reviews } = await fetchBrokerData(params.slug);
+  const { broker, reviews, complaints } = await fetchBrokerData(params.slug);
   const isChineseLocale = params.locale.startsWith('zh');
 
   const primaryName = isChineseLocale ? broker.displayName : broker.legalName;
@@ -157,7 +162,12 @@ const BrokerDetailPage = async ({ params }: Props): Promise<ReactNode> => {
           </div>
         </header>
 
-        <BrokerDetailTabs broker={broker} reviews={reviews} locale={params.locale} />
+        <BrokerDetailTabs
+          broker={broker}
+          reviews={reviews}
+          complaints={complaints}
+          locale={params.locale}
+        />
 
         <footer className="mt-16 pt-8 border-t border-white/5 text-xs text-white/30">
           {t('disclaimer')}
@@ -171,13 +181,27 @@ export default BrokerDetailPage;
 
 const fetchBrokerData = async (
   slug: string,
-): Promise<{ broker: BrokerDetail; reviews: ReviewItem[] }> => {
+): Promise<{
+  broker: BrokerDetail;
+  reviews: ReviewItem[];
+  complaints: ComplaintItem[];
+}> => {
   try {
-    const [brokerRes, reviewsRes] = await Promise.all([
+    // Per M7.6b: pre-fetch complaints alongside reviews so the third
+    // tab is interactive on first paint (no client-side spinner). All
+    // three endpoints are public; the parallel fetch keeps the SSR
+    // critical path tight. Complaint freshness mirrors reviews —
+    // `revalidate: 0` so verify/reject flips show up immediately.
+    const [brokerRes, reviewsRes, complaintsRes] = await Promise.all([
       fetchBroker(slug, { next: { revalidate: 60 } }),
       fetchBrokerReviews(slug, { next: { revalidate: 0 } }),
+      fetchBrokerComplaints(slug, { next: { revalidate: 0 } }),
     ]);
-    return { broker: brokerRes.broker, reviews: reviewsRes.reviews };
+    return {
+      broker: brokerRes.broker,
+      reviews: reviewsRes.reviews,
+      complaints: complaintsRes.complaints,
+    };
   } catch (err) {
     if (err instanceof ApiClientError && err.status === 404) {
       notFound();
