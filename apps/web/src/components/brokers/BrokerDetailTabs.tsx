@@ -20,7 +20,7 @@ import {
   XCircle,
 } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { localizedBrokerName } from '@opentrade/shared';
 import { SentimentBadge, SentimentPicker, type Sentiment } from '@opentrade/ui';
@@ -30,12 +30,14 @@ import { Link } from '@/i18n/navigation';
 import {
   ApiClientError,
   deriveComplaintStatus,
+  fetchBrokerKols,
   reviewIpfsContentUrl,
   submitReview,
 } from '@/lib/api/client';
 
 import type {
   BrokerDetail,
+  BrokerKolItem,
   ComplaintItem,
   ComplaintStatus,
   ReviewItem,
@@ -48,7 +50,7 @@ import type {
 } from '@/lib/api/client';
 import type { FormEvent } from 'react';
 
-type Tab = 'reviews' | 'complaints' | 'license' | 'arbitration';
+type Tab = 'reviews' | 'complaints' | 'license' | 'kols' | 'arbitration';
 type LicenseSubTab =
   | 'details'
   | 'address'
@@ -82,6 +84,7 @@ export function BrokerDetailTabs({ broker, reviews, complaints, locale }: Props)
           <ComplaintsTab broker={broker} complaints={complaints} locale={locale} />
         )}
         {activeTab === 'license' && <LicenseTab broker={broker} />}
+        {activeTab === 'kols' && <RelatedKolsTab brokerSlug={broker.slug} />}
         {activeTab === 'arbitration' && <ArbitrationTab />}
       </div>
 
@@ -134,6 +137,7 @@ function TabBar({
       },
     },
     { key: 'license', label: t('tabLicense') },
+    { key: 'kols', label: t('tabKols') },
     { key: 'arbitration', label: t('tabArbitration'), pill: { text: '0', variant: 'neutral' } },
   ];
 
@@ -1612,6 +1616,78 @@ function LicenseRecordsView({
           </table>
         </div>
       </div>
+    </div>
+  );
+}
+
+function RelatedKolsTab({ brokerSlug }: { brokerSlug: string }) {
+  const t = useTranslations('brokerDetail');
+  const [kols, setKols] = useState<BrokerKolItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchBrokerKols(brokerSlug)
+      .then((data) => setKols(data.kols))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [brokerSlug]);
+
+  if (loading) {
+    return (
+      <div className="flex justify-center py-12">
+        <div className="size-6 animate-spin rounded-full border-2 border-white/20 border-t-[#00FF88]" />
+      </div>
+    );
+  }
+
+  if (kols.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-white/5 bg-white/5 py-20 text-center">
+        <Users size={40} className="mb-4 text-white/20" />
+        <h3 className="mb-2 text-lg font-bold text-white">{t('noRelatedKols')}</h3>
+        <p className="max-w-sm text-sm text-white/40">{t('noRelatedKolsDesc')}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+      {kols.map((kol) => (
+        <Link
+          key={kol.id}
+          href={`/kols/${kol.slug}`}
+          className="flex items-center gap-4 rounded-2xl border border-white/10 bg-white/5 p-5 transition-all hover:border-[#00FF88]/30 hover:bg-white/10"
+        >
+          {kol.avatarUrl ? (
+            <img
+              src={kol.avatarUrl}
+              alt={kol.displayName}
+              className="size-12 rounded-full object-cover"
+            />
+          ) : (
+            <div className="flex size-12 items-center justify-center rounded-full bg-white/10 text-lg font-bold text-white/60">
+              {kol.displayName.charAt(0).toUpperCase()}
+            </div>
+          )}
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-bold text-white">{kol.displayName}</p>
+            <p className="text-xs text-white/40">@{kol.slug}</p>
+            <div className="mt-1 flex gap-3 text-[10px] text-white/50">
+              <span>
+                {kol.signalCount} {t('kolSignals')}
+              </span>
+              <span>
+                {kol.followerCount} {t('kolFollowers')}
+              </span>
+            </div>
+          </div>
+          {kol.iamSmartVerified && (
+            <span className="shrink-0 rounded bg-[#00FF88]/20 px-2 py-1 text-[10px] font-bold text-[#00FF88]">
+              智方便
+            </span>
+          )}
+        </Link>
+      ))}
     </div>
   );
 }

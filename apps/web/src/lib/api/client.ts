@@ -629,6 +629,26 @@ export const fetchBrokerComplaints = (
 ): Promise<BrokerComplaintsResponse> =>
   apiGet<BrokerComplaintsResponse>(`/v1/complaints/broker/${slug}`, options);
 
+export type BrokerKolItem = {
+  id: string;
+  slug: string;
+  displayName: string;
+  avatarUrl: string | null;
+  iamSmartVerified: boolean;
+  signalCount: number;
+  followerCount: number;
+};
+
+export type BrokerKolsResponse = {
+  kols: BrokerKolItem[];
+};
+
+export const fetchBrokerKols = (
+  slug: string,
+  options?: FetchOptions,
+): Promise<BrokerKolsResponse> =>
+  apiGet<BrokerKolsResponse>(`/v1/brokers/${slug}/kols`, options);
+
 // ---------------------------------------------------------------------------
 // User profile
 // ---------------------------------------------------------------------------
