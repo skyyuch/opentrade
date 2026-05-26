@@ -14,7 +14,8 @@
     "system": "系统健康",
     "brokerDashboard": "我的券商",
     "profile": "我的资料",
-    "brokerReviews": "收到的评论"
+    "brokerReviews": "收到的评论",
+    "brokerComplaints": "投诉收件箱"
   },
   "auth": {
     "loginTitle": "商户后台登录",
@@ -299,7 +300,33 @@
     "completeness": "资料完整度提示",
     "missingFields": "建议补充以下资料以提升可信度：",
     "noBrokerClaimed": "你尚未认领任何券商。",
-    "reviewsDisclaimer": "请注意：链上评论无法在平台端删除"
+    "reviewsDisclaimer": "请注意：链上评论无法在平台端删除",
+    "totalComplaints": "总投诉数",
+    "openComplaints": "待处理投诉",
+    "respondedComplaints": "已回应投诉"
+  },
+  "brokerComplaints": {
+    "title": "投诉收件箱",
+    "filterAll": "全部",
+    "filterPending": "待回应",
+    "filterResponded": "已回应",
+    "noComplaints": "目前没有收到投诉。",
+    "noBrokerClaimed": "你尚未认领任何券商。",
+    "responded": "已回应",
+    "awaitingResponse": "待回应",
+    "statusOpen": "待审核",
+    "statusVerified": "已证实",
+    "statusRejected": "已驳回",
+    "viewEvidence": "查看证据",
+    "rejectionNote": "平台驳回原因",
+    "yourResponse": "你的回应",
+    "disclaimer": "投诉记录不可删除。你的回应一经提交即为永久记录。",
+    "respondTitle": "撰写回应",
+    "respondHint": "你的回应将永久记录且无法修改。请谨慎撰写。",
+    "respondPlaceholder": "输入你的回应…",
+    "minChars": "最少 10 字",
+    "submitResponse": "提交回应",
+    "submitError": "提交失败，请稍后再试。"
   },
   "settings": {
     "title": "设置",

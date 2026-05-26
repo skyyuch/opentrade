@@ -14,7 +14,8 @@
     "system": "System health",
     "brokerDashboard": "My broker",
     "profile": "My profile",
-    "brokerReviews": "Reviews received"
+    "brokerReviews": "Reviews received",
+    "brokerComplaints": "Complaint inbox"
   },
   "auth": {
     "loginTitle": "Merchant console login",
@@ -299,7 +300,33 @@
     "completeness": "Profile completeness",
     "missingFields": "Consider adding the following to improve credibility:",
     "noBrokerClaimed": "You have not claimed any broker yet.",
-    "reviewsDisclaimer": "Note: On-chain reviews cannot be deleted by the platform"
+    "reviewsDisclaimer": "Note: On-chain reviews cannot be deleted by the platform",
+    "totalComplaints": "Total complaints",
+    "openComplaints": "Open complaints",
+    "respondedComplaints": "Responded"
+  },
+  "brokerComplaints": {
+    "title": "Complaint inbox",
+    "filterAll": "All",
+    "filterPending": "Awaiting response",
+    "filterResponded": "Responded",
+    "noComplaints": "No complaints received yet.",
+    "noBrokerClaimed": "You have not claimed any broker yet.",
+    "responded": "Responded",
+    "awaitingResponse": "Awaiting response",
+    "statusOpen": "Open",
+    "statusVerified": "Verified",
+    "statusRejected": "Rejected",
+    "viewEvidence": "View evidence",
+    "rejectionNote": "Platform rejection note",
+    "yourResponse": "Your response",
+    "disclaimer": "Complaint records cannot be deleted. Your response is permanent once submitted.",
+    "respondTitle": "Write a response",
+    "respondHint": "Your response will be permanently recorded and cannot be edited. Please write carefully.",
+    "respondPlaceholder": "Enter your response…",
+    "minChars": "min 10 characters",
+    "submitResponse": "Submit response",
+    "submitError": "Submission failed. Please try again later."
   },
   "settings": {
     "title": "Settings",

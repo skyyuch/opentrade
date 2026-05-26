@@ -14,7 +14,8 @@
     "system": "系統健康",
     "brokerDashboard": "我的券商",
     "profile": "我的資料",
-    "brokerReviews": "收到的評論"
+    "brokerReviews": "收到的評論",
+    "brokerComplaints": "投訴收件匣"
   },
   "auth": {
     "loginTitle": "商戶後台登入",
@@ -299,7 +300,33 @@
     "completeness": "資料完整度提示",
     "missingFields": "建議補充以下資料以提升可信度：",
     "noBrokerClaimed": "你尚未認領任何券商。",
-    "reviewsDisclaimer": "請注意：鏈上評論無法在平台端刪除"
+    "reviewsDisclaimer": "請注意：鏈上評論無法在平台端刪除",
+    "totalComplaints": "總投訴數",
+    "openComplaints": "待處理投訴",
+    "respondedComplaints": "已回應投訴"
+  },
+  "brokerComplaints": {
+    "title": "投訴收件匣",
+    "filterAll": "全部",
+    "filterPending": "待回應",
+    "filterResponded": "已回應",
+    "noComplaints": "目前沒有收到投訴。",
+    "noBrokerClaimed": "你尚未認領任何券商。",
+    "responded": "已回應",
+    "awaitingResponse": "待回應",
+    "statusOpen": "待審核",
+    "statusVerified": "已證實",
+    "statusRejected": "已駁回",
+    "viewEvidence": "查看證據",
+    "rejectionNote": "平台駁回原因",
+    "yourResponse": "你的回應",
+    "disclaimer": "投訴記錄不可刪除。你的回應一經提交即為永久記錄。",
+    "respondTitle": "撰寫回應",
+    "respondHint": "你的回應將永久記錄且無法修改。請謹慎撰寫。",
+    "respondPlaceholder": "輸入你的回應…",
+    "minChars": "最少 10 字",
+    "submitResponse": "提交回應",
+    "submitError": "提交失敗，請稍後再試。"
   },
   "settings": {
     "title": "設定",

@@ -1,6 +1,6 @@
 'use client';
 
-import { Bell, MessageSquareText, Star, TrendingUp } from 'lucide-react';
+import { AlertTriangle, Bell, MessageSquareText, Star, TrendingUp } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
 
@@ -76,6 +76,21 @@ export function BrokerDashboardClient(): React.ReactNode {
           icon: <TrendingUp size={20} />,
         },
         { label: t('monthReviews'), value: `+${stats.monthReviews}`, icon: <Bell size={20} /> },
+        {
+          label: t('totalComplaints'),
+          value: String(stats.totalComplaints),
+          icon: <AlertTriangle size={20} />,
+        },
+        {
+          label: t('openComplaints'),
+          value: String(stats.openComplaints),
+          icon: <AlertTriangle size={20} className="text-orange-400" />,
+        },
+        {
+          label: t('respondedComplaints'),
+          value: String(stats.respondedComplaints),
+          icon: <AlertTriangle size={20} className="text-green-400" />,
+        },
       ]
     : [];
 

@@ -278,6 +278,12 @@ export const AuthGate = ({ children }: Props): ReactNode => {
       icon: MessageSquareText,
       label: t('nav.brokerReviews'),
     },
+    {
+      href: '/broker/complaints',
+      path: '/broker/complaints',
+      icon: AlertTriangle,
+      label: t('nav.brokerComplaints'),
+    },
   ];
 
   let navItems: NavItem[];
