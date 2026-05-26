@@ -505,11 +505,10 @@ model Review {
   /// nullable when jury verification is the source — column shape is
   /// already nullable so future ADR can layer on without schema break.
   verifiedByUserId   String?    @db.Uuid
-  /// Foreign key target for a future broker public-response row (per C5
-  /// fold-in in ADR-0029 D6). M7.1 ships only the column; the bidirectional
-  /// `Review` self-relation lands with M10 商戶功能 (ADR-0037 staged in
-  /// `decisions/STAGING.md` S8) when the broker-side write API is built.
-  /// Until then this is plain `String?`, no relation, no integrity check.
+  /// Foreign key for broker public-response rows (per ADR-0029 D6 + ADR-0037
+  /// D1). A broker response is itself a `Review` row with `kind = REVIEW`
+  /// and this field pointing to the complaint's `id`. One response per
+  /// complaint per broker is enforced at the application layer (ADR-0037 D2).
   respondsToReviewId String?    @db.Uuid
   /// Admin-supplied free text. Two distinct roles per current usage:
   ///   1. Reject reason (M7 / ADR-0029 D4): when `kind = COMPLAINT` and an
@@ -529,6 +528,13 @@ model Review {
   broker       Broker              @relation(fields: [brokerId], references: [id])
   translations ReviewTranslation[]
 
+  // Self-relation: a broker response row points to the complaint it answers.
+  // Per ADR-0037 D1: `responseTo` is the complaint; `responses` is the
+  // (typically 0-or-1 element) set of broker responses to this complaint.
+  responseTo   Review?  @relation("ReviewResponse", fields: [respondsToReviewId], references: [id])
+  responses    Review[] @relation("ReviewResponse")
+
+  @@index([respondsToReviewId])
   @@index([tenantId, brokerId, createdAt])
   @@index([tenantId, userId])
   @@index([tenantId, status])
