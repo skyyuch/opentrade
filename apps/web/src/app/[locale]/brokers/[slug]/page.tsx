@@ -10,6 +10,7 @@ import { notFound } from 'next/navigation';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 
 import { BrokerDetailTabs } from '@/components/brokers/BrokerDetailTabs';
+import { RelatedKolsSection } from '@/components/kols/RelatedKolsSection';
 import { Link } from '@/i18n/navigation';
 import {
   ApiClientError,
@@ -168,6 +169,10 @@ const BrokerDetailPage = async ({ params }: Props): Promise<ReactNode> => {
           complaints={complaints}
           locale={params.locale}
         />
+
+        <section className="mt-12">
+          <RelatedKolsSection limit={6} />
+        </section>
 
         <footer className="mt-16 pt-8 border-t border-white/5 text-xs text-white/30">
           {t('disclaimer')}

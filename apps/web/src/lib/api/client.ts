@@ -775,3 +775,152 @@ export const uploadVerifyEvidence = async (
 
   return (await res.json()) as VerifyEvidenceUploadResponse;
 };
+
+// ---------------------------------------------------------------------------
+// KOL — public directory + profile + follow (per ADR-0036)
+// ---------------------------------------------------------------------------
+
+export type KolStatus = 'UNCLAIMED' | 'PENDING' | 'APPROVED' | 'REJECTED' | 'SUSPENDED';
+
+export type KolSocialLinks = {
+  youtube?: string;
+  instagram?: string;
+  twitter?: string;
+};
+
+export type KolCredential = {
+  type: string;
+  verified: boolean;
+  verifiedAt?: string;
+};
+
+export type KolListItem = {
+  id: string;
+  slug: string;
+  displayName: string;
+  bio: string | null;
+  avatarUrl: string | null;
+  status: KolStatus;
+  socialLinks: KolSocialLinks | null;
+  credentials: KolCredential[] | null;
+  iamSmartVerified: boolean;
+  createdAt: string;
+};
+
+export type KolsResponse = {
+  kols: KolListItem[];
+  total: number;
+};
+
+export const fetchKols = (
+  params?: { limit?: number; offset?: number },
+  options?: FetchOptions,
+): Promise<KolsResponse> => {
+  const query = new URLSearchParams();
+  if (params?.limit !== undefined) query.set('limit', String(params.limit));
+  if (params?.offset !== undefined) query.set('offset', String(params.offset));
+  const qs = query.toString();
+  return apiGet<KolsResponse>(`/v1/kols${qs ? `?${qs}` : ''}`, options);
+};
+
+export type KolProfileResponse = {
+  kol: KolListItem;
+  signalCount: number;
+  followerCount: number;
+};
+
+export const fetchKolProfile = (
+  slug: string,
+  options?: FetchOptions,
+): Promise<KolProfileResponse> =>
+  apiGet<KolProfileResponse>(`/v1/kols/${slug}`, options);
+
+export const followKol = (
+  slug: string,
+  options: FetchOptions,
+): Promise<{ followed: boolean }> =>
+  apiPost<{ followed: boolean }>(`/v1/kols/${slug}/follow`, {}, options);
+
+export const unfollowKol = (
+  slug: string,
+  options: FetchOptions,
+): Promise<{ followed: boolean }> => {
+  const url = `${env.NEXT_PUBLIC_API_URL}/v1/kols/${slug}/follow`;
+  const headers: Record<string, string> = { Accept: 'application/json' };
+  if (options.accessToken) {
+    headers['Authorization'] = `Bearer ${options.accessToken}`;
+  }
+  return fetch(url, { method: 'DELETE', headers }).then(async (res) => {
+    if (!res.ok) {
+      throw new ApiClientError(res.status, 'INTERNAL_ERROR', `DELETE /v1/kols/${slug}/follow returned ${res.status}`);
+    }
+    return (await res.json()) as { followed: boolean };
+  });
+};
+
+// ---------------------------------------------------------------------------
+// Signals — public list + detail (per ADR-0036)
+// ---------------------------------------------------------------------------
+
+export type SignalOutcome = 'ACTIVE' | 'HIT_TARGET' | 'HIT_DIRECTION' | 'STOPPED' | 'EXPIRED' | 'UNRESOLVED';
+export type SignalDirection = 'BUY' | 'SELL' | 'HOLD';
+export type AssetClass = 'EQUITY_HK' | 'EQUITY_US' | 'FUTURES' | 'SPOT' | 'FOREX' | 'CRYPTO';
+
+export type SignalItem = {
+  id: string;
+  kolId: string;
+  assetClass: AssetClass;
+  symbol: string;
+  direction: SignalDirection;
+  entryPrice: string;
+  targetPrice: string;
+  stoplossPrice: string | null;
+  horizon: number;
+  note: string | null;
+  outcome: SignalOutcome;
+  settledAt: string | null;
+  settlePrice: string | null;
+  periodHigh: string | null;
+  periodLow: string | null;
+  contentHash: string;
+  createdAt: string;
+};
+
+export type SignalsResponse = {
+  signals: SignalItem[];
+  total: number;
+};
+
+export const fetchSignals = (
+  params?: { kolId?: string; symbol?: string; outcome?: SignalOutcome; limit?: number; offset?: number },
+  options?: FetchOptions,
+): Promise<SignalsResponse> => {
+  const query = new URLSearchParams();
+  if (params?.kolId) query.set('kolId', params.kolId);
+  if (params?.symbol) query.set('symbol', params.symbol);
+  if (params?.outcome) query.set('outcome', params.outcome);
+  if (params?.limit !== undefined) query.set('limit', String(params.limit));
+  if (params?.offset !== undefined) query.set('offset', String(params.offset));
+  const qs = query.toString();
+  return apiGet<SignalsResponse>(`/v1/signals${qs ? `?${qs}` : ''}`, options);
+};
+
+export const fetchSignal = (
+  id: string,
+  options?: FetchOptions,
+): Promise<{ signal: SignalItem }> =>
+  apiGet<{ signal: SignalItem }>(`/v1/signals/${id}`, options);
+
+export const fetchKolSignals = (
+  slug: string,
+  params?: { outcome?: SignalOutcome; limit?: number; offset?: number },
+  options?: FetchOptions,
+): Promise<SignalsResponse> => {
+  const query = new URLSearchParams();
+  if (params?.outcome) query.set('outcome', params.outcome);
+  if (params?.limit !== undefined) query.set('limit', String(params.limit));
+  if (params?.offset !== undefined) query.set('offset', String(params.offset));
+  const qs = query.toString();
+  return apiGet<SignalsResponse>(`/v1/kols/${slug}/signals${qs ? `?${qs}` : ''}`, options);
+};
+
