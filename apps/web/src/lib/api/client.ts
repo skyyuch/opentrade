@@ -201,6 +201,7 @@ export type BrokerListItem = {
    */
   verifiedUserCount: number;
   licenseTypes: string[];
+  hasDisciplinary: boolean;
 };
 
 export type BrokersResponse = {

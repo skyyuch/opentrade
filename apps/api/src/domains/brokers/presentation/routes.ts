@@ -114,6 +114,11 @@ brokersRouter.get('/', async (c) => {
       const positiveCount = reviews.filter((r) => r.rating >= 4).length;
       const positiveRate = reviewCount > 0 ? Math.round((positiveCount / reviewCount) * 100) : null;
 
+      const sfcDetail = b.sfcDetailJson as Record<string, unknown> | null;
+      const disciplinaryActions = Array.isArray(sfcDetail?.['disciplinaryActions'])
+        ? sfcDetail['disciplinaryActions']
+        : [];
+
       return {
         id: b.id,
         slug: b.slug,
@@ -131,6 +136,7 @@ brokersRouter.get('/', async (c) => {
         licenseTypes: (b as unknown as { licenses: { licenseType: string }[] }).licenses.map(
           (l) => l.licenseType,
         ),
+        hasDisciplinary: disciplinaryActions.length > 0,
       };
     }),
     nextCursor,

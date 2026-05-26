@@ -1,6 +1,14 @@
 'use client';
 
-import { ChevronRight, Filter, Loader2, Search, ShieldCheck, Users } from 'lucide-react';
+import {
+  ChevronRight,
+  Filter,
+  Loader2,
+  Search,
+  ShieldAlert,
+  ShieldCheck,
+  Users,
+} from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useCallback, useEffect, useRef, useState, useTransition } from 'react';
 
@@ -24,6 +32,7 @@ type BrokerListItem = {
   /** Per ADR-0025: count of distinct users approved for this broker. */
   verifiedUserCount: number;
   licenseTypes: string[];
+  hasDisciplinary: boolean;
 };
 
 type BrokersApiResponse = {
@@ -299,6 +308,14 @@ const BrokerCard = ({ broker, locale }: { broker: BrokerListItem; locale: string
             <Users size={14} className="text-[#00FF88]" />
             <span className="text-[10px] font-bold tracking-wide text-[#00FF88]">
               {t('verifiedUsersBadge', { count: broker.verifiedUserCount })}
+            </span>
+          </div>
+        )}
+        {broker.hasDisciplinary && (
+          <div className="inline-flex items-center gap-1.5 rounded border border-red-500/20 bg-red-500/10 px-2.5 py-1">
+            <ShieldAlert size={14} className="text-red-400" />
+            <span className="text-[10px] font-bold tracking-wide text-red-400">
+              {t('hasDisciplinary')}
             </span>
           </div>
         )}
