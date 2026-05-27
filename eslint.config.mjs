@@ -132,6 +132,11 @@ export default tseslint.config(
               group: 'internal',
               position: 'before',
             },
+            {
+              pattern: '@/**',
+              group: 'internal',
+              position: 'after',
+            },
           ],
           pathGroupsExcludedImportTypes: ['type'],
           'newlines-between': 'always',

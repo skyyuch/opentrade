@@ -18,8 +18,6 @@ import {
 import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-import type { ReactNode } from 'react';
-
 import { useOpenTradeAuth } from '@/hooks/useOpenTradeAuth';
 import { Link } from '@/i18n/navigation';
 import {
@@ -30,6 +28,8 @@ import {
   type KolStats,
   type SignalItem,
 } from '@/lib/api/client';
+
+import type { ReactNode } from 'react';
 
 type SignalLayout = 'timeline' | 'grid' | 'list' | 'compact';
 

@@ -13,12 +13,12 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 
 import { localizedBrokerName } from '@opentrade/shared';
 
-import type { Metadata } from 'next';
-import type { ReactNode } from 'react';
-
 import { ComplaintForm } from '@/components/complaints/ComplaintForm';
 import { Link } from '@/i18n/navigation';
 import { ApiClientError, fetchBroker } from '@/lib/api/client';
+
+import type { Metadata } from 'next';
+import type { ReactNode } from 'react';
 
 type Props = {
   params: { locale: string; slug: string };

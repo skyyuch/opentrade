@@ -14,10 +14,10 @@ import { CheckCircle2 } from 'lucide-react';
 import { notFound } from 'next/navigation';
 import { setRequestLocale } from 'next-intl/server';
 
+import { ApiClientError, fetchKolProfile, fetchKolStats } from '@/lib/api/client';
+
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
-
-import { ApiClientError, fetchKolProfile, fetchKolStats } from '@/lib/api/client';
 
 type Props = {
   params: { locale: string; slug: string };
