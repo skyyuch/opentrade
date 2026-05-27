@@ -269,7 +269,8 @@
     "detailStatus": "Status",
     "detailSignals": "Signals",
     "detailFollowers": "Followers",
-    "detailIamSmart": "iAM Smart"
+    "detailIamSmart": "iAM Smart",
+    "detailRejectionReason": "Rejection reason (shared with applicant)"
   },
   "broker": {
     "dashboardTitle": "My broker",

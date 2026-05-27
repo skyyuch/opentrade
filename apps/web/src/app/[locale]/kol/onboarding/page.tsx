@@ -8,9 +8,11 @@ import {
   Info,
   Loader2,
   LogIn,
+  ShieldAlert,
   ShieldCheck,
   Upload,
   User,
+  XCircle,
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useState } from 'react';
@@ -31,6 +33,9 @@ export default function KolOnboardingPage(): ReactNode {
   const { getAccessToken } = useOpenTradeAuth();
 
   const [appStatus, setAppStatus] = useState<KolApplicationStatus>('NOT_STARTED');
+  // Per ADR-0036 D1.1 — capture the admin's rejection reason so the
+  // REJECTED state card can display it before the applicant resubmits.
+  const [rejectionNote, setRejectionNote] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [step, setStep] = useState(1);
   const [submitting, setSubmitting] = useState(false);
@@ -65,7 +70,10 @@ export default function KolOnboardingPage(): ReactNode {
         const status = res.kol.status;
         if (status === 'APPROVED') setAppStatus('APPROVED');
         else if (status === 'PENDING') setAppStatus('PENDING');
-        else if (status === 'REJECTED') setAppStatus('REJECTED');
+        else if (status === 'REJECTED') {
+          setAppStatus('REJECTED');
+          setRejectionNote(res.kol.adminNote);
+        }
       } catch {
         // No KOL profile — start fresh
       } finally {
@@ -174,6 +182,38 @@ export default function KolOnboardingPage(): ReactNode {
         >
           {t('onboardingGoToDashboard')}
         </Link>
+      </div>
+    );
+  }
+
+  if (appStatus === 'REJECTED') {
+    return (
+      <div className="mx-auto flex min-h-[60vh] max-w-xl flex-col items-center text-center animate-in fade-in">
+        <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full border-4 border-red-500/30 bg-red-500/20 text-red-400">
+          <XCircle size={40} />
+        </div>
+        <h1 className="mb-3 text-3xl font-bold">{t('onboardingRejectedTitle')}</h1>
+        <p className="mb-6 leading-relaxed text-white/60">{t('onboardingRejectedDesc')}</p>
+        <div className="mb-8 w-full rounded-xl border border-red-500/30 bg-red-500/5 p-4 text-left text-sm">
+          <p className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-red-300">
+            <ShieldAlert size={14} />
+            {t('onboardingRejectedReasonHeading')}
+          </p>
+          <p className="leading-relaxed text-white/80">
+            {rejectionNote ?? t('onboardingRejectedNoReasonFallback')}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            setAppStatus('NOT_STARTED');
+            setStep(1);
+            setError(null);
+          }}
+          className="rounded-xl bg-[#00FF88] px-8 py-4 font-bold text-black transition-all hover:bg-[#00e67a] hover:shadow-[0_0_20px_rgba(0,255,136,0.3)]"
+        >
+          {t('onboardingRejectedReapplyCta')}
+        </button>
       </div>
     );
   }

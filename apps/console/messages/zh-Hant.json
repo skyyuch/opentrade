@@ -269,7 +269,8 @@
     "detailStatus": "狀態",
     "detailSignals": "訊號數",
     "detailFollowers": "追蹤者",
-    "detailIamSmart": "智方便驗證"
+    "detailIamSmart": "智方便驗證",
+    "detailRejectionReason": "拒絕原因（已通知申請者）"
   },
   "broker": {
     "dashboardTitle": "我的券商",

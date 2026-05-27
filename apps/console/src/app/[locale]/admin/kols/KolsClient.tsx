@@ -315,6 +315,14 @@ export function KolsClient(): React.ReactNode {
                     ))}
                   </div>
                 )}
+                {selectedKol.kol.status === 'REJECTED' && selectedKol.kol.adminNote && (
+                  <div className="rounded-lg border border-red-500/30 bg-red-500/5 p-3 text-sm">
+                    <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-red-300">
+                      {t('detailRejectionReason')}
+                    </p>
+                    <p className="leading-relaxed text-white/80">{selectedKol.kol.adminNote}</p>
+                  </div>
+                )}
                 <div className="flex justify-end gap-2 pt-2">
                   {selectedKol.kol.status === 'PENDING' && (
                     <>
