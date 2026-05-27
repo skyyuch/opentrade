@@ -18,6 +18,7 @@ import { authMiddleware } from '../../../http/middleware/auth.js';
 import { env } from '../../../shared/env.js';
 import { AppError } from '../../../shared/errors/index.js';
 import { PrismaKolRepository } from '../../kols/infrastructure/PrismaKolRepository.js';
+import { PrismaNotificationRepository } from '../../notifications/infrastructure/PrismaNotificationRepository.js';
 import { EmitSignalUseCase } from '../application/EmitSignalUseCase.js';
 import { ListSignalsUseCase } from '../application/ListSignalsUseCase.js';
 import {
@@ -37,7 +38,25 @@ export const signalsRouter = new Hono<AppHonoEnv>();
 
 const signalRepo = new PrismaSignalRepository(prisma);
 const kolRepo = new PrismaKolRepository(prisma);
-const emitSignalUseCase = new EmitSignalUseCase(signalRepo, kolRepo);
+const notificationRepo = new PrismaNotificationRepository(prisma);
+
+const emitSignalUseCase = new EmitSignalUseCase(signalRepo, kolRepo, {
+  notificationRepo,
+  getFollowerUserIds: async (kolId: string) => {
+    const follows = await prisma.kolFollow.findMany({
+      where: { kolId },
+      select: { userId: true },
+    });
+    return follows.map((f) => f.userId);
+  },
+  getKolDisplayName: async (kolId: string) => {
+    const kol = await prisma.kol.findUnique({
+      where: { id: kolId },
+      select: { displayName: true },
+    });
+    return kol?.displayName ?? 'KOL';
+  },
+});
 const listSignalsUseCase = new ListSignalsUseCase(signalRepo);
 
 // ---------------------------------------------------------------------------

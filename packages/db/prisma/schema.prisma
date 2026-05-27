@@ -114,6 +114,7 @@ model Tenant {
   userVerifiedBrokers     UserVerifiedBroker[]
   kols                    Kol[]
   signals                 Signal[]
+  notifications           Notification[]
 
   @@map("tenants")
 }
@@ -153,6 +154,7 @@ model User {
   verifiedBrokers         UserVerifiedBroker[]
   kolProfiles             Kol[]
   kolFollows              KolFollow[]
+  notifications           Notification[]
 
   @@unique([tenantId, privyId])
   @@index([tenantId, role])
@@ -720,6 +722,39 @@ model OutboxEvent {
   // tooling and by reprocessing scripts after a downstream outage.
   @@index([tenantId, aggregateType, aggregateId])
   @@map("outbox_events")
+}
+
+// ---------------------------------------------------------------------------
+// Notifications (per ADR-0036 D8 — free follow + push notification)
+//
+// In-app notifications delivered to users when events of interest occur
+// (e.g. a followed KOL emits a new signal). Phase 2 uses client-side polling
+// (GET /v1/notifications); Phase 5+ may add WebSocket or push.
+// ---------------------------------------------------------------------------
+
+enum NotificationType {
+  KOL_NEW_SIGNAL
+  KOL_SIGNAL_SETTLED
+  SYSTEM
+}
+
+model Notification {
+  id         String           @id @default(uuid()) @db.Uuid
+  tenantId   String           @db.Uuid
+  userId     String           @db.Uuid
+  type       NotificationType
+  title      String           @db.VarChar(200)
+  body       String?          @db.Text
+  metadata   Json?
+  readAt     DateTime?
+  createdAt  DateTime         @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@index([userId, readAt, createdAt])
+  @@index([tenantId, userId])
+  @@map("notifications")
 }
 
 // ---------------------------------------------------------------------------
