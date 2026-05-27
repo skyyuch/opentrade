@@ -7,6 +7,7 @@ import { useCallback, useEffect, useState } from 'react';
 
 import { localizedBrokerName } from '@opentrade/shared';
 
+import { useLoginRedirect } from '../../../hooks/useLoginRedirect';
 import { useOpenTradeAuth } from '../../../hooks/useOpenTradeAuth';
 import { Link } from '../../../i18n/navigation';
 import { fetchMyProfile, fetchVerificationStatus, updateMyProfile } from '../../../lib/api/client';
@@ -36,7 +37,8 @@ const DEFAULT_PRIVACY: PrivacyPrefs = {
 
 export default function SettingsPage(): ReactNode {
   const t = useTranslations('settings');
-  const { authenticated, login } = usePrivy();
+  const { authenticated } = usePrivy();
+  const goLogin = useLoginRedirect();
   const { getAccessToken } = useOpenTradeAuth();
 
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -121,7 +123,7 @@ export default function SettingsPage(): ReactNode {
         <p className="mb-4 text-white/60">{t('loginRequired')}</p>
         <button
           type="button"
-          onClick={() => void login()}
+          onClick={goLogin}
           className="rounded-lg bg-[#00FF88] px-6 py-2.5 text-sm font-bold text-black transition-colors hover:bg-[#00d170]"
         >
           {t('loginButton')}

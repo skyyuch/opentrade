@@ -42,6 +42,7 @@ import {
   type Sentiment,
 } from '@opentrade/ui';
 
+import { useLoginRedirect } from '../../hooks/useLoginRedirect';
 import { useOpenTradeAuth } from '../../hooks/useOpenTradeAuth';
 import { Link } from '../../i18n/navigation';
 import { fetchMyProfile, submitComplaint, uploadVerifyEvidence } from '../../lib/api/client';
@@ -79,7 +80,8 @@ export const ComplaintForm = ({ brokerId, brokerSlug, brokerName }: Props): Reac
   const tReview = useTranslations('reviewForm');
   const tErrors = useTranslations('errors');
   const currentLocale = useLocale();
-  const { authenticated, login } = usePrivy();
+  const { authenticated } = usePrivy();
+  const goLogin = useLoginRedirect();
   const { getAccessToken } = useOpenTradeAuth();
 
   const [viewMode, setViewMode] = useState<ViewMode>('loading');
@@ -258,7 +260,7 @@ export const ComplaintForm = ({ brokerId, brokerSlug, brokerName }: Props): Reac
             <p className="mt-1 text-sm text-white/60">{t('loginRequired')}</p>
             <button
               type="button"
-              onClick={() => void login()}
+              onClick={goLogin}
               className="mt-4 rounded-full bg-[#00FF88] px-5 py-2.5 text-sm font-bold text-[#050608] transition-all hover:shadow-[0_0_15px_#00FF8840]"
             >
               {t('login')}

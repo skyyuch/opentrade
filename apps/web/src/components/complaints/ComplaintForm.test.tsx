@@ -32,6 +32,10 @@ vi.mock('../../hooks/useOpenTradeAuth', () => ({
   useOpenTradeAuth: vi.fn(),
 }));
 
+vi.mock('../../hooks/useLoginRedirect', () => ({
+  useLoginRedirect: vi.fn(),
+}));
+
 vi.mock('../../lib/api/client', async () => {
   const actual = await vi.importActual<typeof ApiClientModule>('../../lib/api/client');
   return {
@@ -52,12 +56,14 @@ vi.mock('../../i18n/navigation', () => ({
 
 const { usePrivy } = await import('@privy-io/react-auth');
 const { useOpenTradeAuth } = await import('../../hooks/useOpenTradeAuth');
+const { useLoginRedirect } = await import('../../hooks/useLoginRedirect');
 const apiClient = await import('../../lib/api/client');
 const submitComplaintMock = apiClient.submitComplaint as unknown as Mock;
 const fetchMyProfileMock = apiClient.fetchMyProfile as unknown as Mock;
 const uploadVerifyEvidenceMock = apiClient.uploadVerifyEvidence as unknown as Mock;
 const usePrivyMock = usePrivy as unknown as Mock;
 const useAuthMock = useOpenTradeAuth as unknown as Mock;
+const useLoginRedirectMock = useLoginRedirect as unknown as Mock;
 
 const BROKER = {
   brokerId: 'broker-uuid-1',
@@ -75,7 +81,8 @@ const renderForm = () =>
   );
 
 const stubLoggedInL2 = (): void => {
-  usePrivyMock.mockReturnValue({ authenticated: true, login: vi.fn() });
+  usePrivyMock.mockReturnValue({ authenticated: true });
+  useLoginRedirectMock.mockReturnValue(vi.fn());
   useAuthMock.mockReturnValue({
     getAccessToken: vi.fn().mockResolvedValue('opentrade-jwt'),
     isExchanging: false,
@@ -97,7 +104,8 @@ const stubLoggedInL2 = (): void => {
 };
 
 const stubLoggedInNoSbt = (): void => {
-  usePrivyMock.mockReturnValue({ authenticated: true, login: vi.fn() });
+  usePrivyMock.mockReturnValue({ authenticated: true });
+  useLoginRedirectMock.mockReturnValue(vi.fn());
   useAuthMock.mockReturnValue({
     getAccessToken: vi.fn().mockResolvedValue('opentrade-jwt'),
     isExchanging: false,
@@ -148,7 +156,8 @@ afterEach(() => {
 
 describe('ComplaintForm — view-mode gating', () => {
   it('renders the unauthenticated gate when Privy reports authenticated=false', async () => {
-    usePrivyMock.mockReturnValue({ authenticated: false, login: vi.fn() });
+    usePrivyMock.mockReturnValue({ authenticated: false });
+    useLoginRedirectMock.mockReturnValue(vi.fn());
     useAuthMock.mockReturnValue({
       getAccessToken: vi.fn(),
       isExchanging: false,
@@ -162,9 +171,10 @@ describe('ComplaintForm — view-mode gating', () => {
     expect(screen.queryByText('Fill in complaint details')).not.toBeInTheDocument();
   });
 
-  it('invokes Privy login() when the unauthenticated-gate CTA is clicked', async () => {
-    const login = vi.fn();
-    usePrivyMock.mockReturnValue({ authenticated: false, login });
+  it('invokes the /auth route helper when the unauthenticated-gate CTA is clicked', async () => {
+    const goLogin = vi.fn();
+    usePrivyMock.mockReturnValue({ authenticated: false });
+    useLoginRedirectMock.mockReturnValue(goLogin);
     useAuthMock.mockReturnValue({
       getAccessToken: vi.fn(),
       isExchanging: false,
@@ -173,7 +183,7 @@ describe('ComplaintForm — view-mode gating', () => {
     renderForm();
 
     await userEvent.click(await screen.findByRole('button', { name: 'Log in' }));
-    expect(login).toHaveBeenCalledOnce();
+    expect(goLogin).toHaveBeenCalledOnce();
   });
 
   it('renders the SBT-required gate when the profile lacks the L2 tier', async () => {

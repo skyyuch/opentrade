@@ -40,6 +40,7 @@ import { encodePacked, keccak256 } from 'viem';
 
 import { localizedBrokerName } from '@opentrade/shared';
 
+import { useLoginRedirect } from '../../hooks/useLoginRedirect';
 import { useOpenTradeAuth } from '../../hooks/useOpenTradeAuth';
 import {
   apiPost,
@@ -86,7 +87,8 @@ export const VerifyForm = ({ brokers }: VerifyFormProps) => {
   const t = useTranslations('verify');
   const tErrors = useTranslations('errors');
   const locale = useLocale();
-  const { authenticated, login } = usePrivy();
+  const { authenticated } = usePrivy();
+  const goLogin = useLoginRedirect();
   const { getAccessToken } = useOpenTradeAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -343,7 +345,7 @@ export const VerifyForm = ({ brokers }: VerifyFormProps) => {
         <Shield className="size-10 text-[#00FF88]" aria-hidden />
         <p className="text-sm text-white/60">{t('loginRequired')}</p>
         <button
-          onClick={() => void login()}
+          onClick={goLogin}
           className="rounded-full bg-[#00FF88] px-6 py-2.5 text-sm font-bold text-[#050608] transition-colors hover:bg-[#00D170]"
         >
           {t('login')}

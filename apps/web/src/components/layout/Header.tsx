@@ -5,6 +5,7 @@ import { ExternalLink, Globe, LogOut, Menu, Settings, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+import { useLoginRedirect } from '../../hooks/useLoginRedirect';
 import { Link, usePathname } from '../../i18n/navigation';
 
 import { MobileNotificationSection, NotificationBell } from './NotificationBell';
@@ -30,7 +31,8 @@ function shortenAddress(address: string): string {
 export const Header = (): ReactNode => {
   const t = useTranslations('nav');
   const pathname = usePathname();
-  const { authenticated, login, logout, user } = usePrivy();
+  const { authenticated, logout, user } = usePrivy();
+  const goLogin = useLoginRedirect();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [localeOpen, setLocaleOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
@@ -200,7 +202,7 @@ export const Header = (): ReactNode => {
           ) : (
             <button
               type="button"
-              onClick={() => void login()}
+              onClick={goLogin}
               className="rounded-full bg-[#00FF88] px-5 py-2.5 text-sm font-bold text-[#050608] transition-all hover:bg-[#00D170]"
             >
               {t('login')}
@@ -304,7 +306,7 @@ export const Header = (): ReactNode => {
                   type="button"
                   onClick={() => {
                     closeMobile();
-                    void login();
+                    goLogin();
                   }}
                   className="flex w-full justify-center rounded-xl bg-[#00FF88] px-5 py-3 text-sm font-bold text-[#050608] transition-all active:bg-[#00D170]"
                 >

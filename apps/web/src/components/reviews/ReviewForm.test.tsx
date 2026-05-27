@@ -13,8 +13,12 @@
  *     read-path with a real browser; the write-path stays here.
  *
  * Mock strategy:
- *   - `usePrivy` is mocked module-level so we control `authenticated` +
- *     `login` per test without touching production code.
+ *   - `usePrivy` is mocked module-level so we control `authenticated`
+ *     per test without touching production code.
+ *   - `useLoginRedirect` is mocked module-level so we can assert the
+ *     unauth-gate CTA invokes the `/auth` route helper (Phase 2 UI S2
+ *     replaced direct `usePrivy().login()` modal calls with a full-page
+ *     auth route).
  *   - `useOpenTradeAuth` is mocked module-level too — its only job is
  *     to hand back an OpenTrade JWT, which we hardcode to a fixture.
  *   - `submitReview` is mocked module-level so we observe the exact
@@ -48,6 +52,10 @@ vi.mock('../../hooks/useOpenTradeAuth', () => ({
   useOpenTradeAuth: vi.fn(),
 }));
 
+vi.mock('../../hooks/useLoginRedirect', () => ({
+  useLoginRedirect: vi.fn(),
+}));
+
 vi.mock('../../lib/api/client', async () => {
   const actual = await vi.importActual<typeof ApiClientModule>('../../lib/api/client');
   return {
@@ -58,10 +66,12 @@ vi.mock('../../lib/api/client', async () => {
 
 const { usePrivy } = await import('@privy-io/react-auth');
 const { useOpenTradeAuth } = await import('../../hooks/useOpenTradeAuth');
+const { useLoginRedirect } = await import('../../hooks/useLoginRedirect');
 const apiClient = await import('../../lib/api/client');
 const submitReviewMock = apiClient.submitReview as unknown as Mock;
 const usePrivyMock = usePrivy as unknown as Mock;
 const useAuthMock = useOpenTradeAuth as unknown as Mock;
+const useLoginRedirectMock = useLoginRedirect as unknown as Mock;
 
 const BROKER = { brokerId: 'broker-uuid-1', brokerName: 'Test Securities' };
 
@@ -81,7 +91,8 @@ const renderForm = (locale: 'en' | 'zh-Hant' = 'en') => {
 };
 
 const stubAuthenticated = (overrides?: { getAccessToken?: () => Promise<string | null> }): void => {
-  usePrivyMock.mockReturnValue({ authenticated: true, login: vi.fn() });
+  usePrivyMock.mockReturnValue({ authenticated: true });
+  useLoginRedirectMock.mockReturnValue(vi.fn());
   useAuthMock.mockReturnValue({
     getAccessToken: overrides?.getAccessToken ?? vi.fn().mockResolvedValue('opentrade-jwt'),
     isExchanging: false,
@@ -95,7 +106,8 @@ afterEach(() => {
 
 describe('ReviewForm — unauthenticated state', () => {
   it('shows the login CTA and hides the form when Privy reports unauthenticated', () => {
-    usePrivyMock.mockReturnValue({ authenticated: false, login: vi.fn() });
+    usePrivyMock.mockReturnValue({ authenticated: false });
+    useLoginRedirectMock.mockReturnValue(vi.fn());
     useAuthMock.mockReturnValue({
       getAccessToken: vi.fn(),
       isExchanging: false,
@@ -107,9 +119,10 @@ describe('ReviewForm — unauthenticated state', () => {
     expect(screen.queryByRole('radiogroup')).not.toBeInTheDocument();
   });
 
-  it('invokes Privy login() when the CTA is clicked', async () => {
-    const login = vi.fn();
-    usePrivyMock.mockReturnValue({ authenticated: false, login });
+  it('invokes the /auth route helper when the CTA is clicked', async () => {
+    const goLogin = vi.fn();
+    usePrivyMock.mockReturnValue({ authenticated: false });
+    useLoginRedirectMock.mockReturnValue(goLogin);
     useAuthMock.mockReturnValue({
       getAccessToken: vi.fn(),
       isExchanging: false,
@@ -117,7 +130,7 @@ describe('ReviewForm — unauthenticated state', () => {
     });
     renderForm();
     await userEvent.click(screen.getByRole('button', { name: 'Log in' }));
-    expect(login).toHaveBeenCalledOnce();
+    expect(goLogin).toHaveBeenCalledOnce();
   });
 });
 

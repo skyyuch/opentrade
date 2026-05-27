@@ -71,6 +71,39 @@ OpenTrade 使用兩步驟 auth flow（per rule 50 + ADR-0005）：
 
 iAM Smart 不走 Privy native flow。前端 render 自訂「Login with iAM Smart」按鈕，觸發 `POST /v1/auth/iam-smart/start` 取得 OGCIO redirect URL，用戶完成後 API callback 直接簽發 OpenTrade JWT（跳過 Privy token exchange 步驟）。JWT 結構與 Privy path 完全相同，下游 middleware 不需區分來源。
 
+---
+
+## 登入入口（Phase 2 UI Polish S2 後）
+
+**絕不直接呼叫 `usePrivy().login()` 開預設 modal**。OpenTrade 走 **full-page `/auth` 路由 + branded UI**（見 `apps/web/src/app/[locale]/auth/page.tsx`），用 Privy headless hooks 渲染 5 種登入方式：
+
+- **Wallet** → `useConnectWallet().connectWallet()`（仍會 open Privy 的 wallet picker，是 wagmi 抽象的必要層）
+- **iAM Smart** → 點按鈕 open info modal（per ADR-0031 D7 過渡期 — 不接後端，待 OGCIO sandbox 授權後升級）
+- **Google** → `useLoginWithOAuth().initOAuth({ provider: 'google' })`（redirect flow）
+- **Apple** → `useLoginWithOAuth().initOAuth({ provider: 'apple' })`（redirect flow）
+- **Email** → `useLoginWithEmail()` 兩 step（`sendCode` → `loginWithCode`）
+
+新 / 既有 callsite **必須**用 `useLoginRedirect()` helper，**禁止**重新引入 `const { login } = usePrivy()` 的舊 pattern：
+
+```tsx
+import { useLoginRedirect } from '@/hooks/useLoginRedirect';
+
+const goLogin = useLoginRedirect();
+// onClick={goLogin}  → router.push(`/auth?returnUrl=<currentPathWithSearch>`)
+```
+
+helper 已內建：
+
+- 自動把當前 locale-aware pathname + searchParams 編進 `returnUrl`
+- 走 `next-intl/navigation` 的 locale-aware router，return path 自動帶回正確 locale
+- 跳過 `/auth → /auth` 迴圈（已在 /auth 不重複 push）
+
+`/auth` 頁本身額外負責：
+
+- **Open-redirect 防護**：`returnUrl` 只接受 same-origin root-relative path（必須以單一 `/` 開頭、不可 `//` / `/\\`），不通過 allow-list 就 fall back 到 `/`
+- **OAuth roundtrip**：`initOAuth` 走 `window.location.assign(...)` 會丟失 in-memory state，所以驗證過的 `returnUrl` 先寫入 `sessionStorage`（`opentrade.auth.returnUrl`），OAuth callback 回 `/auth` 後 post-auth `useEffect` 讀回再 `router.replace(target)`
+- **OpenTrade JWT exchange**：`/auth` 頁**不**負責 exchange — 各既有頁面（透過 `useOpenTradeAuth`）登入後自己 reactive 觸發，`/auth` 只 own Privy 一步
+
 ```ts
 import { usePrivy } from '@privy-io/react-auth';
 
@@ -254,3 +287,5 @@ import { shortenAddress } from '@opentrade/shared';
 - ❌ 在 SSR 期間呼叫 wallet 相關 hook（必 client-side only）
 - ❌ 在 production 用 testnet RPC
 - ❌ 用 `as` 強制斷言 address（用 `Address` type from viem）
+- ❌ 直接呼叫 `usePrivy().login()` 開預設 modal（走 `/auth` 全頁路由 + `useLoginRedirect()` helper — 見「登入入口」段）
+- ❌ 在 `returnUrl` 接收任何非 same-origin / 非 root-relative 的 path（open-redirect risk — `/auth` 頁的 `isSafeReturnUrl()` 已 enforce，callsite 不可繞過）

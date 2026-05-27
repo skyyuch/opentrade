@@ -27,6 +27,7 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react
 import { localizedBrokerName } from '@opentrade/shared';
 import { SentimentBadge, SentimentPicker, type Sentiment } from '@opentrade/ui';
 
+import { useLoginRedirect } from '@/hooks/useLoginRedirect';
 import { useOpenTradeAuth } from '@/hooks/useOpenTradeAuth';
 import { Link } from '@/i18n/navigation';
 import {
@@ -665,7 +666,8 @@ type ReviewFormState =
 function SubmitReviewCta({ brokerId, brokerName }: { brokerId: string; brokerName: string }) {
   const t = useTranslations('brokerDetail');
   const tf = useTranslations('reviewForm');
-  const { authenticated, login } = usePrivy();
+  const { authenticated } = usePrivy();
+  const goLogin = useLoginRedirect();
   const { getAccessToken } = useOpenTradeAuth();
   // Per ADR-0027 D2: the author's current locale is the trustworthy
   // signal for sourceLocale. next-intl exposes it directly because the
@@ -736,7 +738,7 @@ function SubmitReviewCta({ brokerId, brokerName }: { brokerId: string; brokerNam
           </div>
         </div>
         <button
-          onClick={() => void login()}
+          onClick={goLogin}
           className="px-5 py-2.5 bg-[#00FF88] text-[#050608] font-bold text-sm rounded-full hover:shadow-[0_0_15px_#00FF8840] transition-all whitespace-nowrap"
         >
           {t('loginAndReview')}

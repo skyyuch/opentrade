@@ -5,6 +5,7 @@ import { LayoutDashboard, Loader2, LogIn, Plus, Radio, ShieldAlert, UserPlus } f
 import { useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
 
+import { useLoginRedirect } from '../../../hooks/useLoginRedirect';
 import { useOpenTradeAuth } from '../../../hooks/useOpenTradeAuth';
 import { Link, usePathname } from '../../../i18n/navigation';
 import { fetchMyKolProfile } from '../../../lib/api/client';
@@ -26,7 +27,8 @@ const NAV_ITEMS: NavItem[] = [
 export default function KolConsoleLayout({ children }: { children: ReactNode }) {
   const t = useTranslations('kolConsole');
   const pathname = usePathname();
-  const { authenticated, login } = usePrivy();
+  const { authenticated } = usePrivy();
+  const goLogin = useLoginRedirect();
   const { getAccessToken } = useOpenTradeAuth();
 
   const [kol, setKol] = useState<KolListItem | null>(null);
@@ -87,7 +89,7 @@ export default function KolConsoleLayout({ children }: { children: ReactNode }) 
         <h2 className="text-xl font-bold text-white">{t('loginRequired')}</h2>
         <p className="max-w-md text-sm text-white/50">{t('loginRequiredDesc')}</p>
         <button
-          onClick={login}
+          onClick={goLogin}
           className="mt-2 rounded-xl bg-[#00FF88] px-6 py-3 font-bold text-black transition-all hover:bg-[#00e67a] hover:shadow-[0_0_20px_rgba(0,255,136,0.3)]"
         >
           {t('loginButton')}

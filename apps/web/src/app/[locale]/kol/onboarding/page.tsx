@@ -15,6 +15,7 @@ import {
 import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useState } from 'react';
 
+import { useLoginRedirect } from '../../../../hooks/useLoginRedirect';
 import { useOpenTradeAuth } from '../../../../hooks/useOpenTradeAuth';
 import { Link } from '../../../../i18n/navigation';
 import { applyKol, fetchMyKolProfile, ApiClientError } from '../../../../lib/api/client';
@@ -25,7 +26,8 @@ type KolApplicationStatus = 'NOT_STARTED' | 'PENDING' | 'APPROVED' | 'REJECTED';
 
 export default function KolOnboardingPage(): ReactNode {
   const t = useTranslations('kolConsole');
-  const { authenticated, login } = usePrivy();
+  const { authenticated } = usePrivy();
+  const goLogin = useLoginRedirect();
   const { getAccessToken } = useOpenTradeAuth();
 
   const [appStatus, setAppStatus] = useState<KolApplicationStatus>('NOT_STARTED');
@@ -131,7 +133,7 @@ export default function KolOnboardingPage(): ReactNode {
         <h2 className="text-xl font-bold text-white">{t('loginRequired')}</h2>
         <p className="max-w-md text-sm text-white/50">{t('loginRequiredDesc')}</p>
         <button
-          onClick={login}
+          onClick={goLogin}
           className="mt-2 rounded-xl bg-[#00FF88] px-6 py-3 font-bold text-black transition-all hover:bg-[#00e67a] hover:shadow-[0_0_20px_rgba(0,255,136,0.3)]"
         >
           {t('loginButton')}

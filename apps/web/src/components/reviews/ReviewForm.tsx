@@ -16,6 +16,7 @@ import { useCallback, useMemo, useState } from 'react';
 
 import { SentimentPicker, type Sentiment } from '@opentrade/ui';
 
+import { useLoginRedirect } from '../../hooks/useLoginRedirect';
 import { useOpenTradeAuth } from '../../hooks/useOpenTradeAuth';
 import { ApiClientError, submitReview } from '../../lib/api/client';
 
@@ -34,7 +35,8 @@ type FormState =
 
 export const ReviewForm = ({ brokerId, brokerName }: Props): ReactNode => {
   const t = useTranslations('reviewForm');
-  const { authenticated, login } = usePrivy();
+  const { authenticated } = usePrivy();
+  const goLogin = useLoginRedirect();
   const { getAccessToken } = useOpenTradeAuth();
   // Per ADR-0027 D2: send the author's current next-intl locale as the
   // canonical sourceLocale; the server falls back to Accept-Language
@@ -99,7 +101,7 @@ export const ReviewForm = ({ brokerId, brokerName }: Props): ReactNode => {
         <p className="mb-3 text-sm text-muted-foreground">{t('loginRequired')}</p>
         <button
           type="button"
-          onClick={() => void login()}
+          onClick={goLogin}
           className="rounded-lg bg-foreground px-4 py-2 text-sm font-medium text-background transition-opacity hover:opacity-90"
         >
           {t('login')}
