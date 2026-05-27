@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Accepted (Amended 2026-05-27 — add D7: iAM Smart as dual-role login + verification)
 
 ## Date
 
@@ -18,12 +18,17 @@ This ADR was originally staged as STAGING.md S2 with a Phase 3 jury trigger. The
 
 ### Relationship with ADR-0005 (Privy)
 
-[ADR-0005](./0005-privy-aa-wallet.md) covers wallet authentication and account abstraction. iAM Smart covers civil identity verification. They are complementary layers:
+[ADR-0005](./0005-privy-aa-wallet.md) covers wallet authentication and account abstraction. iAM Smart serves a **dual role**:
 
-- **Privy**: "Which wallet does this user control?" (auth + AA)
-- **iAM Smart**: "Is this a unique real person?" (Sybil prevention)
+- **As a login method**: Users can choose "Login with iAM Smart" alongside Google/Apple/Email/Wallet. This authenticates them AND verifies their civil identity in one step.
+- **As a verification-only layer**: Users who logged in via Google/Apple/Email/Wallet can later complete iAM Smart verification separately (e.g. when applying to become a KOL).
 
-A user completes Privy login first (L1), then optionally completes iAM Smart verification for KOL identity. Neither replaces the other.
+The two layers are complementary:
+
+- **Privy**: "Which wallet does this user control?" (auth + AA) — handles Google/Apple/Email/Wallet
+- **iAM Smart**: "Is this a unique real person?" (Sybil prevention + optional login)
+
+A user who logs in via iAM Smart gets both layers satisfied atomically. A user who logs in via Google gets only Privy auth (L1) and must complete iAM Smart verification separately for KOL eligibility.
 
 ## Decision
 
@@ -130,6 +135,67 @@ The `@unique` constraint on `identityHash` is the Sybil prevention mechanism: if
 
 Each adapter implements `IIdentityProvider` with its region-specific OAuth flow. The core application layer is adapter-agnostic: it calls `provider.completeVerification()` and stores the resulting `identityHash` regardless of which civil ID system produced it.
 
+### D7: iAM Smart as login method (dual-role)
+
+**Added 2026-05-27.** iAM Smart is elevated from "verification-only" to "login + verification" dual-role. This means iAM Smart appears as a fifth login option in the Privy login modal (alongside Google, Apple, Email, Wallet).
+
+#### Why dual-role?
+
+1. **UX shortcut for KOLs**: A KOL who logs in with iAM Smart skips the separate identity verification step entirely — login = verification in one action
+2. **Government trust signal**: Users who choose iAM Smart login are immediately at the highest identity trust level
+3. **Aligned with SingPass model**: Singapore's SingPass serves both login and identity verification for commercial apps; iAM Smart follows the same government OIDC pattern
+
+#### Two paths, same result
+
+| Path                       | Trigger                                                                           | Result                                                                                                  |
+| -------------------------- | --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| **Login path**             | User clicks "Login with iAM Smart" on login modal                                 | Creates/finds user + provisions Privy embedded wallet + stores `identityHash` + issues JWT — all atomic |
+| **Verification-only path** | Logged-in user (via Google etc.) clicks "Verify with iAM Smart" in KOL onboarding | Stores `identityHash` on existing user record — no new wallet, no new JWT                               |
+
+Both paths use the same OGCIO OAuth flow (D2) and produce the same `identityHash` storage (D4). The difference is whether a new user/wallet is created or an existing one is augmented.
+
+#### Login path technical flow
+
+```
+POST /v1/auth/iam-smart/start
+  → Returns { authorizationUrl } (OGCIO OAuth redirect)
+  → Frontend redirects user to authorizationUrl
+
+[User completes iAM Smart auth on phone]
+
+GET /v1/auth/iam-smart/callback?code=XXX&state=YYY
+  → API exchanges code for HKID token (via OGCIO token endpoint)
+  → API computes identityHash = SHA-256(HKID + newSalt)
+  → API checks identityHash uniqueness:
+    - If exists: this is a returning user → find existing user → issue JWT
+    - If not exists: this is a new user → create User + Privy embedded wallet
+      → store identityHash + identitySalt + identityProvider="iam_smart"
+      → issue OpenTrade JWT
+  → Redirect to frontend with JWT (via secure cookie or URL fragment)
+```
+
+#### Privy integration notes
+
+iAM Smart is NOT a Privy native login method. Implementation strategy:
+
+1. **Login modal**: Custom "Login with iAM Smart" button rendered alongside Privy's native buttons
+2. **Wallet provision**: After iAM Smart auth completes, API uses Privy Server SDK to create an embedded wallet for the user (if new user)
+3. **Session bridge**: The resulting OpenTrade JWT is identical in shape to one produced via Privy login path — downstream middleware/guards are unaffected
+4. **Existing user linking**: If a user previously logged in via Google and later uses iAM Smart login, the system detects the same `identityHash` and links to the existing account (not create duplicate)
+
+#### Transition period (before OGCIO approval)
+
+During the transition period (D3), the "Login with iAM Smart" button is hidden or displays "Coming soon". Only the verification-only path is available using phone+social fallback. Once OGCIO production credentials are obtained, both paths activate simultaneously.
+
+#### Implications for identity tier
+
+| Login method                    | Resulting identity state                                 |
+| ------------------------------- | -------------------------------------------------------- |
+| Google / Apple / Email / Wallet | L1 (Privy-authenticated), `identityProvider = null`      |
+| iAM Smart                       | L1 + identity verified, `identityProvider = "iam_smart"` |
+
+Users who login via iAM Smart are **immediately eligible for KOL application** without a separate verification step.
+
 ## Alternatives Considered
 
 ### A1: No civil identity verification — social OAuth only
@@ -175,8 +241,9 @@ Each adapter implements `IIdentityProvider` with its region-specific OAuth flow.
 
 ### Neutral
 
-- Privy auth flow is unchanged — iAM Smart is an additional verification step, not a replacement
+- Privy auth flow for Google/Apple/Email/Wallet is unchanged — iAM Smart is an additional option, not a replacement
 - Existing L1-L4 SBT tier system is unaffected — KolSbt is a parallel identity token
+- Users can switch between login methods freely (Google login user can later verify with iAM Smart; iAM Smart login user can also link Google)
 
 ## Implementation Notes
 
@@ -186,6 +253,11 @@ Each adapter implements `IIdentityProvider` with its region-specific OAuth flow.
 - DB migration: `User.identityHash` + `User.identitySalt` + `User.identityProvider` + `User.identityVerifiedAt` columns
 - Config: `packages/config/src/identity.ts` — transition period grace days, supported providers per region
 - Integration with KOL onboarding flow in M8.8 (API) and M9.3 (console UI)
+- **D7 login endpoints** (added 2026-05-27):
+  - `POST /v1/auth/iam-smart/start` — initiates OGCIO OAuth, returns `{ authorizationUrl }`
+  - `GET /v1/auth/iam-smart/callback` — handles OGCIO redirect, creates/finds user, issues JWT
+  - Frontend: custom "Login with iAM Smart" button in login modal (not Privy native)
+  - Privy Server SDK: `privy.createUser()` for wallet provision on new iAM Smart users
 
 ## References
 

@@ -67,6 +67,10 @@ OpenTrade 使用兩步驟 auth flow（per rule 50 + ADR-0005）：
 1. 前端用 Privy access token 換取 OpenTrade JWT：`POST /v1/auth/exchange`
 2. 後續 API 呼叫用 OpenTrade JWT（ES256）
 
+**iAM Smart 第三條路徑**（per ADR-0031 D7）：
+
+iAM Smart 不走 Privy native flow。前端 render 自訂「Login with iAM Smart」按鈕，觸發 `POST /v1/auth/iam-smart/start` 取得 OGCIO redirect URL，用戶完成後 API callback 直接簽發 OpenTrade JWT（跳過 Privy token exchange 步驟）。JWT 結構與 Privy path 完全相同，下游 middleware 不需區分來源。
+
 ```ts
 import { usePrivy } from '@privy-io/react-auth';
 

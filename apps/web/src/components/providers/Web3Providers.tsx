@@ -54,7 +54,7 @@ export const Web3Providers = ({ children }: Props) => (
   <PrivyProvider
     appId={process.env['NEXT_PUBLIC_PRIVY_APP_ID'] ?? ''}
     config={{
-      loginMethods: ['google', 'apple', 'email', 'sms', 'wallet'],
+      loginMethods: ['google', 'apple', 'email', 'wallet'],
       appearance: { theme: 'light', accentColor: '#1e40af' },
       embeddedWallets: { ethereum: { createOnLogin: 'users-without-wallets' } },
       defaultChain: baseSepolia,

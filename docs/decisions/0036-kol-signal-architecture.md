@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Accepted (Amended 2026-05-27 — add D1.1 hybrid KOL registration flow)
 
 ## Date
 
@@ -39,6 +39,60 @@ Any L1+ user (Privy-authenticated) can apply to become a KOL. There is no minimu
 KOLs may optionally upload professional credentials (CFA, CFP, CFTe, SFC Type 4/9 license). Uploaded credentials enter an admin moderation queue (reusing the pattern from `/admin/verifications` per [ADR-0022](./0022-l2-commitment-hash-verification.md)). Approved credentials display as specific badges on the KOL profile — e.g. "CFA Charterholder", "SFC Type 4 Licensed" — rather than abstract tiers (no gold/silver badge system).
 
 Rationale: The platform provides tools and transparency, not gatekeeping. Readers judge KOL trustworthiness via on-chain signal history, win rates, and credential badges. This aligns with the "platform does not act as gatekeeper" principle established during planning.
+
+#### D1.1: Hybrid KOL registration flow (added 2026-05-27)
+
+KOL onboarding uses a **hybrid approach**: the underlying account system is unified (one Privy user + one wallet + multiple SBTs), but a dedicated `/become-a-kol` landing page provides a tailored entry point for KOL outreach.
+
+**Why hybrid**: Pure "apply from within" buries the KOL entry point. Pure "separate registration" creates duplicate accounts. The hybrid gives marketing a clean URL while keeping the architecture simple.
+
+**Flow diagram**:
+
+```
+/become-a-kol (landing page)
+    │
+    ├── Not logged in → Login modal (Google/Apple/Email/Wallet/iAM Smart)
+    │                        │
+    │                        └── After login, redirect back
+    │
+    └── Logged in → Check identity verification status
+                        │
+                        ├── Already verified (iAM Smart login or previously verified)
+                        │       → Skip to KOL application form
+                        │
+                        └── Not verified
+                                → iAM Smart verification step (or phone+social fallback)
+                                → Then KOL application form
+
+KOL application form:
+    - Display name / Bio
+    - Social accounts (Twitter/X, YouTube, Instagram)
+    - Asset class focus areas (EQUITY_HK, EQUITY_US, CRYPTO, FOREX, etc.)
+    - Optional credential uploads (CFA, SFC license, CFP, CFTe)
+    - Terms acceptance + Submit
+
+    → Creates Kol row with status=PENDING
+    → Admin review queue
+
+Admin decision:
+    ├── Approved → mint KolSbt + in-app notification + grant /kol console access
+    └── Rejected → in-app notification with reason + allow reapply
+```
+
+**UX states on `/become-a-kol`**:
+
+| State                                   | Display                                                |
+| --------------------------------------- | ------------------------------------------------------ |
+| Unauthenticated                         | Landing page hero + "Get Started" CTA → triggers login |
+| Authenticated, unverified               | Identity verification step (iAM Smart or fallback)     |
+| Authenticated, verified, no application | KOL application form                                   |
+| Application pending                     | "Under review" status card with submission timestamp   |
+| Application rejected                    | Rejection reason + "Reapply" CTA                       |
+| Application approved                    | Redirect to `/kol/dashboard`                           |
+
+**Marketing utility**: The URL `/become-a-kol` can be shared directly in KOL outreach campaigns, YouTube descriptions, Instagram bios, etc. The page handles all states gracefully regardless of the user's current status.
+
+**Relationship with existing `/kol/onboarding`**: The existing 4-step wizard at `/kol/onboarding` becomes the implementation target for the application form portion. `/become-a-kol` wraps it with a marketing-oriented landing page that handles auth and verification gates before entering the wizard.
 
 ### D2: Sybil prevention via iAM Smart with transition-period fallback
 
