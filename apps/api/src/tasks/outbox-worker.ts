@@ -27,8 +27,9 @@
  *   - `signal.submitted`          → calls KolSignalRegistry.emitSignal() on-chain
  *                                    (per ADR-0036 D4; graceful skip if
  *                                    KOL_SIGNAL_REGISTRY_ADDRESS not set)
- *   - `kol_sbt.mint_requested`    → ack-only (per ADR-0036 D3; future Phase 2+
- *                                    will call KolSbt.mint() on-chain)
+ *   - `kol_sbt.mint_requested`    → calls KolSbt.mint() on-chain (per ADR-0036
+ *                                    D3; graceful skip if KOL_SBT_ADDRESS not
+ *                                    set or wallet already holds a KOL SBT)
  *   - `broker_response.submitted` → ack-only (per ADR-0037 D3; broker response
  *                                    stays off-chain in Phase 2.5, Phase 3+ may
  *                                    add on-chain anchoring or SQS fan-out)
@@ -63,6 +64,26 @@ const REVIEW_REGISTRY_ABI = [
 ] as const;
 
 const REVIEWER_SBT_ABI = [
+  {
+    type: 'function',
+    name: 'mint',
+    inputs: [
+      { name: 'to', type: 'address' },
+      { name: 'uri', type: 'string' },
+    ],
+    outputs: [{ name: 'tokenId', type: 'uint256' }],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    name: 'balanceOf',
+    inputs: [{ name: 'owner', type: 'address' }],
+    outputs: [{ name: 'balance', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+] as const;
+
+const KOL_SBT_ABI = [
   {
     type: 'function',
     name: 'mint',
@@ -126,6 +147,7 @@ async function main() {
   const relayerKey = process.env['CHAIN_RELAYER_PRIVATE_KEY'] ?? '';
   const registryAddress = process.env['REVIEW_REGISTRY_ADDRESS'] ?? '';
   const sbtAddress = process.env['REVIEWER_SBT_ADDRESS'] ?? '';
+  const kolSbtAddress = process.env['KOL_SBT_ADDRESS'] ?? '';
   const signalRegistryAddress = process.env['KOL_SIGNAL_REGISTRY_ADDRESS'] ?? '';
 
   if (!rpcUrl || !relayerKey || !registryAddress) {
@@ -139,6 +161,10 @@ async function main() {
 
   if (!sbtAddress) {
     log('warn', 'REVIEWER_SBT_ADDRESS not set — sbt.mint_requested events will be skipped');
+  }
+
+  if (!kolSbtAddress) {
+    log('warn', 'KOL_SBT_ADDRESS not set — kol_sbt.mint_requested events will be skipped');
   }
 
   if (!signalRegistryAddress) {
@@ -161,6 +187,7 @@ async function main() {
     chainId: chain.id,
     relayer: account.address,
     registry: registryAddress,
+    kolSbt: kolSbtAddress || '(not set)',
     signalRegistry: signalRegistryAddress || '(not set)',
   });
 
@@ -357,6 +384,65 @@ async function main() {
     });
   }
 
+  async function processKolSbtMintRequested(event: {
+    id: string;
+    aggregateId: string;
+    payload: unknown;
+  }) {
+    if (!kolSbtAddress) {
+      log('warn', 'Skipping kol_sbt.mint_requested — KOL_SBT_ADDRESS not configured');
+      return;
+    }
+
+    const payload = event.payload as { kolId: string; userId: string };
+
+    const user = await prisma.user.findUnique({ where: { id: payload.userId } });
+    if (!user?.walletAddress) {
+      throw new Error(`User ${payload.userId} has no wallet address for KOL SBT mint`);
+    }
+
+    const existingBalance = await publicClient.readContract({
+      address: kolSbtAddress as `0x${string}`,
+      abi: KOL_SBT_ABI,
+      functionName: 'balanceOf',
+      args: [user.walletAddress as `0x${string}`],
+    });
+
+    if (existingBalance > 0n) {
+      log('warn', 'Skipping KOL SBT mint — wallet already holds a KOL SBT (idempotent skip)', {
+        kolId: payload.kolId,
+        userId: payload.userId,
+        wallet: user.walletAddress,
+        existingBalance: existingBalance.toString(),
+      });
+      return;
+    }
+
+    const tokenUri = `ipfs://kol/${event.aggregateId}`;
+
+    const { request: mintRequest } = await publicClient.simulateContract({
+      address: kolSbtAddress as `0x${string}`,
+      abi: KOL_SBT_ABI,
+      functionName: 'mint',
+      args: [user.walletAddress as `0x${string}`, tokenUri],
+      account,
+    });
+
+    const txHash = await walletClient.writeContract(mintRequest);
+    const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash });
+
+    if (receipt.status !== 'success') {
+      throw new Error(`KOL SBT mint transaction reverted: ${txHash}`);
+    }
+
+    log('info', 'KOL SBT minted on-chain', {
+      kolId: payload.kolId,
+      userId: payload.userId,
+      wallet: user.walletAddress,
+      txHash,
+    });
+  }
+
   async function pollOnce() {
     const events = await prisma.outboxEvent.findMany({
       where: { processedAt: null },
@@ -409,9 +495,7 @@ async function main() {
         } else if (event.eventType === 'signal.submitted') {
           await processSignalSubmitted(event);
         } else if (event.eventType === 'kol_sbt.mint_requested') {
-          // ADR-0036 D3: KolSbt mint request. Phase 2 ack-only; future
-          // handler mirrors processSbtMintRequested() pattern but targets
-          // the KolSbt contract address instead of ReviewerSBT.
+          await processKolSbtMintRequested(event);
         } else if (event.eventType === 'broker_response.submitted') {
           // ADR-0037 D3: broker response to a complaint stays off-chain in
           // Phase 2.5. The Review row with respondsToReviewId set IS the
