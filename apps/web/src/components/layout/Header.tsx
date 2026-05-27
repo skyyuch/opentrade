@@ -7,6 +7,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { Link, usePathname } from '../../i18n/navigation';
 
+import { MobileNotificationSection, NotificationBell } from './NotificationBell';
+
 import type { ReactNode } from 'react';
 
 const LOCALES = [
@@ -114,6 +116,9 @@ export const Header = (): ReactNode => {
             )}
           </div>
 
+          {/* Notification bell (only when authenticated) */}
+          {authenticated && <NotificationBell />}
+
           {/* KOL Portal link */}
           <a
             href="/kol"
@@ -211,6 +216,13 @@ export const Header = (): ReactNode => {
               {t('kolPortal')}
             </a>
           </nav>
+
+          {/* Mobile notifications */}
+          {authenticated && (
+            <div className="mt-4 border-t border-white/10 pt-4">
+              <MobileNotificationSection />
+            </div>
+          )}
 
           {/* Mobile locale switcher */}
           <div className="mt-4 flex items-center gap-3 border-t border-white/10 pt-4">

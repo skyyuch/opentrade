@@ -773,5 +773,17 @@
     "signalSuccessHash": "Content Hash",
     "signalSuccessBackToList": "Back to List",
     "signalSuccessShare": "Share"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "markAllRead": "Mark all read",
+    "empty": "No notifications yet",
+    "emptyDesc": "You'll be notified here when KOLs you follow emit new signals",
+    "noMore": "No more notifications",
+    "timeJustNow": "Just now",
+    "timeMinutesAgo": "{count}m ago",
+    "timeHoursAgo": "{count}h ago",
+    "timeDaysAgo": "{count}d ago",
+    "timeWeeksAgo": "{count}w ago"
   }
 }

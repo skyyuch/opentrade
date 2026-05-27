@@ -1082,4 +1082,57 @@ export type FeedResponse = { items: FeedItem[]; topSignals: TopSignal[] };
 export const fetchRecentFeed = (options?: FetchOptions): Promise<FeedResponse> =>
   apiGet<FeedResponse>('/v1/feed/recent', options);
 
+// ---------------------------------------------------------------------------
+// Notifications (per ADR-0036 D8 — free follow + push notification)
+// ---------------------------------------------------------------------------
+
+export type NotificationItem = {
+  id: string;
+  type: 'KOL_NEW_SIGNAL' | 'KOL_SIGNAL_SETTLED' | 'SYSTEM';
+  title: string;
+  body: string | null;
+  metadata: {
+    signalId?: string;
+    kolId?: string;
+    symbol?: string;
+    direction?: string;
+  } | null;
+  readAt: string | null;
+  createdAt: string;
+};
+
+export type NotificationsResponse = {
+  notifications: NotificationItem[];
+  unreadCount: number;
+  total: number;
+};
+
+export type UnreadCountResponse = { count: number };
+
+export const fetchNotifications = (
+  options: FetchOptions & { limit?: number; offset?: number; unreadOnly?: boolean } = {},
+): Promise<NotificationsResponse> => {
+  const params = new URLSearchParams();
+  if (options.limit !== undefined) params.set('limit', String(options.limit));
+  if (options.offset !== undefined) params.set('offset', String(options.offset));
+  if (options.unreadOnly !== undefined) params.set('unreadOnly', String(options.unreadOnly));
+  const qs = params.toString();
+  return apiGet<NotificationsResponse>(`/v1/notifications${qs ? `?${qs}` : ''}`, options);
+};
+
+export const fetchUnreadCount = (options: FetchOptions = {}): Promise<UnreadCountResponse> =>
+  apiGet<UnreadCountResponse>('/v1/notifications/unread-count', options);
+
+export const markNotificationRead = async (
+  id: string,
+  options: FetchOptions = {},
+): Promise<void> => {
+  await apiPatch<{ success: boolean }>(`/v1/notifications/${id}/read`, {}, options);
+};
+
+export const markAllNotificationsRead = async (
+  options: FetchOptions = {},
+): Promise<void> => {
+  await apiPatch<{ success: boolean }>('/v1/notifications/read-all', {}, options);
+};
 

@@ -773,5 +773,17 @@
     "signalSuccessHash": "内容哈希",
     "signalSuccessBackToList": "返回列表",
     "signalSuccessShare": "分享到社群"
+  },
+  "notifications": {
+    "title": "通知",
+    "markAllRead": "全部已读",
+    "empty": "暂无通知",
+    "emptyDesc": "当你关注的 KOL 发布新信号时，你会在这里收到通知",
+    "noMore": "没有更多通知",
+    "timeJustNow": "刚刚",
+    "timeMinutesAgo": "{count} 分钟前",
+    "timeHoursAgo": "{count} 小时前",
+    "timeDaysAgo": "{count} 天前",
+    "timeWeeksAgo": "{count} 周前"
   }
 }
