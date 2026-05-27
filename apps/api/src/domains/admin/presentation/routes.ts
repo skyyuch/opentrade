@@ -841,7 +841,7 @@ adminRouter.patch('/kols/:id/approve', authMiddleware('admin'), async (c) => {
     throw new AppError(ErrorCode.CONFLICT, `Cannot approve KOL in ${kol.status} status`, 409);
   }
 
-  const updated = await kolRepo.updateStatus(id, 'APPROVED', user.userId);
+  const updated = await kolRepo.updateStatus(id, 'APPROVED', { adminUserId: user.userId });
   return c.json({ kol: updated });
 });
 
@@ -851,6 +851,7 @@ const rejectKolSchema = z.object({
 
 adminRouter.patch('/kols/:id/reject', authMiddleware('admin'), async (c) => {
   const id = c.req.param('id');
+  const user = c.get('user');
   const kol = await kolRepo.findById(id);
 
   if (!kol) {
@@ -862,14 +863,20 @@ adminRouter.patch('/kols/:id/reject', authMiddleware('admin'), async (c) => {
   }
 
   const body = rejectKolSchema.parse(await c.req.json());
-  void body.adminNote;
 
-  const updated = await kolRepo.updateStatus(id, 'REJECTED');
+  // Per ADR-0036 D1.1: persist adminNote so the applicant sees the
+  // rejection reason on /become-a-kol + /kol/onboarding and can resubmit
+  // an informed application.
+  const updated = await kolRepo.updateStatus(id, 'REJECTED', {
+    adminUserId: user.userId,
+    adminNote: body.adminNote,
+  });
   return c.json({ kol: updated });
 });
 
 adminRouter.patch('/kols/:id/suspend', authMiddleware('admin'), async (c) => {
   const id = c.req.param('id');
+  const user = c.get('user');
   const kol = await kolRepo.findById(id);
 
   if (!kol) {
@@ -880,6 +887,6 @@ adminRouter.patch('/kols/:id/suspend', authMiddleware('admin'), async (c) => {
     throw new AppError(ErrorCode.CONFLICT, `Cannot suspend KOL in ${kol.status} status`, 409);
   }
 
-  const updated = await kolRepo.updateStatus(id, 'SUSPENDED');
+  const updated = await kolRepo.updateStatus(id, 'SUSPENDED', { adminUserId: user.userId });
   return c.json({ kol: updated });
 });

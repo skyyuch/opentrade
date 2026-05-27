@@ -25,7 +25,7 @@ import { ListKolsUseCase } from '../application/ListKolsUseCase.js';
 import { PrismaKolRepository } from '../infrastructure/PrismaKolRepository.js';
 
 import type { AppHonoEnv } from '../../../http/types.js';
-import type { SocialLinks } from '../domain/KolEntity.js';
+import type { KolRecord, SocialLinks } from '../domain/KolEntity.js';
 
 const DEFAULT_TENANT_ID = env.DEFAULT_TENANT_ID;
 
@@ -34,6 +34,23 @@ export const kolsRouter = new Hono<AppHonoEnv>();
 const kolRepo = new PrismaKolRepository(prisma);
 const applyKolUseCase = new ApplyKolUseCase(kolRepo);
 const listKolsUseCase = new ListKolsUseCase(kolRepo);
+
+/**
+ * Strip moderator-internal fields before sending a KOL record to a
+ * public (unauthenticated or non-owner) caller.
+ *
+ * Per ADR-0036 D1.1: `adminNote` is a moderator-supplied rejection
+ * reason intended only for the applicant (on `/v1/kols/me`) and admin
+ * staff (on `/v1/admin/kols/...`). It must NOT leak through public list
+ * or detail endpoints — even though current public list filters to
+ * APPROVED + UNCLAIMED only (where adminNote is null), `GET /:slug`
+ * can be invoked with a REJECTED slug and this helper protects against
+ * that accidental disclosure.
+ */
+function toPublicKol(kol: KolRecord): Omit<KolRecord, 'adminNote'> {
+  const { adminNote: _adminNote, ...rest } = kol;
+  return rest;
+}
 
 const applyBodySchema = z.object({
   displayName: z.string().min(2).max(100),
@@ -118,7 +135,8 @@ kolsRouter.get('/', async (c) => {
 
   const kols = [...approved.kols, ...unclaimed.kols]
     .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
-    .slice(0, query.limit);
+    .slice(0, query.limit)
+    .map(toPublicKol);
 
   return c.json({
     kols,
@@ -161,7 +179,7 @@ kolsRouter.get('/:slug', async (c) => {
     where: { kolId: kol.id },
   });
 
-  return c.json({ kol, signalCount, followerCount });
+  return c.json({ kol: toPublicKol(kol), signalCount, followerCount });
 });
 
 // ---------------------------------------------------------------------------

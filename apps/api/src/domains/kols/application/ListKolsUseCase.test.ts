@@ -31,6 +31,7 @@ const fixtureRecord = (overrides: Partial<KolRecord> = {}): KolRecord => ({
   iamSmartVerified: false,
   kolSbtTokenId: null,
   kolSbtMintTxHash: null,
+  adminNote: null,
   createdAt: new Date('2026-05-26T00:00:00.000Z'),
   updatedAt: new Date('2026-05-26T00:00:00.000Z'),
   ...overrides,

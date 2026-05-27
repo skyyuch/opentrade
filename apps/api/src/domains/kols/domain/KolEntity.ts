@@ -57,6 +57,14 @@ export type KolRecord = {
   iamSmartVerified: boolean;
   kolSbtTokenId: number | null;
   kolSbtMintTxHash: string | null;
+  /**
+   * Admin-supplied moderation note. Populated when admin rejects a PENDING
+   * application (per ADR-0036 D1.1) — shown back to the applicant on
+   * `/become-a-kol` and `/kol/onboarding` so the user understands why and
+   * can resubmit. Null for non-REJECTED rows or pre-existing REJECTED rows
+   * that predate this column. NEVER a place for PII (rule 50).
+   */
+  adminNote: string | null;
   createdAt: Date;
   updatedAt: Date;
 };

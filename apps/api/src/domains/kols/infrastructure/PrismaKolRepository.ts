@@ -32,6 +32,7 @@ function toRecord(row: {
   iamSmartVerified: boolean;
   kolSbtTokenId: number | null;
   kolSbtMintTxHash: string | null;
+  adminNote: string | null;
   createdAt: Date;
   updatedAt: Date;
 }): KolRecord {
@@ -49,6 +50,7 @@ function toRecord(row: {
     iamSmartVerified: row.iamSmartVerified,
     kolSbtTokenId: row.kolSbtTokenId,
     kolSbtMintTxHash: row.kolSbtMintTxHash,
+    adminNote: row.adminNote,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
@@ -136,7 +138,7 @@ export class PrismaKolRepository implements IKolRepository {
   async updateStatus(
     id: string,
     status: KolStatusValue,
-    _adminUserId?: string,
+    options?: { adminUserId?: string; adminNote?: string },
   ): Promise<KolRecord> {
     const eventType =
       status === 'APPROVED'
@@ -145,10 +147,19 @@ export class PrismaKolRepository implements IKolRepository {
           ? 'kol.rejected'
           : 'kol.applied';
 
+    // Per ADR-0036 D1.1 + IKolRepository contract: only persist adminNote
+    // on REJECTED transitions. APPROVED / SUSPENDED writes leave the
+    // column untouched so a prior rejection note remains queryable if a
+    // resubmitted application later re-cycles through moderation.
+    const data: { status: KolStatusValue; adminNote?: string | null } = { status };
+    if (status === 'REJECTED' && options?.adminNote) {
+      data.adminNote = options.adminNote;
+    }
+
     const result = await this.prisma.$transaction(async (tx) => {
       const kol = await tx.kol.update({
         where: { id },
-        data: { status },
+        data,
       });
 
       await tx.outboxEvent.create({

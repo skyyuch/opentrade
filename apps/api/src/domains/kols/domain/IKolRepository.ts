@@ -22,7 +22,21 @@ export type IKolRepository = {
   list(options: KolListOptions): Promise<KolRecord[]>;
   count(options: Omit<KolListOptions, 'limit' | 'offset'>): Promise<number>;
 
-  updateStatus(id: string, status: KolStatusValue, adminUserId?: string): Promise<KolRecord>;
+  /**
+   * Transition a KOL row to a new lifecycle status.
+   *
+   * Per ADR-0036 D1.1: when transitioning to REJECTED, `adminNote` SHOULD
+   * be supplied (zod min 5 max 500 chars enforced at the presentation
+   * layer). For APPROVED / SUSPENDED transitions, `adminNote` is ignored
+   * and the existing value is left untouched (idempotent re-write
+   * semantics — admin notes from a prior REJECTED stage persist if the
+   * row later cycles back through the moderation queue).
+   */
+  updateStatus(
+    id: string,
+    status: KolStatusValue,
+    options?: { adminUserId?: string; adminNote?: string },
+  ): Promise<KolRecord>;
 
   claimProfile(
     kolId: string,

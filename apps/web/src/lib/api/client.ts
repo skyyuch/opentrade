@@ -854,6 +854,17 @@ export type KolListItem = {
   socialLinks: KolSocialLinks | null;
   credentials: KolCredential[] | null;
   iamSmartVerified: boolean;
+  /**
+   * Admin-supplied rejection reason (per ADR-0036 D1.1). Present only on
+   * the applicant's own profile via `GET /v1/kols/me` when status =
+   * REJECTED. Public list / detail endpoints strip this field per the
+   * `toPublicKol()` sanitizer on the API side, so it is `null` for any
+   * KOL reached via `fetchKols()` or `fetchKolProfile()`. The
+   * `/become-a-kol` and `/kol/onboarding` pages render this text inside
+   * a red callout when present so the user understands what to fix
+   * before resubmitting.
+   */
+  adminNote: string | null;
   createdAt: string;
 };
 

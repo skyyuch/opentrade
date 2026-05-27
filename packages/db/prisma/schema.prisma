@@ -600,6 +600,15 @@ model Kol {
   iamSmartVerified Boolean  @default(false)
   kolSbtTokenId   Int?
   kolSbtMintTxHash String?
+  /// Admin-supplied free text. Primary role today: rejection reason when an
+  /// admin transitions a PENDING application to REJECTED (min 5 / max 500
+  /// chars enforced at the presentation layer via zod, sibling of
+  /// `SbtVerificationRequest.adminNote` + `Review.adminNote` patterns).
+  /// Per rule 00 "reject != delete" — REJECTED rows stay visible on the
+  /// applicant's `/become-a-kol` and `/kol/onboarding` pages alongside this
+  /// note so the user can understand why and resubmit. Per rule 50 — NEVER
+  /// a place to log PII; admin moderators must keep notes generic.
+  adminNote        String?  @db.Text
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt

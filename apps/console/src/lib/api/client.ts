@@ -879,6 +879,13 @@ export type AdminKolItem = {
   iamSmartVerified: boolean;
   userId: string | null;
   kolSbtTokenId: number | null;
+  /**
+   * Rejection reason supplied by the admin moderator who rejected the
+   * application (per ADR-0036 D1.1). Populated only for REJECTED rows;
+   * APPROVED / PENDING / UNCLAIMED / SUSPENDED rows leave the previous
+   * value untouched (idempotent re-write semantics on `updateStatus`).
+   */
+  adminNote: string | null;
   createdAt: string;
   updatedAt: string;
 };
