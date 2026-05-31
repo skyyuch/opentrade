@@ -19,6 +19,7 @@ import { env } from '../../../shared/env.js';
 import { AppError } from '../../../shared/errors/index.js';
 import { PrismaKolRepository } from '../../kols/infrastructure/PrismaKolRepository.js';
 import { PrismaNotificationRepository } from '../../notifications/infrastructure/PrismaNotificationRepository.js';
+import { PinataIpfsService } from '../../reviews/infrastructure/PinataIpfsService.js';
 import { EmitSignalUseCase } from '../application/EmitSignalUseCase.js';
 import { ListSignalsUseCase } from '../application/ListSignalsUseCase.js';
 import {
@@ -39,8 +40,9 @@ export const signalsRouter = new Hono<AppHonoEnv>();
 const signalRepo = new PrismaSignalRepository(prisma);
 const kolRepo = new PrismaKolRepository(prisma);
 const notificationRepo = new PrismaNotificationRepository(prisma);
+const ipfsService = new PinataIpfsService(env.PINATA_JWT);
 
-const emitSignalUseCase = new EmitSignalUseCase(signalRepo, kolRepo, {
+const emitSignalUseCase = new EmitSignalUseCase(signalRepo, kolRepo, ipfsService, {
   notificationRepo,
   getFollowerUserIds: async (kolId: string) => {
     const follows = await prisma.kolFollow.findMany({

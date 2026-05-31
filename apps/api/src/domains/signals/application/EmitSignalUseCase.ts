@@ -5,6 +5,16 @@
  * server-side from the signal payload to ensure integrity when the
  * outbox worker later submits it on-chain.
  *
+ * IPFS pinning (added Session 3 — ADR-0038 Implementation Notes): the full
+ * signal payload is pinned to IPFS BEFORE persistence, mirroring
+ * SubmitReviewUseCase. The returned CID is stored on the Signal row so the
+ * outbox worker (`signal.submitted` handler) has a non-empty `ipfsCid` to
+ * pass to `KolSignalRegistry.emitSignal`. Previously `ipfsCid` was hardcoded
+ * to '' which made the worker throw `has no ipfsCid` and never anchor the
+ * signal on-chain — defeating the immutability promise. Pinning failure
+ * (AppError 503) propagates and aborts creation, exactly like reviews: a
+ * signal that cannot be anchored should not be silently created off-chain.
+ *
  * Per ADR-0036 D8: after signal creation, notifications are fan-out
  * to all followers of this KOL (best-effort, non-blocking).
  */
@@ -13,6 +23,7 @@ import { createHash } from 'node:crypto';
 
 import type { IKolRepository } from '../../kols/domain/IKolRepository.js';
 import type { INotificationRepository } from '../../notifications/domain/INotificationRepository.js';
+import type { IIpfsService } from '../../reviews/infrastructure/IIpfsService.js';
 import type { ISignalRepository } from '../domain/ISignalRepository.js';
 import type { EmitSignalInput, SignalRecord } from '../domain/SignalEntity.js';
 
@@ -26,6 +37,7 @@ export class EmitSignalUseCase {
   constructor(
     private readonly signalRepo: ISignalRepository,
     private readonly kolRepo: IKolRepository,
+    private readonly ipfsService: IIpfsService,
     private readonly notificationDeps?: SignalNotificationDeps,
   ) {}
 
@@ -41,7 +53,10 @@ export class EmitSignalUseCase {
       throw new Error('Tenant mismatch');
     }
 
-    const contentPayload = JSON.stringify({
+    // The hashed object IS the pinned object so `contentHash` always matches
+    // the IPFS content addressed by the returned CID.
+    const ipfsPayload = {
+      version: 1,
       kolId: input.kolId,
       assetClass: input.assetClass,
       symbol: input.symbol.trim().toUpperCase(),
@@ -51,13 +66,15 @@ export class EmitSignalUseCase {
       stoplossPrice: input.stoplossPrice ?? null,
       horizon: input.horizon,
       note: input.note?.trim() ?? null,
-      timestamp: Date.now(),
-    });
+      createdAt: new Date().toISOString(),
+    };
 
-    const contentHash = '0x' + createHash('sha256').update(contentPayload).digest('hex');
-    const ipfsCid = '';
+    const contentHash =
+      '0x' + createHash('sha256').update(JSON.stringify(ipfsPayload)).digest('hex');
 
-    const signal = await this.signalRepo.create(input, contentHash, ipfsCid);
+    const pinResult = await this.ipfsService.pinJson(ipfsPayload, `signal-${Date.now()}`);
+
+    const signal = await this.signalRepo.create(input, contentHash, pinResult.cid);
 
     if (this.notificationDeps) {
       // Best-effort: notification fan-out failure must not block signal creation

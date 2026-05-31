@@ -16,10 +16,12 @@ import { EmitSignalUseCase } from './EmitSignalUseCase.js';
 
 import type { IKolRepository } from '../../kols/domain/IKolRepository.js';
 import type { KolRecord } from '../../kols/domain/KolEntity.js';
+import type { IIpfsService } from '../../reviews/infrastructure/IIpfsService.js';
 import type { ISignalRepository } from '../domain/ISignalRepository.js';
 import type { EmitSignalInput, SignalRecord } from '../domain/SignalEntity.js';
 
 const TENANT_ID = '00000000-0000-4000-8000-000000000001';
+const FIXED_CID = 'bafytestsignalcid000000000000000000000000000000000000000000';
 
 const fixtureKol = (overrides: Partial<KolRecord> = {}): KolRecord => ({
   id: 'kol_test_0001',
@@ -82,12 +84,15 @@ const fixtureSignal = (overrides: Partial<SignalRecord> = {}): SignalRecord => (
 describe('EmitSignalUseCase', () => {
   let signalRepo: MockProxy<ISignalRepository>;
   let kolRepo: MockProxy<IKolRepository>;
+  let ipfs: MockProxy<IIpfsService>;
   let useCase: EmitSignalUseCase;
 
   beforeEach(() => {
     signalRepo = mock<ISignalRepository>();
     kolRepo = mock<IKolRepository>();
-    useCase = new EmitSignalUseCase(signalRepo, kolRepo);
+    ipfs = mock<IIpfsService>();
+    ipfs.pinJson.mockResolvedValue({ cid: FIXED_CID });
+    useCase = new EmitSignalUseCase(signalRepo, kolRepo, ipfs);
   });
 
   it('emits a signal for an approved KOL', async () => {
@@ -101,9 +106,35 @@ describe('EmitSignalUseCase', () => {
     expect(signalRepo.create).toHaveBeenCalledWith(
       input,
       expect.stringMatching(/^0x[a-f0-9]{64}$/),
-      expect.any(String),
+      FIXED_CID,
     );
     expect(result.outcome).toBe('ACTIVE');
+  });
+
+  it('pins the signal payload to IPFS before persisting and forwards the CID', async () => {
+    const input = fixtureInput();
+    kolRepo.findById.mockResolvedValue(fixtureKol());
+    signalRepo.create.mockResolvedValue(fixtureSignal());
+
+    await useCase.execute(input);
+
+    expect(ipfs.pinJson).toHaveBeenCalledTimes(1);
+    const [payload, name] = ipfs.pinJson.mock.calls[0]!;
+    expect(name).toMatch(/^signal-\d+$/);
+    expect(payload).toMatchObject({
+      version: 1,
+      kolId: 'kol_test_0001',
+      symbol: '0005.HK',
+      direction: 'BUY',
+    });
+  });
+
+  it('aborts creation when IPFS pinning fails', async () => {
+    kolRepo.findById.mockResolvedValue(fixtureKol());
+    ipfs.pinJson.mockRejectedValueOnce(new Error('Pinata unreachable'));
+
+    await expect(useCase.execute(fixtureInput())).rejects.toThrow('Pinata unreachable');
+    expect(signalRepo.create).not.toHaveBeenCalled();
   });
 
   it('throws when KOL does not exist', async () => {
