@@ -120,6 +120,10 @@ const KOL_SIGNAL_REGISTRY_ABI = [
   },
 ] as const;
 
+// Must match the on-chain KolSignalRegistry AssetClass ordinals. INDEX=6 /
+// COMMODITY=7 were appended per ADR-0038 D3; the contract validation was
+// widened to `<= 7` in the Session 2 UUPS upgrade (broadcast before any
+// INDEX/COMMODITY signal can be anchored — see status «合約層注意»).
 const ASSET_CLASS_MAP: Record<string, number> = {
   EQUITY_HK: 0,
   EQUITY_US: 1,
@@ -127,6 +131,8 @@ const ASSET_CLASS_MAP: Record<string, number> = {
   SPOT: 3,
   FOREX: 4,
   CRYPTO: 5,
+  INDEX: 6,
+  COMMODITY: 7,
 };
 
 const DIRECTION_MAP: Record<string, number> = {

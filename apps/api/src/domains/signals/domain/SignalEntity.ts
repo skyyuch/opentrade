@@ -7,8 +7,19 @@
  * The domain layer keeps zero infrastructure imports (rule 10).
  */
 
-export type AssetClassValue = 'EQUITY_HK' | 'EQUITY_US' | 'FUTURES' | 'SPOT' | 'FOREX' | 'CRYPTO';
+export type AssetClassValue =
+  | 'EQUITY_HK'
+  | 'EQUITY_US'
+  | 'FUTURES'
+  | 'SPOT'
+  | 'FOREX'
+  | 'CRYPTO'
+  | 'INDEX'
+  | 'COMMODITY';
 
+// Order is load-bearing: the index of each value MUST match the on-chain
+// `uint8` AssetClass ordinal (ADR-0038 D3 appends INDEX=6 / COMMODITY=7 after
+// CRYPTO=5) so the outbox worker's ASSET_CLASS_MAP and KolSignalRegistry agree.
 export const ASSET_CLASS_VALUES = [
   'EQUITY_HK',
   'EQUITY_US',
@@ -16,6 +27,8 @@ export const ASSET_CLASS_VALUES = [
   'SPOT',
   'FOREX',
   'CRYPTO',
+  'INDEX',
+  'COMMODITY',
 ] as const satisfies readonly AssetClassValue[];
 
 export type SignalDirectionValue = 'BUY' | 'SELL' | 'HOLD';
