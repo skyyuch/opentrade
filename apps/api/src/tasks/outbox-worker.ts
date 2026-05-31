@@ -30,6 +30,9 @@
  *   - `kol_sbt.mint_requested`    → calls KolSbt.mint() on-chain (per ADR-0036
  *                                    D3; graceful skip if KOL_SBT_ADDRESS not
  *                                    set or wallet already holds a KOL SBT)
+ *   - `note.submitted`            → calls KolNoteRegistry.emitNote() on-chain
+ *                                    (per ADR-0039 D4; graceful skip if
+ *                                    KOL_NOTE_REGISTRY_ADDRESS not set)
  *   - `broker_response.submitted` → ack-only (per ADR-0037 D3; broker response
  *                                    stays off-chain in Phase 2.5, Phase 3+ may
  *                                    add on-chain anchoring or SQS fan-out)
@@ -120,6 +123,21 @@ const KOL_SIGNAL_REGISTRY_ABI = [
   },
 ] as const;
 
+const KOL_NOTE_REGISTRY_ABI = [
+  {
+    type: 'function',
+    name: 'emitNote',
+    inputs: [
+      { name: 'kolId', type: 'bytes32' },
+      { name: 'contentHash', type: 'bytes32' },
+      { name: 'ipfsCid', type: 'string' },
+      { name: 'linkedSignalId', type: 'uint256' },
+    ],
+    outputs: [{ name: 'noteId', type: 'uint256' }],
+    stateMutability: 'nonpayable',
+  },
+] as const;
+
 // Must match the on-chain KolSignalRegistry AssetClass ordinals. INDEX=6 /
 // COMMODITY=7 were appended per ADR-0038 D3; the contract validation was
 // widened to `<= 7` in the Session 2 UUPS upgrade (broadcast before any
@@ -155,6 +173,7 @@ async function main() {
   const sbtAddress = process.env['REVIEWER_SBT_ADDRESS'] ?? '';
   const kolSbtAddress = process.env['KOL_SBT_ADDRESS'] ?? '';
   const signalRegistryAddress = process.env['KOL_SIGNAL_REGISTRY_ADDRESS'] ?? '';
+  const noteRegistryAddress = process.env['KOL_NOTE_REGISTRY_ADDRESS'] ?? '';
 
   if (!rpcUrl || !relayerKey || !registryAddress) {
     log('fatal', 'Missing required env vars', {
@@ -177,6 +196,10 @@ async function main() {
     log('warn', 'KOL_SIGNAL_REGISTRY_ADDRESS not set — signal.submitted events will be ack-only');
   }
 
+  if (!noteRegistryAddress) {
+    log('warn', 'KOL_NOTE_REGISTRY_ADDRESS not set — note.submitted events will be ack-only');
+  }
+
   const chainId = Number(process.env['CHAIN_ID'] ?? '84532');
   const chain = chainId === 8453 ? base : baseSepolia;
 
@@ -195,6 +218,7 @@ async function main() {
     registry: registryAddress,
     kolSbt: kolSbtAddress || '(not set)',
     signalRegistry: signalRegistryAddress || '(not set)',
+    noteRegistry: noteRegistryAddress || '(not set)',
   });
 
   const prisma = new PrismaClient();
@@ -390,6 +414,83 @@ async function main() {
     });
   }
 
+  async function processNoteSubmitted(event: {
+    id: string;
+    aggregateId: string;
+    payload: unknown;
+  }) {
+    if (!noteRegistryAddress) {
+      log('warn', 'Skipping note.submitted — KOL_NOTE_REGISTRY_ADDRESS not configured');
+      return;
+    }
+
+    const note = await prisma.kolNote.findUnique({
+      where: { id: event.aggregateId },
+    });
+
+    if (!note) {
+      throw new Error(`Note ${event.aggregateId} not found`);
+    }
+
+    if (!note.ipfsCid) {
+      throw new Error(`Note ${event.aggregateId} has no ipfsCid`);
+    }
+
+    // The on-chain `linkedSignalId` is the Signal's on-chain id (uint256), not
+    // the DB UUID (ADR-0039 D1). 0 = standalone. When the note is attached to a
+    // signal that hasn't been anchored yet, throw to retry: the note will link
+    // once the signal's own `signal.submitted` event lands its chainSignalId.
+    let linkedSignalId = 0n;
+    if (note.linkedSignalId) {
+      const signal = await prisma.signal.findUnique({
+        where: { id: note.linkedSignalId },
+        select: { chainSignalId: true },
+      });
+      if (signal?.chainSignalId == null) {
+        throw new Error(
+          `Linked signal ${note.linkedSignalId} not yet anchored on-chain; retrying note`,
+        );
+      }
+      linkedSignalId = BigInt(signal.chainSignalId);
+    }
+
+    const kolIdHash = keccak256(toHex(note.kolId));
+
+    const { request } = await publicClient.simulateContract({
+      address: noteRegistryAddress as `0x${string}`,
+      abi: KOL_NOTE_REGISTRY_ABI,
+      functionName: 'emitNote',
+      args: [kolIdHash, note.contentHash as `0x${string}`, note.ipfsCid, linkedSignalId],
+      account,
+    });
+
+    const txHash = await walletClient.writeContract(request);
+    const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash });
+
+    if (receipt.status !== 'success') {
+      throw new Error(`Note transaction reverted: ${txHash}`);
+    }
+
+    const noteLog = receipt.logs.find(
+      (l) => l.address.toLowerCase() === noteRegistryAddress.toLowerCase(),
+    );
+    const chainNoteId = noteLog?.topics[1] ? Number(BigInt(noteLog.topics[1])) : null;
+
+    await prisma.kolNote.update({
+      where: { id: event.aggregateId },
+      data: {
+        chainTxHash: txHash,
+        chainNoteId,
+      },
+    });
+
+    log('info', 'Note confirmed on-chain', {
+      noteId: event.aggregateId,
+      chainNoteId,
+      txHash,
+    });
+  }
+
   async function processKolSbtMintRequested(event: {
     id: string;
     aggregateId: string;
@@ -500,6 +601,8 @@ async function main() {
           // future handlers may trigger KolSbt mint or SQS fan-out.
         } else if (event.eventType === 'signal.submitted') {
           await processSignalSubmitted(event);
+        } else if (event.eventType === 'note.submitted') {
+          await processNoteSubmitted(event);
         } else if (event.eventType === 'kol_sbt.mint_requested') {
           await processKolSbtMintRequested(event);
         } else if (event.eventType === 'broker_response.submitted') {
