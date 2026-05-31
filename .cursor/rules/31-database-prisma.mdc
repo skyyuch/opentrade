@@ -81,6 +81,28 @@ prisma.broker.findMany({
 
 最佳做法：用 Prisma extension 自動注入 `tenantId`（Phase 0 後期實作）。
 
+### 例外：全域參考表（無 `tenantId`）
+
+本規則只強制 **user-scoped 表**（評論、KOL、投訴、驗證等屬於某 tenant 用戶的資料）。
+**全域市場參考表**（所有 tenant 共用、非任何用戶擁有的 lookup 資料）**不應**有 `tenantId`：
+
+```prisma
+model Instrument {
+  id        String       @id @default(uuid()) @db.Uuid
+  category  AssetClass   // 無 tenantId — 全域市場參考表（per ADR-0038）
+  symbol    String
+  // ...
+  @@unique([category, symbol])
+  @@map("instruments")
+}
+```
+
+判準：資料是否「屬於某個用戶 / 某個 tenant」？
+- ✅ 屬於 → 必有 `tenantId`（review、kol、complaint、signal、note…）
+- ❌ 不屬於、全域共用的 lookup → **不加** `tenantId`（instrument、未來的幣別 / 國家 / 交易所代碼表）
+
+加全域參考表必須在 ADR 載明此例外（per ADR-0038 §Instrument no tenantId）。
+
 ---
 
 ## 軟刪除（Soft Delete）
@@ -257,6 +279,34 @@ const brokers = JSON.parse(
 
 for (const b of brokers) { /* upsert by slug */ }
 ```
+
+---
+
+## 外部參考資料同步（Reference Data Sync）
+
+不同於一次性 seed（bootstrap/domain）與一次性 backfill（schema migration 回填），
+有第三類資料流程：**可反覆重跑、從外部來源同步進全域參考表**（per ADR-0038 instrument catalog）。
+
+範例：`Instrument` 目錄從 HKEX / SEC / CoinGecko + 策展 JSON 同步
+（`packages/db/src/catalog/` + `pnpm --filter @opentrade/db sync:instruments`）。
+
+### 強制結構
+
+1. **Source-agnostic 冪等 upsert**：以 natural key（如 `[category, symbol]`）upsert，重跑結果穩定
+2. **來源失敗隔離**：單一外部來源掛掉只 `warn + skip`，不可中斷其他來源
+3. **per-source 軟退場對賬**：某來源不再出現的 row 標 `isActive=false`（**絕不 hard-delete**，per §軟刪除）；
+   且**只對賬該來源自己的 row**（partial sync 不可誤殺其他來源）
+4. **不在 request time 打外部 API**：搜尋 / 查詢一律走本地已同步的表（延遲 + rate limit + 合規考量）
+5. **免金鑰來源優先**：能用免金鑰公開資料就不要引入需 key 的來源（降低 secret 管理面）
+6. **sync 用依賴不進 runtime bundle**：解析用的重量套件（如 XLSX 解壓）放 `devDependency`，
+   只在 offline sync script 用，不進 API / worker bundle
+
+### 嚴禁
+
+- ❌ 把外部參考清單 hardcode 進 schema 或 code（per §Seed domain data 原則）
+- ❌ 在 API request path 即時打外部來源 API（必須先同步進本地表）
+- ❌ sync 對賬時 hard-delete 退場的 row（用 `isActive` 軟退場）
+- ❌ 一個來源失敗就中斷整個 sync（必須來源獨立容錯）
 
 ---
 
