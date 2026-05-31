@@ -9,8 +9,10 @@
  *   - ReviewRegistry (UUPS proxy)
  *   - ReviewerSBT (UUPS proxy, per ADR-0021)
  *
+ * Phase 2 contracts:
+ *   - KolNoteRegistry (UUPS proxy, per ADR-0039 D1) — optional until deployed
+ *
  * Phase 2+ contracts (placeholders):
- *   - SignalLogger
  *   - JuryPool
  */
 
@@ -19,6 +21,13 @@ import type { Address } from 'viem';
 export type ContractAddresses = {
   reviewRegistry: Address;
   reviewerSbt: Address;
+  /**
+   * KolNoteRegistry proxy (ADR-0039 D1). Undefined until the contract is
+   * deployed and `KOL_NOTE_REGISTRY_ADDRESS` is set; consumers (the outbox
+   * worker's `note.submitted` handler, Session 4) skip on-chain anchoring
+   * gracefully when it is absent.
+   */
+  kolNoteRegistry?: Address;
 };
 
 /**
@@ -30,9 +39,15 @@ export type ContractAddresses = {
 export function buildContractAddresses(env: {
   reviewRegistryAddress: string;
   reviewerSbtAddress: string;
+  kolNoteRegistryAddress?: string;
 }): ContractAddresses {
   return {
     reviewRegistry: env.reviewRegistryAddress as Address,
     reviewerSbt: env.reviewerSbtAddress as Address,
+    // Conditionally include the key (rather than assigning `undefined`) to
+    // satisfy `exactOptionalPropertyTypes`.
+    ...(env.kolNoteRegistryAddress
+      ? { kolNoteRegistry: env.kolNoteRegistryAddress as Address }
+      : {}),
   };
 }

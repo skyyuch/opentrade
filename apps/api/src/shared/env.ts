@@ -161,6 +161,17 @@ const envSchema = z.object({
     .optional(),
 
   /**
+   * Address of the deployed KolNoteRegistry proxy contract. Required for
+   * the outbox worker to anchor KOL analyst notes on-chain (ADR-0039 D1).
+   * The `note.submitted` handler (Session 4) skips on-chain anchoring
+   * gracefully when this is unset.
+   */
+  KOL_NOTE_REGISTRY_ADDRESS: z
+    .string()
+    .regex(/^0x[0-9a-fA-F]{40}$/)
+    .optional(),
+
+  /**
    * DeepL API key for UGC translation.
    *
    * @deprecated Per ADR-0027 (supersedes ADR-0023): the submit-time
