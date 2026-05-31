@@ -1,6 +1,6 @@
-# 訊號標的目錄 + KOL 分析師筆記 — Session 1-3 — 2026-05-31
+# 訊號標的目錄 + KOL 分析師筆記 — Session 1-4 — 2026-05-31
 
-> 本文件歸檔「訊號標的選擇器 + 分析師筆記」5-session 執行計畫 Session 1（決策 + schema + shared types）、Session 2（智能合約層）與 Session 3（標的目錄後端）的決策與踩坑精華。
+> 本文件歸檔「訊號標的選擇器 + 分析師筆記」5-session 執行計畫 Session 1（決策 + schema + shared types）、Session 2（智能合約層）、Session 3（標的目錄後端）與 Session 4（KOL 筆記後端）的決策與踩坑精華。
 
 ## 對話脈絡
 
@@ -110,12 +110,40 @@ Session 1 handoff 點名的既知 gap：`EmitSignalUseCase` 原 `ipfsCid=''`，o
 
 `KolSignalRegistry` `<=7` 升級 + `KolNoteRegistry` 仍只寫了 code 未 broadcast。在升級腳本跑之前，INDEX/COMMODITY signal 的 `signal.submitted` 會 on-chain revert（`InvalidAssetClass`），worker retry 5 次 terminal-fail（signal row 仍存 DB + IPFS）。其他類別（EQUITY/CRYPTO 等 0-5）不受影響照常上鏈。
 
+## Session 4（2026-05-31）— KOL 筆記後端
+
+Session 4 把 ADR-0039 的筆記後端落地，5 個 atomic commit（C1 domain+repo / C2 use cases / C3 routes+image upload / C4 outbox handler / C5 docs），全程 7-workspace typecheck + lint + 108 api unit tests 綠。
+
+### 1. notes DDD domain（C1/C2/C3）
+
+- 完全鏡像既有 signals/complaints 四層結構。`NoteEntity` 的 `body` 直接用 shared `RichTextDocument`（api 可 import `@opentrade/shared`，instruments domain 早有先例 — 與 Session 3 「db 不能 import shared」的限制無關，那是 db composite reference 的問題，api 無此限制）。
+- `INoteRepository` port **故意不給 update/delete**——筆記 append-only（rule 00 + ADR-0039 D2），把不可變性編進型別系統（如同 complaints 把 rule 00 編進 discriminated union）。
+- `CreateKolNoteUseCase` 與 `EmitSignalUseCase` 同骨架：KOL APPROVED + tenant gate → pin 完整 payload 到 IPFS（reuse reviews `IIpfsService`）→ `contentHash = sha256(pinned payload)`（hashed object = pinned object）→ pin 失敗 propagate 中止。額外加 `imageCids ≤ KOL_NOTE_MAX_IMAGES` 防濫用。
+
+### 2. 三個關鍵設計決策
+
+1. **筆記的 KOL 從 JWT 派生，不收 request body 的 kolId**（rule 50 不信 client）。signals route 收 body.kolId 再比對，notes 直接從 `findByUserId` 拿——更乾淨，少一個信任邊界。
+2. **linked signal 完整性檢查放 Prisma repo 交易內**（查 signal 同 tenant+KOL，否則 throw）。替代方案是跨域 export signal repo 給 use case 注入，但 signals `index.ts` 只 export router 不 export repo，為了一個 FK 檢查去開跨域 export 不划算；referential integrity 放在 persistence 層的交易內反而最原子。
+3. **image upload 限 5MB / image-only**（JPEG/PNG/WebP/GIF），比 identity `verify-broker/upload` 的 10MB+PDF 嚴格——K 線截圖綽綽有餘且降 IPFS pin 成本。回傳 `{cid, url}`（`url = PINATA_GATEWAY_URL + cid`）滿足 ADR-0039 D5。
+
+### 3. outbox `note.submitted` handler（C4）
+
+- mirror `processSignalSubmitted` + graceful skip（`KOL_NOTE_REGISTRY_ADDRESS` 未設則 ack-only）。
+- **on-chain `linkedSignalId`(uint256) 的解析**是唯一新邏輯：DB 存的是 signal 的 UUID，但合約要 on-chain signal id。handler 查 linked signal 的 `chainSignalId`——若 signal 尚未上鏈（`chainSignalId` null）則 **throw 重試**，讓筆記在 signal 上鏈後才 anchor（保住鏈上 linkage 正確）；standalone = 0。若 signal 永遠 terminal-fail，筆記也會 terminal-fail（rows 仍存 DB+IPFS）——可接受且已文件化。
+
+### 4. 無 rate-limit middleware（沿用先例）
+
+專案目前**沒有** app 層 rate-limit middleware（grep `rateLimit` 0 命中），identity 的 upload 也沒套。寫入濫用防線靠 MIME/size guard，throttling 在 infra/WAF 層（per rule 30/50 的分層）。沒有為了 notes 而發明一個 middleware。
+
+### 5. 合約仍未上鏈（不變）
+
+`KolSignalRegistry` `<=7` 升級 + `KolNoteRegistry` 仍只寫了 code 未 broadcast。notes worker handler 因 `KOL_NOTE_REGISTRY_ADDRESS` 未設而 graceful skip——筆記照常寫 DB + pin IPFS，只是 `chainNoteId/chainTxHash` 留 null 直到合約部署。
+
 ## 待後續處理事項
 
 | Owner      | 事項                                                                                                                                                                                                        |
 | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 下個 agent | Session 4 筆記後端（notes DDD domain — entity/repo/use cases/routes + 圖片上傳走既有 Pinata `pinFile` + outbox `note.submitted` handler 接 `KolNoteRegistry`，未部署前 graceful skip）                      |
-| 後續       | Session 5 前端整合（Google Studio 交付 UI 後接標的選擇器 `GET /v1/instruments` + 筆記富文本編輯/顯示）                                                                                                      |
+| 下個 agent | Session 5 前端整合（Google Studio 交付 UI 後接標的選擇器 `GET /v1/instruments` + 筆記富文本編輯接 `POST /v1/notes` + `POST /v1/notes/images` + 顯示接 `GET /v1/notes` / `GET /v1/notes/:id`）               |
 | 維運/合約  | broadcast `KolSignalRegistry` `<=7` 升級到 Base Sepolia（跑 `UpgradeKolSignalRegistry.s.sol`，需 `UPGRADER_ROLE`）+ 部署 `KolNoteRegistry`（`DeployKolNoteRegistry.s.sol`）並填 `KOL_NOTE_REGISTRY_ADDRESS` |
 | 維運       | 生產環境跑 `pnpm --filter @opentrade/db sync:instruments` 填 catalog + 建議排程定期 sync（reconciliation 已支援增量/退場）                                                                                  |
 | 維運       | 處理 `opentrade_dev` pre-existing drift（`notifications.id` + checksum）                                                                                                                                    |
@@ -134,4 +162,4 @@ Session 1 handoff 點名的既知 gap：`EmitSignalUseCase` 原 `ipfsCid=''`，o
 - [ADR-0036](../decisions/0036-kol-signal-architecture.md)
 - [ADR-0038](../decisions/0038-instrument-catalog-and-asset-scope.md)
 - [ADR-0039](../decisions/0039-kol-note-architecture.md)
-- [docs/03-status.md](../03-status.md) — (37) 條目
+- [docs/03-status.md](../03-status.md) — (37)-(40) 條目
