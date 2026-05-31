@@ -1,0 +1,128 @@
+[
+  {
+    "category": "INDEX",
+    "symbol": "HSI",
+    "displayCode": "HSI",
+    "nameEn": "Hang Seng Index",
+    "nameZh": "恒生指數",
+    "exchange": "HKEX",
+    "source": "CURATED"
+  },
+  {
+    "category": "INDEX",
+    "symbol": "HSCEI",
+    "displayCode": "HSCEI",
+    "nameEn": "Hang Seng China Enterprises Index",
+    "nameZh": "恒生中國企業指數",
+    "exchange": "HKEX",
+    "source": "CURATED"
+  },
+  {
+    "category": "INDEX",
+    "symbol": "HSTECH",
+    "displayCode": "HSTECH",
+    "nameEn": "Hang Seng TECH Index",
+    "nameZh": "恒生科技指數",
+    "exchange": "HKEX",
+    "source": "CURATED"
+  },
+  {
+    "category": "INDEX",
+    "symbol": "SPX",
+    "displayCode": "SPX",
+    "nameEn": "S&P 500 Index",
+    "nameZh": "標準普爾500指數",
+    "exchange": null,
+    "source": "CURATED"
+  },
+  {
+    "category": "INDEX",
+    "symbol": "NDX",
+    "displayCode": "NDX",
+    "nameEn": "Nasdaq-100 Index",
+    "nameZh": "納斯達克100指數",
+    "exchange": null,
+    "source": "CURATED"
+  },
+  {
+    "category": "INDEX",
+    "symbol": "IXIC",
+    "displayCode": "IXIC",
+    "nameEn": "Nasdaq Composite Index",
+    "nameZh": "納斯達克綜合指數",
+    "exchange": null,
+    "source": "CURATED"
+  },
+  {
+    "category": "INDEX",
+    "symbol": "DJI",
+    "displayCode": "DJI",
+    "nameEn": "Dow Jones Industrial Average",
+    "nameZh": "道瓊斯工業平均指數",
+    "exchange": null,
+    "source": "CURATED"
+  },
+  {
+    "category": "INDEX",
+    "symbol": "RUT",
+    "displayCode": "RUT",
+    "nameEn": "Russell 2000 Index",
+    "nameZh": "羅素2000指數",
+    "exchange": null,
+    "source": "CURATED"
+  },
+  {
+    "category": "INDEX",
+    "symbol": "VIX",
+    "displayCode": "VIX",
+    "nameEn": "CBOE Volatility Index",
+    "nameZh": "芝加哥期權交易所波動率指數",
+    "exchange": null,
+    "source": "CURATED"
+  },
+  {
+    "category": "INDEX",
+    "symbol": "N225",
+    "displayCode": "N225",
+    "nameEn": "Nikkei 225",
+    "nameZh": "日經225指數",
+    "exchange": null,
+    "source": "CURATED"
+  },
+  {
+    "category": "INDEX",
+    "symbol": "SSEC",
+    "displayCode": "SSEC",
+    "nameEn": "SSE Composite Index",
+    "nameZh": "上證綜合指數",
+    "exchange": null,
+    "source": "CURATED"
+  },
+  {
+    "category": "INDEX",
+    "symbol": "SZSC",
+    "displayCode": "SZSC",
+    "nameEn": "SZSE Component Index",
+    "nameZh": "深證成份指數",
+    "exchange": null,
+    "source": "CURATED"
+  },
+  {
+    "category": "INDEX",
+    "symbol": "FTSE",
+    "displayCode": "FTSE",
+    "nameEn": "FTSE 100 Index",
+    "nameZh": "富時100指數",
+    "exchange": null,
+    "source": "CURATED"
+  },
+  {
+    "category": "INDEX",
+    "symbol": "GDAXI",
+    "displayCode": "GDAXI",
+    "nameEn": "DAX Index",
+    "nameZh": "德國DAX指數",
+    "exchange": null,
+    "source": "CURATED"
+  }
+]

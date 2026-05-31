@@ -42,6 +42,7 @@
     "fetch:sfc:details": "dotenv -e ../../.env -- tsx scripts/fetch-sfc-details.ts",
     "crawl:logos": "dotenv -e ../../.env -- tsx scripts/crawl-broker-logos.ts",
     "sync:sfc": "dotenv -e ../../.env -- tsx scripts/sync-sfc-brokers.ts",
+    "sync:instruments": "dotenv -e ../../.env -- tsx scripts/sync-instruments.ts",
     "db:studio": "dotenv -e ../../.env -- prisma studio",
     "postinstall": "prisma generate"
   },

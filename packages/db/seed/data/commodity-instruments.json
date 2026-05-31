@@ -1,0 +1,119 @@
+[
+  {
+    "category": "COMMODITY",
+    "symbol": "XAU",
+    "displayCode": "XAU",
+    "nameEn": "Gold (Spot)",
+    "nameZh": "黃金",
+    "exchange": null,
+    "source": "CURATED"
+  },
+  {
+    "category": "COMMODITY",
+    "symbol": "XAG",
+    "displayCode": "XAG",
+    "nameEn": "Silver (Spot)",
+    "nameZh": "白銀",
+    "exchange": null,
+    "source": "CURATED"
+  },
+  {
+    "category": "COMMODITY",
+    "symbol": "XPT",
+    "displayCode": "XPT",
+    "nameEn": "Platinum (Spot)",
+    "nameZh": "鉑金",
+    "exchange": null,
+    "source": "CURATED"
+  },
+  {
+    "category": "COMMODITY",
+    "symbol": "XPD",
+    "displayCode": "XPD",
+    "nameEn": "Palladium (Spot)",
+    "nameZh": "鈀金",
+    "exchange": null,
+    "source": "CURATED"
+  },
+  {
+    "category": "COMMODITY",
+    "symbol": "WTI",
+    "displayCode": "WTI",
+    "nameEn": "WTI Crude Oil",
+    "nameZh": "西德州中質原油",
+    "exchange": null,
+    "source": "CURATED"
+  },
+  {
+    "category": "COMMODITY",
+    "symbol": "BRENT",
+    "displayCode": "BRENT",
+    "nameEn": "Brent Crude Oil",
+    "nameZh": "布蘭特原油",
+    "exchange": null,
+    "source": "CURATED"
+  },
+  {
+    "category": "COMMODITY",
+    "symbol": "NATGAS",
+    "displayCode": "NATGAS",
+    "nameEn": "Natural Gas",
+    "nameZh": "天然氣",
+    "exchange": null,
+    "source": "CURATED"
+  },
+  {
+    "category": "COMMODITY",
+    "symbol": "COPPER",
+    "displayCode": "COPPER",
+    "nameEn": "Copper",
+    "nameZh": "銅",
+    "exchange": null,
+    "source": "CURATED"
+  },
+  {
+    "category": "COMMODITY",
+    "symbol": "CORN",
+    "displayCode": "CORN",
+    "nameEn": "Corn",
+    "nameZh": "玉米",
+    "exchange": null,
+    "source": "CURATED"
+  },
+  {
+    "category": "COMMODITY",
+    "symbol": "WHEAT",
+    "displayCode": "WHEAT",
+    "nameEn": "Wheat",
+    "nameZh": "小麥",
+    "exchange": null,
+    "source": "CURATED"
+  },
+  {
+    "category": "COMMODITY",
+    "symbol": "SOYBEAN",
+    "displayCode": "SOYBEAN",
+    "nameEn": "Soybean",
+    "nameZh": "大豆",
+    "exchange": null,
+    "source": "CURATED"
+  },
+  {
+    "category": "COMMODITY",
+    "symbol": "COFFEE",
+    "displayCode": "COFFEE",
+    "nameEn": "Coffee",
+    "nameZh": "咖啡",
+    "exchange": null,
+    "source": "CURATED"
+  },
+  {
+    "category": "COMMODITY",
+    "symbol": "SUGAR",
+    "displayCode": "SUGAR",
+    "nameEn": "Sugar",
+    "nameZh": "糖",
+    "exchange": null,
+    "source": "CURATED"
+  }
+]
