@@ -20,7 +20,14 @@
 
 import { env } from '../../env';
 
-import type { HealthReportDto } from '@opentrade/shared';
+import type {
+  CreateKolNoteInput,
+  HealthReportDto,
+  InstrumentCategory,
+  InstrumentDto,
+  KolNoteDto,
+  KolNoteListItemDto,
+} from '@opentrade/shared';
 
 export type FetchOptions = {
   next?: { revalidate?: number; tags?: string[] };
@@ -965,6 +972,12 @@ export type SubmitSignalInput = {
   kolId: string;
   assetClass: AssetClass;
   symbol: string;
+  /**
+   * Optional FK to a catalog `Instrument` (ADR-0038 D6). When provided, the
+   * API derives the canonical `symbol` + `assetClass` from the instrument and
+   * ignores the client-sent values; omit it for a free-text symbol.
+   */
+  instrumentId?: string;
   direction: SignalDirection;
   entryPrice: string;
   targetPrice: string;
@@ -1009,13 +1022,30 @@ export const fetchKolStats = (
 
 export type SignalOutcome = 'ACTIVE' | 'HIT_TARGET' | 'HIT_DIRECTION' | 'STOPPED' | 'EXPIRED' | 'UNRESOLVED';
 export type SignalDirection = 'BUY' | 'SELL' | 'HOLD';
-export type AssetClass = 'EQUITY_HK' | 'EQUITY_US' | 'FUTURES' | 'SPOT' | 'FOREX' | 'CRYPTO';
+// Mirrors the DB `AssetClass` enum. `INDEX` / `COMMODITY` were appended per
+// ADR-0038 D3 (the five surfaced picker categories are EQUITY_HK, EQUITY_US,
+// INDEX, CRYPTO, COMMODITY; FUTURES/SPOT/FOREX remain valid as legacy values).
+export type AssetClass =
+  | 'EQUITY_HK'
+  | 'EQUITY_US'
+  | 'FUTURES'
+  | 'SPOT'
+  | 'FOREX'
+  | 'CRYPTO'
+  | 'INDEX'
+  | 'COMMODITY';
 
 export type SignalItem = {
   id: string;
   kolId: string;
   assetClass: AssetClass;
   symbol: string;
+  /**
+   * FK to the catalog `Instrument` when the signal was created by picking a
+   * catalog entry (ADR-0038 D6); null for free-text symbols. When set, the
+   * canonical `symbol` + `assetClass` were derived from the instrument.
+   */
+  instrumentId: string | null;
   direction: SignalDirection;
   entryPrice: string;
   targetPrice: string;
@@ -1145,5 +1175,142 @@ export const markAllNotificationsRead = async (
   options: FetchOptions = {},
 ): Promise<void> => {
   await apiPatch<{ success: boolean }>('/v1/notifications/read-all', {}, options);
+};
+
+// ---------------------------------------------------------------------------
+// Instruments — catalog search for the signal target picker (per ADR-0038)
+// ---------------------------------------------------------------------------
+
+// Re-export the shared instrument contract so the picker UI imports its types
+// from this client (single source of truth: `@opentrade/shared`).
+export type { InstrumentDto, InstrumentCategory } from '@opentrade/shared';
+export { INSTRUMENT_CATEGORIES, isInstrumentCategory } from '@opentrade/shared';
+export { localizedInstrumentName } from '@opentrade/shared';
+
+export type InstrumentsResponse = { instruments: InstrumentDto[] };
+
+/**
+ * Search the platform instrument catalog (`GET /v1/instruments`).
+ *
+ * Public + read-only — no auth required. The endpoint searches the locally
+ * synced catalog (never a live external API, per ADR-0038 D5) by symbol /
+ * displayCode / nameEn / nameZh, restricted to the five surfaced categories.
+ *
+ * @example fetchInstruments({ category: 'EQUITY_HK', q: '005' })
+ *   // → { instruments: [{ symbol: '00005', nameZh: '匯豐控股', ... }] }
+ */
+export const fetchInstruments = (
+  params: { category?: InstrumentCategory; q?: string; limit?: number } = {},
+  options?: FetchOptions,
+): Promise<InstrumentsResponse> => {
+  const query = new URLSearchParams();
+  if (params.category) query.set('category', params.category);
+  if (params.q) query.set('q', params.q);
+  if (params.limit !== undefined) query.set('limit', String(params.limit));
+  const qs = query.toString();
+  return apiGet<InstrumentsResponse>(`/v1/instruments${qs ? `?${qs}` : ''}`, options);
+};
+
+// ---------------------------------------------------------------------------
+// KOL analyst notes — immutable rich-text content (per ADR-0039)
+// ---------------------------------------------------------------------------
+
+// Re-export the shared note contract so editor + display UIs import their
+// types from this client (single source of truth: `@opentrade/shared`).
+export type {
+  CreateKolNoteInput,
+  KolNoteDto,
+  KolNoteListItemDto,
+  RichTextDocument,
+} from '@opentrade/shared';
+export { KOL_NOTE_MAX_IMAGES, KOL_NOTE_TITLE_MAX, KOL_NOTE_TITLE_MIN } from '@opentrade/shared';
+
+export type NotesListResponse = { notes: KolNoteListItemDto[]; total: number };
+export type NoteDetailResponse = { note: KolNoteDto };
+export type CreateNoteResponse = { note: KolNoteDto };
+export type NoteImageUploadResponse = { cid: string; url: string; size: number };
+
+/**
+ * List KOL notes (`GET /v1/notes`). Public; filter by `kolId` and/or
+ * `linkedSignalId`. Returns lightweight list items (no full body) — fetch
+ * {@link fetchNote} for the document.
+ */
+export const fetchNotes = (
+  params: { kolId?: string; linkedSignalId?: string; limit?: number; offset?: number } = {},
+  options?: FetchOptions,
+): Promise<NotesListResponse> => {
+  const query = new URLSearchParams();
+  if (params.kolId) query.set('kolId', params.kolId);
+  if (params.linkedSignalId) query.set('linkedSignalId', params.linkedSignalId);
+  if (params.limit !== undefined) query.set('limit', String(params.limit));
+  if (params.offset !== undefined) query.set('offset', String(params.offset));
+  const qs = query.toString();
+  return apiGet<NotesListResponse>(`/v1/notes${qs ? `?${qs}` : ''}`, options);
+};
+
+/** Fetch one note with its full rich-text body (`GET /v1/notes/:id`, public). */
+export const fetchNote = (id: string, options?: FetchOptions): Promise<NoteDetailResponse> =>
+  apiGet<NoteDetailResponse>(`/v1/notes/${id}`, options);
+
+/**
+ * Create a note (`POST /v1/notes`). Auth required: the caller must own an
+ * APPROVED KOL profile (the API derives the KOL from the token, never the
+ * body, per rule 50). Notes are immutable once published — there is no
+ * update/delete (ADR-0039 D2); surface that clearly in the editor UI.
+ */
+export const createNote = (
+  input: CreateKolNoteInput,
+  options: FetchOptions,
+): Promise<CreateNoteResponse> => apiPost<CreateNoteResponse>('/v1/notes', input, options);
+
+/**
+ * Upload a single embedded image for a note (`POST /v1/notes/images`).
+ *
+ * The web app never talks to Pinata directly (rule 50 + ADR-0039 D5): the
+ * image is pinned to IPFS server-side and the returned `{ cid, url }` is
+ * referenced inside the note's `body` document and listed in `imageCids`.
+ * Accepts JPEG / PNG / WebP / GIF up to 5 MB (validated server-side).
+ */
+export const uploadNoteImage = async (
+  file: File,
+  options: FetchOptions,
+): Promise<NoteImageUploadResponse> => {
+  const url = `${env.NEXT_PUBLIC_API_URL}/v1/notes/images`;
+  const headers: Record<string, string> = {};
+  if (options.accessToken) {
+    headers['Authorization'] = `Bearer ${options.accessToken}`;
+  }
+
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers,
+    body: formData,
+    ...(options.signal !== undefined ? { signal: options.signal } : {}),
+  });
+
+  if (!res.ok) {
+    let parsed: unknown = undefined;
+    try {
+      parsed = await res.json();
+    } catch {
+      // Non-JSON error body.
+    }
+    if (isApiErrorBody(parsed)) {
+      throw new ApiClientError(res.status, parsed.error.code, parsed.error.message, {
+        ...(parsed.error.requestId !== undefined ? { requestId: parsed.error.requestId } : {}),
+        ...(parsed.error.details ? { details: parsed.error.details } : {}),
+      });
+    }
+    throw new ApiClientError(
+      res.status,
+      'INTERNAL_ERROR',
+      `Upstream POST /v1/notes/images returned ${res.status}`,
+    );
+  }
+
+  return (await res.json()) as NoteImageUploadResponse;
 };
 
