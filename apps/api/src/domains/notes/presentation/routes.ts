@@ -32,7 +32,7 @@ import { PrismaNoteRepository } from '../infrastructure/PrismaNoteRepository.js'
 import type { AppHonoEnv } from '../../../http/types.js';
 import type { NoteListOptions } from '../domain/INoteRepository.js';
 import type { CreateNoteInput, NoteRecord, RichTextDocument } from '../domain/NoteEntity.js';
-import type { KolNoteDto, KolNoteListItemDto } from '@opentrade/shared';
+import type { KolNoteAuthor, KolNoteDto, KolNoteListItemDto } from '@opentrade/shared';
 
 const DEFAULT_TENANT_ID = env.DEFAULT_TENANT_ID;
 
@@ -45,7 +45,7 @@ const ipfsService = new PinataIpfsService(env.PINATA_JWT);
 const createNoteUseCase = new CreateKolNoteUseCase(noteRepo, kolRepo, ipfsService);
 const listNotesUseCase = new ListNotesUseCase(noteRepo);
 
-function toDetailDto(record: NoteRecord): KolNoteDto {
+function toDetailDto(record: NoteRecord, author: KolNoteAuthor | null): KolNoteDto {
   return {
     id: record.id,
     kolId: record.kolId,
@@ -58,10 +58,11 @@ function toDetailDto(record: NoteRecord): KolNoteDto {
     chainNoteId: record.chainNoteId,
     chainTxHash: record.chainTxHash,
     createdAt: record.createdAt.toISOString(),
+    kol: author,
   };
 }
 
-function toListDto(record: NoteRecord): KolNoteListItemDto {
+function toListDto(record: NoteRecord, author: KolNoteAuthor | null): KolNoteListItemDto {
   return {
     id: record.id,
     kolId: record.kolId,
@@ -69,7 +70,27 @@ function toListDto(record: NoteRecord): KolNoteListItemDto {
     linkedSignalId: record.linkedSignalId,
     chainTxHash: record.chainTxHash,
     createdAt: record.createdAt.toISOString(),
+    kol: author,
   };
+}
+
+/**
+ * Enrich notes with their author byline (ADR-0039 D5). Notes carry only a
+ * `kolId`; the front-end needs the KOL display name + avatar to render the
+ * byline without an extra round-trip per note. We resolve the unique KOL ids
+ * in a single batched query (mirrors the signals route's lightweight
+ * presentation-layer enrichment via direct Prisma reads).
+ */
+async function loadAuthors(kolIds: readonly string[]): Promise<Map<string, KolNoteAuthor>> {
+  const uniqueIds = [...new Set(kolIds)];
+  if (uniqueIds.length === 0) return new Map();
+
+  const rows = await prisma.kol.findMany({
+    where: { id: { in: uniqueIds } },
+    select: { id: true, displayName: true, avatarUrl: true },
+  });
+
+  return new Map(rows.map((row) => [row.id, { name: row.displayName, avatarUrl: row.avatarUrl }]));
 }
 
 // ---------------------------------------------------------------------------
@@ -109,7 +130,8 @@ notesRouter.post('/', authMiddleware('user'), async (c) => {
 
   try {
     const note = await createNoteUseCase.execute(input);
-    return c.json({ note: toDetailDto(note) }, 201);
+    const author: KolNoteAuthor = { name: kol.displayName, avatarUrl: kol.avatarUrl };
+    return c.json({ note: toDetailDto(note, author) }, 201);
   } catch (err) {
     if (err instanceof Error && err.message.includes('Only APPROVED')) {
       throw new AppError(ErrorCode.FORBIDDEN, 'Only APPROVED KOLs can create notes', 403);
@@ -195,7 +217,11 @@ notesRouter.get('/', async (c) => {
   if (query.linkedSignalId !== undefined) opts.linkedSignalId = query.linkedSignalId;
 
   const { notes, total } = await listNotesUseCase.execute(opts);
-  return c.json({ notes: notes.map(toListDto), total });
+  const authors = await loadAuthors(notes.map((n) => n.kolId));
+  return c.json({
+    notes: notes.map((n) => toListDto(n, authors.get(n.kolId) ?? null)),
+    total,
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -210,5 +236,6 @@ notesRouter.get('/:id', async (c) => {
     throw AppError.notFound(`Note ${id} not found`);
   }
 
-  return c.json({ note: toDetailDto(note) });
+  const authors = await loadAuthors([note.kolId]);
+  return c.json({ note: toDetailDto(note, authors.get(note.kolId) ?? null) });
 });

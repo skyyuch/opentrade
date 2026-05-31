@@ -26,6 +26,7 @@ export type { InstrumentCategory, InstrumentDto, InstrumentSource } from './kol/
 export { KOL_NOTE_MAX_IMAGES, KOL_NOTE_TITLE_MAX, KOL_NOTE_TITLE_MIN } from './kol/note';
 export type {
   CreateKolNoteInput,
+  KolNoteAuthor,
   KolNoteDto,
   KolNoteListItemDto,
   RichTextDocument,

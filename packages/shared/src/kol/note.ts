@@ -38,9 +38,21 @@ export type CreateKolNoteInput = {
 };
 
 /**
+ * Embedded author reference shipped with every note DTO (ADR-0039 D5). The
+ * notes endpoint enriches notes by joining the owning KOL so the front-end
+ * does not need a second round-trip per note to render the byline. `null` only
+ * if the owning KOL row can no longer be resolved (defensive — should not
+ * happen for a persisted note). The avatar is nullable like `Kol.avatarUrl`.
+ */
+export type KolNoteAuthor = {
+  readonly name: string;
+  readonly avatarUrl: string | null;
+};
+
+/**
  * The note shape returned by `GET /v1/notes/:id`. Full body included.
  * `chainNoteId` / `chainTxHash` are null until the outbox worker anchors the
- * note on `KolNoteRegistry` (ADR-0039 D4).
+ * note on `KolNoteRegistry` (ADR-0039 D4). `kol` is the enriched author byline.
  */
 export type KolNoteDto = {
   readonly id: string;
@@ -54,12 +66,13 @@ export type KolNoteDto = {
   readonly chainNoteId: number | null;
   readonly chainTxHash: string | null;
   readonly createdAt: string;
+  readonly kol: KolNoteAuthor | null;
 };
 
 /**
  * Lightweight note shape for list endpoints (`GET /v1/notes`). Omits the full
  * `body` to keep list payloads small; callers fetch the detail endpoint for
- * the document.
+ * the document. `kol` is the enriched author byline (see {@link KolNoteAuthor}).
  */
 export type KolNoteListItemDto = {
   readonly id: string;
@@ -68,4 +81,5 @@ export type KolNoteListItemDto = {
   readonly linkedSignalId: string | null;
   readonly chainTxHash: string | null;
   readonly createdAt: string;
+  readonly kol: KolNoteAuthor | null;
 };
