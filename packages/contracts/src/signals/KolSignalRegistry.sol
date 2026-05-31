@@ -100,7 +100,9 @@ contract KolSignalRegistry is Initializable, UUPSUpgradeable, AccessControlUpgra
     /// @param  kolId       keccak256 of the off-chain KOL UUID.
     /// @param  contentHash keccak256 of the full signal JSON on IPFS.
     /// @param  ipfsCid     The IPFS CID where the signal JSON is pinned.
-    /// @param  assetClass  Asset class enum (0-5 per ADR-0036 D5).
+    /// @param  assetClass  Asset class enum (0-7 per ADR-0036 D5 as amended by
+    ///                     ADR-0038 D3: EQUITY_HK=0, EQUITY_US=1, FUTURES=2,
+    ///                     SPOT=3, FOREX=4, CRYPTO=5, INDEX=6, COMMODITY=7).
     /// @param  direction   Signal direction (0=BUY, 1=SELL, 2=HOLD).
     /// @param  horizon     Horizon in days (1/3/7/14/30/90/180/365).
     /// @return signalId    The sequential ID assigned to this signal.
@@ -115,7 +117,7 @@ contract KolSignalRegistry is Initializable, UUPSUpgradeable, AccessControlUpgra
         if (kolId == bytes32(0)) revert EmptyKolId();
         if (contentHash == bytes32(0)) revert EmptyContentHash();
         if (bytes(ipfsCid).length == 0) revert EmptyIpfsCid();
-        if (assetClass > 5) revert InvalidAssetClass();
+        if (assetClass > 7) revert InvalidAssetClass();
         if (direction > 2) revert InvalidDirection();
         if (horizon == 0) revert InvalidHorizon();
 

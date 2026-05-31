@@ -15,6 +15,8 @@ contract KolSignalRegistryTest is Test {
     bytes32 constant CONTENT_HASH = keccak256("signal content json");
     string constant IPFS_CID = "bafkreitest1234567890abcdefghijklmnopqrst";
     uint8 constant ASSET_CRYPTO = 5;
+    uint8 constant ASSET_INDEX = 6;
+    uint8 constant ASSET_COMMODITY = 7;
     uint8 constant DIRECTION_BUY = 0;
     uint8 constant HORIZON_7D = 7;
 
@@ -90,7 +92,31 @@ contract KolSignalRegistryTest is Test {
     function test_Emit_InvalidAssetClass_Reverts() public {
         vm.prank(kol1);
         vm.expectRevert(KolSignalRegistry.InvalidAssetClass.selector);
-        registry.emitSignal(KOL_ID, CONTENT_HASH, IPFS_CID, 6, DIRECTION_BUY, HORIZON_7D);
+        registry.emitSignal(KOL_ID, CONTENT_HASH, IPFS_CID, 8, DIRECTION_BUY, HORIZON_7D);
+    }
+
+    /// @dev INDEX (6) is a valid asset class after the ADR-0038 D3 widening.
+    function test_Emit_IndexAssetClass_Succeeds() public {
+        vm.prank(kol1);
+        uint256 id = registry.emitSignal(KOL_ID, CONTENT_HASH, IPFS_CID, ASSET_INDEX, DIRECTION_BUY, HORIZON_7D);
+        assertEq(registry.getSignal(id).assetClass, ASSET_INDEX);
+    }
+
+    /// @dev COMMODITY (7) is a valid asset class after the ADR-0038 D3 widening.
+    function test_Emit_CommodityAssetClass_Succeeds() public {
+        vm.prank(kol1);
+        uint256 id = registry.emitSignal(KOL_ID, CONTENT_HASH, IPFS_CID, ASSET_COMMODITY, DIRECTION_BUY, HORIZON_7D);
+        assertEq(registry.getSignal(id).assetClass, ASSET_COMMODITY);
+    }
+
+    /// @dev The boundary: asset class 7 passes, 8 reverts.
+    function test_Emit_AssetClassBoundary() public {
+        vm.prank(kol1);
+        registry.emitSignal(KOL_ID, CONTENT_HASH, IPFS_CID, 7, DIRECTION_BUY, HORIZON_7D);
+
+        vm.prank(kol1);
+        vm.expectRevert(KolSignalRegistry.InvalidAssetClass.selector);
+        registry.emitSignal(KOL_ID, CONTENT_HASH, IPFS_CID, 8, DIRECTION_BUY, HORIZON_7D);
     }
 
     function test_Emit_InvalidDirection_Reverts() public {
@@ -169,6 +195,37 @@ contract KolSignalRegistryTest is Test {
     }
 
     // =========================================================================
+    // Unit tests — UUPS upgrade (exercises the ADR-0038 D3 widening upgrade)
+    // =========================================================================
+
+    function test_Upgrade_AsUpgrader_PreservesStateAndWidensValidation() public {
+        vm.prank(kol1);
+        registry.emitSignal(KOL_ID, CONTENT_HASH, IPFS_CID, ASSET_CRYPTO, DIRECTION_BUY, HORIZON_7D);
+
+        KolSignalRegistry newImpl = new KolSignalRegistry();
+        vm.prank(admin);
+        registry.upgradeToAndCall(address(newImpl), "");
+
+        // Existing signal survives the implementation swap (append-only storage).
+        KolSignalRegistry.Signal memory s = registry.getSignal(0);
+        assertEq(s.author, kol1);
+        assertEq(s.contentHash, CONTENT_HASH);
+        assertEq(registry.signalCount(), 1);
+
+        // The widened asset-class range is live after the upgrade.
+        vm.prank(kol2);
+        uint256 id = registry.emitSignal(KOL_ID, CONTENT_HASH, IPFS_CID, ASSET_COMMODITY, DIRECTION_BUY, HORIZON_7D);
+        assertEq(registry.getSignal(id).assetClass, ASSET_COMMODITY);
+    }
+
+    function test_Upgrade_AsNonUpgrader_Reverts() public {
+        KolSignalRegistry newImpl = new KolSignalRegistry();
+        vm.prank(kol1);
+        vm.expectRevert();
+        registry.upgradeToAndCall(address(newImpl), "");
+    }
+
+    // =========================================================================
     // Fuzz tests
     // =========================================================================
 
@@ -183,7 +240,7 @@ contract KolSignalRegistryTest is Test {
         vm.assume(kolId != bytes32(0));
         vm.assume(contentHash != bytes32(0));
         vm.assume(bytes(ipfsCid).length > 0);
-        vm.assume(assetClass <= 5);
+        vm.assume(assetClass <= 7);
         vm.assume(direction <= 2);
         vm.assume(horizon > 0);
 
