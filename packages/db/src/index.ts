@@ -43,8 +43,10 @@ export {
 export type {
   Broker,
   BrokerLicense,
+  Instrument,
   Kol,
   KolFollow,
+  KolNote,
   Notification,
   OutboxEvent,
   Prisma,

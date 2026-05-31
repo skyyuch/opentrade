@@ -115,6 +115,7 @@ model Tenant {
   kols                    Kol[]
   signals                 Signal[]
   notifications           Notification[]
+  kolNotes                KolNote[]
 
   @@map("tenants")
 }
@@ -344,15 +345,24 @@ model BrokerClaimRequest {
 /// real users applying go through PENDING → APPROVED/REJECTED. Admin can
 /// suspend any KOL at any time. Per ADR-0036 D1 + D9.
 enum KolStatus {
-  UNCLAIMED  // Pre-seeded by admin, not yet claimed by the real person.
-  PENDING    // User applied; waiting admin review.
-  APPROVED   // Active KOL; can emit signals.
-  REJECTED   // Admin rejected the application.
-  SUSPENDED  // Admin suspended (post-approval); cannot emit new signals.
+  UNCLAIMED // Pre-seeded by admin, not yet claimed by the real person.
+  PENDING // User applied; waiting admin review.
+  APPROVED // Active KOL; can emit signals.
+  REJECTED // Admin rejected the application.
+  SUSPENDED // Admin suspended (post-approval); cannot emit new signals.
 }
 
-/// Broad asset class for KOL signals. Per ADR-0036 D5: unrestricted symbol
-/// input, but this enum classifies which oracle pipeline handles settlement.
+/// Broad asset class for KOL signals. Per ADR-0036 D5 + ADR-0038: classifies
+/// which oracle pipeline handles settlement and doubles as the `Instrument`
+/// catalog category (ADR-0038 D2 — the picker surfaces the five user-facing
+/// categories EQUITY_HK / EQUITY_US / INDEX / CRYPTO / COMMODITY).
+///
+/// ORDER IS LOAD-BEARING: the position maps to the on-chain `uint8 assetClass`
+/// in KolSignalRegistry and the outbox worker's ASSET_CLASS_MAP. INDEX and
+/// COMMODITY are appended LAST (positions 6 and 7) so the existing 0-5 ordering
+/// stays stable. The contract validation widens from `<= 5` to `<= 7` in a
+/// later session (per ADR-0038 D3). FUTURES / SPOT / FOREX remain valid legacy
+/// values but are not surfaced as new picker categories.
 enum AssetClass {
   EQUITY_HK
   EQUITY_US
@@ -360,6 +370,8 @@ enum AssetClass {
   SPOT
   FOREX
   CRYPTO
+  INDEX
+  COMMODITY
 }
 
 /// Direction of a KOL signal call. Per ADR-0036 D4.
@@ -535,8 +547,8 @@ model Review {
   // Self-relation: a broker response row points to the complaint it answers.
   // Per ADR-0037 D1: `responseTo` is the complaint; `responses` is the
   // (typically 0-or-1 element) set of broker responses to this complaint.
-  responseTo   Review?  @relation("ReviewResponse", fields: [respondsToReviewId], references: [id])
-  responses    Review[] @relation("ReviewResponse")
+  responseTo Review?  @relation("ReviewResponse", fields: [respondsToReviewId], references: [id])
+  responses  Review[] @relation("ReviewResponse")
 
   @@index([respondsToReviewId])
   @@index([tenantId, brokerId, createdAt])
@@ -585,20 +597,20 @@ model ReviewTranslation {
 /// D3). The `kolSbtTokenId` / `kolSbtMintTxHash` columns mirror the pattern
 /// established in User.sbtTokenId / sbtMintTxHash.
 model Kol {
-  id              String    @id @default(uuid()) @db.Uuid
-  tenantId        String    @db.Uuid
-  userId          String?   @db.Uuid
-  slug            String    @unique
-  displayName     String
-  bio             String?   @db.Text
-  avatarUrl       String?
-  status          KolStatus @default(UNCLAIMED)
+  id               String    @id @default(uuid()) @db.Uuid
+  tenantId         String    @db.Uuid
+  userId           String?   @db.Uuid
+  slug             String    @unique
+  displayName      String
+  bio              String?   @db.Text
+  avatarUrl        String?
+  status           KolStatus @default(UNCLAIMED)
   /// JSON: { youtube?: string, instagram?: string, twitter?: string }
-  socialLinks     Json?
+  socialLinks      Json?
   /// JSON array: [{ type: "CFA"|"SFC_TYPE_4"|..., verified: boolean, verifiedAt?: string }]
-  credentials     Json?
-  iamSmartVerified Boolean  @default(false)
-  kolSbtTokenId   Int?
+  credentials      Json?
+  iamSmartVerified Boolean   @default(false)
+  kolSbtTokenId    Int?
   kolSbtMintTxHash String?
   /// Admin-supplied free text. Primary role today: rejection reason when an
   /// admin transitions a PENDING application to REJECTED (min 5 / max 500
@@ -608,16 +620,17 @@ model Kol {
   /// applicant's `/become-a-kol` and `/kol/onboarding` pages alongside this
   /// note so the user can understand why and resubmit. Per rule 50 — NEVER
   /// a place to log PII; admin moderators must keep notes generic.
-  adminNote        String?  @db.Text
+  adminNote        String?   @db.Text
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  tenant    Tenant     @relation(fields: [tenantId], references: [id])
-  user      User?      @relation(fields: [userId], references: [id])
+  tenant    Tenant      @relation(fields: [tenantId], references: [id])
+  user      User?       @relation(fields: [userId], references: [id])
   signals   Signal[]
   followers KolFollow[]
+  notes     KolNote[]
 
   @@index([tenantId, status])
   @@index([tenantId, userId])
@@ -636,6 +649,10 @@ model Signal {
   kolId         String          @db.Uuid
   assetClass    AssetClass
   symbol        String
+  /// Optional FK to the curated Instrument catalog (ADR-0038 D6). Set when the
+  /// KOL picks a catalog instrument; NULL when they type a free-text symbol.
+  /// `symbol` is always populated regardless (normalized canonical code).
+  instrumentId  String?         @db.Uuid
   direction     SignalDirection
   entryPrice    Decimal         @db.Decimal(20, 8)
   targetPrice   Decimal         @db.Decimal(20, 8)
@@ -653,16 +670,19 @@ model Signal {
   chainSignalId Int?
   chainTxHash   String?
 
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  tenant Tenant @relation(fields: [tenantId], references: [id])
-  kol    Kol    @relation(fields: [kolId], references: [id])
+  tenant     Tenant      @relation(fields: [tenantId], references: [id])
+  kol        Kol         @relation(fields: [kolId], references: [id])
+  instrument Instrument? @relation(fields: [instrumentId], references: [id])
+  notes      KolNote[]
 
   @@index([tenantId, kolId, createdAt])
   @@index([tenantId, outcome])
   @@index([tenantId, symbol])
   @@index([tenantId, assetClass])
+  @@index([instrumentId])
   @@map("signals")
 }
 
@@ -681,6 +701,89 @@ model KolFollow {
   @@unique([userId, kolId])
   @@index([kolId])
   @@map("kol_follows")
+}
+
+/// Curated catalog of tradable instruments backing the signal target picker
+/// (per ADR-0038). GLOBAL REFERENCE DATA — intentionally has NO `tenantId`
+/// (documented rule 31 exception: a market instrument is identical across
+/// tenants, like a currency or country lookup). Populated by a periodic sync
+/// script (Session 3) from HKEX / SEC / CoinGecko + curated index/commodity
+/// JSON; never hard-deleted — use `isActive` to retire a row (rule 31).
+///
+/// Multilingual names use the parallel-columns pattern (cursor rule 51 §A):
+/// `localizedInstrumentName(instrument, locale)` in `@opentrade/shared` picks
+/// the right column with `symbol` as the guaranteed non-empty fallback. US
+/// equities and crypto usually have no Chinese name (`nameZh` null → English);
+/// `nameZhHans` is OpenCC-derived during sync (best-effort, nullable).
+model Instrument {
+  id          String     @id @default(uuid()) @db.Uuid
+  /// Reuses AssetClass as the category (ADR-0038 D2). The picker surfaces
+  /// EQUITY_HK / EQUITY_US / INDEX / CRYPTO / COMMODITY.
+  category    AssetClass
+  /// Normalized canonical code, uppercase (e.g. "00005", "AAPL", "BTC", "HSI").
+  symbol      String
+  /// What the UI shows as the code (often equals `symbol`, e.g. "00005").
+  displayCode String
+  /// English name. Nullable for parity with the helper fallback chain.
+  nameEn      String?
+  /// Traditional Chinese name. Null for instruments with no Chinese name.
+  nameZh      String?
+  /// Simplified Chinese name (OpenCC-derived during sync). Best-effort, nullable.
+  nameZhHans  String?
+  /// Listing venue, e.g. "HKEX" / "NASDAQ" / "NYSE". Nullable for crypto/index.
+  exchange    String?
+  /// Provenance: "HKEX" | "SEC" | "COINGECKO" | "CURATED".
+  source      String
+  /// Soft retirement flag — never hard-delete reference rows (rule 31).
+  isActive    Boolean    @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  signals Signal[]
+
+  @@unique([category, symbol])
+  @@index([category, isActive])
+  @@index([category, displayCode])
+  @@map("instruments")
+}
+
+/// A rich-text analyst note authored by a KOL (per ADR-0039). Immutable once
+/// published — like Signal, there is NO `deletedAt` (no edit, no delete:
+/// project red line + the on-chain anchor in KolNoteRegistry). Tenant-scoped
+/// because it is user-generated content (rule 31).
+///
+/// `bodyJson` holds a portable ProseMirror/TipTap document; embedded images
+/// are stored on IPFS and referenced by CID (tracked in `imageCids`), never
+/// base64-inlined (ADR-0039 D3). `contentHash` + `ipfsCid` mirror the signal
+/// anchor pattern; `chainNoteId` / `chainTxHash` are filled by the outbox
+/// worker after KolNoteRegistry.emitNote (Session 4).
+model KolNote {
+  id             String   @id @default(uuid()) @db.Uuid
+  tenantId       String   @db.Uuid
+  kolId          String   @db.Uuid
+  title          String   @db.VarChar(200)
+  /// ProseMirror/TipTap document JSON (ADR-0039 D3).
+  bodyJson       Json
+  /// IPFS CIDs of images embedded in `bodyJson`.
+  imageCids      String[]
+  /// DB FK to the linked Signal; NULL = standalone note (ADR-0039 D2).
+  linkedSignalId String?  @db.Uuid
+  contentHash    String
+  ipfsCid        String?
+  chainNoteId    Int?
+  chainTxHash    String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant       Tenant  @relation(fields: [tenantId], references: [id])
+  kol          Kol     @relation(fields: [kolId], references: [id])
+  linkedSignal Signal? @relation(fields: [linkedSignalId], references: [id])
+
+  @@index([tenantId, kolId, createdAt])
+  @@index([tenantId, linkedSignalId])
+  @@map("kol_notes")
 }
 
 /// Transactional outbox for cross-domain domain events (per ADR-0006 outbox
@@ -748,15 +851,15 @@ enum NotificationType {
 }
 
 model Notification {
-  id         String           @id @default(uuid()) @db.Uuid
-  tenantId   String           @db.Uuid
-  userId     String           @db.Uuid
-  type       NotificationType
-  title      String           @db.VarChar(200)
-  body       String?          @db.Text
-  metadata   Json?
-  readAt     DateTime?
-  createdAt  DateTime         @default(now())
+  id        String           @id @default(uuid()) @db.Uuid
+  tenantId  String           @db.Uuid
+  userId    String           @db.Uuid
+  type      NotificationType
+  title     String           @db.VarChar(200)
+  body      String?          @db.Text
+  metadata  Json?
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
   user   User   @relation(fields: [userId], references: [id])
@@ -781,15 +884,15 @@ enum PriceSource {
 }
 
 model PriceRecord {
-  id         String      @id @default(uuid()) @db.Uuid
-  symbol     String      @db.VarChar(30)
-  source     PriceSource
-  open       Decimal     @db.Decimal(20, 8)
-  high       Decimal     @db.Decimal(20, 8)
-  low        Decimal     @db.Decimal(20, 8)
-  close      Decimal     @db.Decimal(20, 8)
-  timestamp  DateTime
-  createdAt  DateTime    @default(now())
+  id        String      @id @default(uuid()) @db.Uuid
+  symbol    String      @db.VarChar(30)
+  source    PriceSource
+  open      Decimal     @db.Decimal(20, 8)
+  high      Decimal     @db.Decimal(20, 8)
+  low       Decimal     @db.Decimal(20, 8)
+  close     Decimal     @db.Decimal(20, 8)
+  timestamp DateTime
+  createdAt DateTime    @default(now())
 
   @@unique([symbol, source, timestamp])
   @@index([symbol, timestamp])
