@@ -9,6 +9,8 @@
  * and re-export through the preset.
  */
 
+import typography from '@tailwindcss/typography';
+
 import preset from '@opentrade/ui/tailwind-preset';
 
 import type { Config } from 'tailwindcss';
@@ -16,6 +18,11 @@ import type { Config } from 'tailwindcss';
 const config = {
   presets: [preset],
   content: ['./src/**/*.{ts,tsx,mdx}', '../../packages/ui/src/**/*.{ts,tsx}'],
+  // The `prose` utilities render KOL analyst-note rich text (ADR-0039); the
+  // editor + viewer use `prose prose-invert`. Plugins (unlike theme tokens,
+  // per rule 22) are an app-level concern, so the typography plugin is
+  // registered here rather than in the shared preset.
+  plugins: [typography],
 } satisfies Config;
 
 export default config;
