@@ -1,26 +1,43 @@
 'use client';
 
 import { ArrowDownRight, ArrowUpRight, Info, Link as LinkIcon, Loader2, Radio } from 'lucide-react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { useCallback, useEffect, useState } from 'react';
 
+import { InstrumentPicker } from '../../../../../components/kols/InstrumentPicker';
 import { useOpenTradeAuth } from '../../../../../hooks/useOpenTradeAuth';
 import { Link } from '../../../../../i18n/navigation';
-import { fetchMyKolProfile, submitSignal, ApiClientError } from '../../../../../lib/api/client';
+import {
+  fetchInstruments,
+  fetchMyKolProfile,
+  localizedInstrumentName,
+  submitSignal,
+  ApiClientError,
+} from '../../../../../lib/api/client';
 
-import type { AssetClass, SignalDirection, SignalItem } from '../../../../../lib/api/client';
+import type {
+  InstrumentOption,
+  InstrumentPickerLabels,
+  InstrumentPickerValue,
+} from '../../../../../components/kols/InstrumentPicker';
+import type {
+  InstrumentCategory,
+  SignalDirection,
+  SignalItem,
+} from '../../../../../lib/api/client';
 import type { ReactNode } from 'react';
 
 type ViewMode = 'form' | 'preview' | 'submitting' | 'success';
 
-const ASSET_CLASS_OPTIONS: { value: AssetClass; labelKey: string }[] = [
-  { value: 'CRYPTO', labelKey: 'assetCrypto' },
-  { value: 'EQUITY_HK', labelKey: 'assetHkStocks' },
-  { value: 'EQUITY_US', labelKey: 'assetUsStocks' },
-  { value: 'FOREX', labelKey: 'assetForex' },
-  { value: 'FUTURES', labelKey: 'assetFutures' },
-  { value: 'SPOT', labelKey: 'assetSpot' },
-];
+// Maps the five surfaced instrument categories to their `instrumentPicker`
+// i18n label keys (reused on the preview screen).
+const CATEGORY_LABEL_KEY: Record<InstrumentCategory, string> = {
+  EQUITY_HK: 'categoryEquityHk',
+  EQUITY_US: 'categoryEquityUs',
+  INDEX: 'categoryIndex',
+  CRYPTO: 'categoryCrypto',
+  COMMODITY: 'categoryCommodity',
+};
 
 const HORIZON_OPTIONS: { value: number; labelKey: string }[] = [
   { value: 1, labelKey: 'horizon1d' },
@@ -36,6 +53,8 @@ const PRICE_REGEX = /^\d+(\.\d+)?$/;
 
 export default function KolSignalNewPage(): ReactNode {
   const t = useTranslations('kolConsole');
+  const tPicker = useTranslations('instrumentPicker');
+  const locale = useLocale();
   const { getAccessToken } = useOpenTradeAuth();
 
   const [kolId, setKolId] = useState<string | null>(null);
@@ -43,15 +62,60 @@ export default function KolSignalNewPage(): ReactNode {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<SignalItem | null>(null);
 
-  // Form state
-  const [assetClass, setAssetClass] = useState<AssetClass>('CRYPTO');
-  const [symbol, setSymbol] = useState('');
+  // Form state — the asset-class dropdown + free-text symbol were replaced by
+  // a single instrument picker selection (ADR-0038 D6).
+  const [instrument, setInstrument] = useState<InstrumentPickerValue>(null);
   const [direction, setDirection] = useState<SignalDirection>('BUY');
   const [entryPrice, setEntryPrice] = useState('');
   const [targetPrice, setTargetPrice] = useState('');
   const [stopLoss, setStopLoss] = useState('');
   const [horizon, setHorizon] = useState(7);
   const [notes, setNotes] = useState('');
+
+  // Derived from the picker selection. `category` doubles as the signal's
+  // assetClass (it is a subset of the AssetClass union); the backend re-derives
+  // the canonical symbol + assetClass from `instrumentId` when present.
+  const selectedSymbol = instrument
+    ? instrument.kind === 'catalog'
+      ? instrument.instrument.displayCode
+      : instrument.symbol
+    : '';
+  const selectedCategory: InstrumentCategory | null = instrument
+    ? instrument.kind === 'catalog'
+      ? instrument.instrument.category
+      : instrument.category
+    : null;
+
+  const searchInstruments = useCallback(
+    async (category: InstrumentCategory, q: string): Promise<InstrumentOption[]> => {
+      const res = await fetchInstruments({ category, q, limit: 20 });
+      return res.instruments.map((dto) => ({
+        id: dto.id,
+        category: dto.category,
+        symbol: dto.symbol,
+        displayCode: dto.displayCode,
+        name: localizedInstrumentName(dto, locale),
+      }));
+    },
+    [locale],
+  );
+
+  const pickerLabels: InstrumentPickerLabels = {
+    categoryLabel: tPicker('categoryLabel'),
+    categories: {
+      EQUITY_HK: tPicker('categoryEquityHk'),
+      EQUITY_US: tPicker('categoryEquityUs'),
+      INDEX: tPicker('categoryIndex'),
+      CRYPTO: tPicker('categoryCrypto'),
+      COMMODITY: tPicker('categoryCommodity'),
+    },
+    searchPlaceholder: tPicker('searchPlaceholder'),
+    loading: tPicker('loading'),
+    noResults: tPicker('noResults'),
+    useFreeText: (input: string) => tPicker('useFreeText', { input }),
+    clear: tPicker('clear'),
+    customLabel: tPicker('customLabel'),
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -73,25 +137,37 @@ export default function KolSignalNewPage(): ReactNode {
     };
   }, [getAccessToken]);
 
-  const canPreview = symbol.trim().length > 0 && PRICE_REGEX.test(targetPrice);
+  const canPreview =
+    instrument !== null && selectedSymbol.trim().length > 0 && PRICE_REGEX.test(targetPrice);
 
   const handleSubmit = useCallback(async () => {
-    if (!kolId) return;
+    if (!kolId || !instrument || !selectedCategory) return;
     setViewMode('submitting');
     setError(null);
     try {
       const token = await getAccessToken();
       if (!token) return;
 
+      const canonicalSymbol =
+        instrument.kind === 'catalog'
+          ? instrument.instrument.symbol
+          : instrument.symbol.trim().toUpperCase();
+
       const input: Parameters<typeof submitSignal>[0] = {
         kolId,
-        assetClass,
-        symbol: symbol.trim().toUpperCase(),
+        assetClass: selectedCategory,
+        symbol: canonicalSymbol,
         direction,
         entryPrice: entryPrice || '0',
         targetPrice,
         horizon,
       };
+      // When a catalog instrument was chosen, send its id so the backend
+      // derives the canonical symbol + assetClass from the catalog (ADR-0038
+      // D6); free-text selections leave instrumentId unset.
+      if (instrument.kind === 'catalog' && instrument.instrument.id) {
+        input.instrumentId = instrument.instrument.id;
+      }
       if (stopLoss && PRICE_REGEX.test(stopLoss)) input.stoplossPrice = stopLoss;
       if (notes.trim()) input.note = notes.trim();
 
@@ -108,9 +184,9 @@ export default function KolSignalNewPage(): ReactNode {
     }
   }, [
     kolId,
+    instrument,
+    selectedCategory,
     getAccessToken,
-    assetClass,
-    symbol,
     direction,
     entryPrice,
     targetPrice,
@@ -187,15 +263,12 @@ export default function KolSignalNewPage(): ReactNode {
             <div>
               <div className="mb-1 text-xs font-bold text-white/40">{t('signalAssetClass')}</div>
               <div className="font-bold">
-                {t(
-                  ASSET_CLASS_OPTIONS.find((o) => o.value === assetClass)?.labelKey ??
-                    'assetCrypto',
-                )}
+                {selectedCategory ? tPicker(CATEGORY_LABEL_KEY[selectedCategory]) : 'N/A'}
               </div>
             </div>
             <div>
               <div className="mb-1 text-xs font-bold text-white/40">{t('signalSymbol')}</div>
-              <div className="font-bold font-mono text-xl">{symbol.toUpperCase() || 'N/A'}</div>
+              <div className="font-bold font-mono text-xl">{selectedSymbol || 'N/A'}</div>
             </div>
             <div>
               <div className="mb-1 text-xs font-bold text-white/40">{t('signalDirection')}</div>
@@ -300,32 +373,15 @@ export default function KolSignalNewPage(): ReactNode {
       </div>
 
       <div className="space-y-8 rounded-3xl border border-white/10 bg-white/5 p-8">
-        {/* Asset class + Symbol */}
-        <div className="grid grid-cols-2 gap-6">
-          <div className="col-span-2 space-y-4 md:col-span-1">
-            <label className="block text-sm font-bold text-white/70">{t('signalAssetClass')}</label>
-            <select
-              value={assetClass}
-              onChange={(e) => setAssetClass(e.target.value as AssetClass)}
-              className="w-full appearance-none rounded-xl border border-white/10 bg-black/40 px-4 py-3.5 text-white focus:border-[#00FF88] focus:outline-none"
-            >
-              {ASSET_CLASS_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {t(opt.labelKey)}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="col-span-2 space-y-4 md:col-span-1">
-            <label className="block text-sm font-bold text-white/70">{t('signalSymbol')}</label>
-            <input
-              value={symbol}
-              onChange={(e) => setSymbol(e.target.value.toUpperCase())}
-              type="text"
-              placeholder="e.g. BTC/USDT"
-              className="w-full rounded-xl border border-white/10 bg-black/40 px-4 py-4 font-mono text-lg uppercase text-white focus:border-[#00FF88] focus:outline-none"
-            />
-          </div>
+        {/* Instrument target picker (asset class + symbol) */}
+        <div>
+          <label className="mb-4 block text-sm font-bold text-white/70">{t('signalSymbol')}</label>
+          <InstrumentPicker
+            value={instrument}
+            onChange={setInstrument}
+            searchInstruments={searchInstruments}
+            labels={pickerLabels}
+          />
         </div>
 
         {/* Direction */}
