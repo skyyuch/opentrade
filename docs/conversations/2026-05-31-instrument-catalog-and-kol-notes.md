@@ -1,6 +1,6 @@
-# 訊號標的目錄 + KOL 分析師筆記 — Session 1-2 — 2026-05-31
+# 訊號標的目錄 + KOL 分析師筆記 — Session 1-3 — 2026-05-31
 
-> 本文件歸檔「訊號標的選擇器 + 分析師筆記」5-session 執行計畫 Session 1（決策 + schema + shared types）與 Session 2（智能合約層）的決策與踩坑精華。
+> 本文件歸檔「訊號標的選擇器 + 分析師筆記」5-session 執行計畫 Session 1（決策 + schema + shared types）、Session 2（智能合約層）與 Session 3（標的目錄後端）的決策與踩坑精華。
 
 ## 對話脈絡
 
@@ -79,15 +79,47 @@ Session 2 把 Session 1 拍板的合約規格落地，3 個 atomic commit（C1 s
 - KolSignalRegistry 的 `<= 7` 升級**只寫了 code + 升級腳本，尚未 broadcast**。既有部署 proxy `0xf444...35be` 仍跑舊 impl `<= 5`。Session 3 把 INDEX/COMMODITY 訊號要上鏈前，需先跑升級腳本。
 - KolNoteRegistry **尚未部署**（無 `KOL_NOTE_REGISTRY_ADDRESS`），Session 4 worker handler graceful skip 直到部署。
 
+## Session 3（2026-05-31）— 標的目錄後端
+
+Session 3 把標的目錄的後端落地，6 個 atomic commit（C1 asset-class maps / C2 IPFS pin fix / C3 instrumentId wiring / C4 catalog upsert+curated / C5 external sources / C6 search endpoint），全程 7-workspace typecheck + lint + 101 api unit tests 綠。
+
+### 1. 修補 signal IPFS pinning gap（C2，關鍵）
+
+Session 1 handoff 點名的既知 gap：`EmitSignalUseCase` 原 `ipfsCid=''`，outbox worker `processSignalSubmitted` 看到空 CID 直接 throw `has no ipfsCid`，signal 永遠不上鏈——默默違反不可竄改承諾。修法：注入 `IIpfsService`（reviews 的 Pinata adapter，complaints/identity 早就跨域 import，established pattern，**免 refactor 到 shared**），pin 完整 payload、存真實 CID；hashed object 就是 pinned object，故 contentHash 對齊 IPFS 內容；pin 失敗 propagate 中止建立（mirror SubmitReviewUseCase）。
+
+### 2. catalog sync 架構（C4/C5）
+
+- `packages/db/src/catalog/`：`syncInstruments(prisma, data)` source-agnostic 冪等 upsert（key `[category,symbol]`），`nameZhHans` 在 upsert 內 OpenCC 衍生（reuse `src/sfc/opencc.ts`，免 lift），per-source soft-retirement 對賬（partial sync 不誤殺他源）。
+- 三外部 source 皆免金鑰：**HKEX** List of Securities（英 + 繁中 bulk XLSX 以股票代號 join，只取 Equity；用 `fflate` 輕量 unzip + regex 解析 inline-string XLSX，避開 SheetJS CVE / exceljs 重量）；**SEC** `company_tickers.json`；**CoinGecko** `/coins/markets` top 500（ADR-0038 D5 寫 `/coins/list` 但該端點 17k 未排序雜訊，改 markets 排序版——同 provider 同免金鑰，文件化 refinement）。
+- 各 source 失敗隔離（一個掛只 warn skip，因 reconciliation per-source 缺源不誤殺）。dev DB 端到端：13,632 instruments / ~20s（`00005 → HSBC HOLDINGS / 匯豐控股`，正是 ADR 範例）/ re-run 冪等。
+
+### 3. 搜尋 endpoint + instrumentId wiring（C6/C3）
+
+- 新 instruments DDD domain 四層，`GET /v1/instruments?category=&q=&limit=` 搜本地 synced catalog（永不打 live API per D5），限 `isActive` + 5 surfaced 類別，public read-only。`q=005` 首回 `00005 HSBC HOLDINGS`。
+- repo + port 跨域 export 給 signals 用；`EmitSignalUseCase` 解析 instrumentId → canonical symbol + `assetClass=instrument.category`（單一真相覆蓋 client 值），未知 id 拒，無 id free-text 原樣保留（D6）。
+
+### 4. 踩坑紀錄（重要 — 給未來 agent）
+
+1. **`packages/db` 不能 import `@opentrade/shared`**：db tsconfig 是 `composite: true` + `references: [../shared]`，但 shared package.json **無 `build` task**，turbo `typecheck` 的 `^build` 對 shared 是 no-op，故 shared 的 `dist/*.d.ts` 永不存在 → `tsc --noEmit` 報 `TS6305`。解法：catalog types 自定義 `InstrumentCategory` 局部 union（Prisma `AssetClass` 為 runtime 真相，shared 為 canonical 文件來源）。**未來若要在 db 引 shared，得先給 shared 加 build task。**
+2. **HKEX 英文 XLSX 無中文名**：英文 List of Securities 只有 English name → 額外 fetch 繁中 companion 檔（`ListOfSecurities_c.xlsx`）以股票代號 join 補 `nameZh`。
+3. **XLSX 是 inline-string 格式**（`<is><t>`，非 shared strings）：用 fflate unzip + namespace-agnostic regex 解析 `xl/worksheets/sheet1.xml`，只支援 HKEX 實際用到的 cell 形態子集。
+4. **CoinGecko `/coins/list` vs `/coins/markets`**：前者 17k 未排序（含死幣/垃圾名），後者 market-cap 排序、同免金鑰 → 取 top 500 做品質 catalog。
+5. **策展 JSON 路徑**：放 `packages/db/seed/data/`（既有 sfc-brokers/hk-kols 慣例）而非 ADR-0038 文字的 `seed-data/`，consolidate 避免兩套 dir。
+
+### 5. 合約仍未上鏈（不變）
+
+`KolSignalRegistry` `<=7` 升級 + `KolNoteRegistry` 仍只寫了 code 未 broadcast。在升級腳本跑之前，INDEX/COMMODITY signal 的 `signal.submitted` 會 on-chain revert（`InvalidAssetClass`），worker retry 5 次 terminal-fail（signal row 仍存 DB + IPFS）。其他類別（EQUITY/CRYPTO 等 0-5）不受影響照常上鏈。
+
 ## 待後續處理事項
 
 | Owner      | 事項                                                                                                                                                                                                        |
 | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 下個 agent | Session 3 標的目錄後端（catalog sync 腳本 HKEX/SEC/CoinGecko + 策展 JSON + `GET /v1/instruments` + 訊號接 instrumentId + 修 signal IPFS pinning gap + outbox `ASSET_CLASS_MAP` +INDEX/COMMODITY）           |
-| 後續       | Session 4 筆記後端（notes DDD domain + 圖片上傳 + outbox `note.submitted` 接 KolNoteRegistry）                                                                                                              |
-| 後續       | Session 5 前端整合（Google Studio 交付 UI 後接標的選擇器 + 筆記編輯/顯示）                                                                                                                                  |
+| 下個 agent | Session 4 筆記後端（notes DDD domain — entity/repo/use cases/routes + 圖片上傳走既有 Pinata `pinFile` + outbox `note.submitted` handler 接 `KolNoteRegistry`，未部署前 graceful skip）                      |
+| 後續       | Session 5 前端整合（Google Studio 交付 UI 後接標的選擇器 `GET /v1/instruments` + 筆記富文本編輯/顯示）                                                                                                      |
 | 維運/合約  | broadcast `KolSignalRegistry` `<=7` 升級到 Base Sepolia（跑 `UpgradeKolSignalRegistry.s.sol`，需 `UPGRADER_ROLE`）+ 部署 `KolNoteRegistry`（`DeployKolNoteRegistry.s.sol`）並填 `KOL_NOTE_REGISTRY_ADDRESS` |
+| 維運       | 生產環境跑 `pnpm --filter @opentrade/db sync:instruments` 填 catalog + 建議排程定期 sync（reconciliation 已支援增量/退場）                                                                                  |
 | 維運       | 處理 `opentrade_dev` pre-existing drift（`notifications.id` + checksum）                                                                                                                                    |
+| 技術債     | 若要在 `packages/db` import `@opentrade/shared`，須先給 shared 加 build task（否則 composite reference 的 `dist` 不存在）                                                                                   |
 
 ## 給未來 AI agent 的建議
 
