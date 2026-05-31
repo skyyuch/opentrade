@@ -18,13 +18,16 @@ import {
 import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
+import { NoteCard } from '@/components/notes/NoteCard';
 import { useOpenTradeAuth } from '@/hooks/useOpenTradeAuth';
 import { Link } from '@/i18n/navigation';
 import {
   fetchKolStats,
+  fetchNotes,
   followKol,
   unfollowKol,
   type KolListItem,
+  type KolNoteListItemDto,
   type KolStats,
   type SignalItem,
 } from '@/lib/api/client';
@@ -370,9 +373,23 @@ function SignalSection({
   total: number;
   t: ReturnType<typeof useTranslations<'kols'>>;
 }): ReactNode {
+  const tCard = useTranslations('noteCard');
   const [layout, setLayout] = useState<SignalLayout>('timeline');
-  const [activeTab, setActiveTab] = useState<'active' | 'history'>('active');
+  const [activeTab, setActiveTab] = useState<'active' | 'history' | 'notes'>('active');
   const [historyFilter, setHistoryFilter] = useState<HistoryFilter>('all');
+  const [notes, setNotes] = useState<KolNoteListItemDto[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchNotes({ kolId: kol.id, limit: 50 })
+      .then((res) => {
+        if (!cancelled) setNotes(res.notes);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [kol.id]);
 
   const activeSignals = useMemo(() => signals.filter((s) => s.outcome === 'ACTIVE'), [signals]);
   const historySignals = useMemo(() => signals.filter((s) => s.outcome !== 'ACTIVE'), [signals]);
@@ -427,6 +444,26 @@ function SignalSection({
               {historySignals.length}
             </span>
           </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('notes')}
+            className={`flex items-center gap-2 border-b-2 pb-2 text-lg font-bold transition-colors ${
+              activeTab === 'notes'
+                ? 'border-[#00FF88] text-[#00FF88]'
+                : 'border-transparent text-white/50 hover:text-white'
+            }`}
+          >
+            {t('tabNotes')}
+            <span
+              className={`rounded-full px-2 py-0.5 text-xs ${
+                activeTab === 'notes'
+                  ? 'bg-[#00FF88]/20 text-[#00FF88]'
+                  : 'bg-white/10 text-white/50'
+              }`}
+            >
+              {notes.length}
+            </span>
+          </button>
         </div>
 
         <div className="flex items-center gap-4">
@@ -460,7 +497,11 @@ function SignalSection({
             </div>
           )}
 
-          <div className="ml-auto hidden items-center gap-1 rounded-lg border border-white/10 bg-white/5 p-1 lg:flex">
+          <div
+            className={`ml-auto hidden items-center gap-1 rounded-lg border border-white/10 bg-white/5 p-1 lg:flex ${
+              activeTab === 'notes' ? 'lg:hidden' : ''
+            }`}
+          >
             {LAYOUT_ICONS.map(({ key, Icon, label }) => (
               <button
                 key={key}
@@ -480,8 +521,32 @@ function SignalSection({
         </div>
       </div>
 
-      {/* Unclaimed — cannot view signals */}
-      {kol.status === 'UNCLAIMED' ? (
+      {/* Notes tab */}
+      {activeTab === 'notes' ? (
+        notes.length === 0 ? (
+          <div className="flex w-full flex-col items-center rounded-2xl border border-dashed border-white/10 bg-white/5 p-12 text-center">
+            <GitCommit className="mb-4 text-white/20" size={48} />
+            <h3 className="mb-2 text-lg font-bold text-white/80">{t('noNotes')}</h3>
+            <p className="max-w-md text-sm text-white/40">{t('noNotesDesc')}</p>
+          </div>
+        ) : (
+          <div className="grid animate-in fade-in slide-in-from-bottom-4 grid-cols-1 items-start gap-4 duration-500 md:grid-cols-2">
+            {notes.map((note) => (
+              <div key={note.id} className="min-h-[160px]">
+                <NoteCard
+                  note={note}
+                  href={`/notes/${note.id}`}
+                  labels={{
+                    associatedSignal: tCard('associatedSignal'),
+                    readMore: tCard('readMore'),
+                  }}
+                />
+              </div>
+            ))}
+          </div>
+        )
+      ) : /* Unclaimed — cannot view signals */
+      kol.status === 'UNCLAIMED' ? (
         <div className="flex w-full flex-col items-center rounded-2xl border border-dashed border-white/10 bg-white/5 p-12 text-center">
           <ShieldAlert className="mb-4 text-white/20" size={48} />
           <h3 className="mb-2 text-lg font-bold text-white/80">{t('cannotViewSignals')}</h3>

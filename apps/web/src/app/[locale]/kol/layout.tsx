@@ -1,7 +1,16 @@
 'use client';
 
 import { usePrivy } from '@privy-io/react-auth';
-import { LayoutDashboard, Loader2, LogIn, Plus, Radio, ShieldAlert, UserPlus } from 'lucide-react';
+import {
+  FileText,
+  LayoutDashboard,
+  Loader2,
+  LogIn,
+  Plus,
+  Radio,
+  ShieldAlert,
+  UserPlus,
+} from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
 
@@ -22,6 +31,7 @@ type NavItem = {
 const NAV_ITEMS: NavItem[] = [
   { href: '/kol/dashboard', labelKey: 'navDashboard', icon: LayoutDashboard },
   { href: '/kol/signals', labelKey: 'navSignals', icon: Radio },
+  { href: '/kol/notes', labelKey: 'navNotes', icon: FileText },
 ];
 
 export default function KolConsoleLayout({ children }: { children: ReactNode }) {
