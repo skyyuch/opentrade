@@ -139,6 +139,12 @@ Vault mode (optional commit-reveal for alpha protection) is reserved for Phase 5
 
 ### D5: Unrestricted asset scope with selective oracle settlement
 
+> **Amended by [ADR-0038](./0038-instrument-catalog-and-asset-scope.md) (2026-05-31).**
+> The asset class enum below is extended with `INDEX` and `COMMODITY`, and a curated
+> `Instrument` catalog now backs a category-scoped symbol search in the UI. Free-text
+> symbol input is **retained** as a fallback, so this remains an extension, not a
+> reversal, of D5's anti-restriction intent.
+
 KOLs can emit signals for any asset class. The platform does not restrict callable symbols.
 
 **Asset class enum**: `EQUITY_HK | EQUITY_US | FUTURES | SPOT | FOREX | CRYPTO`
