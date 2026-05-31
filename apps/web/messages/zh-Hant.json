@@ -634,7 +634,10 @@
     "noActiveSignals": "目前沒有進行中的訊號",
     "noHistorySignals": "目前沒有歷史訊號",
     "cannotViewSignals": "無法檢視詳細訊號",
-    "cannotViewSignalsDesc": "此 KOL 尚未認證綁定錢包，無法讀取防篡改的鏈上歷史訊號。"
+    "cannotViewSignalsDesc": "此 KOL 尚未認證綁定錢包，無法讀取防篡改的鏈上歷史訊號。",
+    "tabNotes": "分析筆記",
+    "noNotes": "目前沒有分析筆記",
+    "noNotesDesc": "這位 KOL 尚未發布任何分析筆記"
   },
   "kolConsole": {
     "consoleTitle": "KOL 控制台",
@@ -777,7 +780,8 @@
     "signalSuccessId": "訊號 ID",
     "signalSuccessHash": "內容雜湊",
     "signalSuccessBackToList": "返回列表",
-    "signalSuccessShare": "分享到社群"
+    "signalSuccessShare": "分享到社群",
+    "navNotes": "分析筆記"
   },
   "becomeAKol": {
     "heroEyebrow": "成為 OpenTrade 認證 KOL",
@@ -861,5 +865,72 @@
     "termsAnd": "與",
     "privacyLink": "隱私權政策",
     "termsSuffix": "。您的連線將受到端到端加密保護。"
+  },
+  "instrumentPicker": {
+    "categoryLabel": "標的類別",
+    "categoryEquityHk": "港股",
+    "categoryEquityUs": "美股",
+    "categoryIndex": "指數",
+    "categoryCrypto": "虛擬貨幣",
+    "categoryCommodity": "商品",
+    "searchPlaceholder": "搜尋代號或名稱（例如 005、AAPL、BTC）",
+    "loading": "搜尋中…",
+    "noResults": "找不到符合的標的",
+    "useFreeText": "使用自訂標的「{input}」",
+    "clear": "清除",
+    "customLabel": "自訂標的"
+  },
+  "noteEditor": {
+    "pageTitle": "撰寫新筆記",
+    "backToList": "返回列表",
+    "titlePlaceholder": "為您的分析筆記取個標題…",
+    "linkedSignal": "關聯訊號（選填）",
+    "noSignal": "不關聯訊號（獨立筆記）",
+    "immutableWarningTitle": "不可篡改聲明",
+    "immutableWarningDesc": "此筆記一經發布將上傳至 IPFS，並將雜湊記錄於區塊鏈上。發布後無法修改或刪除，請確認內容無誤。",
+    "previewBtn": "預覽筆記",
+    "backBtn": "返回編輯",
+    "submitBtn": "確認發布並上鏈",
+    "submittingIpfs": "正在將內容與圖片封裝至 IPFS…",
+    "submittingChain": "等待區塊鏈打包，請勿關閉視窗",
+    "successTitle": "筆記已永久保存",
+    "successDesc": "您的筆記已成功上傳至 IPFS，並將雜湊記錄於區塊鏈上。沒有任何人能篡改這些內容。",
+    "viewOnChain": "在區塊瀏覽器查看",
+    "viewOnIpfs": "開啟 IPFS 原始檔",
+    "imageUploadFailed": "圖片上傳失敗",
+    "submitError": "發布失敗，請稍後再試",
+    "toolbarBold": "粗體",
+    "toolbarItalic": "斜體",
+    "toolbarH2": "標題 2",
+    "toolbarH3": "標題 3",
+    "toolbarBulletList": "無序清單",
+    "toolbarOrderedList": "有序清單",
+    "toolbarQuote": "引用",
+    "toolbarImage": "插入圖片"
+  },
+  "noteList": {
+    "title": "我的分析筆記",
+    "subtitle": "管理與發布您的觀點分析，將不可篡改地記錄在區塊鏈上。",
+    "newNote": "發布新筆記",
+    "searchPlaceholder": "搜尋筆記標題…",
+    "empty": "找不到符合的筆記",
+    "emptyHint": "開始撰寫您的第一篇分析筆記",
+    "loginRequired": "請先登入以管理您的筆記"
+  },
+  "noteCard": {
+    "associatedSignal": "包含關聯訊號",
+    "readMore": "查看詳情"
+  },
+  "noteDetail": {
+    "back": "返回上一頁",
+    "immutableBadgeTitle": "Web3 不可篡改紀錄",
+    "linkedSignalHeader": "分析師關聯訊號",
+    "viewTx": "查看鏈上紀錄",
+    "viewIpfs": "IPFS 原檔",
+    "entryPrice": "進場價",
+    "exitPrice": "平倉價",
+    "pendingTxUrl": "⏳ 等待上鏈 (pending)",
+    "notFound": "找不到這篇筆記",
+    "disclaimer": "本內容由 KOL 自行發布，不構成任何投資建議。"
   }
 }

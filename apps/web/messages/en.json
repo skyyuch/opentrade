@@ -158,7 +158,7 @@
     "kolFollowers": "followers",
     "complaintsListHeading": "All complaints",
     "complaintsListCount": "{count, plural, =0 {No complaints filed} one {# complaint filed} other {# complaints filed}}",
-    "complaintsDisclaimer": "Complaints are submitted by verified users with mandatory evidence. The platform reviews each one and marks it Verified or Rejected. Per our 「reject \u2260 delete」 principle the original text stays on-chain regardless of the verdict.",
+    "complaintsDisclaimer": "Complaints are submitted by verified users with mandatory evidence. The platform reviews each one and marks it Verified or Rejected. Per our 「reject ≠ delete」 principle the original text stays on-chain regardless of the verdict.",
     "noComplaints": "No complaints yet",
     "noComplaintsDesc": "No verified user has filed a complaint against this broker. A clean complaint record is a positive signal.",
     "verifiedComplaintsHeadline": "Verified Complaints",
@@ -634,7 +634,10 @@
     "noActiveSignals": "No active signals",
     "noHistorySignals": "No history signals",
     "cannotViewSignals": "Cannot view signal details",
-    "cannotViewSignalsDesc": "This KOL has not verified their wallet. On-chain tamper-proof signal history is unavailable."
+    "cannotViewSignalsDesc": "This KOL has not verified their wallet. On-chain tamper-proof signal history is unavailable.",
+    "tabNotes": "Notes",
+    "noNotes": "No analyst notes yet",
+    "noNotesDesc": "This KOL hasn't published any analyst notes yet"
   },
   "kolConsole": {
     "consoleTitle": "KOL Console",
@@ -777,7 +780,8 @@
     "signalSuccessId": "Signal ID",
     "signalSuccessHash": "Content Hash",
     "signalSuccessBackToList": "Back to List",
-    "signalSuccessShare": "Share"
+    "signalSuccessShare": "Share",
+    "navNotes": "Notes"
   },
   "becomeAKol": {
     "heroEyebrow": "Become an OpenTrade certified KOL",
@@ -861,5 +865,72 @@
     "termsAnd": "and",
     "privacyLink": "Privacy Policy",
     "termsSuffix": ". Your session is protected by end-to-end encryption."
+  },
+  "instrumentPicker": {
+    "categoryLabel": "Asset category",
+    "categoryEquityHk": "HK Equity",
+    "categoryEquityUs": "US Equity",
+    "categoryIndex": "Index",
+    "categoryCrypto": "Crypto",
+    "categoryCommodity": "Commodity",
+    "searchPlaceholder": "Search code or name (e.g. 005, AAPL, BTC)",
+    "loading": "Searching…",
+    "noResults": "No matching instruments",
+    "useFreeText": "Use custom symbol “{input}”",
+    "clear": "Clear",
+    "customLabel": "Custom symbol"
+  },
+  "noteEditor": {
+    "pageTitle": "Write a new note",
+    "backToList": "Back to list",
+    "titlePlaceholder": "Give your analyst note a title…",
+    "linkedSignal": "Linked signal (optional)",
+    "noSignal": "No linked signal (standalone)",
+    "immutableWarningTitle": "Immutability notice",
+    "immutableWarningDesc": "Once published, this note is uploaded to IPFS and its hash recorded on-chain. It cannot be edited or deleted afterwards — please make sure the content is correct.",
+    "previewBtn": "Preview note",
+    "backBtn": "Back to edit",
+    "submitBtn": "Publish & anchor on-chain",
+    "submittingIpfs": "Packing content and images to IPFS…",
+    "submittingChain": "Waiting for the chain to confirm — please keep this window open",
+    "successTitle": "Note saved permanently",
+    "successDesc": "Your note has been uploaded to IPFS and its hash recorded on-chain. No one can tamper with this content.",
+    "viewOnChain": "View on explorer",
+    "viewOnIpfs": "Open IPFS source",
+    "imageUploadFailed": "Image upload failed",
+    "submitError": "Publishing failed, please try again",
+    "toolbarBold": "Bold",
+    "toolbarItalic": "Italic",
+    "toolbarH2": "Heading 2",
+    "toolbarH3": "Heading 3",
+    "toolbarBulletList": "Bullet list",
+    "toolbarOrderedList": "Numbered list",
+    "toolbarQuote": "Quote",
+    "toolbarImage": "Insert image"
+  },
+  "noteList": {
+    "title": "My analyst notes",
+    "subtitle": "Manage and publish your analysis — immutably recorded on-chain.",
+    "newNote": "New note",
+    "searchPlaceholder": "Search note titles…",
+    "empty": "No matching notes",
+    "emptyHint": "Start writing your first analyst note",
+    "loginRequired": "Please sign in to manage your notes"
+  },
+  "noteCard": {
+    "associatedSignal": "Linked signal",
+    "readMore": "Read more"
+  },
+  "noteDetail": {
+    "back": "Back",
+    "immutableBadgeTitle": "Web3 immutable record",
+    "linkedSignalHeader": "Linked signal",
+    "viewTx": "View on-chain",
+    "viewIpfs": "IPFS source",
+    "entryPrice": "Entry",
+    "exitPrice": "Exit",
+    "pendingTxUrl": "⏳ Pending on-chain",
+    "notFound": "Note not found",
+    "disclaimer": "This content is published by the KOL and does not constitute investment advice."
   }
 }

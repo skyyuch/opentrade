@@ -634,7 +634,10 @@
     "noActiveSignals": "目前没有进行中的讯号",
     "noHistorySignals": "目前没有历史讯号",
     "cannotViewSignals": "无法检视详细讯号",
-    "cannotViewSignalsDesc": "此 KOL 尚未认证绑定钱包，无法读取防篡改的链上历史讯号。"
+    "cannotViewSignalsDesc": "此 KOL 尚未认证绑定钱包，无法读取防篡改的链上历史讯号。",
+    "tabNotes": "分析笔记",
+    "noNotes": "目前没有分析笔记",
+    "noNotesDesc": "这位 KOL 尚未发布任何分析笔记"
   },
   "kolConsole": {
     "consoleTitle": "KOL 控制台",
@@ -777,7 +780,8 @@
     "signalSuccessId": "讯号 ID",
     "signalSuccessHash": "内容哈希",
     "signalSuccessBackToList": "返回列表",
-    "signalSuccessShare": "分享到社群"
+    "signalSuccessShare": "分享到社群",
+    "navNotes": "分析笔记"
   },
   "becomeAKol": {
     "heroEyebrow": "成为 OpenTrade 认证 KOL",
@@ -861,5 +865,72 @@
     "termsAnd": "与",
     "privacyLink": "隐私权政策",
     "termsSuffix": "。您的连线将受到端到端加密保护。"
+  },
+  "instrumentPicker": {
+    "categoryLabel": "标的类别",
+    "categoryEquityHk": "港股",
+    "categoryEquityUs": "美股",
+    "categoryIndex": "指数",
+    "categoryCrypto": "虚拟货币",
+    "categoryCommodity": "商品",
+    "searchPlaceholder": "搜索代号或名称（例如 005、AAPL、BTC）",
+    "loading": "搜索中…",
+    "noResults": "找不到符合的标的",
+    "useFreeText": "使用自定义标的「{input}」",
+    "clear": "清除",
+    "customLabel": "自定义标的"
+  },
+  "noteEditor": {
+    "pageTitle": "撰写新笔记",
+    "backToList": "返回列表",
+    "titlePlaceholder": "为您的分析笔记取个标题…",
+    "linkedSignal": "关联讯号（选填）",
+    "noSignal": "不关联讯号（独立笔记）",
+    "immutableWarningTitle": "不可篡改声明",
+    "immutableWarningDesc": "此笔记一经发布将上传至 IPFS，并将哈希记录于区块链上。发布后无法修改或删除，请确认内容无误。",
+    "previewBtn": "预览笔记",
+    "backBtn": "返回编辑",
+    "submitBtn": "确认发布并上链",
+    "submittingIpfs": "正在将内容与图片封装至 IPFS…",
+    "submittingChain": "等待区块链打包，请勿关闭窗口",
+    "successTitle": "笔记已永久保存",
+    "successDesc": "您的笔记已成功上传至 IPFS，并将哈希记录于区块链上。没有任何人能篡改这些内容。",
+    "viewOnChain": "在区块浏览器查看",
+    "viewOnIpfs": "打开 IPFS 原始档",
+    "imageUploadFailed": "图片上传失败",
+    "submitError": "发布失败，请稍后再试",
+    "toolbarBold": "粗体",
+    "toolbarItalic": "斜体",
+    "toolbarH2": "标题 2",
+    "toolbarH3": "标题 3",
+    "toolbarBulletList": "无序清单",
+    "toolbarOrderedList": "有序清单",
+    "toolbarQuote": "引用",
+    "toolbarImage": "插入图片"
+  },
+  "noteList": {
+    "title": "我的分析笔记",
+    "subtitle": "管理与发布您的观点分析，将不可篡改地记录在区块链上。",
+    "newNote": "发布新笔记",
+    "searchPlaceholder": "搜索笔记标题…",
+    "empty": "找不到符合的笔记",
+    "emptyHint": "开始撰写您的第一篇分析笔记",
+    "loginRequired": "请先登入以管理您的笔记"
+  },
+  "noteCard": {
+    "associatedSignal": "包含关联讯号",
+    "readMore": "查看详情"
+  },
+  "noteDetail": {
+    "back": "返回上一页",
+    "immutableBadgeTitle": "Web3 不可篡改纪录",
+    "linkedSignalHeader": "分析师关联讯号",
+    "viewTx": "查看链上纪录",
+    "viewIpfs": "IPFS 原档",
+    "entryPrice": "进场价",
+    "exitPrice": "平仓价",
+    "pendingTxUrl": "⏳ 等待上链 (pending)",
+    "notFound": "找不到这篇笔记",
+    "disclaimer": "本内容由 KOL 自行发布，不构成任何投资建议。"
   }
 }
