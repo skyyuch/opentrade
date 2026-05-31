@@ -139,15 +139,45 @@ Session 4 把 ADR-0039 的筆記後端落地，5 個 atomic commit（C1 domain+r
 
 `KolSignalRegistry` `<=7` 升級 + `KolNoteRegistry` 仍只寫了 code 未 broadcast。notes worker handler 因 `KOL_NOTE_REGISTRY_ADDRESS` 未設而 graceful skip——筆記照常寫 DB + pin IPFS，只是 `chainNoteId/chainTxHash` 留 null 直到合約部署。
 
+## Session 5（2026-05-31）— 前端整合 port
+
+Session 5 把 Google Studio 交付的 UI（private repo `skyyuch/OpenTrade-UI`，commit `fbbcbbb`）正式 port 進 `apps/web`。8 個 atomic todo 全綠，全程 7-workspace typecheck + web/api/shared lint 0 errors。f6 commit `bce904f`、status commit `453a0e1`（b1-f5 於本 session 前段已 commit）。**「訊號標的選擇器 + 分析師筆記」5-session 計畫（Session 1-5）全部完成。**
+
+### 1. 兩個已定案決策的落地
+
+1. **作者顯示名走後端 enrich**：`packages/shared` 的 `KolNoteDto`/`KolNoteListItemDto` 加 `kol: KolNoteAuthor | null`（`{name, avatarUrl}`）；`notes/presentation/routes.ts` 加 `loadAuthors` batch 從 KOL profile 補作者，做 **presentation-layer join**（鏡像既有 signals enrich），不動 domain/application 層。前端不必為了顯示作者名額外打 API。
+2. **筆記詳閱頁扁平路由 `/[locale]/notes/[id]`**：SSR page 接 `fetchNote` + linked signal（`fetchSignal`）+ `generateMetadata`，對齊既有 `/signals/[id]` 姿態。
+
+### 2. port 時吸收的機械項（全部按計畫處理）
+
+- `body` ↔ `bodyJson` 改名（前端 editor value 用 `bodyJson`）。
+- `InstrumentDto` → `InstrumentOption` 映射（null name → `''`、zh-Hans 用 `nameZhHans`，走 `localizedInstrumentName`）。
+- 圖片 src `cid` → gateway URL：新 `CidImage` TipTap extension 把圖片以 IPFS CID 存（HTML `data-cid` + ProseMirror `cid` attr），render 時才解 gateway URL → **筆記 JSON 不含可變 gateway host，保 portability + immutability**（ADR-0039）。
+- 硬編 `ipfs.io` / TX `#` → 走 `@opentrade/config`：新 `apps/web/src/lib/ipfs.ts`，`ipfsGatewayUrl(cid)`（gateway 常數，沿用既有 web pattern）+ `blockExplorerTxUrl(txHash)`（從 `getTargetChain(NEXT_PUBLIC_CHAIN_ID)` 動態取，遵 ADR-0001 不寫死鏈）。
+- Tailwind v4 `prose` → web tailwind config 加 `@tailwindcss/typography` plugin（v3.4）。
+- 硬編中文 → `next-intl`：5 namespace（instrumentPicker/noteEditor/noteList/noteCard/noteDetail）+ navNotes/tabNotes 三語 parity。
+- `linkedSignal` 用 id 抓 `GET /v1/signals/:id`（detail page server-side fetch）。
+
+### 3. 幾個 port 過程的技術決策
+
+1. **`RichTextDocument` → TipTap `Content` 邊界 cast**：shared 型別宣告為 `readonly`，TipTap `Content` 是 mutable，在 `useEditor({ content })` 邊界 `as Content` cast（結構等價，只是 readonly 修飾差異）。
+2. **NoteEditor onChange 用 functional update**（`onChange((prev) => ({...prev, bodyJson}))`）避免 TipTap 非同步 update 抓到 stale closure 的 `editorValue`。
+3. **InstrumentPicker / NoteEditor 為 atomic-but-large client**：與其直屬 consumer page 同 commit（拆開會留 dead code），借既有 atomic-but-large client 先例。
+4. **公開 KOL profile Notes tab 用 lazy fetch**：`KolProfileClient` 在 tab 掛載時才 `fetchNotes`，避免拖慢 signals 主視圖。
+
+### 4. 合約仍未上鏈（不變）
+
+與 Session 2-4 相同：`KolSignalRegistry` `<=7` 升級 + `KolNoteRegistry` 仍未 broadcast。前端筆記建立照常寫 DB + pin IPFS + 顯示 IPFS gateway 連結；`chainNoteId/chainTxHash` 為 null 時 NoteDetail 的 on-chain TX 連結自然隱藏，待合約部署後 worker 回填即顯示。
+
 ## 待後續處理事項
 
-| Owner      | 事項                                                                                                                                                                                                        |
-| ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 下個 agent | Session 5 前端整合（Google Studio 交付 UI 後接標的選擇器 `GET /v1/instruments` + 筆記富文本編輯接 `POST /v1/notes` + `POST /v1/notes/images` + 顯示接 `GET /v1/notes` / `GET /v1/notes/:id`）               |
-| 維運/合約  | broadcast `KolSignalRegistry` `<=7` 升級到 Base Sepolia（跑 `UpgradeKolSignalRegistry.s.sol`，需 `UPGRADER_ROLE`）+ 部署 `KolNoteRegistry`（`DeployKolNoteRegistry.s.sol`）並填 `KOL_NOTE_REGISTRY_ADDRESS` |
-| 維運       | 生產環境跑 `pnpm --filter @opentrade/db sync:instruments` 填 catalog + 建議排程定期 sync（reconciliation 已支援增量/退場）                                                                                  |
-| 維運       | 處理 `opentrade_dev` pre-existing drift（`notifications.id` + checksum）                                                                                                                                    |
-| 技術債     | 若要在 `packages/db` import `@opentrade/shared`，須先給 shared 加 build task（否則 composite reference 的 `dist` 不存在）                                                                                   |
+| Owner          | 事項                                                                                                                                                                                                                         |
+| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ~~下個 agent~~ | ~~Session 5 前端整合~~ ✅ **已完成（commit `bce904f` + `453a0e1`）** — InstrumentPicker / NoteEditor / KolNoteList / NoteCard / NoteDetail / 公開 profile Notes tab + console nav 全部 port，7-workspace typecheck + lint 綠 |
+| 維運/合約      | broadcast `KolSignalRegistry` `<=7` 升級到 Base Sepolia（跑 `UpgradeKolSignalRegistry.s.sol`，需 `UPGRADER_ROLE`）+ 部署 `KolNoteRegistry`（`DeployKolNoteRegistry.s.sol`）並填 `KOL_NOTE_REGISTRY_ADDRESS`                  |
+| 維運           | 生產環境跑 `pnpm --filter @opentrade/db sync:instruments` 填 catalog + 建議排程定期 sync（reconciliation 已支援增量/退場）                                                                                                   |
+| 維運           | 處理 `opentrade_dev` pre-existing drift（`notifications.id` + checksum）                                                                                                                                                     |
+| 技術債         | 若要在 `packages/db` import `@opentrade/shared`，須先給 shared 加 build task（否則 composite reference 的 `dist` 不存在）                                                                                                    |
 
 ## 給未來 AI agent 的建議
 
@@ -162,4 +192,4 @@ Session 4 把 ADR-0039 的筆記後端落地，5 個 atomic commit（C1 domain+r
 - [ADR-0036](../decisions/0036-kol-signal-architecture.md)
 - [ADR-0038](../decisions/0038-instrument-catalog-and-asset-scope.md)
 - [ADR-0039](../decisions/0039-kol-note-architecture.md)
-- [docs/03-status.md](../03-status.md) — (37)-(40) 條目
+- [docs/03-status.md](../03-status.md) — (37)-(42) 條目
