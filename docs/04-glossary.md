@@ -73,19 +73,22 @@
 
 ## 開發與架構術語
 
-| 中文             | English                            | 定義                                                       |
-| ---------------- | ---------------------------------- | ---------------------------------------------------------- |
-| 領域驅動設計     | Domain-Driven Design (DDD)         | 按業務領域組織代碼的方法論                                 |
-| 模組化單體       | Modular Monolith                   | 單一部署單元，但內部按領域嚴格切分，未來可拆 microservices |
-| 命令查詢分離     | CQRS                               | 讀路徑與寫路徑分離的架構模式                               |
-| 六邊形架構       | Hexagonal Architecture             | 業務邏輯與外部依賴解耦的架構模式                           |
-| 架構決策記錄     | Architecture Decision Record (ADR) | 記錄重大技術決策的文件格式                                 |
-| 基礎設施即程式碼 | Infrastructure as Code (IaC)       | 用程式碼描述基礎設施，例如 Terraform                       |
-| 特性開關         | Feature Flag                       | 用設定控制功能開關，無需重新部署                           |
-| 不可變基礎設施   | Immutable Infrastructure           | 部署新版本而非修改現有伺服器                               |
-| 軟刪除           | Soft Delete                        | 將記錄標為 `deletedAt` 而非真的 DELETE，保留歷史可追溯性   |
-| 監管機構         | Regulator                          | 發出金融牌照的官方機構，schema 內為 `Regulator` enum       |
-| 牌照記錄         | BrokerLicense                      | 證券商持有的單張牌照紀錄，吊銷後保留 row 並改為 REVOKED    |
+| 中文             | English                            | 定義                                                                                                                    |
+| ---------------- | ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| 領域驅動設計     | Domain-Driven Design (DDD)         | 按業務領域組織代碼的方法論                                                                                              |
+| 模組化單體       | Modular Monolith                   | 單一部署單元，但內部按領域嚴格切分，未來可拆 microservices                                                              |
+| 命令查詢分離     | CQRS                               | 讀路徑與寫路徑分離的架構模式                                                                                            |
+| 六邊形架構       | Hexagonal Architecture             | 業務邏輯與外部依賴解耦的架構模式                                                                                        |
+| 架構決策記錄     | Architecture Decision Record (ADR) | 記錄重大技術決策的文件格式                                                                                              |
+| 基礎設施即程式碼 | Infrastructure as Code (IaC)       | 用程式碼描述基礎設施，例如 Terraform                                                                                    |
+| 特性開關         | Feature Flag                       | 用設定控制功能開關，無需重新部署                                                                                        |
+| 不可變基礎設施   | Immutable Infrastructure           | 部署新版本而非修改現有伺服器                                                                                            |
+| 軟刪除           | Soft Delete                        | 將記錄標為 `deletedAt` 而非真的 DELETE，保留歷史可追溯性                                                                |
+| 監管機構         | Regulator                          | 發出金融牌照的官方機構，schema 內為 `Regulator` enum                                                                    |
+| 牌照記錄         | BrokerLicense                      | 證券商持有的單張牌照紀錄，吊銷後保留 row 並改為 REVOKED                                                                 |
+| 標的目錄         | Instrument catalog                 | 平台策展的可交易標的（港股/美股/指數/虛擬貨幣/商品）參考表，供訊號標的選擇器搜尋；全域參考資料無 `tenantId`（ADR-0038） |
+| 標的類別         | Instrument category                | 選擇器呈現的五種類別，是 `AssetClass` enum 的策展子集（ADR-0038 D2）；新增 `INDEX`/`COMMODITY` 兩值                     |
+| 分析師筆記       | KolNote                            | KOL 發布的不可變富文本筆記（K 線截圖等），hash 上鏈 + 內容存 IPFS，可獨立或附於某訊號（ADR-0039）                       |
 
 ## OpenTrade 內部專用詞
 

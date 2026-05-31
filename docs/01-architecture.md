@@ -299,7 +299,9 @@ packages/contracts/
 │   ├── reviews/
 │   │   └── ReviewRegistry.sol
 │   ├── signals/
-│   │   └── SignalLogger.sol
+│   │   └── KolSignalRegistry.sol
+│   ├── notes/
+│   │   └── KolNoteRegistry.sol   # ADR-0039 (planned, Session 2)
 │   ├── disputes/
 │   │   ├── JuryPool.sol
 │   │   └── DisputeArbitration.sol
