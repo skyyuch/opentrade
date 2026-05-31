@@ -64,6 +64,13 @@ export type EmitSignalInput = {
   kolId: string;
   assetClass: AssetClassValue;
   symbol: string;
+  /**
+   * Optional FK to the curated Instrument catalog (ADR-0038 D6). When set, the
+   * use case derives the canonical `symbol` and `assetClass` from the catalog
+   * row (single source of truth). When absent, the KOL's free-text `symbol` and
+   * `assetClass` are used as-is — the catalog is an aid, never a gate.
+   */
+  instrumentId?: string;
   direction: SignalDirectionValue;
   entryPrice: string;
   targetPrice: string;
@@ -78,6 +85,7 @@ export type SignalRecord = {
   kolId: string;
   assetClass: AssetClassValue;
   symbol: string;
+  instrumentId: string | null;
   direction: SignalDirectionValue;
   entryPrice: string;
   targetPrice: string;

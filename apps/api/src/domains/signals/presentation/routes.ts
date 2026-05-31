@@ -17,6 +17,7 @@ import { prisma } from '@opentrade/db';
 import { authMiddleware } from '../../../http/middleware/auth.js';
 import { env } from '../../../shared/env.js';
 import { AppError } from '../../../shared/errors/index.js';
+import { PrismaInstrumentRepository } from '../../instruments/index.js';
 import { PrismaKolRepository } from '../../kols/infrastructure/PrismaKolRepository.js';
 import { PrismaNotificationRepository } from '../../notifications/infrastructure/PrismaNotificationRepository.js';
 import { PinataIpfsService } from '../../reviews/infrastructure/PinataIpfsService.js';
@@ -41,8 +42,9 @@ const signalRepo = new PrismaSignalRepository(prisma);
 const kolRepo = new PrismaKolRepository(prisma);
 const notificationRepo = new PrismaNotificationRepository(prisma);
 const ipfsService = new PinataIpfsService(env.PINATA_JWT);
+const instrumentRepo = new PrismaInstrumentRepository(prisma);
 
-const emitSignalUseCase = new EmitSignalUseCase(signalRepo, kolRepo, ipfsService, {
+const emitSignalUseCase = new EmitSignalUseCase(signalRepo, kolRepo, ipfsService, instrumentRepo, {
   notificationRepo,
   getFollowerUserIds: async (kolId: string) => {
     const follows = await prisma.kolFollow.findMany({
@@ -69,6 +71,7 @@ const emitBodySchema = z.object({
   kolId: z.string().min(1),
   assetClass: z.enum(ASSET_CLASS_VALUES as unknown as [string, ...string[]]),
   symbol: z.string().min(1).max(30),
+  instrumentId: z.string().uuid().optional(),
   direction: z.enum(SIGNAL_DIRECTION_VALUES as unknown as [string, ...string[]]),
   entryPrice: z.string().regex(/^\d+(\.\d+)?$/),
   targetPrice: z.string().regex(/^\d+(\.\d+)?$/),
@@ -106,6 +109,7 @@ signalsRouter.post('/', authMiddleware('user'), async (c) => {
   };
   if (body.stoplossPrice !== undefined) input.stoplossPrice = body.stoplossPrice;
   if (body.note !== undefined) input.note = body.note;
+  if (body.instrumentId !== undefined) input.instrumentId = body.instrumentId;
 
   try {
     const signal = await emitSignalUseCase.execute(input);
@@ -113,6 +117,9 @@ signalsRouter.post('/', authMiddleware('user'), async (c) => {
   } catch (err) {
     if (err instanceof Error && err.message.includes('Only APPROVED')) {
       throw AppError.notFound('Only APPROVED KOLs can emit signals');
+    }
+    if (err instanceof Error && err.message === 'Instrument not found') {
+      throw AppError.notFound('Instrument not found in catalog');
     }
     throw err;
   }

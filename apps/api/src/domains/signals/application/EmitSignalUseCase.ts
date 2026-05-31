@@ -21,6 +21,7 @@
 
 import { createHash } from 'node:crypto';
 
+import type { IInstrumentRepository } from '../../instruments/index.js';
 import type { IKolRepository } from '../../kols/domain/IKolRepository.js';
 import type { INotificationRepository } from '../../notifications/domain/INotificationRepository.js';
 import type { IIpfsService } from '../../reviews/infrastructure/IIpfsService.js';
@@ -38,6 +39,7 @@ export class EmitSignalUseCase {
     private readonly signalRepo: ISignalRepository,
     private readonly kolRepo: IKolRepository,
     private readonly ipfsService: IIpfsService,
+    private readonly instrumentRepo: IInstrumentRepository,
     private readonly notificationDeps?: SignalNotificationDeps,
   ) {}
 
@@ -53,19 +55,33 @@ export class EmitSignalUseCase {
       throw new Error('Tenant mismatch');
     }
 
+    // ADR-0038 D6: when a catalog instrument is selected, its canonical symbol
+    // and category are the single source of truth — overriding any client-sent
+    // symbol/assetClass. When no instrumentId is given, the KOL's free-text
+    // symbol + assetClass are used verbatim (the catalog is an aid, not a gate).
+    let resolvedInput = input;
+    if (input.instrumentId) {
+      const instrument = await this.instrumentRepo.findById(input.instrumentId);
+      if (!instrument) {
+        throw new Error('Instrument not found');
+      }
+      resolvedInput = { ...input, symbol: instrument.symbol, assetClass: instrument.category };
+    }
+
     // The hashed object IS the pinned object so `contentHash` always matches
     // the IPFS content addressed by the returned CID.
     const ipfsPayload = {
       version: 1,
-      kolId: input.kolId,
-      assetClass: input.assetClass,
-      symbol: input.symbol.trim().toUpperCase(),
-      direction: input.direction,
-      entryPrice: input.entryPrice,
-      targetPrice: input.targetPrice,
-      stoplossPrice: input.stoplossPrice ?? null,
-      horizon: input.horizon,
-      note: input.note?.trim() ?? null,
+      kolId: resolvedInput.kolId,
+      assetClass: resolvedInput.assetClass,
+      symbol: resolvedInput.symbol.trim().toUpperCase(),
+      instrumentId: resolvedInput.instrumentId ?? null,
+      direction: resolvedInput.direction,
+      entryPrice: resolvedInput.entryPrice,
+      targetPrice: resolvedInput.targetPrice,
+      stoplossPrice: resolvedInput.stoplossPrice ?? null,
+      horizon: resolvedInput.horizon,
+      note: resolvedInput.note?.trim() ?? null,
       createdAt: new Date().toISOString(),
     };
 
@@ -74,7 +90,7 @@ export class EmitSignalUseCase {
 
     const pinResult = await this.ipfsService.pinJson(ipfsPayload, `signal-${Date.now()}`);
 
-    const signal = await this.signalRepo.create(input, contentHash, pinResult.cid);
+    const signal = await this.signalRepo.create(resolvedInput, contentHash, pinResult.cid);
 
     if (this.notificationDeps) {
       // Best-effort: notification fan-out failure must not block signal creation

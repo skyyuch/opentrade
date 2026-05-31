@@ -14,6 +14,7 @@ import { mock, type MockProxy } from 'vitest-mock-extended';
 
 import { EmitSignalUseCase } from './EmitSignalUseCase.js';
 
+import type { IInstrumentRepository, InstrumentRecord } from '../../instruments/index.js';
 import type { IKolRepository } from '../../kols/domain/IKolRepository.js';
 import type { KolRecord } from '../../kols/domain/KolEntity.js';
 import type { IIpfsService } from '../../reviews/infrastructure/IIpfsService.js';
@@ -55,12 +56,25 @@ const fixtureInput = (overrides: Partial<EmitSignalInput> = {}): EmitSignalInput
   ...overrides,
 });
 
+const fixtureInstrument = (overrides: Partial<InstrumentRecord> = {}): InstrumentRecord => ({
+  id: '11111111-1111-4111-8111-111111111111',
+  category: 'EQUITY_HK',
+  symbol: '00005',
+  displayCode: '00005',
+  nameEn: 'HSBC HOLDINGS',
+  nameZh: '匯豐控股',
+  nameZhHans: '汇丰控股',
+  exchange: 'HKEX',
+  ...overrides,
+});
+
 const fixtureSignal = (overrides: Partial<SignalRecord> = {}): SignalRecord => ({
   id: 'sig_test_0001',
   tenantId: TENANT_ID,
   kolId: 'kol_test_0001',
   assetClass: 'EQUITY_HK',
   symbol: '0005.HK',
+  instrumentId: null,
   direction: 'BUY',
   entryPrice: '50.00',
   targetPrice: '55.00',
@@ -85,6 +99,7 @@ describe('EmitSignalUseCase', () => {
   let signalRepo: MockProxy<ISignalRepository>;
   let kolRepo: MockProxy<IKolRepository>;
   let ipfs: MockProxy<IIpfsService>;
+  let instrumentRepo: MockProxy<IInstrumentRepository>;
   let useCase: EmitSignalUseCase;
 
   beforeEach(() => {
@@ -92,7 +107,8 @@ describe('EmitSignalUseCase', () => {
     kolRepo = mock<IKolRepository>();
     ipfs = mock<IIpfsService>();
     ipfs.pinJson.mockResolvedValue({ cid: FIXED_CID });
-    useCase = new EmitSignalUseCase(signalRepo, kolRepo, ipfs);
+    instrumentRepo = mock<IInstrumentRepository>();
+    useCase = new EmitSignalUseCase(signalRepo, kolRepo, ipfs, instrumentRepo);
   });
 
   it('emits a signal for an approved KOL', async () => {
@@ -135,6 +151,47 @@ describe('EmitSignalUseCase', () => {
 
     await expect(useCase.execute(fixtureInput())).rejects.toThrow('Pinata unreachable');
     expect(signalRepo.create).not.toHaveBeenCalled();
+  });
+
+  it('derives canonical symbol + assetClass from the catalog when instrumentId is set', async () => {
+    // KOL sent a sloppy free-text symbol + wrong category; the catalog wins.
+    const input = fixtureInput({
+      instrumentId: '11111111-1111-4111-8111-111111111111',
+      symbol: 'hsbc',
+      assetClass: 'CRYPTO',
+    });
+    kolRepo.findById.mockResolvedValue(fixtureKol());
+    instrumentRepo.findById.mockResolvedValue(fixtureInstrument());
+    signalRepo.create.mockResolvedValue(fixtureSignal());
+
+    await useCase.execute(input);
+
+    expect(instrumentRepo.findById).toHaveBeenCalledWith('11111111-1111-4111-8111-111111111111');
+    const persisted = signalRepo.create.mock.calls[0]![0];
+    expect(persisted.symbol).toBe('00005');
+    expect(persisted.assetClass).toBe('EQUITY_HK');
+    expect(persisted.instrumentId).toBe('11111111-1111-4111-8111-111111111111');
+  });
+
+  it('rejects when the referenced instrumentId is not in the catalog', async () => {
+    const input = fixtureInput({ instrumentId: '22222222-2222-4222-8222-222222222222' });
+    kolRepo.findById.mockResolvedValue(fixtureKol());
+    instrumentRepo.findById.mockResolvedValue(null);
+
+    await expect(useCase.execute(input)).rejects.toThrow('Instrument not found');
+    expect(signalRepo.create).not.toHaveBeenCalled();
+  });
+
+  it('keeps free-text symbol untouched when no instrumentId is given', async () => {
+    const input = fixtureInput({ symbol: '0700.HK' });
+    kolRepo.findById.mockResolvedValue(fixtureKol());
+    signalRepo.create.mockResolvedValue(fixtureSignal());
+
+    await useCase.execute(input);
+
+    expect(instrumentRepo.findById).not.toHaveBeenCalled();
+    const persisted = signalRepo.create.mock.calls[0]![0];
+    expect(persisted.symbol).toBe('0700.HK');
   });
 
   it('throws when KOL does not exist', async () => {

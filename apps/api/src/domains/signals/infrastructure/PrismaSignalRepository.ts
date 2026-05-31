@@ -30,6 +30,7 @@ function toRecord(row: {
   kolId: string;
   assetClass: string;
   symbol: string;
+  instrumentId: string | null;
   direction: string;
   entryPrice: Decimal;
   targetPrice: Decimal;
@@ -54,6 +55,7 @@ function toRecord(row: {
     kolId: row.kolId,
     assetClass: row.assetClass as AssetClassValue,
     symbol: row.symbol,
+    instrumentId: row.instrumentId,
     direction: row.direction as SignalDirectionValue,
     entryPrice: row.entryPrice.toString(),
     targetPrice: row.targetPrice.toString(),
@@ -89,6 +91,7 @@ export class PrismaSignalRepository implements ISignalRepository {
           kolId: input.kolId,
           assetClass: input.assetClass,
           symbol: input.symbol.trim().toUpperCase(),
+          instrumentId: input.instrumentId ?? null,
           direction: input.direction,
           entryPrice: input.entryPrice,
           targetPrice: input.targetPrice,
