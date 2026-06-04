@@ -52,13 +52,14 @@ const inter = Inter({
 
 type Props = {
   children: ReactNode;
-  params: { locale: string };
+  params: Promise<{ locale: string }>;
 };
 
 export const generateStaticParams = (): { locale: string }[] =>
   routing.locales.map((locale) => ({ locale }));
 
-export const generateMetadata = async ({ params }: Props): Promise<Metadata> => {
+export const generateMetadata = async (props: Props): Promise<Metadata> => {
+  const params = await props.params;
   const t = await getTranslations({ locale: params.locale, namespace: 'home' });
 
   return {
@@ -68,8 +69,9 @@ export const generateMetadata = async ({ params }: Props): Promise<Metadata> => 
   };
 };
 
-const LocaleLayout = async ({ children, params }: Props): Promise<ReactNode> => {
-  const { locale } = params;
+const LocaleLayout = async (props: Props): Promise<ReactNode> => {
+  const { children } = props;
+  const { locale } = await props.params;
 
   if (!hasLocale(routing.locales, locale)) {
     notFound();

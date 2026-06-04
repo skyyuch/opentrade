@@ -20,11 +20,12 @@ import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 
 type Props = {
-  params: { locale: string; slug: string };
-  searchParams: { theme?: string; size?: string };
+  params: Promise<{ locale: string; slug: string }>;
+  searchParams: Promise<{ theme?: string; size?: string }>;
 };
 
-export const generateMetadata = async ({ params }: Props): Promise<Metadata> => {
+export const generateMetadata = async (props: Props): Promise<Metadata> => {
+  const params = await props.params;
   try {
     const data = await fetchKolProfile(params.slug, { next: { revalidate: 60 } });
     return {
@@ -35,7 +36,9 @@ export const generateMetadata = async ({ params }: Props): Promise<Metadata> => 
   }
 };
 
-const KolEmbedPage = async ({ params, searchParams }: Props): Promise<ReactNode> => {
+const KolEmbedPage = async (props: Props): Promise<ReactNode> => {
+  const searchParams = await props.searchParams;
+  const params = await props.params;
   setRequestLocale(params.locale);
 
   const theme = searchParams.theme === 'light' ? 'light' : 'dark';

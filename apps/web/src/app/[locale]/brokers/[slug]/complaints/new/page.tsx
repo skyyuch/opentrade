@@ -21,10 +21,11 @@ import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 
 type Props = {
-  params: { locale: string; slug: string };
+  params: Promise<{ locale: string; slug: string }>;
 };
 
-export const generateMetadata = async ({ params }: Props): Promise<Metadata> => {
+export const generateMetadata = async (props: Props): Promise<Metadata> => {
+  const params = await props.params;
   const t = await getTranslations({ locale: params.locale, namespace: 'complaintForm' });
   try {
     const { broker } = await fetchBroker(params.slug, { next: { revalidate: 60 } });
@@ -46,7 +47,8 @@ export const generateMetadata = async ({ params }: Props): Promise<Metadata> => 
   }
 };
 
-const ComplaintsNewPage = async ({ params }: Props): Promise<ReactNode> => {
+const ComplaintsNewPage = async (props: Props): Promise<ReactNode> => {
+  const params = await props.params;
   setRequestLocale(params.locale);
   const t = await getTranslations('complaintForm');
 

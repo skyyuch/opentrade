@@ -23,10 +23,11 @@ import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 
 type Props = {
-  params: { locale: string; slug: string };
+  params: Promise<{ locale: string; slug: string }>;
 };
 
-export const generateMetadata = async ({ params }: Props): Promise<Metadata> => {
+export const generateMetadata = async (props: Props): Promise<Metadata> => {
+  const params = await props.params;
   const t = await getTranslations({ locale: params.locale, namespace: 'brokerDetail' });
   try {
     const { broker } = await fetchBroker(params.slug, { next: { revalidate: 60 } });
@@ -39,7 +40,8 @@ export const generateMetadata = async ({ params }: Props): Promise<Metadata> => 
   }
 };
 
-const BrokerDetailPage = async ({ params }: Props): Promise<ReactNode> => {
+const BrokerDetailPage = async (props: Props): Promise<ReactNode> => {
+  const params = await props.params;
   setRequestLocale(params.locale);
 
   const t = await getTranslations('brokerDetail');
@@ -65,7 +67,6 @@ const BrokerDetailPage = async ({ params }: Props): Promise<ReactNode> => {
       {/* Background Atmospheric Glows — stronger than /10 to match Google design */}
       <div className="pointer-events-none fixed right-[-5%] top-[-10%] z-0 h-[700px] w-[700px] rounded-full bg-[#00FF88]/20 blur-[150px]" />
       <div className="pointer-events-none fixed bottom-[-10%] left-[-5%] z-0 h-[600px] w-[600px] rounded-full bg-blue-600/20 blur-[120px]" />
-
       <div className="relative z-10 mx-auto max-w-[1440px] px-6 lg:px-10 py-8">
         <Link
           href="/brokers"

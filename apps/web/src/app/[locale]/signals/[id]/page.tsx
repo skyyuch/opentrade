@@ -8,10 +8,11 @@ import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 
 type Props = {
-  params: { locale: string; id: string };
+  params: Promise<{ locale: string; id: string }>;
 };
 
-export const generateMetadata = async ({ params }: Props): Promise<Metadata> => {
+export const generateMetadata = async (props: Props): Promise<Metadata> => {
+  const params = await props.params;
   try {
     const data = await fetchSignal(params.id, { next: { revalidate: 60 } });
     return {
@@ -23,7 +24,8 @@ export const generateMetadata = async ({ params }: Props): Promise<Metadata> => 
   }
 };
 
-const SignalDetailPage = async ({ params }: Props): Promise<ReactNode> => {
+const SignalDetailPage = async (props: Props): Promise<ReactNode> => {
+  const params = await props.params;
   setRequestLocale(params.locale);
 
   const t = await getTranslations('kols');
