@@ -15,11 +15,11 @@
 #                symlink trickery survives into the runtime image).
 #   4. runtime — minimal Debian slim image carrying only /deploy.
 #
-# Why Debian slim rather than Alpine: Prisma's binary engines are built
-# against glibc/openssl-3 by default. Running on Alpine (musl) requires
-# either pinning binaryTargets in schema.prisma or a custom dance with
-# libcrypto symlinks. Phase-0 prioritises correctness over the ~30 MB
-# image-size delta.
+# Why Debian slim rather than Alpine: the Prisma 7 client is Rust-free
+# (no binary engines to match against glibc/musl, per ADR-0041), but the
+# `pg` driver and Node's TLS stack still link the system OpenSSL. Debian
+# slim keeps that path simple; Phase-0 prioritises correctness over the
+# ~30 MB image-size delta versus Alpine.
 #
 # Image size budget (Phase 0): ~140 MB compressed (~280 MB on disk).
 
@@ -27,7 +27,9 @@
 # We pin pnpm here rather than relying on `corepack prepare` reading
 # package.json; ECS task definitions deploy a single immutable image, so
 # the version must be deterministic at build time.
-ARG NODE_VERSION=22.13
+# Node 22.22+ is required by devDeps pulled in during the deps stage
+# (e.g. lint-staged 17's engines field); matches the local dev Node.
+ARG NODE_VERSION=22.22
 ARG PNPM_VERSION=9.15.4
 
 # =============================================================================
@@ -41,9 +43,9 @@ ENV PATH=$PNPM_HOME:$PATH
 ENV CI=true
 ENV PNPM_DISABLE_NETWORK_DIAGNOSTICS=true
 
-# OpenSSL is bundled in node:22-slim but Prisma's runtime probes for it
-# via libssl.so.* lookups. Installing the package explicitly keeps that
-# probe happy across slim image variants.
+# OpenSSL is bundled in node:22-slim, but the `pg` driver and Node TLS
+# resolve libssl.so.* at runtime (e.g. for TLS to RDS). Installing the
+# package explicitly keeps that lookup happy across slim image variants.
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
     openssl \
@@ -93,41 +95,32 @@ COPY packages/db ./packages/db
 COPY packages/shared ./packages/shared
 COPY packages/config ./packages/config
 
-# tsup produces dist/main.js + sourcemap with workspace deps inlined and
-# `@prisma/client` + `pino-pretty` left external (per ADR-0014 D2).
+# Regenerate the Prisma 7 client (gitignored + dockerignored) so the bundle
+# inlines a client that matches this image's schema, independent of any host
+# artefact or deps-stage timing (ADR-0041).
+RUN pnpm --filter @opentrade/db db:generate
+
+# tsup produces dist/main.js + sourcemap with workspace deps (incl. the
+# generated Prisma client) inlined and `@prisma/client` + `@prisma/adapter-pg`
+# + `pg` + `pino-pretty` left external (per ADR-0014 D2, ADR-0041).
 RUN pnpm --filter @opentrade/api build
 
 # `pnpm deploy` writes a self-contained directory layout for production:
 #
 #   /deploy/package.json
-#   /deploy/dist/main.js  (built above)
-#   /deploy/node_modules/@prisma/client      (real dir, not a pnpm symlink)
-#   /deploy/node_modules/<…runtime deps…>
+#   /deploy/dist/main.js  (built above, with the Prisma client inlined)
+#   /deploy/node_modules/@prisma/client       (runtime — resolved by the bundle)
+#   /deploy/node_modules/@prisma/adapter-pg    (Postgres driver adapter)
+#   /deploy/node_modules/pg                     (underlying driver)
+#   /deploy/node_modules/<…other runtime deps…>
 #
 # The `--ignore-scripts` is required because `@opentrade/db`'s postinstall
-# runs `prisma generate`, which needs the `prisma` CLI — but that CLI is
-# a devDep and `--prod` excludes it. The generated client + engines
-# already live under packages/db/node_modules/.prisma from the deps-stage
-# install; we copy that artefact into /deploy after the deploy completes.
+# runs `prisma generate`, which needs the `prisma` CLI — a devDep excluded by
+# `--prod`. We don't need it here anyway: the Prisma 7 client is Rust-free
+# (no engine binaries to copy) and is already inlined into dist/main.js, so
+# the runtime only needs the external @prisma/client / adapter-pg / pg
+# packages that `--prod deploy` materialises.
 RUN pnpm --filter @opentrade/api --prod deploy --ignore-scripts /deploy
-
-# Fold the prisma-generated client + binary engines into /deploy so the
-# runtime stage can be a single COPY. `prisma generate` runs as part of
-# @opentrade/db's postinstall during the deps stage; the output lands in
-# pnpm's `.pnpm` content store at:
-#
-#   /workspace/node_modules/.pnpm/@prisma+client@<ver>_<hash>/node_modules/.prisma
-#
-# The hash suffix changes with deps so we resolve it dynamically. `cp -rL`
-# dereferences any symlinks so /deploy gets real files.
-RUN set -eu; \
-    PRISMA_GEN_DIR="$(find /workspace/node_modules/.pnpm -maxdepth 3 -type d -name '.prisma' | head -n 1)"; \
-    if [ -z "$PRISMA_GEN_DIR" ]; then \
-      echo 'FATAL: cannot locate prisma-generated .prisma/ in pnpm store'; \
-      exit 1; \
-    fi; \
-    echo "Copying $PRISMA_GEN_DIR → /deploy/node_modules/.prisma"; \
-    cp -rL "$PRISMA_GEN_DIR" /deploy/node_modules/.prisma
 
 # =============================================================================
 # 4. runtime — what actually ships to ECS.

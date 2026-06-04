@@ -22,6 +22,10 @@
 **/*.tsbuildinfo
 **/storybook-static
 
+# Prisma 7 generated client — a build artefact regenerated inside the
+# builder stage (ADR-0041); never copy the host's local copy.
+packages/db/src/generated
+
 # Foundry / Solidity (apps/api never reads these but they're large)
 **/cache
 **/broadcast

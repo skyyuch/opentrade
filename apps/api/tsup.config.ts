@@ -13,10 +13,12 @@
  *     so leaving them external would break `node dist/main.js`. Bundling
  *     also frees the container image from having to replay pnpm's
  *     workspace symlink topology.
- *   - `@prisma/client` stays external. Prisma's generated engine binaries
- *     are loaded by absolute path at runtime; bundling them breaks engine
- *     detection. The production Dockerfile (Commit #9) will copy the
- *     pnpm-resolved client + engines next to dist/.
+ *   - The Prisma 7 generated client lives inside `@opentrade/db`
+ *     (src/generated/prisma) and is inlined with the rest of the workspace,
+ *     but its runtime (`@prisma/client`), the Postgres driver adapter
+ *     (`@prisma/adapter-pg`), and the underlying `pg` driver stay external.
+ *     They are resolved from node_modules at runtime (ADR-0041); `pg` ships
+ *     no Rust engine binaries to copy — the v7 client is Rust-free.
  *   - `pino-pretty` stays external too — it's a dev-only transport that
  *     should not be shipped in the production image at all.
  */
@@ -32,6 +34,6 @@ export default defineConfig({
   clean: true,
   splitting: false,
   shims: false,
-  external: ['@prisma/client', '.prisma/client', 'pino-pretty'],
+  external: ['@prisma/client', '@prisma/adapter-pg', 'pg', 'pino-pretty'],
   noExternal: [/^@opentrade\//],
 });
