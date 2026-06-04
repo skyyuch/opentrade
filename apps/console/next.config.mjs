@@ -17,12 +17,12 @@
  *
  * Tooling note (vs apps/api):
  *   `apps/console` source files use BARE relative specifiers (`./routing`)
- *   without the `.js` extension because Next 14's webpack resolver does
- *   not rewrite `.js` → `.ts` for in-app sources. `apps/api` does the
- *   opposite (`./routing.js`) because tsx + tsup require ESM-correct
- *   specifiers; per ADR-0014 each package follows its own bundler's
- *   contract. Workspace packages imported through `@opentrade/*` are
- *   transpiled by Next so the asymmetry is invisible to consumers.
+ *   without the `.js` extension because Next's bundler (Turbopack as of
+ *   Next 16) resolves in-app sources without `.js` → `.ts` rewriting.
+ *   `apps/api` does the opposite (`./routing.js`) because tsx + tsup
+ *   require ESM-correct specifiers; per ADR-0014 each package follows its
+ *   own bundler's contract. Workspace packages imported through
+ *   `@opentrade/*` are transpiled by Next so the asymmetry is invisible.
  */
 
 import createNextIntlPlugin from 'next-intl/plugin';
@@ -35,15 +35,6 @@ const nextConfig = {
   poweredByHeader: false,
   transpilePackages: ['@opentrade/ui', '@opentrade/shared', '@opentrade/config'],
   typedRoutes: true,
-  webpack: (config) => {
-    config.resolve.fallback = {
-      ...config.resolve.fallback,
-      '@farcaster/mini-app-solana': false,
-      '@metamask/connect-evm': false,
-      accounts: false,
-    };
-    return config;
-  },
 };
 
 export default withNextIntl(nextConfig);
