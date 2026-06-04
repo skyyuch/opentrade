@@ -26,7 +26,15 @@ Prisma 7 是 Rust-free client，與 6.x 的差異**強制**遵守：
   `postinstall: prisma generate`（本機 + CI）與 Docker builder stage 重建，**不進 git**。
 - **`prisma.config.ts`**（在 `packages/db/`）：CLI（generate / migrate / studio / db execute）
   的設定來源 — datasource `url`、`migrations.seed`、schema 路徑。**env 不再自動載入**，
-  由 `dotenv` 顯式載入 root `.env`（不 commit secret，rule 50）。
+  由 `dotenv` 顯式載入 root `.env`（不 commit secret，rule 50）。**datasource `url` 必須
+  容忍缺 `DATABASE_URL`**：`prisma generate` / `format` / `postinstall` / Docker builder /
+  新 clone 都在沒有 DB（也沒有 `.env`）時跑，所以用 `process.env['DATABASE_URL'] ?? 非連線
+  placeholder`，**不可**用會 eager throw 的 `env('DATABASE_URL')`（CI 沒 `.env` 會以
+  `PrismaConfigEnvError` 炸掉整條 install）。真正連線的 CLI（migrate / studio）一律經
+  `dotenv -e ../../.env --` 前綴的 package script 取得真 URL（ADR-0041 收尾 session 實測）。
+- **生成 client 必須排除於 format / lint**：`src/generated/` 已進 `.gitignore` + `.dockerignore`，
+  也**必須**進 `.prettierignore`（eslint 已忽略），否則 generate 成功後根 `format:check`
+  會掃到未格式化的生成碼而失敗。
 - **Datasource**：`schema.prisma` 的 `datasource db` 只留 `provider`，**移除 `url`**。
 - **Runtime**：用 `@prisma/adapter-pg`（`PrismaPg`）構造 client（見下「連線管理」）；
   `pg` 預設無 connection timeout（v6 為 5s）→ 顯式補 `connectionTimeoutMillis`。
@@ -444,3 +452,5 @@ main()
 - ❌ 在 `packages/db/src/client.ts` 以外 `new PrismaClient()`（全 app 單例）
 - ❌ commit 生成的 Prisma client（gitignored；靠 `prisma generate` 重建）
 - ❌ 用 `$use` client middleware（Prisma 7 已移除 → 改用 `$extends`）
+- ❌ `prisma.config.ts` 用會 eager throw 的 `env('DATABASE_URL')`（CI/Docker/新 clone 無 `.env` 會炸 install；必須 tolerant fallback，見上「Prisma 7 架構」）
+- ❌ 漏把 `src/generated/` 加進 `.prettierignore`（generate 後 `format:check` 會掃到生成碼失敗）
