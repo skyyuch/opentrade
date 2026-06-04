@@ -253,8 +253,8 @@ function test_SubmitReview_WithEmptyContent_Reverts() public { ... }
 
 - 從環境變數讀私鑰（透過 `--private-key` 或 keystore）
 - 部署到不同鏈用不同 `--rpc-url`
-- 部署後 verify 在 BaseScan
-- 把部署地址寫進 `packages/config/src/contracts.ts`
+- 部署後 verify 在 BaseScan（`--verify --verifier etherscan --etherscan-api-key $BASESCAN_API_KEY --chain <id>`；`BASESCAN_API_KEY` 走 env，per ADR-0015 不進 `foundry.toml`）
+- 把部署地址寫進 **`.env`**（dev）/ **AWS Secrets Manager**（部署環境），由 `packages/config/src/buildContractAddresses()` 在 startup 從 env 組裝 —— per ADR-0001 + rule 40，地址**絕不**寫死在 `packages/config/src/contracts.ts`（該檔只放型別與組裝邏輯）
 
 ### 嚴禁
 
