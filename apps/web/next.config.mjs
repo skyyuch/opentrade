@@ -46,6 +46,16 @@ const nextConfig = {
   distDir: process.env['NEXT_DIST_DIR'] ?? '.next',
   transpilePackages: ['@opentrade/ui', '@opentrade/shared', '@opentrade/config'],
   typedRoutes: true,
+  // Next 16's Turbopack dev server validates the Origin of the HMR
+  // websocket against the host it was launched on (`localhost`). When the
+  // page is opened via `127.0.0.1` (which the Playwright e2e harness does —
+  // see `baseURL` in playwright.config.ts) the websocket handshake is
+  // rejected with ERR_INVALID_HTTP_RESPONSE, the Turbopack runtime stalls,
+  // and the page never hydrates (every client component stays inert). Listing
+  // `127.0.0.1` here whitelists that origin so HMR — and therefore
+  // hydration — works for both the e2e run and any developer who browses via
+  // the loopback IP. Dev-only knob; ignored by `next build`/`next start`.
+  allowedDevOrigins: ['127.0.0.1'],
 };
 
 export default withNextIntl(nextConfig);

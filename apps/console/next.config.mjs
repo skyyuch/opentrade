@@ -35,6 +35,11 @@ const nextConfig = {
   poweredByHeader: false,
   transpilePackages: ['@opentrade/ui', '@opentrade/shared', '@opentrade/config'],
   typedRoutes: true,
+  // See apps/web/next.config.mjs for the full rationale: Next 16's Turbopack
+  // dev server rejects the HMR websocket when the page is opened via a
+  // non-launch origin (e.g. `127.0.0.1`), which stalls hydration. Whitelist
+  // the loopback IP so dev/e2e over `127.0.0.1` hydrate. Dev-only knob.
+  allowedDevOrigins: ['127.0.0.1'],
 };
 
 export default withNextIntl(nextConfig);
