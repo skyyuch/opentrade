@@ -86,9 +86,10 @@ jobs:
       - name: Install dependencies
         # --frozen-lockfile guarantees pnpm-lock.yaml is authoritative;
         # any drift fails CI rather than silently mutating the lockfile.
-        # packages/db has `postinstall: prisma generate` which runs here
-        # (lazy env loader in packages/db/src/env.ts means no DATABASE_URL
-        # required during generate; per ADR-0014).
+        # packages/db has `postinstall: prisma generate` which runs here.
+        # prisma.config.ts falls back to a non-connecting placeholder when
+        # DATABASE_URL is absent, so generate works without a DB in CI
+        # (per ADR-0041; mirrors the schema-only contract in src/env.ts).
         run: pnpm install --frozen-lockfile
 
       - name: Run lint

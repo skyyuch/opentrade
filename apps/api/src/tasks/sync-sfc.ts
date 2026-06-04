@@ -10,8 +10,7 @@
  * Per ADR-0020: runs weekly via EventBridge, reuses the API Docker image.
  */
 
-import { PrismaClient } from '@prisma/client';
-
+import { prisma } from '@opentrade/db';
 import { syncBrokers } from '@opentrade/db/sfc';
 
 import type { SfcBrokerData } from '@opentrade/db/sfc';
@@ -132,8 +131,6 @@ async function fetchFromSfc(): Promise<SfcBrokerData[]> {
     }))
     .sort((a, b) => a.ceNumber.localeCompare(b.ceNumber));
 }
-
-const prisma = new PrismaClient();
 
 async function main(): Promise<void> {
   const startedAt = Date.now();

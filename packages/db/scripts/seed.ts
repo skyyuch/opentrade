@@ -18,16 +18,14 @@ import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { Prisma, PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
+import { prisma, Prisma } from '../src/index.js';
 import { syncBrokers } from '../src/sfc/sync-brokers.js';
 
 import type { SfcBrokerData } from '../src/sfc/types.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-
-const prisma = new PrismaClient();
 
 type TenantSeed = {
   code: string;

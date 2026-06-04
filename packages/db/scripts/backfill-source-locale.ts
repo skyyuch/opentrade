@@ -60,11 +60,8 @@
  *   Done.
  */
 
-import { PrismaClient } from '@prisma/client';
-
+import { prisma } from '../src/index.js';
 import { toSimplifiedChinese } from '../src/sfc/opencc.js';
-
-const prisma = new PrismaClient();
 
 const HAN_RATIO_THRESHOLD = 0.3;
 const BATCH_SIZE = 200;

@@ -4,10 +4,10 @@
 #   - npm:            workspace root pnpm-lock.yaml (covers all 8 packages)
 #   - github-actions: action versions referenced in .github/workflows/
 #
-# Ignore rules encode ADR-0013 (Prisma 6.x pin) and the
-# docs/03-status.md open question on Next.js 14 → 15/16 upgrade — both
-# are major bumps that require an ADR before adoption, so Dependabot
-# must never propose them as routine PRs.
+# Ignore rules encode ADR-0041 (stay within Prisma 7.x; an 8.x jump needs a
+# successor ADR) and the docs/03-status.md open question on Next.js 14 → 15/16
+# upgrade — both are major bumps that require an ADR before adoption, so
+# Dependabot must never propose them as routine PRs.
 #
 # Group rules consolidate noisy ecosystems (@types/*, @storybook/*,
 # typescript-eslint, eslint*) into single PRs so the founder reviews
@@ -18,7 +18,7 @@
 # ecosystem subscription gets added in Phase 4+ when the deploy
 # pipeline is live.
 #
-# Docker base-image bumps (apps/api/Dockerfile pins node:22.13-slim)
+# Docker base-image bumps (apps/api/Dockerfile pins node:22.22-slim)
 # are NOT tracked here in Phase 0; revisit when the Phase 4+ deploy
 # pipeline can automatically rebuild and push.
 #
@@ -48,7 +48,8 @@ updates:
 
     # Ignore majors that need ADR review before adoption.
     ignore:
-      # ADR-0013: pin Prisma to 6.x; 7.x adoption requires successor ADR.
+      # ADR-0041: now on Prisma 7.x; stay within 7.x (7.x minor/patch flow
+      # through). An 8.x jump requires a successor ADR.
       - dependency-name: prisma
         update-types: ["version-update:semver-major"]
       - dependency-name: "@prisma/client"

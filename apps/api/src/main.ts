@@ -11,7 +11,8 @@
  */
 
 import { serve } from '@hono/node-server';
-import { PrismaClient } from '@prisma/client';
+
+import { prisma } from '@opentrade/db';
 
 import { PrismaSignalRepository } from './domains/signals/infrastructure/PrismaSignalRepository.js';
 import { createServer } from './http/server.js';
@@ -48,7 +49,6 @@ const server = serve(
 // resolves expired signals. Both run in the API process for simplicity.
 // ---------------------------------------------------------------------------
 
-const prisma = new PrismaClient();
 const signalRepo = new PrismaSignalRepository(prisma);
 
 const priceRecorder = new PriceRecorder(prisma, {

@@ -1,0 +1,4 @@
+# Prisma 7 generated client (ADR-0041). Rebuilt via `prisma generate`
+# (postinstall + CI). Never committed — it is a build artifact.
+*
+!.gitignore

@@ -35,11 +35,8 @@
  *   Done.
  */
 
-import { PrismaClient } from '@prisma/client';
-
+import { prisma } from '../src/index.js';
 import { toSimplifiedChinese } from '../src/sfc/opencc.js';
-
-const prisma = new PrismaClient();
 
 type BackfillResult = {
   processed: number;

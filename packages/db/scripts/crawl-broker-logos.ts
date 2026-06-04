@@ -25,10 +25,12 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
-import { PrismaClient } from '@prisma/client';
 import { load as cheerioLoad } from 'cheerio';
 import sharp from 'sharp';
 
+import { prisma } from '../src/index.js';
+
+import type { PrismaClient } from '../src/generated/prisma/client.js';
 import type { SfcBrokerData } from '../src/sfc/types.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -446,7 +448,6 @@ async function main(): Promise<void> {
 
   if (remaining.length === 0) {
     console.log('All brokers already processed. Updating database...');
-    const prisma = new PrismaClient();
     try {
       await updateDatabase(prisma, progress);
     } finally {
@@ -490,7 +491,6 @@ async function main(): Promise<void> {
   console.log(`  Failures: ${failures.length}`);
 
   // Update database
-  const prisma = new PrismaClient();
   try {
     await updateDatabase(prisma, progress);
   } finally {

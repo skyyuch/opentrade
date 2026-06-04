@@ -19,8 +19,7 @@ import type {
   SettleSignalInput,
 } from '../domains/signals/domain/ISignalRepository.js';
 import type { SignalOutcomeValue } from '../domains/signals/domain/SignalEntity.js';
-import type { PrismaClient } from '@prisma/client';
-import type { Decimal } from '@prisma/client/runtime/library';
+import type { Prisma, PrismaClient } from '@opentrade/db';
 
 type PriceWindow = {
   periodHigh: string;
@@ -174,11 +173,11 @@ export class SettleWorker {
     }
   }
 
-  private decimalGt(a: Decimal, b: Decimal): boolean {
+  private decimalGt(a: Prisma.Decimal, b: Prisma.Decimal): boolean {
     return a.greaterThan(b);
   }
 
-  private decimalLt(a: Decimal, b: Decimal): boolean {
+  private decimalLt(a: Prisma.Decimal, b: Prisma.Decimal): boolean {
     return a.lessThan(b);
   }
 }

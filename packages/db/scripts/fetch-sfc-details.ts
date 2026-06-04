@@ -25,7 +25,7 @@
  *   - /corp/{ceref}/licences   → licRecordData (SFO) + amloRecordData (AMLO)
  */
 
-import { Prisma, PrismaClient } from '@prisma/client';
+import { prisma, Prisma } from '../src/index.js';
 
 const SFC_BASE_URL = 'https://apps.sfc.hk/publicregWeb/corp';
 const REQUEST_DELAY_MS = 350;
@@ -425,8 +425,6 @@ async function fetchCorpDetail(ceref: string): Promise<{
 // ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
-
-const prisma = new PrismaClient();
 
 async function main(): Promise<void> {
   const whereClause = FORCE_MODE

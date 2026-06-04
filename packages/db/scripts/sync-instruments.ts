@@ -28,12 +28,11 @@ import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { PrismaClient } from '@prisma/client';
-
 import { syncInstruments } from '../src/catalog/index.js';
 import { fetchCoinGeckoInstruments } from '../src/catalog/sources/coingecko.js';
 import { fetchHkexInstruments } from '../src/catalog/sources/hkex.js';
 import { fetchSecInstruments } from '../src/catalog/sources/sec.js';
+import { prisma } from '../src/index.js';
 
 import type { InstrumentData } from '../src/catalog/index.js';
 
@@ -59,8 +58,6 @@ const collectSource = async (
     return [];
   }
 };
-
-const prisma = new PrismaClient();
 
 async function main(): Promise<void> {
   const curatedOnly = process.argv.includes('--curated-only');

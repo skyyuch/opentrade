@@ -3,7 +3,7 @@ import type {
   NotificationListOptions,
 } from '../domain/INotificationRepository.js';
 import type { CreateNotificationInput, NotificationRecord } from '../domain/NotificationEntity.js';
-import type { Prisma, PrismaClient } from '@prisma/client';
+import type { Prisma, PrismaClient } from '@opentrade/db';
 
 function toRecord(row: {
   id: string;

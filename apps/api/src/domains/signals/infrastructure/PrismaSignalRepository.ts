@@ -17,10 +17,9 @@ import type {
   AssetClassValue,
   SignalDirectionValue,
 } from '../domain/SignalEntity.js';
-import type { PrismaClient } from '@prisma/client';
-import type { Decimal } from '@prisma/client/runtime/library';
+import type { Prisma, PrismaClient } from '@opentrade/db';
 
-function decimalToString(d: Decimal | null): string | null {
+function decimalToString(d: Prisma.Decimal | null): string | null {
   return d ? d.toString() : null;
 }
 
@@ -32,16 +31,16 @@ function toRecord(row: {
   symbol: string;
   instrumentId: string | null;
   direction: string;
-  entryPrice: Decimal;
-  targetPrice: Decimal;
-  stoplossPrice: Decimal | null;
+  entryPrice: Prisma.Decimal;
+  targetPrice: Prisma.Decimal;
+  stoplossPrice: Prisma.Decimal | null;
   horizon: number;
   note: string | null;
   outcome: string;
   settledAt: Date | null;
-  settlePrice: Decimal | null;
-  periodHigh: Decimal | null;
-  periodLow: Decimal | null;
+  settlePrice: Prisma.Decimal | null;
+  periodHigh: Prisma.Decimal | null;
+  periodLow: Prisma.Decimal | null;
   contentHash: string;
   ipfsCid: string | null;
   chainSignalId: number | null;

@@ -20,12 +20,17 @@
 //               extension can transparently inject the filter
 
 generator client {
-  provider = "prisma-client-js"
+  // Prisma 7 Rust-free client (ADR-0041, supersedes ADR-0013).
+  // `output` is mandatory on the `prisma-client` provider; the generated
+  // client is git-ignored and (re)built via `prisma generate` (postinstall + CI).
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
 }
 
 datasource db {
+  // Prisma 7: connection URLs live in prisma.config.ts (CLI) and the driver
+  // adapter in src/client.ts (runtime); `url` is no longer set here.
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 // =============================================================================

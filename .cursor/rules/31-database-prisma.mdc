@@ -11,6 +11,31 @@ alwaysApply: false
 - 只有 `apps/api` 可以 import `@opentrade/db` 的 PrismaClient
 - 前端 (`apps/web`、`apps/console`) 只能 `import type`，不可 import client
 - Schema 唯一 source of truth：`packages/db/prisma/schema.prisma`
+- **所有 Prisma 型別 / enum / client 一律從 `@opentrade/db` 取**，不可 import
+  `@prisma/client` 或生成路徑（`src/generated/prisma`）。生成路徑是 db package
+  內部細節（rule 10 + rule 31 單一入口）。
+
+---
+
+## Prisma 7 架構（driver adapter，ADR-0041）
+
+Prisma 7 是 Rust-free client，與 6.x 的差異**強制**遵守：
+
+- **Generator**：`provider = "prisma-client"` + 必填 `output = "../src/generated/prisma"`。
+  生成的 client 是 build artefact → **gitignore + dockerignore**，由
+  `postinstall: prisma generate`（本機 + CI）與 Docker builder stage 重建，**不進 git**。
+- **`prisma.config.ts`**（在 `packages/db/`）：CLI（generate / migrate / studio / db execute）
+  的設定來源 — datasource `url`、`migrations.seed`、schema 路徑。**env 不再自動載入**，
+  由 `dotenv` 顯式載入 root `.env`（不 commit secret，rule 50）。
+- **Datasource**：`schema.prisma` 的 `datasource db` 只留 `provider`，**移除 `url`**。
+- **Runtime**：用 `@prisma/adapter-pg`（`PrismaPg`）構造 client（見下「連線管理」）；
+  `pg` 預設無 connection timeout（v6 為 5s）→ 顯式補 `connectionTimeoutMillis`。
+- **CLI 語義**：`migrate dev` / `db push` **不再自動 generate**；`migrate reset` / `migrate dev`
+  **不再自動 seed**（`--skip-generate` / `--skip-seed` flag 已移除）。改 schema 後必須手動
+  `pnpm --filter @opentrade/db db:generate`；`db:migrate:reset` 已串接 `db:seed`。
+- **Middleware**：`$use` 已移除 → 一律用 `$extends`（client / query extensions）。
+- **Bundling**：tsup 把 `@opentrade/db`（含生成 client）inline 進 bundle，但
+  `@prisma/client`（runtime）、`@prisma/adapter-pg`、`pg` 維持 external。
 
 ---
 
@@ -209,18 +234,20 @@ await prisma.$transaction(async (tx) => {
 - 不在 hot path 創建新 instance
 - 用環境變數 `DATABASE_URL`（從 AWS Secrets Manager 注入）
 - Read replica：另一個 client 連 readonly URL
+- **Prisma 7（ADR-0041）**：`PrismaClient` 必須用 driver adapter 構造（`@prisma/adapter-pg` 的 `PrismaPg`），不可無參數 `new PrismaClient()`
 
 ```ts
-// packages/db/src/client.ts
-export const prisma = new PrismaClient({
-  log: ['warn', 'error'],
+// packages/db/src/client.ts (Prisma 7 — driver adapter)
+import { PrismaPg } from '@prisma/adapter-pg';
+import { Prisma, PrismaClient } from './generated/prisma/client.js';
+
+// pg 預設無 connection timeout（Prisma 6 為 5s）→ 顯式補回，fail fast
+const adapter = new PrismaPg({
+  connectionString: env.DATABASE_URL,
+  connectionTimeoutMillis: 5_000,
 });
 
-export const prismaReadOnly = new PrismaClient({
-  datasources: {
-    db: { url: env.DATABASE_READ_URL },
-  },
-});
+export const prisma = new PrismaClient({ adapter, log: ['warn', 'error'] });
 ```
 
 ---
@@ -412,3 +439,8 @@ main()
 - ❌ Backfill script 不支援 `--dry-run`
 - ❌ Prisma Studio 在 prod 連線
 - ❌ DB 直接從 console.aws.amazon.com 改 schema（必須 Terraform + Prisma migration）
+- ❌ 直接 import `@prisma/client` 或生成路徑 `src/generated/prisma`（一律走 `@opentrade/db`）
+- ❌ 無 adapter 的 `new PrismaClient()`（Prisma 7 必須傳 `@prisma/adapter-pg`）
+- ❌ 在 `packages/db/src/client.ts` 以外 `new PrismaClient()`（全 app 單例）
+- ❌ commit 生成的 Prisma client（gitignored；靠 `prisma generate` 重建）
+- ❌ 用 `$use` client middleware（Prisma 7 已移除 → 改用 `$extends`）

@@ -9,7 +9,7 @@
 
 import type { INoteRepository, NoteListOptions } from '../domain/INoteRepository.js';
 import type { CreateNoteInput, NoteRecord, RichTextDocument } from '../domain/NoteEntity.js';
-import type { KolNote, Prisma, PrismaClient } from '@prisma/client';
+import type { KolNote, Prisma, PrismaClient } from '@opentrade/db';
 
 function toRecord(row: KolNote): NoteRecord {
   return {
