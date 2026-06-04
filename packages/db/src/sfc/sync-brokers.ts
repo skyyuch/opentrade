@@ -15,12 +15,12 @@
  * RA type, we mark the licence REVOKED (not deleted — per project red line).
  */
 
-import { LicenseStatus, LicenseType, Regulator } from '@prisma/client';
+import { LicenseStatus, LicenseType, Regulator } from '../generated/prisma/client.js';
 
 import { toSimplifiedChinese } from './opencc.js';
 
 import type { SfcBrokerData } from './types.js';
-import type { PrismaClient } from '@prisma/client';
+import type { PrismaClient } from '../generated/prisma/client.js';
 
 const RA_TYPE_TO_LICENSE: Record<number, LicenseType> = {
   1: LicenseType.HK_SFC_TYPE_1,

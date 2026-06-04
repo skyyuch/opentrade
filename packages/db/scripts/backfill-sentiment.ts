@@ -49,9 +49,7 @@
  *   Done.
  */
 
-import { PrismaClient, Sentiment } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma, Sentiment } from '../src/index.js';
 
 const BATCH_SIZE = 200;
 

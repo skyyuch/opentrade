@@ -24,7 +24,7 @@
 import { toSimplifiedChinese } from '../sfc/opencc.js';
 
 import type { InstrumentData, InstrumentSyncResult } from './types.js';
-import type { PrismaClient } from '@prisma/client';
+import type { PrismaClient } from '../generated/prisma/client.js';
 
 const key = (category: string, symbol: string): string => `${category}:${symbol}`;
 

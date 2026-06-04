@@ -10,8 +10,7 @@
  * directly to the database without an intermediate file.
  */
 
-import { PrismaClient } from '@prisma/client';
-
+import { prisma } from '../src/index.js';
 import { syncBrokers } from '../src/sfc/sync-brokers.js';
 
 import type { SfcBrokerData } from '../src/sfc/types.js';
@@ -137,8 +136,6 @@ async function fetchFromSfc(): Promise<SfcBrokerData[]> {
     }))
     .sort((a, b) => a.ceNumber.localeCompare(b.ceNumber));
 }
-
-const prisma = new PrismaClient();
 
 async function main(): Promise<void> {
   const brokers = await fetchFromSfc();

@@ -12,7 +12,7 @@
  */
 
 import type { IPriceProvider, OhlcBar } from './types.js';
-import type { PrismaClient } from '@prisma/client';
+import type { PrismaClient } from '@opentrade/db';
 
 export type PriceRecorderOptions = {
   intervalMs: number;

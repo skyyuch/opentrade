@@ -20,15 +20,20 @@ export const PACKAGE_NAME = '@opentrade/db' as const;
 export { prisma, prismaReadOnly } from './client.js';
 export { getDbEnv, type DbEnv } from './env.js';
 
-// Re-export enum runtime values + the Prisma namespace types for consumers.
-// Frontend code MUST consume these via `import type` (verified by
-// tsconfig.base.json's `verbatimModuleSyntax: true`).
+// Re-export enum runtime values + the `Prisma` namespace (Prisma.JsonNull,
+// Prisma.Decimal, Prisma.sql, ...) from the Prisma 7 generated client (ADR-0041).
+// The generated path lives inside this package, so consumers never import it
+// directly — `@opentrade/db` is the single database access entry point (rule 31).
+// Frontend code (apps/web|console) MUST still consume these via `import type`;
+// the architecture (rule 10) forbids importing the runtime client there, and
+// tsconfig.base.json's `verbatimModuleSyntax: true` enforces it.
 export {
   AssetClass,
   KolStatus,
   LicenseStatus,
   LicenseType,
   NotificationType,
+  Prisma,
   PriceSource,
   Regulator,
   ReviewKind,
@@ -38,7 +43,7 @@ export {
   SignalDirection,
   SignalOutcome,
   UserRole,
-} from '@prisma/client';
+} from './generated/prisma/client.js';
 
 export type {
   Broker,
@@ -49,11 +54,10 @@ export type {
   KolNote,
   Notification,
   OutboxEvent,
-  Prisma,
   PriceRecord,
   PrismaClient,
   Review,
   Signal,
   Tenant,
   User,
-} from '@prisma/client';
+} from './generated/prisma/client.js';

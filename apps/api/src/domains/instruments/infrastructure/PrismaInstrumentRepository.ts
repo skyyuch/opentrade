@@ -15,7 +15,7 @@ import type {
   InstrumentCategory,
   SearchInstrumentsOptions,
 } from '../domain/InstrumentEntity.js';
-import type { Instrument, PrismaClient } from '@prisma/client';
+import type { Instrument, PrismaClient } from '@opentrade/db';
 
 function toRecord(row: Instrument): InstrumentRecord {
   return {

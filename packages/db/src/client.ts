@@ -1,7 +1,8 @@
 /**
  * PrismaClient singletons for OpenTrade.
  *
- * `prisma`         — primary read/write client; uses DATABASE_URL via schema.prisma.
+ * `prisma`         — primary read/write client; built on the @prisma/adapter-pg
+ *                    driver adapter from DATABASE_URL (Prisma 7, ADR-0041).
  * `prismaReadOnly` — read-only client; pointed at DATABASE_READ_URL when set,
  *                    otherwise falls back to DATABASE_URL so the code path is
  *                    still exercised in local dev.
@@ -17,11 +18,12 @@
  * where `new PrismaClient()` is allowed.
  */
 
-import { PrismaClient } from '@prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
 
 import { getDbEnv } from './env.js';
+import { PrismaClient } from './generated/prisma/client.js';
 
-import type { Prisma } from '@prisma/client';
+import type { Prisma } from './generated/prisma/client.js';
 
 type PrismaGlobal = {
   prisma?: PrismaClient;
@@ -30,20 +32,28 @@ type PrismaGlobal = {
 
 const globalForPrisma = globalThis as unknown as PrismaGlobal;
 
+/**
+ * Prisma 7 driver adapters inherit the underlying `pg` pool settings, which
+ * differ from Prisma 6 defaults. Notably `pg` has NO connection timeout by
+ * default (`0`), whereas Prisma 6 used 5s. We restore 5s so an unreachable DB
+ * fails fast instead of hanging (ADR-0041).
+ */
+const PG_CONNECTION_TIMEOUT_MS = 5_000;
+
+const createAdapter = (url: string): PrismaPg =>
+  new PrismaPg({ connectionString: url, connectionTimeoutMillis: PG_CONNECTION_TIMEOUT_MS });
+
 const createPrimaryClient = (): PrismaClient => {
   // Keep prod logs lean (warn/error only); dev intentionally matches prod so
   // we surface the same surface area locally. Query logging is opt-in via env.
   const log: Prisma.LogLevel[] = ['warn', 'error'];
-  return new PrismaClient({ log });
+  return new PrismaClient({ adapter: createAdapter(getDbEnv().DATABASE_URL), log });
 };
 
 const createReadOnlyClient = (): PrismaClient => {
   const env = getDbEnv();
   const url = env.DATABASE_READ_URL ?? env.DATABASE_URL;
-  return new PrismaClient({
-    datasources: { db: { url } },
-    log: ['error'],
-  });
+  return new PrismaClient({ adapter: createAdapter(url), log: ['error'] });
 };
 
 export const prisma: PrismaClient = globalForPrisma.prisma ?? createPrimaryClient();

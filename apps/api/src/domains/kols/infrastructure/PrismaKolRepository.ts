@@ -5,7 +5,7 @@
  * are emitted in the same transaction as the KOL row mutation.
  */
 
-import { Prisma, type PrismaClient } from '@prisma/client';
+import { Prisma, type PrismaClient } from '@opentrade/db';
 
 import type { IKolRepository, KolListOptions } from '../domain/IKolRepository.js';
 import type { ApplyKolInput, KolRecord, KolStatusValue } from '../domain/KolEntity.js';

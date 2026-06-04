@@ -43,10 +43,11 @@
  * or FAILED.
  */
 
-import { PrismaClient } from '@prisma/client';
 import { createPublicClient, createWalletClient, http, keccak256, toHex } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { baseSepolia, base } from 'viem/chains';
+
+import { prisma } from '@opentrade/db';
 
 const POLL_INTERVAL_MS = 15_000;
 const BATCH_SIZE = 10;
@@ -220,8 +221,6 @@ async function main() {
     signalRegistry: signalRegistryAddress || '(not set)',
     noteRegistry: noteRegistryAddress || '(not set)',
   });
-
-  const prisma = new PrismaClient();
 
   async function processReviewSubmitted(event: {
     id: string;
