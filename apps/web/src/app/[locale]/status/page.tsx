@@ -27,7 +27,7 @@ import type { DependencyHealthDto, HealthReportDto, HealthStatus } from '@opentr
 import type { ReactNode } from 'react';
 
 type Props = {
-  params: { locale: string };
+  params: Promise<{ locale: string }>;
 };
 
 type ProbeResult =
@@ -54,7 +54,8 @@ const probeApi = async (): Promise<ProbeResult> => {
   }
 };
 
-const StatusPage = async ({ params }: Props): Promise<ReactNode> => {
+const StatusPage = async (props: Props): Promise<ReactNode> => {
+  const params = await props.params;
   setRequestLocale(params.locale);
 
   const t = await getTranslations('status');

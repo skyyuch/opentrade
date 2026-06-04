@@ -65,7 +65,7 @@
            ▼                                          ▼
 ┌────────────────────────┐                ┌────────────────────────┐
 │  apps/web              │                │  apps/console          │
-│  Next.js 14 App Router │                │  Next.js 14 App Router │
+│  Next.js 16 App Router │                │  Next.js 16 App Router │
 │  Storybook (UI 開發)   │                │  Storybook (UI 開發)   │
 │  next-intl (3 語言)    │                │  next-intl (3 語言)    │
 │                        │                │                        │
@@ -124,8 +124,8 @@
 ```
 OpenTrade/
 ├── apps/
-│   ├── web/                  # 散戶用戶端 (Next.js 14)
-│   ├── console/              # 商戶後台 (Next.js 14)
+│   ├── web/                  # 散戶用戶端 (Next.js 16)
+│   ├── console/              # 商戶後台 (Next.js 16)
 │   └── api/                  # 後端 API (Hono)
 │
 ├── packages/
@@ -196,7 +196,7 @@ OpenTrade/
 
 **關鍵技術**：
 
-- Next.js 14 App Router（Server Components）
+- Next.js 16 App Router（Server Components）
 - next-intl（URL 含 locale，例如 `/zh-Hant/brokers`）
 - wagmi v2 + viem（Web3 互動）
 - Privy（Account Abstraction、社交登入、Gasless）

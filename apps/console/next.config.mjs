@@ -17,12 +17,12 @@
  *
  * Tooling note (vs apps/api):
  *   `apps/console` source files use BARE relative specifiers (`./routing`)
- *   without the `.js` extension because Next 14's webpack resolver does
- *   not rewrite `.js` → `.ts` for in-app sources. `apps/api` does the
- *   opposite (`./routing.js`) because tsx + tsup require ESM-correct
- *   specifiers; per ADR-0014 each package follows its own bundler's
- *   contract. Workspace packages imported through `@opentrade/*` are
- *   transpiled by Next so the asymmetry is invisible to consumers.
+ *   without the `.js` extension because Next's bundler (Turbopack as of
+ *   Next 16) resolves in-app sources without `.js` → `.ts` rewriting.
+ *   `apps/api` does the opposite (`./routing.js`) because tsx + tsup
+ *   require ESM-correct specifiers; per ADR-0014 each package follows its
+ *   own bundler's contract. Workspace packages imported through
+ *   `@opentrade/*` are transpiled by Next so the asymmetry is invisible.
  */
 
 import createNextIntlPlugin from 'next-intl/plugin';
@@ -34,18 +34,12 @@ const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   transpilePackages: ['@opentrade/ui', '@opentrade/shared', '@opentrade/config'],
-  experimental: {
-    typedRoutes: true,
-  },
-  webpack: (config) => {
-    config.resolve.fallback = {
-      ...config.resolve.fallback,
-      '@farcaster/mini-app-solana': false,
-      '@metamask/connect-evm': false,
-      accounts: false,
-    };
-    return config;
-  },
+  typedRoutes: true,
+  // See apps/web/next.config.mjs for the full rationale: Next 16's Turbopack
+  // dev server rejects the HMR websocket when the page is opened via a
+  // non-launch origin (e.g. `127.0.0.1`), which stalls hydration. Whitelist
+  // the loopback IP so dev/e2e over `127.0.0.1` hydrate. Dev-only knob.
+  allowedDevOrigins: ['127.0.0.1'],
 };
 
 export default withNextIntl(nextConfig);

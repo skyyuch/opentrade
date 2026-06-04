@@ -10,7 +10,7 @@
 
 ## Tech
 
-Same stack as `apps/web` — Next.js 14 + next-intl 4 (zh-Hant / zh-Hans / en, `as-needed` prefix) + Tailwind extending `@opentrade/ui/tailwind-preset` + Inter via `next/font/google` (build-time self-hosted, GDPR-safe) + zod-validated client env. Differences vs `apps/web` (per ADR-0010 + ADR-0011):
+Same stack as `apps/web` — Next.js 16 + React 19 + next-intl 4 (zh-Hant / zh-Hans / en, `as-needed` prefix) + Tailwind extending `@opentrade/ui/tailwind-preset` + Inter via `next/font/google` (build-time self-hosted, GDPR-safe) + zod-validated client env. Differences vs `apps/web` (per ADR-0010 + ADR-0011):
 
 - Desktop-first (data-dense dashboards, tables, charts)
 - **Dark by default** via `next-themes` (`defaultTheme="dark"` in `ThemeProvider.tsx`)

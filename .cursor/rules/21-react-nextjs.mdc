@@ -1,5 +1,5 @@
 ---
-description: React 與 Next.js 14 App Router 開發規範
+description: React 19 與 Next.js 16 App Router 開發規範
 globs: ["apps/web/**/*.{ts,tsx}", "apps/console/**/*.{ts,tsx}", "packages/ui/**/*.{ts,tsx}"]
 alwaysApply: false
 ---
@@ -94,6 +94,64 @@ function ReviewForm() {
 - 不允許在頁面層讀取或設定 locale 之外的 cookie 直接影響 routing
 
 i18n navigation 規範詳見 `51-i18n.mdc`（重點：永遠從 `src/i18n/navigation` 匯入 `Link` / `useRouter`，不用 `next/link` / `next/navigation`；href 不可硬編碼 `/${locale}` 前綴）。
+
+---
+
+## Next.js 16 升級後的硬規則（ADR-0040）
+
+專案已從 Next 14 升到 **Next 16 + React 19**。以下是 Next 16 帶來、**不可違反**的改動：
+
+### 1. `params` / `searchParams` 是 Promise — 必須 `await`
+
+App Router 的 `params`、`searchParams`（含 `generateMetadata` / `generateStaticParams`）在 Next 15+ 全部變成 `Promise`，必須先 `await` 再解構。
+
+```tsx
+// ❌ 不可（Next 14 寫法，Next 16 會型別錯誤 / runtime 壞）
+export default function Page({ params }: { params: { slug: string } }) {
+  const { slug } = params;
+}
+
+// ✅ 應該
+export default async function Page({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+}
+
+// generateMetadata 同理
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+}
+```
+
+### 2. Middleware 改名 `proxy.ts`
+
+Next 16 把 `middleware.ts` 改名為 `proxy.ts`（root export 仍 `export default`）。本專案兩個 app 的 next-intl middleware 已搬到 `apps/{web,console}/src/proxy.ts`。
+
+- ❌ 不可新建 `middleware.ts`（Next 16 不再認）
+- ✅ `proxy.ts` 的 `default export` 在 `eslint.config.mjs` 已豁免 `import-x/no-default-export`
+- matcher 仍排除 `_next`，避免攔截框架資源
+
+### 3. Turbopack 是預設 bundler（dev + build）
+
+Next 16 預設用 Turbopack，**不再有 webpack config**。
+
+- ❌ 不可在 `next.config.mjs` 加 `webpack: (config) => ...`（Turbopack 不讀）
+- 要 stub / alias 模組走 Turbopack 的設定，不是 `resolve.fallback`
+- app 內相對 import 用 **bare specifier**（`./routing`，不加 `.js`）——詳見 `next.config.mjs` 的 Tooling note
+
+### 4. `allowedDevOrigins`：e2e / 以 IP 開 dev 必備
+
+Turbopack dev server 對「非啟動 origin」（例如 `127.0.0.1`，而非 `localhost`）的 HMR websocket 會擋掉，導致**整頁不 hydrate**（client 元件全部 inert，e2e 互動測試會假性失敗）。兩個 app 的 `next.config.mjs` 已加 `allowedDevOrigins: ['127.0.0.1']`。
+
+- ⚠️ Playwright e2e harness 的 `baseURL` 用 `127.0.0.1`，沒這條 hydration 會卡死
+- 若 e2e 出現「SSR 內容有、但點擊無反應」→ 第一個懷疑就是 dev origin / hydration
+
+### 5. `typedRoutes` 已畢業出 `experimental`
+
+`typedRoutes: true` 現在是 top-level config（不再放 `experimental`）。
+
+### 6. `next lint` 已移除
+
+不再用 `next lint`，直接走 root 的 flat config (`eslint.config.mjs`) + `pnpm lint`（Turborepo task）。
 
 ---
 

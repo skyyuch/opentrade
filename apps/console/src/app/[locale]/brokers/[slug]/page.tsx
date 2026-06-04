@@ -20,10 +20,11 @@ import type { BrokerDetail, ReviewItem } from '../../../../lib/api/client';
 import type { ReactNode } from 'react';
 
 type Props = {
-  params: { locale: string; slug: string };
+  params: Promise<{ locale: string; slug: string }>;
 };
 
-const BrokerDetailPage = async ({ params }: Props): Promise<ReactNode> => {
+const BrokerDetailPage = async (props: Props): Promise<ReactNode> => {
+  const params = await props.params;
   setRequestLocale(params.locale);
 
   const t = await getTranslations('brokerManage');

@@ -20,10 +20,11 @@ import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 
 type Props = {
-  params: { locale: string };
+  params: Promise<{ locale: string }>;
 };
 
-export const generateMetadata = async ({ params }: Props): Promise<Metadata> => {
+export const generateMetadata = async (props: Props): Promise<Metadata> => {
+  const params = await props.params;
   const t = await getTranslations({ locale: params.locale, namespace: 'verify' });
   return {
     title: `${t('title')} | OpenTrade`,
@@ -31,7 +32,8 @@ export const generateMetadata = async ({ params }: Props): Promise<Metadata> => 
   };
 };
 
-const VerifyPage = async ({ params }: Props): Promise<ReactNode> => {
+const VerifyPage = async (props: Props): Promise<ReactNode> => {
+  const params = await props.params;
   setRequestLocale(params.locale);
   const t = await getTranslations('verify');
 

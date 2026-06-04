@@ -13,6 +13,12 @@
  * The `@/` path alias is duplicated from `tsconfig.json` in `resolve.alias`
  * as a fast-path: `vite-tsconfig-paths` plugin handles it too, but an
  * explicit Vite alias short-circuits the resolver in hot test files.
+ *
+ * `resolve.dedupe` pins a single React copy across the `@opentrade/ui`
+ * workspace boundary. Under React 19 a second physical `react` /
+ * `react/jsx-runtime` (resolved through the UI package's own peer link)
+ * triggers "A React Element from an older version of React was rendered";
+ * deduping collapses them to one instance.
  */
 
 import { resolve } from 'node:path';
@@ -53,7 +59,7 @@ export default defineConfig({
         'src/**/loading.tsx',
         'src/**/error.tsx',
         'src/**/not-found.tsx',
-        'src/middleware.ts',
+        'src/proxy.ts',
         'src/i18n/**',
         'src/env.ts',
       ],
@@ -65,6 +71,7 @@ export default defineConfig({
     },
   },
   resolve: {
+    dedupe: ['react', 'react-dom'],
     alias: {
       '@': resolve(__dirname, './src'),
     },
