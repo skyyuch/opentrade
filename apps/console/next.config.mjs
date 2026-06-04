@@ -34,9 +34,7 @@ const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   transpilePackages: ['@opentrade/ui', '@opentrade/shared', '@opentrade/config'],
-  experimental: {
-    typedRoutes: true,
-  },
+  typedRoutes: true,
   webpack: (config) => {
     config.resolve.fallback = {
       ...config.resolve.fallback,

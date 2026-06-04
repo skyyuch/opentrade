@@ -9,8 +9,8 @@
  * - `reactStrictMode`: catches accidental side-effects in development.
  * - `poweredByHeader: false`: drops the `X-Powered-By: Next.js` header so
  *   we don't advertise stack details.
- * - `experimental.typedRoutes`: enables `<Link href="...">` autocompletion
- *   sourced from the App Router file system.
+ * - `typedRoutes`: enables `<Link href="...">` autocompletion sourced from
+ *   the App Router file system. Graduated out of `experimental` in Next 16.
  *
  * The next-intl plugin wraps the config with i18n request handling; see
  * `src/i18n/request.ts` for the per-request resolver.
@@ -46,9 +46,7 @@ const nextConfig = {
   // enforces that.
   distDir: process.env['NEXT_DIST_DIR'] ?? '.next',
   transpilePackages: ['@opentrade/ui', '@opentrade/shared', '@opentrade/config'],
-  experimental: {
-    typedRoutes: true,
-  },
+  typedRoutes: true,
   webpack: (config) => {
     config.resolve.fallback = {
       ...config.resolve.fallback,
