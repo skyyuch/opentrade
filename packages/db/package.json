@@ -31,7 +31,7 @@
     "db:generate": "prisma generate",
     "db:migrate:dev": "dotenv -e ../../.env -- prisma migrate dev",
     "db:migrate:deploy": "dotenv -e ../../.env -- prisma migrate deploy",
-    "db:migrate:reset": "dotenv -e ../../.env -- prisma migrate reset",
+    "db:migrate:reset": "dotenv -e ../../.env -- prisma migrate reset && pnpm db:seed",
     "db:migrate:status": "dotenv -e ../../.env -- prisma migrate status",
     "db:seed": "dotenv -e ../../.env -- tsx scripts/seed.ts",
     "db:backfill:zh-hans": "dotenv -e ../../.env -- tsx scripts/backfill-zh-hans.ts",
