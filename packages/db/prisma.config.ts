@@ -17,9 +17,27 @@
 import { fileURLToPath } from 'node:url';
 
 import { config as loadEnv } from 'dotenv';
-import { defineConfig, env } from 'prisma/config';
+import { defineConfig } from 'prisma/config';
 
 loadEnv({ path: fileURLToPath(new URL('../../.env', import.meta.url)) });
+
+/**
+ * `prisma generate` / `prisma format` — and therefore the `postinstall` hook,
+ * the Docker builder stage, and any fresh `pnpm install` without a `.env` —
+ * must succeed without a live database (see the contract documented in
+ * `src/env.ts`). Prisma 7's `env('DATABASE_URL')` helper resolves eagerly when
+ * the config module loads and throws `PrismaConfigEnvError` if the var is
+ * absent, which breaks all of those paths in CI.
+ *
+ * So we read the URL tolerantly: when it is missing we fall back to a
+ * non-connecting placeholder good enough for schema-only commands. The CLI
+ * commands that actually open a connection (`migrate`, `studio`, `db execute`)
+ * are always invoked through the package scripts that load the root `.env`
+ * first, so they receive the real URL; if it were somehow unset they would
+ * fail loudly at connect time rather than silently using the placeholder.
+ */
+const databaseUrl =
+  process.env['DATABASE_URL'] ?? 'postgresql://placeholder:placeholder@localhost:5432/placeholder';
 
 export default defineConfig({
   schema: 'prisma/schema.prisma',
@@ -28,6 +46,6 @@ export default defineConfig({
     seed: 'tsx scripts/seed.ts',
   },
   datasource: {
-    url: env('DATABASE_URL'),
+    url: databaseUrl,
   },
 });
