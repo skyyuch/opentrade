@@ -1,5 +1,6 @@
 /**
- * next-intl middleware: negotiates the locale from the URL prefix or the
+ * next-intl proxy (renamed from `middleware.ts` in Next.js 16): negotiates
+ * the locale from the URL prefix or the
  * `Accept-Language` header, sets a `NEXT_LOCALE` cookie, and rewrites
  * requests so that pages always receive a `[locale]` segment value.
  *
