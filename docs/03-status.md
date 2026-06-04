@@ -751,8 +751,9 @@ ADR-0029 D6 已預留 `respondsToReviewId` 欄位給 M10 公開回應使用（M7
 ### 短期
 
 - ✅ ~~Dependabot PRs 批次 merge（15 個 pending）~~ → **11 個已處理（摘要 47）**，剩 4 個 deferred（仍 open）：`#8` @vitejs/plugin-react 6（需 Vite 6）、`#13`/`#14` Storybook 8→10（跨兩 major migration）、`#15` tailwindcss 4（CSS-first 重寫）
-- ✅ 已拍板 — Next.js 14 → 16 升級：見 **ADR-0040**（直接上 16，獨立 migration session 執行；code 未動）
-- ✅ 已完成 — Prisma 6 → 7 升級：見 **ADR-0041**（supersedes ADR-0013，driver adapter 架構落地，branch `chore/prisma-7-upgrade`，全套驗證綠；見摘要 49）
+- 🟡 進行中 — Next.js 14 → 16 升級：見 **ADR-0040**（直接上 16，獨立 migration session 執行）；**PR #19 已開、仍 OPEN 未 merge**（`chore/nextjs-16-upgrade`）
+- 🟡 進行中 — Prisma 6 → 7 升級：見 **ADR-0041**（supersedes ADR-0013，driver adapter 架構落地，branch `chore/prisma-7-upgrade`，4 commit，全套驗證綠；見摘要 48）。**PR #20 已開（2026-06-04）、待 review/merge**；merge ordering 須與 PR #19（Next 16）協調，避免 `main` 上大變更重疊（per ADR-0041 Implementation Notes）
+- ⏳ 待獨立 chore — `notifications.id` schema drift（連帶 `add_kol_admin_note` checksum drift）：見已知風險表，建議排在 PR #20 merge 後處理
 
 ---
 
