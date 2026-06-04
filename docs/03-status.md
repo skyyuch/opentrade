@@ -752,8 +752,9 @@ ADR-0029 D6 已預留 `respondsToReviewId` 欄位給 M10 公開回應使用（M7
 
 - ✅ ~~Dependabot PRs 批次 merge（15 個 pending）~~ → **11 個已處理（摘要 47）**，剩 4 個 deferred（仍 open）：`#8` @vitejs/plugin-react 6（需 Vite 6）、`#13`/`#14` Storybook 8→10（跨兩 major migration）、`#15` tailwindcss 4（CSS-first 重寫）
 - 🟡 進行中 — Next.js 14 → 16 升級：見 **ADR-0040**（直接上 16，獨立 migration session 執行）；**PR #19 已開、仍 OPEN 未 merge**（`chore/nextjs-16-upgrade`）
-- 🟡 進行中 — Prisma 6 → 7 升級：見 **ADR-0041**（supersedes ADR-0013，driver adapter 架構落地，branch `chore/prisma-7-upgrade`，4 commit，全套驗證綠；見摘要 48）。**PR #20 已開（2026-06-04）、待 review/merge**；merge ordering 須與 PR #19（Next 16）協調，避免 `main` 上大變更重疊（per ADR-0041 Implementation Notes）
-- ⏳ 待獨立 chore — `notifications.id` schema drift（連帶 `add_kol_admin_note` checksum drift）：見已知風險表，建議排在 PR #20 merge 後處理
+- ✅ 已完成 — Prisma 6 → 7 升級：見 **ADR-0041**（supersedes ADR-0013，driver adapter 架構落地）。**PR #20 已 squash-merge 到 `main`（2026-06-04，squash `10b6f69`）**。原 4 commit + 2 個 CI 修復：`66d846c` `fix(db)` prisma.config.ts 在缺 `DATABASE_URL` 時 fallback 非連線 placeholder（CI 無 `.env` 時 `postinstall: prisma generate` 不再 throw `PrismaConfigEnvError`，連帶修 Docker builder + 新 clone DX）；`e2fac19` `fix(db)` `.prettierignore` 排除生成的 `packages/db/src/generated/`（generate 成功後生成檔被 `format:check` 掃到的連帶問題）。CI 7/7 綠後 admin-bypass merge
+- 🟡 待 rebase — Next.js 14 → 16（PR #19，`chore/nextjs-16-upgrade`，仍 OPEN）：Prisma 7 已上 main，**下一步在 PR #19 `git rebase origin/main` 解 `pnpm-lock.yaml` + `docs/03-status.md` 衝突 → 重跑 CI → merge**
+- ⏳ 待獨立 chore — `notifications.id` schema drift（連帶 `add_kol_admin_note` checksum drift）：見已知風險表，Prisma 7 已上 main，可隨時開 chore 對齊 schema↔DB
 
 ---
 
