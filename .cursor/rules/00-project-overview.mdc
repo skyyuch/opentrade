@@ -59,7 +59,7 @@ alwaysApply: true
 | 類別 | 選擇 |
 |---|---|
 | Monorepo | pnpm + Turborepo |
-| 前端 | Next.js 14 App Router + TypeScript |
+| 前端 | Next.js 16 App Router + React 19 + TypeScript |
 | UI | Tailwind + shadcn/ui + Storybook |
 | i18n | next-intl（zh-Hant 預設、zh-Hans、en） |
 | Web3 | wagmi v2 + viem + Privy |

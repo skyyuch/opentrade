@@ -12,7 +12,7 @@ Hong Kong retail investors looking up:
 
 ## Tech (planned)
 
-- Next.js 14 App Router + TypeScript
+- Next.js 16 App Router + React 19 + TypeScript
 - next-intl (zh-Hant default / zh-Hans / en)
 - Tailwind + `@opentrade/ui` design system
 - wagmi v2 + viem + Privy (Account Abstraction)
