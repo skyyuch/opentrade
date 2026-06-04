@@ -101,7 +101,7 @@ YYYY-MM-DD
 | 0010 | 用戶端與商戶後台拆兩個獨立 Next.js app                         | Accepted                   | 2026-05-17 |
 | 0011 | OpenTrade UI 設計語言（Civic Trust + Web3 科技感）             | Accepted                   | 2026-05-17 |
 | 0012 | 本機開發環境使用 docker-compose 跑 PostgreSQL                  | Accepted                   | 2026-05-17 |
-| 0013 | Pin Prisma to 6.x — defer Prisma 7 adoption                    | Accepted                   | 2026-05-17 |
+| 0013 | Pin Prisma to 6.x — defer Prisma 7 adoption                    | Superseded by 0041         | 2026-05-17 |
 | 0014 | apps/api runtime architecture (env / bundle / Prisma)          | Accepted                   | 2026-05-17 |
 | 0015 | packages/contracts toolchain setup                             | Accepted                   | 2026-05-17 |
 | 0016 | AWS account architecture (Org, Identity Center, SSO)           | Accepted                   | 2026-05-20 |
@@ -123,6 +123,8 @@ YYYY-MM-DD
 | 0037 | Merchant Phase 2.5 — broker response + editable scope          | Accepted                   | 2026-05-26 |
 | 0038 | Instrument catalog + extend asset class scope (amends 0036 D5) | Accepted                   | 2026-05-31 |
 | 0039 | KOL analyst notes — immutable rich-text on-chain + IPFS        | Accepted                   | 2026-05-31 |
+| 0040 | Upgrade Next.js 14 → 16 as a dedicated migration milestone     | Accepted                   | 2026-06-04 |
+| 0041 | Adopt Prisma 7 (supersedes 0013)                               | Accepted                   | 2026-06-04 |
 
 ---
 
