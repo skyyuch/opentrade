@@ -37,6 +37,9 @@ yarn.lock
 *.min.css
 *.d.ts.map
 *.js.map
+# Prisma 7 generated client (ADR-0041) — rebuilt by `prisma generate`
+# (postinstall + CI), never committed; it must not be format-checked.
+packages/db/src/generated/
 
 # Environment
 .env*
