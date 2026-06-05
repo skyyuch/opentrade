@@ -119,6 +119,7 @@ YYYY-MM-DD
 | 0028 | Deprecate five-star rating in favour of three-way sentiment    | Accepted                   | 2026-05-25 |
 | 0029 | Separate complaints from reviews via `kind` discriminator      | Accepted                   | 2026-05-25 |
 | 0031 | iAM Smart identity provider interface (Phase 2)                | Accepted                   | 2026-05-26 |
+| 0034 | Content moderation L1 — pre-publication gate + admin wordlist  | Accepted                   | 2026-06-05 |
 | 0036 | KOL signal architecture (Phase 2)                              | Accepted (amended by 0038) | 2026-05-26 |
 | 0037 | Merchant Phase 2.5 — broker response + editable scope          | Accepted                   | 2026-05-26 |
 | 0038 | Instrument catalog + extend asset class scope (amends 0036 D5) | Accepted                   | 2026-05-31 |
