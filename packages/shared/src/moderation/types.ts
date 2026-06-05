@@ -6,19 +6,24 @@
  * matching engine ({@link ./moderate}) and the front-end can agree without
  * importing `@opentrade/db` at runtime.
  *
- * The four categories are CONTENT-NEUTRAL by construction: there is deliberately
+ * The categories are CONTENT-NEUTRAL by construction: there is deliberately
  * no "negative sentiment" category. Criticism is always allowed (rule 00 / 52).
+ *
+ * `PII` (ADR-0044) targets a private third party's *actual* identifiers exposed
+ * as content (e.g. a HKID number) — distinct from `ILLEGAL`'s doxxing intent
+ * words and `CONTACT`'s solicitation phone numbers. It must never fire on the
+ * reviewed entity's public name or any opinion.
  */
 
-/** The four moderation categories, in a stable order. Mirrors the DB enum. */
-export const MODERATION_CATEGORIES = ['PROFANITY', 'ATTACK', 'CONTACT', 'ILLEGAL'] as const;
+/** The moderation categories, in a stable order. Mirrors the DB enum. */
+export const MODERATION_CATEGORIES = ['PROFANITY', 'ATTACK', 'CONTACT', 'ILLEGAL', 'PII'] as const;
 
-/** Union of the four moderation categories. */
+/** Union of the moderation categories. */
 export type ModerationCategory = (typeof MODERATION_CATEGORIES)[number];
 
 /**
- * Narrowing guard: is `value` one of the four categories? Use at trust
- * boundaries (admin input, query params) before treating a string as a
+ * Narrowing guard: is `value` one of the categories? Use at trust boundaries
+ * (admin input, query params) before treating a string as a
  * {@link ModerationCategory}.
  */
 export const isModerationCategory = (value: unknown): value is ModerationCategory =>

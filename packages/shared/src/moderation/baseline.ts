@@ -76,4 +76,17 @@ export const BASELINE_MODERATION_TERMS: readonly ModerationTermInput[] = [
   { category: 'ILLEGAL', term: '寄刀片' },
   { category: 'ILLEGAL', term: '殺死你' },
   { category: 'ILLEGAL', term: '買兇' },
+
+  // --- PII (a third party's actual identifiers exposed as content; ADR-0044) ---
+  // Baseline ships ONLY the HKID number shape (1–2 letters + 6 digits + a check
+  // digit/'A', the check char optionally in brackets, e.g. A123456(7)). It is
+  // distinctive enough not to collide with stock codes / account numbers, and is
+  // boundary-anchored so it does not fire inside a longer alphanumeric run.
+  // Residential-address patterns are intentionally NOT baseline (too false-positive
+  // prone) and are left to operator-curated terms.
+  {
+    category: 'PII',
+    term: '(?<![a-z0-9])[a-z]{1,2}\\d{6}\\(?[0-9a]\\)?(?![a-z0-9])',
+    isRegex: true,
+  },
 ];

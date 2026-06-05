@@ -76,6 +76,22 @@ describe('moderateContent — regex terms (CONTACT)', () => {
   });
 });
 
+describe('moderateContent — PII (third-party identifiers, ADR-0044)', () => {
+  const pii = BASELINE_MODERATION_TERMS.filter((t) => t.category === 'PII');
+
+  it('flags an exposed HKID number (with and without the check-digit brackets)', () => {
+    expect(moderateContent('佢個身分證係 A123456(7)', pii).ok).toBe(false);
+    expect(moderateContent('hkid AB987654(3)', pii).categories).toEqual(['PII']);
+    expect(moderateContent('id is z1234567 ok', pii).ok).toBe(false);
+  });
+
+  it('does NOT fire on stock codes or longer account/order numbers', () => {
+    expect(moderateContent('buy 0700 today', pii).ok).toBe(true);
+    expect(moderateContent('account 1234567890123', pii).ok).toBe(true);
+    expect(moderateContent('ticket A12', pii).ok).toBe(true);
+  });
+});
+
 describe('moderateContent — content neutrality (RED LINE)', () => {
   // These are legitimate negative reviews. They MUST pass against the full
   // baseline. Blocking any of them is a rule 00 / rule 52 violation.
@@ -85,6 +101,9 @@ describe('moderateContent — content neutrality (RED LINE)', () => {
     '黑店，避雷，我虧了很多錢',
     '出金很慢，客服態度差勁，伏到爆',
     'This broker is a scam, terrible service, lost all my money',
+    // Naming and harshly criticising the REVIEWED entity is the whole point of
+    // the platform and must pass even with the PII category active (ADR-0044 D3).
+    '富途證券的客服態度極差，根本是騙人的，避雷',
   ];
 
   for (const review of negativeReviews) {
