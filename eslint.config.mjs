@@ -26,6 +26,10 @@ export default tseslint.config(
       '**/.next-e2e/**',
       '**/.turbo/**',
       '**/coverage/**',
+      // Playwright-generated artefacts (gitignored) — the HTML report bundles
+      // vendored minified JS that must never be linted.
+      '**/playwright-report/**',
+      '**/test-results/**',
       '**/*.tsbuildinfo',
       '**/storybook-static/**',
       '**/cache/**',
