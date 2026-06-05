@@ -6,7 +6,7 @@
  * Lets operators list / filter / create / edit / enable-disable / soft-delete
  * the content-neutral moderation terms, and inspect each term's read-only
  * append-only audit trail. The page header carries the rule 52 content-neutral
- * reminder: the blocklist exists to stop the four prohibited categories, NEVER
+ * reminder: the blocklist exists to stop the five prohibited categories, NEVER
  * to suppress negative opinion.
  */
 
@@ -30,13 +30,20 @@ import type {
   ModerationCategory,
 } from '../../../../lib/api/client';
 
-const CATEGORIES: readonly ModerationCategory[] = ['PROFANITY', 'ATTACK', 'CONTACT', 'ILLEGAL'];
+const CATEGORIES: readonly ModerationCategory[] = [
+  'PROFANITY',
+  'ATTACK',
+  'CONTACT',
+  'ILLEGAL',
+  'PII',
+];
 
 const CATEGORY_BADGE: Record<ModerationCategory, string> = {
   PROFANITY: 'bg-rose-500/15 text-rose-300',
   ATTACK: 'bg-orange-500/15 text-orange-300',
   CONTACT: 'bg-amber-500/15 text-amber-300',
   ILLEGAL: 'bg-red-500/20 text-red-300',
+  PII: 'bg-fuchsia-500/15 text-fuchsia-300',
 };
 
 type FilterKey = ModerationCategory | 'ALL';

@@ -109,7 +109,7 @@
     "moderation": {
       "title": "Content word list",
       "subtitle": "Manage the content-neutral pre-publication filter. A match is blocked before anchoring; the user edits their own text and resubmits.",
-      "neutralNotice": "Content-neutral red line: this list only blocks the four prohibited categories (profanity, personal attack, off-platform solicitation, illegal content). NEVER add any term that suppresses negative opinion (e.g. scam, trash, bad, avoid, lost money). Every change is recorded in an immutable audit trail.",
+      "neutralNotice": "Content-neutral red line: this list only blocks the five prohibited categories (profanity, personal attack, off-platform solicitation, illegal content, exposing a third party's private data). NEVER add any term that suppresses negative opinion (e.g. scam, trash, bad, avoid, lost money). Every change is recorded in an immutable audit trail.",
       "addTerm": "Add term",
       "filterAll": "All",
       "colCategory": "Category",
@@ -132,7 +132,8 @@
         "PROFANITY": "Profanity",
         "ATTACK": "Personal attack",
         "CONTACT": "Solicitation / ads",
-        "ILLEGAL": "Illegal content"
+        "ILLEGAL": "Illegal content",
+        "PII": "Doxxing"
       },
       "form": {
         "createTitle": "Add term",

@@ -1139,7 +1139,7 @@ export const submitBrokerResponse = (
 // audited server-side; this client surfaces the read-only audit trail.
 // ---------------------------------------------------------------------------
 
-export type ModerationCategory = 'PROFANITY' | 'ATTACK' | 'CONTACT' | 'ILLEGAL';
+export type ModerationCategory = 'PROFANITY' | 'ATTACK' | 'CONTACT' | 'ILLEGAL' | 'PII';
 
 export type ModerationTermAuditAction = 'CREATE' | 'UPDATE' | 'ENABLE' | 'DISABLE' | 'DELETE';
 
