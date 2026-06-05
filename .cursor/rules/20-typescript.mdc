@@ -73,6 +73,16 @@ import type { ReviewDto } from './dto';
 
 ---
 
+## 相對 import 的副檔名規範（per ADR-0014 + Bundler resolution）
+
+`tsconfig.base.json` 用 `moduleResolution: "Bundler"`，相對 import **一律裸 specifier**（`./types`，不加 `.js`）：
+
+- ✅ `packages/{shared,ui,config}` + `apps/{web,console}`：裸 specifier。這些被 Next / Turbopack 消費，**Turbopack 解析不了 transpiled package source 的 `.js` 形式** → 混用會讓整個 web dev server 編不過（`Module not found: Can't resolve './types.js'`），連帶打掛所有 web e2e。
+- ⚠️ `apps/api` 例外：用 `.js`（`./routes.js`），因 tsx + tsup 要求 ESM-correct specifiers（見 `apps/web/next.config.mjs` 的 tooling 註記）。
+- ❌ 不可在 `packages/{shared,ui,config}` / `apps/{web,console}` 的相對 import 加 `.js` 副檔名（含 package 內部的 barrel 與兄弟模組）。
+
+---
+
 ## 函式規範
 
 - 函式 prefer **arrow function**，除非需要 `this`

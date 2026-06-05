@@ -178,7 +178,7 @@ const nextConfig = {
 
 **配合做的事**：
 - `.gitignore` 加 `.next-e2e/`
-- 根 `eslint.config.mjs` ignore `**/.next-e2e/**`
+- 根 `eslint.config.mjs` ignore `**/.next-e2e/**`、`**/playwright-report/**`、`**/test-results/**`（後兩者是 Playwright 生成物，HTML report 含 vendored 壓縮 JS，開發者若先跑 e2e 再 `pnpm lint` 會誤報數千 style error 如 `no-unused-expressions`）
 - `apps/web/tsconfig.json` include `.next-e2e/types/**/*.ts`（typed routes auto-gen 在此）+ exclude `.next-e2e/{cache,server,static}`（不讓 tsc 吃 build output）
 
 ### Google UI swap 工作流的測試順序（per ADR-0045 D7）
