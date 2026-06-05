@@ -25,7 +25,7 @@
  *                → `nameZh ?? nameEn ?? symbol`
  */
 
-import type { LocaleString } from './brokerName.js';
+import type { LocaleString } from './brokerName';
 
 /**
  * Minimal shape required by the helper. The concrete `Instrument` DTO extends

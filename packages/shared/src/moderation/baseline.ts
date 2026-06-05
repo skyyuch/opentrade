@@ -18,7 +18,7 @@
  * data, not endorsement.
  */
 
-import type { ModerationTermInput } from './types.js';
+import type { ModerationTermInput } from './types';
 
 export const BASELINE_MODERATION_TERMS: readonly ModerationTermInput[] = [
   // --- PROFANITY (English; ASCII → boundary-aware, gap-tolerant) ---

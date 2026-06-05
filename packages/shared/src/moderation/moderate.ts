@@ -26,7 +26,7 @@ import {
   type ModerationResult,
   type ModerationTermInput,
   type ModerationViolation,
-} from './types.js';
+} from './types';
 
 const ZERO_WIDTH = /[\u200B-\u200D\u2060\uFEFF]/g;
 /** Whitespace + punctuation + symbols, used to build the "compact" form. */
