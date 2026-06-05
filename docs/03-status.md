@@ -712,12 +712,12 @@ User 已拍板優先序「Phase 1 收尾 → KOL → 商戶功能」。完整計
 **Layer 1 完整收官。** 後續（未排程）：
 
 1. ✅ ~~**同一閘門套用到 complaints submit + broker-response**~~（見摘要 56 — `SubmitComplaintUseCase` + `SubmitBrokerResponseUseCase` 已注入同一 `IContentModerator`，與 reviews 共用 `CachedTermProvider` 單例；+7 tests）
-2. **PII-of-others 類別**（ADR-0034 A8，需先改 ADR）
+2. ⏳ **PII-of-others 類別** — **ADR 已拍板 `Accepted`（ADR-0044，amends ADR-0034 D5/A8）**，code 待實作。拍板 scope：新增第五類 `PII`，baseline **只**收 HKID 號碼 regex（`A123456(7)`），住址片段交 operator 自管詞庫（不進 baseline，誤判率高）；電話續留 `CONTACT`、起底意圖詞續留 `ILLEGAL`，`PII` 只加「實際貼出第三方識別碼」。純 additive（enum `ADD VALUE` migration + shared baseline + i18n + guard tests），無 domain/引擎變更，四條發佈路徑與公開 audit 自動貫通
 3. **Layer 2 — post-publication label-not-delete**（鏈上 immutable，indexer 可隱藏標註；`Review.adminNote` 欄已預留，ADR-0034 D5，仍 deferred）
 4. ✅ ~~**公開 audit view**（透明度）~~（見摘要 57 — `GET /v1/moderation/audit` 公開脫敏端點 + `ADR-0043`）；✅ ~~**前端公開透明頁**~~（見摘要 58 — `/transparency/moderation` 上線，4 commit `fd5c0b3`/`fa554a5`/`ce189e1`/`8345643`）
 5. ⏭️ **（選配）partial unique index** — user 評估後**選擇跳過**：價值低（重複詞條不影響正確性，空表本有 BASELINE fallback）且 Prisma 無法表達 partial/filtered unique → 需 raw SQL 並承擔 schema drift，不划算。未來真要做才考慮。
 
-**內容審核主題 Layer 1（含公開透明頁）全數收官。** 剩餘未排程 follow-up：#2 PII-of-others 類別（需先改 ADR）、#3 Layer 2 post-publication label-not-delete（deferred）。
+**內容審核主題 Layer 1（含公開透明頁）全數收官。** 剩餘 follow-up：#2 PII-of-others 類別（**ADR-0044 已 `Accepted`，code 待實作**）、#3 Layer 2 post-publication label-not-delete（deferred）。
 
 **前端公開透明頁交付摘要（見摘要 58）：**
 
