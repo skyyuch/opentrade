@@ -80,4 +80,17 @@ export type IModerationTermRepository = {
    * method to mutate or clear audits (rule 52).
    */
   listAudits(tenantId: string, termId: string): Promise<ModerationTermAuditRecord[]>;
+
+  /**
+   * Tenant-wide audit trail across ALL terms, newest first, cursor-paginated.
+   * Feeds the public, redacted transparency view (ADR-0043). Read-only.
+   *
+   * `cursor` is an audit row id to page after (exclusive). `limit` is the page
+   * size. Returns the raw records; the redaction to the public DTO happens in
+   * the application layer (ADR-0043 D3).
+   */
+  listRecentAudits(
+    tenantId: string,
+    opts: { limit: number; cursor?: string },
+  ): Promise<ModerationTermAuditRecord[]>;
 };

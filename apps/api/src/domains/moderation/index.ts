@@ -10,5 +10,11 @@
 
 export { CheckContentService } from './application/CheckContentService.js';
 export { ModerationTermAdminService } from './application/ModerationTermAdminService.js';
+export { PublicModerationAuditService } from './application/PublicModerationAuditService.js';
+export { moderationPublicRouter } from './presentation/publicRoutes.js';
 export { moderationAdminRouter } from './presentation/routes.js';
-export { createCheckContentService, moderationAdminService } from './runtime.js';
+export {
+  createCheckContentService,
+  moderationAdminService,
+  moderationPublicAuditService,
+} from './runtime.js';

@@ -235,7 +235,34 @@ export class PrismaModerationTermRepository implements IModerationTermRepository
       orderBy: { createdAt: 'desc' },
     });
 
-    return rows.map((row) => ({
+    return rows.map((row) => this.toAuditRecord(row));
+  }
+
+  async listRecentAudits(
+    tenantId: string,
+    opts: { limit: number; cursor?: string },
+  ): Promise<ModerationTermAuditRecord[]> {
+    const rows = await this.prisma.moderationTermAudit.findMany({
+      where: { tenantId },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: opts.limit,
+      ...(opts.cursor ? { cursor: { id: opts.cursor }, skip: 1 } : {}),
+    });
+
+    return rows.map((row) => this.toAuditRecord(row));
+  }
+
+  private toAuditRecord(row: {
+    id: string;
+    termId: string;
+    action: string;
+    beforeJson: unknown;
+    afterJson: unknown;
+    actorUserId: string | null;
+    reason: string | null;
+    createdAt: Date;
+  }): ModerationTermAuditRecord {
+    return {
       id: row.id,
       termId: row.termId,
       action: row.action as ModerationTermAuditAction,
@@ -244,7 +271,7 @@ export class PrismaModerationTermRepository implements IModerationTermRepository
       actorUserId: row.actorUserId,
       reason: row.reason,
       createdAt: row.createdAt,
-    }));
+    };
   }
 
   /**

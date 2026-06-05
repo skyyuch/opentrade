@@ -43,6 +43,32 @@ export type ModerationTermAuditRecord = {
 };
 
 /**
+ * Coarse actor label for the public audit view (ADR-0043 D1). We never expose
+ * the actor's user id publicly — only whether the change came from an admin or
+ * from a non-attributed `system` path.
+ */
+export type PublicModerationActor = 'admin' | 'system';
+
+/**
+ * One **redacted** audit entry for the public transparency view (ADR-0043).
+ *
+ * Deliberately omits the term text, `isRegex`, `note`, the raw before/after
+ * snapshots, and the actor's user id — publishing the blocklist itself would
+ * let bad actors rephrase around it (ADR-0034 D6 / rule 50). It proves *that*
+ * moderation happened, *what category*, *when*, *by an admin*, and *why*.
+ */
+export type PublicModerationAuditEntry = {
+  id: string;
+  termId: string;
+  action: ModerationTermAuditAction;
+  /** Derived from the audit snapshot; null only if the snapshot is malformed. */
+  category: ModerationCategory | null;
+  actor: PublicModerationActor;
+  reason: string | null;
+  createdAt: Date;
+};
+
+/**
  * Actor metadata attached to every mutating admin write. The repository writes
  * it into the audit row inside the SAME transaction as the term change
  * (ADR-0034 D3 / rule 52) — there is no code path that mutates a term without

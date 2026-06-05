@@ -13,6 +13,7 @@ import { prisma as defaultPrisma } from '@opentrade/db';
 
 import { CheckContentService } from './application/CheckContentService.js';
 import { ModerationTermAdminService } from './application/ModerationTermAdminService.js';
+import { PublicModerationAuditService } from './application/PublicModerationAuditService.js';
 import { CachedTermProvider } from './infrastructure/CachedTermProvider.js';
 import { PrismaModerationTermRepository } from './infrastructure/PrismaModerationTermRepository.js';
 
@@ -27,6 +28,12 @@ const sharedCheckContentService = new CheckContentService(sharedProvider);
  * invalidate the same provider the gate reads from.
  */
 export const moderationAdminService = new ModerationTermAdminService(sharedRepo, sharedProvider);
+
+/**
+ * The public, redacted audit view service (ADR-0043). Reads the same audit
+ * trail the admin service writes, but maps to a term-text-free public DTO.
+ */
+export const moderationPublicAuditService = new PublicModerationAuditService(sharedRepo);
 
 /**
  * Build the content-moderation checker. The returned service structurally
