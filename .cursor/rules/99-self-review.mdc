@@ -41,6 +41,7 @@ alwaysApply: true
 ├── 41-solidity-contracts.mdc
 ├── 50-security.mdc
 ├── 51-i18n.mdc
+├── 52-content-moderation.mdc
 ├── 60-testing.mdc
 ├── 70-commit-pr.mdc
 ├── 80-aws-accounts.mdc

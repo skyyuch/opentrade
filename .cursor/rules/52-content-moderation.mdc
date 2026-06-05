@@ -1,0 +1,122 @@
+---
+description: 內容審核（發佈前內容中立閘門 + 可審計詞庫）紅線與規範
+globs: ["apps/api/src/domains/moderation/**", "apps/api/src/domains/reviews/**", "packages/shared/src/moderation/**", "apps/web/src/components/reviews/**"]
+alwaysApply: false
+---
+
+# Content Moderation Standards
+
+> 完整脈絡與決策見 [ADR-0034](mdc:docs/decisions/0034-content-moderation.md)。
+> 本規則的最高約束來自 rule 00 / `AGENTS.md` 的業務紅線：**評論上鏈後不可刪、不可改**，
+> 且**平台不可成為審查工具**。內容審核存在的唯一理由是「在上鏈前」擋下少數明確禁止的內容，
+> 而不是控制哪些評論能出現。
+
+---
+
+## 核心原則：內容中立（Content-Neutral）
+
+審核**只能**針對四個明確類別（見下），**絕不可**用來壓制負面意見。
+
+- ✅ 允許並保護負評用語：`騙` / `爛` / `差` / `避雷` / `虧錢` / "scam" / "trash" / "bad" 等
+- ✅ 對任何商戶 / KOL 的批評都必須能通過閘門
+- ❌ 不可新增任何「擋掉負評」效果的詞或 regex
+- ❌ 不可因商戶投訴 / 付費而調整詞庫
+- ❌ 不可加入針對特定商戶名稱 / 特定評論者的條目
+
+`packages/shared` 必須有 **guard test**（rule 60），用一組負評語料證明它們**不會**被擋。
+刪掉或弱化這個 guard test 等同移除紅線保護，禁止。
+
+---
+
+## 四個類別（v1）
+
+| 類別 | 含義 |
+|---|---|
+| `PROFANITY` | 粗俗用語（中英 + 香港粵語粗口） |
+| `ATTACK` | 人身攻擊 / 仇恨言論 |
+| `CONTACT` | 引流 / 廣告（TG / 微信 / 電話 / 外部聯絡方式） |
+| `ILLEGAL` | 明確違法內容 |
+
+- 新增類別必須先改 ADR-0034（或寫 superseding ADR）。
+- `PII-of-others`（起底他人）為 v1 **刻意延後**（ADR-0034 A8），不可擅自加入。
+
+---
+
+## 閘門行為：硬擋（Hard-Block）
+
+- ✅ 命中 → 回 HTTP **422 `CONTENT_REJECTED`**，告知使用者**類別**，由其自行修改後重送
+- ✅ 閘門必須在 **任何 hashing / IPFS pin / DB write / outbox 之前**執行
+- ❌ 不可遮罩（`***`）後照樣發佈 — 等於竄改作者文字
+- ❌ 不可「只警告、仍放行」— 禁止內容會上鏈
+- ❌ 不可改成「人工審核佇列再決定是否發佈」— 那正是 OpenTrade 要消滅的「平台決定哪些評論出現」槓桿
+
+權威檢查點是 **use case**（`SubmitReviewUseCase`），不是 presentation / Zod `.refine()`（rule 30）。
+
+---
+
+## 架構（rule 10 / rule 30）
+
+- 純比對引擎住 `packages/shared`：`moderateContent(text, terms)`，**無框架、無 DB**，client / server 共用
+- API 側為獨立 domain `apps/api/src/domains/moderation/`（四層）
+- `reviews` **不可**直接 import `moderation` 的 use case；只依賴自己定義的 `IContentModerator` port，由 `reviews/presentation/routes.ts` composition root 注入
+- 詞庫存 DB（`ModerationTerm`），透過 `CachedTermProvider`（in-memory TTL）讀取；admin 寫入要 invalidate cache
+- 空表 / 讀取失敗時 **fallback 到 `BASELINE_MODERATION_TERMS`** — **閘門永不可靜默開放**
+
+---
+
+## 詞庫管理與審計（Audit）
+
+詞庫由 console admin 編輯，但**每一次變更都必須留下不可刪的審計紀錄**：
+
+- ✅ 每筆 CREATE / UPDATE / ENABLE / DISABLE / DELETE 都要在**同一個 Prisma transaction** 內寫 `ModerationTermAudit`
+- ✅ audit row 記錄 `action / beforeJson / afterJson / actorUserId / reason / createdAt`
+- ✅ `ModerationTermAudit` 為 append-only，**永不刪除**（這是讓審核槓桿可被監督、不可濫用的根本）
+- ✅ 詞條本身用 soft-delete（`deletedAt`），不可硬刪（保留歷史）
+- ❌ audit 不可與業務變更分開兩個 transaction（會出現「改了但沒紀錄」的窗口）
+- ❌ 不可提供「清空 / 重置 audit」的功能
+
+---
+
+## 隱私（rule 50 / rule 30）
+
+- ✅ Moderation log 只記 `categories + count`
+- ❌ **絕不可** log 命中的原始字串（`CONTACT` 類別可能含電話號碼等 PII）
+- ❌ 不可把命中的字串回傳給前端 / 寫進錯誤 `details`（只回 `categories`）
+
+---
+
+## 前端鏡像（UX only）
+
+- ✅ `ReviewForm` 可用 `BASELINE_MODERATION_TERMS` 跑 `moderateContent` 做**即時提示**
+- ✅ 三語 i18n（`reviewForm.moderationBlocked` / `moderationCategory.*`、`errors.code.CONTENT_REJECTED`、`errors.reason.content_rejected`）
+- ⚠️ 前端鏡像**只是體驗**；後端（完整 DB 詞庫）才是唯一權威。鏡像與 DB 可不同步，可接受
+- ❌ 前端不可直連 DB 取詞庫（rule 00）
+
+---
+
+## 嚴禁清單
+
+- ❌ 用審核系統壓制負評（內容中立紅線）
+- ❌ 刪 / 弱化 `packages/shared` 的內容中立 guard test
+- ❌ 遮罩或警告後仍發佈禁止內容上鏈
+- ❌ 人工審核佇列決定評論是否出現
+- ❌ 詞庫變更不寫 audit，或 audit 與變更不同事務
+- ❌ 硬刪詞條 / 刪 audit
+- ❌ log 或回傳命中的原始字串
+- ❌ 在 presentation / Zod 做權威審核（必須在 use case）
+- ❌ 閘門靜默開放（空表時不 fallback BASELINE）
+- ❌ 未寫 ADR 就新增類別或引入 PII 類別
+
+---
+
+## 與其他 rules 的關連
+
+| Rule | 關連點 |
+|---|---|
+| rule 00 | 不可刪改評論、平台不可成為審查工具（最高紅線） |
+| rule 10 | moderation 為獨立 domain；引擎放 shared |
+| rule 30 | 權威檢查在 use case；port/adapter 注入 |
+| rule 50 | 不 log / 不回傳命中字串（PII） |
+| rule 51 | 詞庫需母語者持續維護（粵語粗口、引流話術） |
+| rule 60 | 內容中立 guard test 為必備 |
+| ADR-0034 | 本規則依據 |
