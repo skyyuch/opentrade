@@ -7,37 +7,40 @@
 
 ## 業務術語
 
-| 中文         | English                      | 定義                                                                           |
-| ------------ | ---------------------------- | ------------------------------------------------------------------------------ |
-| 外匯天眼     | WikiFX                       | 競品。香港 / 中國地區知名的 Web 2.0 外匯經紀商評論平台，被批評有付費刪負評爭議 |
-| 財演         | Financial KOL / Stock Pundit | 香港俗稱，公開喊單、提供投資意見的網路紅人                                     |
-| 喊單         | Trading Call / Signal        | 公開預測買賣標的的行為                                                         |
-| 技術指標賣家 | Technical Indicator Vendor   | 銷售自家開發的買賣訊號指標的人                                                 |
-| 持牌證券商   | Licensed Securities Broker   | 持有香港 SFC 第 1 類 / 第 2 類牌照的證券商                                     |
-| 認領         | Claim Profile                | 商戶 / KOL 主動認領平台預建檔的個人 / 公司專頁                                 |
-| 自證         | Self-attestation             | 上鏈業績作為自己誠實營運的證明                                                 |
+| 中文         | English                      | 定義                                                                                              |
+| ------------ | ---------------------------- | ------------------------------------------------------------------------------------------------- |
+| 外匯天眼     | WikiFX                       | 競品。香港 / 中國地區知名的 Web 2.0 外匯經紀商評論平台，被批評有付費刪負評爭議                    |
+| 財演         | Financial KOL / Stock Pundit | 香港俗稱，公開喊單、提供投資意見的網路紅人                                                        |
+| 喊單         | Trading Call / Signal        | 公開預測買賣標的的行為                                                                            |
+| 技術指標賣家 | Technical Indicator Vendor   | 銷售自家開發的買賣訊號指標的人                                                                    |
+| 持牌證券商   | Licensed Securities Broker   | 持有香港 SFC 第 1 類 / 第 2 類牌照的證券商                                                        |
+| 金商         | Bullion Dealer               | 香港貴金屬（黃金 / 白銀）交易商；第 4 類被評對象，沿用 `Broker` 加 `category=BULLION`（ADR-0045） |
+| 貴金屬交易商 | Precious-Metals Dealer       | 「金商」的正式說法，買賣實貨黃金白銀的公司                                                        |
+| 認領         | Claim Profile                | 商戶 / KOL 主動認領平台預建檔的個人 / 公司專頁                                                    |
+| 自證         | Self-attestation             | 上鏈業績作為自己誠實營運的證明                                                                    |
 
 ## 香港監管術語
 
-| 中文         | English                                | 定義                                                                               |
-| ------------ | -------------------------------------- | ---------------------------------------------------------------------------------- |
-| SFC          | Securities and Futures Commission      | 香港證券及期貨事務監察委員會                                                       |
-| 第 1 類牌照  | Type 1 License                         | 證券交易（schema 內為 `HK_SFC_TYPE_1`）                                            |
-| 第 2 類牌照  | Type 2 License                         | 期貨合約交易（`HK_SFC_TYPE_2`）                                                    |
-| 第 3 類牌照  | Type 3 License                         | 槓桿式外匯交易（`HK_SFC_TYPE_3`）                                                  |
-| 第 4 類牌照  | Type 4 License                         | 就證券提供意見（`HK_SFC_TYPE_4`，OpenTrade 必須避開）                              |
-| 第 5 類牌照  | Type 5 License                         | 就期貨合約提供意見（`HK_SFC_TYPE_5`）                                              |
-| 第 6 類牌照  | Type 6 License                         | 就機構融資提供意見（`HK_SFC_TYPE_6`）                                              |
-| 第 7 類牌照  | Type 7 License                         | 提供自動化交易服務（`HK_SFC_TYPE_7`）                                              |
-| 第 8 類牌照  | Type 8 License                         | 證券保證金融資（`HK_SFC_TYPE_8`）                                                  |
-| 第 9 類牌照  | Type 9 License                         | 提供資產管理（`HK_SFC_TYPE_9`）                                                    |
-| 第 10 類牌照 | Type 10 License                        | 提供信貸評級服務（`HK_SFC_TYPE_10`）                                               |
-| CE Number    | Central Entity Number                  | SFC 發給每位持牌人的識別號（例如 "BJA907"），在 `BrokerLicense.licenseNumber` 欄位 |
-| VATP         | Virtual Asset Trading Platform License | 虛擬資產交易平台牌照（OpenTrade 不發 token 即可避開）                              |
-| PDPO         | Personal Data (Privacy) Ordinance      | 個人資料（私隱）條例                                                               |
-| 創科局       | ITC                                    | Innovation and Technology Commission，香港創新科技署                               |
-| CCMF         | Cyberport Creative Micro Fund          | 數碼港創意微型基金，10 萬港幣                                                      |
-| HKSTP        | Hong Kong Science and Technology Parks | 香港科技園                                                                         |
+| 中文         | English                                | 定義                                                                                                                 |
+| ------------ | -------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| SFC          | Securities and Futures Commission      | 香港證券及期貨事務監察委員會                                                                                         |
+| CGSE         | Chinese Gold & Silver Exchange Society | 香港金銀業貿易場，1910 年成立的自律性貴金屬交易所；金商行員名冊的權威來源（ADR-0045），schema 內 `Regulator.HK_CGSE` |
+| 第 1 類牌照  | Type 1 License                         | 證券交易（schema 內為 `HK_SFC_TYPE_1`）                                                                              |
+| 第 2 類牌照  | Type 2 License                         | 期貨合約交易（`HK_SFC_TYPE_2`）                                                                                      |
+| 第 3 類牌照  | Type 3 License                         | 槓桿式外匯交易（`HK_SFC_TYPE_3`）                                                                                    |
+| 第 4 類牌照  | Type 4 License                         | 就證券提供意見（`HK_SFC_TYPE_4`，OpenTrade 必須避開）                                                                |
+| 第 5 類牌照  | Type 5 License                         | 就期貨合約提供意見（`HK_SFC_TYPE_5`）                                                                                |
+| 第 6 類牌照  | Type 6 License                         | 就機構融資提供意見（`HK_SFC_TYPE_6`）                                                                                |
+| 第 7 類牌照  | Type 7 License                         | 提供自動化交易服務（`HK_SFC_TYPE_7`）                                                                                |
+| 第 8 類牌照  | Type 8 License                         | 證券保證金融資（`HK_SFC_TYPE_8`）                                                                                    |
+| 第 9 類牌照  | Type 9 License                         | 提供資產管理（`HK_SFC_TYPE_9`）                                                                                      |
+| 第 10 類牌照 | Type 10 License                        | 提供信貸評級服務（`HK_SFC_TYPE_10`）                                                                                 |
+| CE Number    | Central Entity Number                  | SFC 發給每位持牌人的識別號（例如 "BJA907"），在 `BrokerLicense.licenseNumber` 欄位                                   |
+| VATP         | Virtual Asset Trading Platform License | 虛擬資產交易平台牌照（OpenTrade 不發 token 即可避開）                                                                |
+| PDPO         | Personal Data (Privacy) Ordinance      | 個人資料（私隱）條例                                                                                                 |
+| 創科局       | ITC                                    | Innovation and Technology Commission，香港創新科技署                                                                 |
+| CCMF         | Cyberport Creative Micro Fund          | 數碼港創意微型基金，10 萬港幣                                                                                        |
+| HKSTP        | Hong Kong Science and Technology Parks | 香港科技園                                                                                                           |
 
 ## Web3 / 區塊鏈術語
 
