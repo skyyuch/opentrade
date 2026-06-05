@@ -36,6 +36,9 @@ cd ~/Desktop && gh repo clone skyyuch/OpenTrade-UI
 | `src/components/BrokerList.tsx` | `apps/web/src/app/[locale]/brokers/` | 券商名錄 |
 | `src/components/BrokerDetail.tsx` | `apps/web/src/components/brokers/` | 券商詳情頁 |
 | `src/components/BrokerDetailWrap.tsx` | `apps/web/src/components/brokers/` | 券商詳情外框 |
+| `src/components/bullion/BullionDealerList.tsx` | `apps/web/src/components/brokers/BrokerDirectory.tsx`（`category="BULLION"` 變體）| 金商名錄（ADR-0045） |
+| `src/components/bullion/BullionDealerDetail.tsx` | `apps/web/src/components/brokers/BrokerDetailTabs.tsx`（會籍/評論/投訴 tab 變體 + `MembershipTab`）| 金商詳情頁（ADR-0045） |
+| `src/components/bullion/BullionDealerDetailWrap.tsx` | `apps/web/src/app/[locale]/bullion-dealers/[slug]/page.tsx` | 金商詳情外框/路由（ADR-0045） |
 | `src/components/Auth.tsx` | `apps/web/src/components/auth/` | 認證/登入 |
 | `src/components/SbtVerification.tsx` | `apps/web/src/components/` (TBD) | SBT 驗證流程 |
 | `src/components/shared/PublicLayout.tsx` | `apps/web/src/app/[locale]/layout.tsx` | 公開頁佈局 |
