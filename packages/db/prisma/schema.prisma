@@ -56,11 +56,26 @@ enum SbtTier {
   L4 // Institution (KYC + license verified).
 }
 
-/// Regulator that issued a broker license. V1 ships HK_SFC only; future
-/// regulators (SG_MAS, TW_FSC, JP_FSA, ...) can be added as non-breaking
-/// enum values. Naming uses an ISO-country prefix to avoid name collisions.
+/// Category of reviewable financial-service provider modelled by `Broker`.
+/// Per ADR-0045 a bullion dealer is NOT a new domain — it is a `Broker` row
+/// with a different category, registry source, and license vocabulary. The
+/// discriminator keeps the entire reviews / complaints / claim / verify /
+/// on-chain pipeline unchanged (they all bind to `brokerId`). New verticals
+/// (e.g. INSURANCE, MPF) can be added here as non-breaking enum values.
+enum BrokerCategory {
+  SECURITIES // SFC-licensed securities broker (existing behaviour).
+  BULLION // CGSE-member bullion / precious-metals dealer (per ADR-0045).
+}
+
+/// Regulator (or self-regulatory body) that issued a broker license. V1 ships
+/// HK_SFC; HK_CGSE is the Chinese Gold & Silver Exchange Society, a
+/// self-regulatory bullion exchange whose member roster is the authoritative
+/// source for bullion dealers (per ADR-0045). Future regulators (SG_MAS,
+/// TW_FSC, JP_FSA, ...) can be added as non-breaking enum values. Naming uses
+/// an ISO-country prefix to avoid name collisions.
 enum Regulator {
   HK_SFC
+  HK_CGSE // Chinese Gold & Silver Exchange Society (香港金銀業貿易場).
 }
 
 /// Specific license category. Naming convention is `<REGULATOR>_<CATEGORY>`,
@@ -80,6 +95,11 @@ enum LicenseType {
   HK_SFC_TYPE_8 // Securities margin financing — 證券保證金融資
   HK_SFC_TYPE_9 // Asset management — 提供資產管理
   HK_SFC_TYPE_10 // Providing credit rating services — 提供信貸評級服務
+
+  // CGSE membership is a single status (not 10 regulated-activity categories
+  // like SFC), so one value suffices; the 行員編號 member code (e.g. 001, 009)
+  // is stored in BrokerLicense.licenseNumber. Per ADR-0045 D3.
+  HK_CGSE_MEMBER // CGSE membership — 香港金銀業貿易場行員
 }
 
 /// Lifecycle of a single broker license. Per project red-line rules we NEVER
@@ -170,9 +190,12 @@ model User {
   @@map("users")
 }
 
-/// A financial services provider that can receive reviews. For Phase 1 these
-/// are Hong Kong SFC-licensed securities brokers, seeded from public SFC data
-/// so users can write reviews about brokers that have not yet onboarded.
+/// A reviewable, registered financial-service provider. Originally Hong Kong
+/// SFC-licensed securities brokers (seeded from public SFC data), the meaning
+/// is widened by `category` to cover other verticals — currently CGSE-member
+/// bullion dealers (per ADR-0045 D4). The model is intentionally NOT renamed
+/// to `Provider`; revisit only if a third non-broker category proves the name
+/// is a real problem.
 ///
 /// `isClaimed` flips to true once an L4 KYC has completed for a custodial
 /// staff user. Pre-claim, `description` / `logoUrl` come from the seed.
@@ -180,9 +203,15 @@ model User {
 /// SFC detail fields (`addressEn`, `addressZh`, `sfcDetailJson`) are
 /// populated by the offline SFC detail fetcher and contain public-register
 /// data such as responsible officers, conditions, and disciplinary actions.
+/// They are null on non-SECURITIES rows (e.g. bullion dealers) — the same
+/// nullability trade-off ADR-0029 accepted for its discriminator.
 model Broker {
-  id                String    @id @default(uuid()) @db.Uuid
-  tenantId          String    @db.Uuid
+  id                String         @id @default(uuid()) @db.Uuid
+  tenantId          String         @db.Uuid
+  // Discriminator widening Broker to multiple verticals (per ADR-0045).
+  // @default(SECURITIES) means every existing row inherits the correct
+  // category with zero backfill.
+  category          BrokerCategory @default(SECURITIES)
   slug              String
   legalName         String
   displayName       String
@@ -199,14 +228,14 @@ model Broker {
   displayNameZhHans String?
   ceNumber          String?
   websiteUrl        String?
-  description       String?   @db.Text
+  description       String?        @db.Text
   logoUrl           String?
-  addressEn         String?   @db.Text
-  addressZh         String?   @db.Text
+  addressEn         String?        @db.Text
+  addressZh         String?        @db.Text
   sfcDetailJson     Json?
-  isClaimed         Boolean   @default(false)
+  isClaimed         Boolean        @default(false)
   claimedAt         DateTime?
-  claimedByUserId   String?   @db.Uuid
+  claimedByUserId   String?        @db.Uuid
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -220,6 +249,7 @@ model Broker {
   @@unique([tenantId, slug])
   @@index([tenantId, isClaimed])
   @@index([tenantId, legalName])
+  @@index([tenantId, category])
   @@index([ceNumber])
   @@map("brokers")
 }
