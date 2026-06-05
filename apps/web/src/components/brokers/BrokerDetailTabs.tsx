@@ -1073,19 +1073,21 @@ function MembershipTab({ broker }: { broker: BrokerDetail }) {
       </h3>
 
       <div className="space-y-1 text-sm">
-        <div className="grid grid-cols-3 py-3 border-b border-white/5">
-          <span className="text-white/40">{t('corpName')}</span>
-          <span className="col-span-2 font-bold">
+        <div className="grid grid-cols-1 sm:grid-cols-3 py-3 border-b border-white/5">
+          <span className="text-white/40 mb-1 sm:mb-0">{t('corpName')}</span>
+          <span className="sm:col-span-2 font-bold">
             {broker.legalName} {broker.displayName}
           </span>
         </div>
-        <div className="grid grid-cols-3 py-3 border-b border-white/5">
-          <span className="text-white/40">{t('memberNumber')}</span>
-          <span className="col-span-2 font-mono">{cgse?.licenseNumber ?? t('noData')}</span>
+        <div className="grid grid-cols-1 sm:grid-cols-3 py-3 border-b border-white/5">
+          <span className="text-white/40 mb-1 sm:mb-0">{t('memberNumber')}</span>
+          <span className="sm:col-span-2 font-mono text-lg">
+            {cgse?.licenseNumber ?? t('noData')}
+          </span>
         </div>
-        <div className="grid grid-cols-3 py-3 border-b border-white/5">
-          <span className="text-white/40">{t('membershipStatus')}</span>
-          <span className="col-span-2">
+        <div className="grid grid-cols-1 sm:grid-cols-3 py-3 border-b border-white/5">
+          <span className="text-white/40 mb-1 sm:mb-0">{t('membershipStatus')}</span>
+          <span className="sm:col-span-2">
             <span
               className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[11px] font-bold ${
                 isInactive
@@ -1099,9 +1101,9 @@ function MembershipTab({ broker }: { broker: BrokerDetail }) {
           </span>
         </div>
         {cgse?.issuedAt && (
-          <div className="grid grid-cols-3 py-3 border-b border-white/5">
-            <span className="text-white/40">{t('membershipSince')}</span>
-            <span className="col-span-2">{new Date(cgse.issuedAt).toLocaleDateString()}</span>
+          <div className="grid grid-cols-1 sm:grid-cols-3 py-3 border-b border-white/5">
+            <span className="text-white/40 mb-1 sm:mb-0">{t('membershipSince')}</span>
+            <span className="sm:col-span-2">{new Date(cgse.issuedAt).toLocaleDateString()}</span>
           </div>
         )}
       </div>
@@ -1127,9 +1129,15 @@ function MembershipTab({ broker }: { broker: BrokerDetail }) {
         />
       </a>
 
-      <div className="mt-6 bg-blue-500/10 border border-blue-500/20 p-4 rounded-xl flex items-start gap-3">
-        <Info size={18} className="text-blue-400 mt-0.5 shrink-0" />
-        <p className="text-xs text-blue-300 leading-relaxed">{t('cgseDataNote')}</p>
+      {/* Per Google UI swap + rule 00 red line: every bullion surface carries
+          a disclaimer making clear CGSE is a self-regulatory exchange (not the
+          SFC) and the platform gives no investment advice. */}
+      <div className="mt-8 bg-white/5 border border-white/10 p-4 rounded-xl flex items-start gap-4">
+        <Info size={20} className="text-[#00FF88] mt-0.5 shrink-0" />
+        <div className="text-sm text-white/60 leading-relaxed">
+          <p className="font-bold text-white/80 mb-1">{t('cgseDataNoteTitle')}</p>
+          {t('cgseDataNote')}
+        </div>
       </div>
     </div>
   );
