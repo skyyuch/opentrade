@@ -929,6 +929,7 @@ enum ModerationCategory {
   ATTACK // 人身攻擊 / hate speech directed at a person
   CONTACT // off-platform solicitation / ads (URLs, TG/WhatsApp handles, phone)
   ILLEGAL // threats, incitement to crime, etc.
+  PII // a third party's private identifiers exposed as content (e.g. HKID); ADR-0044
 }
 
 /// A single blocked term or pattern. Tenant-scoped (rule 31). Soft-deletable
