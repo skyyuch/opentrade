@@ -33,6 +33,11 @@ export const ErrorCode = {
   CONFLICT: 'CONFLICT',
   /** Username/password login failed (wrong credentials); surfaced as 401. */
   INVALID_CREDENTIALS: 'INVALID_CREDENTIALS',
+  /**
+   * Submitted content was rejected by the pre-publication moderation gate
+   * (profanity / attack / solicitation / illegal); surfaced as 422 (ADR-0034).
+   */
+  CONTENT_REJECTED: 'CONTENT_REJECTED',
 } as const;
 
 export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode];

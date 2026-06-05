@@ -19,6 +19,7 @@ import { z } from 'zod';
 
 import { prisma } from '@opentrade/db';
 
+import { createCheckContentService } from '../../../domains/moderation/index.js';
 import { authMiddleware } from '../../../http/middleware/auth.js';
 import { hydrateBrokerNames } from '../../../shared/brokerHydration.js';
 import { env } from '../../../shared/env.js';
@@ -36,11 +37,14 @@ const DEFAULT_TENANT_ID = env.DEFAULT_TENANT_ID;
 
 const reviewRepo = new PrismaReviewRepository(prisma);
 const ipfsService = new PinataIpfsService(env.PINATA_JWT);
+// ADR-0034: content-neutral pre-publication moderation gate. The moderation
+// domain provides the checker; it is injected here (rule 30 — reviews does not
+// import a moderation use case directly, only its structural port).
+const contentModerator = createCheckContentService(prisma);
 // Per ADR-0027 (supersedes ADR-0023): DeepLTranslationService is no longer
 // wired into the submit path. The class file is kept @deprecated for a
-// future on-demand-translation ADR (D7). SubmitReviewUseCase ctor accepts
-// only repo + IPFS now.
-const submitReview = new SubmitReviewUseCase(reviewRepo, ipfsService);
+// future on-demand-translation ADR (D7).
+const submitReview = new SubmitReviewUseCase(reviewRepo, ipfsService, contentModerator);
 const getBrokerReviews = new GetBrokerReviewsUseCase(reviewRepo);
 const getReviewIpfsContent = new GetReviewIpfsContentUseCase(reviewRepo, env.PINATA_GATEWAY_URL);
 

@@ -33,6 +33,7 @@ import { AppError, ErrorCode } from '../../../shared/errors/index.js';
 
 import { SubmitReviewUseCase } from './SubmitReviewUseCase.js';
 
+import type { IContentModerator } from '../domain/IContentModerator.js';
 import type { CreateReviewData, IReviewRepository } from '../domain/IReviewRepository.js';
 import type { ReviewRecord, SubmitReviewInput } from '../domain/ReviewEntity.js';
 import type { IIpfsService } from '../infrastructure/IIpfsService.js';
@@ -73,11 +74,14 @@ const fixtureRecord = (overrides: Partial<ReviewRecord> = {}): ReviewRecord => (
 describe('SubmitReviewUseCase', () => {
   let repo: MockProxy<IReviewRepository>;
   let ipfs: MockProxy<IIpfsService>;
+  let moderator: MockProxy<IContentModerator>;
   let useCase: SubmitReviewUseCase;
 
   beforeEach(() => {
     repo = mock<IReviewRepository>();
     ipfs = mock<IIpfsService>();
+    moderator = mock<IContentModerator>();
+    moderator.check.mockResolvedValue({ ok: true, violations: [], categories: [] });
     ipfs.pinJson.mockResolvedValue({ cid: FIXED_CID });
     repo.create.mockImplementation((data: CreateReviewData) =>
       Promise.resolve(
@@ -92,7 +96,66 @@ describe('SubmitReviewUseCase', () => {
         }),
       ),
     );
-    useCase = new SubmitReviewUseCase(repo, ipfs);
+    useCase = new SubmitReviewUseCase(repo, ipfs, moderator);
+  });
+
+  describe('ADR-0034 — content moderation gate', () => {
+    it('checks the combined title + body against the tenant blocklist before anything else', async () => {
+      const input = baseInput({
+        tenantId: 'tnt_mod_check',
+        title: 'My title',
+        body: 'My body content here',
+      });
+
+      await useCase.execute(input);
+
+      expect(moderator.check).toHaveBeenCalledTimes(1);
+      expect(moderator.check).toHaveBeenCalledWith(
+        'My title\nMy body content here',
+        'tnt_mod_check',
+      );
+    });
+
+    it('rejects prohibited content with CONTENT_REJECTED (422) and never pins or persists', async () => {
+      moderator.check.mockResolvedValueOnce({
+        ok: false,
+        violations: [{ category: 'PROFANITY', term: 'fuck' }],
+        categories: ['PROFANITY'],
+      });
+
+      await expect(useCase.execute(baseInput())).rejects.toMatchObject({
+        code: ErrorCode.CONTENT_REJECTED,
+        statusCode: 422,
+        details: { reason: 'content_rejected', categories: ['PROFANITY'] },
+      });
+
+      expect(ipfs.pinJson).not.toHaveBeenCalled();
+      expect(repo.create).not.toHaveBeenCalled();
+    });
+
+    it('does not leak the matched blocklist terms in the error (only categories)', async () => {
+      moderator.check.mockResolvedValue({
+        ok: false,
+        violations: [{ category: 'CONTACT', term: 't\\.me/\\S+' }],
+        categories: ['CONTACT'],
+      });
+
+      const error = await useCase.execute(baseInput()).catch((e: unknown) => e);
+
+      expect(error).toBeInstanceOf(AppError);
+      expect((error as AppError).details).toMatchObject({ categories: ['CONTACT'] });
+      expect((error as AppError).details).not.toHaveProperty('violations');
+    });
+
+    it('allows clean (including negative) content through to the pipeline', async () => {
+      const result = await useCase.execute(
+        baseInput({ sentiment: 'NEGATIVE', body: 'This broker is a scam, lost my money' }),
+      );
+
+      expect(result.review.id).toBe('rev_test_0001');
+      expect(ipfs.pinJson).toHaveBeenCalledTimes(1);
+      expect(repo.create).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe('ADR-0028 D4 — rating derivation from sentiment', () => {

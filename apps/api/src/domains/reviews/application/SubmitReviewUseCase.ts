@@ -31,6 +31,7 @@ import { keccak256, toBytes } from 'viem';
 
 import { AppError, ErrorCode } from '../../../shared/errors/index.js';
 
+import type { IContentModerator } from '../domain/IContentModerator.js';
 import type { IReviewRepository } from '../domain/IReviewRepository.js';
 import type {
   ReviewRating,
@@ -69,11 +70,23 @@ export class SubmitReviewUseCase {
   constructor(
     private readonly reviewRepo: IReviewRepository,
     private readonly ipfsService: IIpfsService,
+    private readonly moderator: IContentModerator,
   ) {}
 
   async execute(input: SubmitReviewInput): Promise<SubmitReviewOutput> {
     if (input.rating !== undefined && (input.rating < 1 || input.rating > 5)) {
       throw new AppError(ErrorCode.VALIDATION_ERROR, 'Rating must be between 1 and 5', 400);
+    }
+
+    // ADR-0034 layer 1: content-neutral pre-publication gate. MUST run before
+    // any hashing / IPFS pin / DB write so prohibited content is never anchored
+    // on-chain (which is irreversible). We surface only the matched categories
+    // (never the matched substrings — they can contain PII, rule 50).
+    const verdict = await this.moderator.check(`${input.title}\n${input.body}`, input.tenantId);
+    if (!verdict.ok) {
+      throw new AppError(ErrorCode.CONTENT_REJECTED, 'Review content rejected by moderation', 422, {
+        details: { reason: 'content_rejected', categories: verdict.categories },
+      });
     }
 
     const rating = input.rating ?? deriveRatingFromSentiment(input.sentiment);
