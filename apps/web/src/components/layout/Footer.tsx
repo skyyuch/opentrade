@@ -44,6 +44,12 @@ export const Footer = (): ReactNode => {
               <Link href="/status" className="text-sm text-muted-foreground hover:text-foreground">
                 {t('systemStatus')}
               </Link>
+              <Link
+                href="/transparency/moderation"
+                className="text-sm text-muted-foreground hover:text-foreground"
+              >
+                {t('moderationAudit')}
+              </Link>
             </nav>
           </div>
 
