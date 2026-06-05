@@ -178,6 +178,48 @@ export const apiPatch = async <T>(
   return (await res.json()) as T;
 };
 
+export const apiDelete = async <T>(
+  path: string,
+  body?: unknown,
+  options: FetchOptions = {},
+): Promise<T> => {
+  const url = `${env.NEXT_PUBLIC_API_URL}${path}`;
+
+  const res = await fetch(url, {
+    method: 'DELETE',
+    headers:
+      body !== undefined
+        ? { ...buildHeaders(options), 'Content-Type': 'application/json' }
+        : buildHeaders(options),
+    ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+    ...(options.signal !== undefined ? { signal: options.signal } : {}),
+  });
+
+  if (!res.ok) {
+    let parsed: unknown = undefined;
+    try {
+      parsed = await res.json();
+    } catch {
+      // Non-JSON error body.
+    }
+    if (isApiErrorBody(parsed)) {
+      throw new ApiClientError(
+        res.status,
+        parsed.error.code,
+        parsed.error.message,
+        parsed.error.requestId,
+      );
+    }
+    throw new ApiClientError(
+      res.status,
+      'INTERNAL_ERROR',
+      `Upstream DELETE ${path} returned ${res.status}`,
+    );
+  }
+
+  return (await res.json()) as T;
+};
+
 // ---------------------------------------------------------------------------
 // Auth — Privy → OpenTrade JWT exchange
 // ---------------------------------------------------------------------------
@@ -1088,3 +1130,108 @@ export const submitBrokerResponse = (
     payload,
     options,
   );
+
+// ---------------------------------------------------------------------------
+// Admin — moderation term management per ADR-0034 (Phase B)
+//
+// The blocklist is content-neutral (rule 52): only the four categories are
+// enforced, and negative-opinion words are never blocked. Every mutation is
+// audited server-side; this client surfaces the read-only audit trail.
+// ---------------------------------------------------------------------------
+
+export type ModerationCategory = 'PROFANITY' | 'ATTACK' | 'CONTACT' | 'ILLEGAL';
+
+export type ModerationTermAuditAction = 'CREATE' | 'UPDATE' | 'ENABLE' | 'DISABLE' | 'DELETE';
+
+export type AdminModerationTerm = {
+  id: string;
+  category: ModerationCategory;
+  term: string;
+  isRegex: boolean;
+  enabled: boolean;
+  note: string | null;
+  createdByUserId: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type AdminModerationTermsResponse = { terms: AdminModerationTerm[] };
+
+export type AdminModerationTermAudit = {
+  id: string;
+  termId: string;
+  action: ModerationTermAuditAction;
+  beforeJson: unknown;
+  afterJson: unknown;
+  actorUserId: string | null;
+  reason: string | null;
+  createdAt: string;
+};
+
+export type AdminModerationAuditsResponse = { audits: AdminModerationTermAudit[] };
+
+export type CreateModerationTermPayload = {
+  category: ModerationCategory;
+  term: string;
+  isRegex?: boolean;
+  note?: string | null;
+  reason?: string;
+};
+
+export type UpdateModerationTermPayload = {
+  category?: ModerationCategory;
+  term?: string;
+  isRegex?: boolean;
+  note?: string | null;
+  reason?: string;
+};
+
+export const fetchModerationTerms = (
+  category?: ModerationCategory,
+  options?: FetchOptions,
+): Promise<AdminModerationTermsResponse> => {
+  const search = category ? `?category=${category}` : '';
+  return apiGet<AdminModerationTermsResponse>(`/v1/admin/moderation/terms${search}`, options);
+};
+
+export const createModerationTerm = (
+  payload: CreateModerationTermPayload,
+  options?: FetchOptions,
+): Promise<{ term: AdminModerationTerm }> =>
+  apiPost<{ term: AdminModerationTerm }>('/v1/admin/moderation/terms', payload, options);
+
+export const updateModerationTerm = (
+  id: string,
+  payload: UpdateModerationTermPayload,
+  options?: FetchOptions,
+): Promise<{ term: AdminModerationTerm }> =>
+  apiPatch<{ term: AdminModerationTerm }>(`/v1/admin/moderation/terms/${id}`, payload, options);
+
+export const setModerationTermEnabled = (
+  id: string,
+  enabled: boolean,
+  reason?: string,
+  options?: FetchOptions,
+): Promise<{ term: AdminModerationTerm }> =>
+  apiPatch<{ term: AdminModerationTerm }>(
+    `/v1/admin/moderation/terms/${id}/enabled`,
+    reason !== undefined ? { enabled, reason } : { enabled },
+    options,
+  );
+
+export const deleteModerationTerm = (
+  id: string,
+  reason?: string,
+  options?: FetchOptions,
+): Promise<{ term: AdminModerationTerm }> =>
+  apiDelete<{ term: AdminModerationTerm }>(
+    `/v1/admin/moderation/terms/${id}`,
+    reason !== undefined ? { reason } : undefined,
+    options,
+  );
+
+export const fetchModerationTermAudits = (
+  id: string,
+  options?: FetchOptions,
+): Promise<AdminModerationAuditsResponse> =>
+  apiGet<AdminModerationAuditsResponse>(`/v1/admin/moderation/terms/${id}/audits`, options);
