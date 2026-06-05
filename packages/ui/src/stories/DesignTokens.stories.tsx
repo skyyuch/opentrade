@@ -1,6 +1,6 @@
 import { palette, type PaletteScale } from '../design-tokens';
 
-import type { Meta, StoryObj } from '@storybook/react';
+import type { Meta, StoryObj } from '@storybook/react-vite';
 
 const meta = {
   title: 'Foundations / Design Tokens',

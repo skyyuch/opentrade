@@ -1,5 +1,5 @@
-import { expect, userEvent, within } from '@storybook/test';
 import { useCallback, useState } from 'react';
+import { expect, userEvent, within } from 'storybook/test';
 
 import {
   EvidenceUpload,
@@ -7,7 +7,7 @@ import {
   type EvidenceUploadLabels,
 } from './EvidenceUpload';
 
-import type { Meta, StoryObj } from '@storybook/react';
+import type { Meta, StoryObj } from '@storybook/react-vite';
 
 const enLabels: EvidenceUploadLabels = {
   dropTitle: 'Click to select a file, or drag here',

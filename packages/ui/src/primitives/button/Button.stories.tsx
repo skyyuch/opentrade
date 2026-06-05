@@ -2,7 +2,7 @@ import { ArrowRight, Download, Trash2 } from 'lucide-react';
 
 import { Button } from './Button';
 
-import type { Meta, StoryObj } from '@storybook/react';
+import type { Meta, StoryObj } from '@storybook/react-vite';
 
 const meta = {
   title: 'Primitives / Button',
