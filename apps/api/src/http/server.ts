@@ -26,6 +26,7 @@ import { healthRouter } from '../domains/health/index.js';
 import { identityRouter, JoseJwtService } from '../domains/identity/index.js';
 import { instrumentsRouter } from '../domains/instruments/index.js';
 import { kolsRouter } from '../domains/kols/index.js';
+import { moderationAdminRouter } from '../domains/moderation/index.js';
 import { notesRouter } from '../domains/notes/index.js';
 import { notificationsRouter } from '../domains/notifications/index.js';
 import { reviewsRouter } from '../domains/reviews/index.js';
@@ -77,6 +78,7 @@ export const createServer = (): Hono<AppHonoEnv> => {
   app.route('/v1/instruments', instrumentsRouter);
   app.route('/v1/notes', notesRouter);
   app.route('/v1/admin', adminRouter);
+  app.route('/v1/admin/moderation', moderationAdminRouter);
 
   app.notFound((c) =>
     errorHandler(AppError.notFound(`Route ${c.req.method} ${c.req.path} not found`), c),
