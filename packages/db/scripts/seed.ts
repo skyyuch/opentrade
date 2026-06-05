@@ -22,9 +22,11 @@ import bcrypt from 'bcryptjs';
 
 import { BASELINE_MODERATION_TERMS } from '@opentrade/shared';
 
+import { syncCgseMembers } from '../src/cgse/sync-members.js';
 import { prisma, Prisma } from '../src/index.js';
 import { syncBrokers } from '../src/sfc/sync-brokers.js';
 
+import type { CgseMemberData } from '../src/cgse/types.js';
 import type { SfcBrokerData } from '../src/sfc/types.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -80,6 +82,26 @@ const seedBrokers = async (): Promise<void> => {
   const result = await syncBrokers(prisma, data);
   console.log(`  ✔ brokers: ${result.brokersCreated} created, ${result.brokersUpdated} updated`);
   console.log(`  ✔ licenses: ${result.licensesCreated} created, ${result.licensesRevoked} revoked`);
+};
+
+const seedCgseMembers = async (): Promise<void> => {
+  const jsonPath = resolve(__dirname, '../seed-data/cgse-members.json');
+  let data: CgseMemberData[];
+  try {
+    data = JSON.parse(readFileSync(jsonPath, 'utf-8')) as CgseMemberData[];
+  } catch {
+    console.log('  ⚠ seed-data/cgse-members.json not found. Run `pnpm fetch:cgse` first.');
+    return;
+  }
+
+  console.log(`  Loading ${data.length} bullion dealers from cgse-members.json...`);
+  const result = await syncCgseMembers(prisma, data);
+  console.log(
+    `  ✔ bullion brokers: ${result.brokersCreated} created, ${result.brokersUpdated} updated`,
+  );
+  console.log(
+    `  ✔ CGSE licenses: ${result.licensesCreated} created, ${result.licensesUpdated} updated, ${result.membersRetired} retired`,
+  );
 };
 
 const seedAdminUser = async (): Promise<void> => {
@@ -209,6 +231,8 @@ const main = async (): Promise<void> => {
   await seedAdminUser();
   console.log('• SFC Brokers');
   await seedBrokers();
+  console.log('• CGSE Bullion Dealers');
+  await seedCgseMembers();
   console.log('• HK KOLs');
   await seedKols();
   console.log('• Moderation Terms');
