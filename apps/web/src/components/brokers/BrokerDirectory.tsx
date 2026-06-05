@@ -342,9 +342,12 @@ const BrokerCard = ({
       <div className="mb-4 flex flex-wrap gap-2">
         {isBullion
           ? cgseLicense && (
-              <div className="inline-flex items-center gap-1.5 rounded border border-white/5 bg-white/5 px-2.5 py-1">
+              // Per ADR-0045 D3 + Google UI swap: the CGSE 行員 number is the
+              // bullion card's headline trust badge, so it renders in the neon
+              // accent (not the muted SFC-license treatment).
+              <div className="inline-flex items-center gap-1.5 rounded border border-[#00FF88]/20 bg-[#00FF88]/10 px-2.5 py-1">
                 <ShieldCheck size={14} className="text-[#00FF88]" />
-                <span className="text-[10px] font-medium tracking-wide text-white/70">
+                <span className="text-[10px] font-medium tracking-wide text-[#00FF88]">
                   {t('cgseMember', { number: cgseLicense.licenseNumber })}
                 </span>
               </div>
@@ -372,8 +375,11 @@ const BrokerCard = ({
             trust signal (never a delete). Securities show SFC disciplinary. */}
         {isBullion
           ? cgseSuspended && (
-              <div className="inline-flex items-center gap-1.5 rounded border border-red-500/20 bg-red-500/10 px-2.5 py-1">
-                <ShieldAlert size={14} className="text-red-400" />
+              // Per ADR-0045 D3 + Google UI swap: the immutable SUSPENDED /
+              // REVOKED status is a factual trust signal (never a delete),
+              // rendered in the softer red-400 tone Google designed —
+              // noticeable but not alarming.
+              <div className="inline-flex items-center gap-1.5 rounded border border-red-400/20 bg-red-400/10 px-2.5 py-1">
                 <span className="text-[10px] font-bold tracking-wide text-red-400">
                   {cgseLicense.status === 'REVOKED' ? t('statusRevoked') : t('statusSuspended')}
                 </span>
