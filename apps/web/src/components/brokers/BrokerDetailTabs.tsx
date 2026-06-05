@@ -48,7 +48,7 @@ import {
   type SfcPerson,
 } from '@/lib/api/client';
 
-type Tab = 'reviews' | 'complaints' | 'license' | 'kols' | 'arbitration';
+type Tab = 'reviews' | 'complaints' | 'license' | 'kols' | 'arbitration' | 'membership';
 type LicenseSubTab =
   | 'overview'
   | 'licensedActivities'
@@ -75,6 +75,7 @@ export function BrokerDetailTabs({ broker, reviews, complaints, locale }: Props)
       <div className="w-full lg:w-2/3 space-y-8">
         <TabBar activeTab={activeTab} onTabChange={setActiveTab} broker={broker} />
 
+        {activeTab === 'membership' && <MembershipTab broker={broker} />}
         {activeTab === 'reviews' && (
           <ReviewsTab broker={broker} reviews={reviews} locale={locale} />
         )}
@@ -121,23 +122,40 @@ function TabBar({
       | undefined;
   };
 
-  const tabs: TabDescriptor[] = [
-    { key: 'reviews', label: `${t('tabReviews')} (${broker.reviewCount})` },
-    {
-      key: 'complaints',
-      label: t('tabComplaints'),
-      pill: {
-        text: String(broker.verifiedComplaintCount),
-        variant: hasVerifiedComplaints ? 'danger' : 'neutral',
-        title: hasVerifiedComplaints
-          ? t('tabComplaintsPillVerifiedTooltip', { count: broker.verifiedComplaintCount })
-          : t('tabComplaintsPillEmptyTooltip'),
-      },
+  const complaintsTab: TabDescriptor = {
+    key: 'complaints',
+    label: t('tabComplaints'),
+    pill: {
+      text: String(broker.verifiedComplaintCount),
+      variant: hasVerifiedComplaints ? 'danger' : 'neutral',
+      title: hasVerifiedComplaints
+        ? t('tabComplaintsPillVerifiedTooltip', { count: broker.verifiedComplaintCount })
+        : t('tabComplaintsPillEmptyTooltip'),
     },
-    { key: 'license', label: t('tabLicense') },
-    { key: 'kols', label: t('tabKols') },
-    { key: 'arbitration', label: t('tabArbitration'), pill: { text: '0', variant: 'neutral' } },
-  ];
+  };
+  const reviewsTab: TabDescriptor = {
+    key: 'reviews',
+    label: `${t('tabReviews')} (${broker.reviewCount})`,
+  };
+
+  // Per ADR-0045 D7: CGSE carries far less content than the SFC register
+  // (no 10 regulated-activity types, no responsible officers / disciplinary
+  // detail), so bullion dealers show a slim 會籍 / 評論 / 投訴 tab set
+  // without the SFC license-detail, related-KOL or arbitration tabs.
+  const tabs: TabDescriptor[] =
+    broker.category === 'BULLION'
+      ? [{ key: 'membership', label: t('tabMembership') }, reviewsTab, complaintsTab]
+      : [
+          reviewsTab,
+          complaintsTab,
+          { key: 'license', label: t('tabLicense') },
+          { key: 'kols', label: t('tabKols') },
+          {
+            key: 'arbitration',
+            label: t('tabArbitration'),
+            pill: { text: '0', variant: 'neutral' },
+          },
+        ];
 
   return (
     <div className="flex border-b border-white/10 overflow-x-auto no-scrollbar">
@@ -1022,6 +1040,96 @@ function ReviewCard({
             <ThumbsDown size={14} />
           </button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * MembershipTab — bullion-dealer 會籍 tab per ADR-0045 D7.
+ *
+ * Replaces the SFC-heavy LicenseTab for `category = BULLION`. CGSE membership
+ * is a single status (not 10 regulated-activity categories), so this renders
+ * a compact record: the 行員編號 (licenseNumber), the immutable
+ * ACTIVE / SUSPENDED / REVOKED status (a trust signal, never a delete per
+ * rule 00), the effective date, plus a link to the public CGSE roster.
+ */
+function MembershipTab({ broker }: { broker: BrokerDetail }) {
+  const t = useTranslations('brokerDetail');
+  const cgse = broker.licenses.find((l) => l.regulator === 'HK_CGSE') ?? broker.licenses[0];
+
+  const statusLabel =
+    cgse?.status === 'REVOKED'
+      ? t('statusRevoked')
+      : cgse?.status === 'SUSPENDED'
+        ? t('statusSuspended')
+        : t('statusActive');
+  const isInactive = cgse?.status === 'REVOKED' || cgse?.status === 'SUSPENDED';
+
+  return (
+    <div className="p-6 rounded-2xl bg-zinc-900/20 border border-white/5">
+      <h3 className="font-bold text-lg mb-6 flex items-center gap-2">
+        <ShieldCheck className="text-[#00FF88]" /> {t('cgseMembershipRecord')}
+      </h3>
+
+      <div className="space-y-1 text-sm">
+        <div className="grid grid-cols-3 py-3 border-b border-white/5">
+          <span className="text-white/40">{t('corpName')}</span>
+          <span className="col-span-2 font-bold">
+            {broker.legalName} {broker.displayName}
+          </span>
+        </div>
+        <div className="grid grid-cols-3 py-3 border-b border-white/5">
+          <span className="text-white/40">{t('memberNumber')}</span>
+          <span className="col-span-2 font-mono">{cgse?.licenseNumber ?? t('noData')}</span>
+        </div>
+        <div className="grid grid-cols-3 py-3 border-b border-white/5">
+          <span className="text-white/40">{t('membershipStatus')}</span>
+          <span className="col-span-2">
+            <span
+              className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[11px] font-bold ${
+                isInactive
+                  ? 'bg-red-500/15 text-red-300 border-red-500/30'
+                  : 'bg-[#00FF88]/10 text-[#00FF88] border-[#00FF88]/30'
+              }`}
+            >
+              {isInactive ? <ShieldAlert size={12} /> : <ShieldCheck size={12} />}
+              {statusLabel}
+            </span>
+          </span>
+        </div>
+        {cgse?.issuedAt && (
+          <div className="grid grid-cols-3 py-3 border-b border-white/5">
+            <span className="text-white/40">{t('membershipSince')}</span>
+            <span className="col-span-2">{new Date(cgse.issuedAt).toLocaleDateString()}</span>
+          </div>
+        )}
+      </div>
+
+      <a
+        href="https://www.cgse.com.hk/chines/en/member-list"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="mt-6 flex items-center gap-3 p-4 rounded-xl bg-black/20 border border-white/5 hover:border-[#00FF88]/30 transition-colors group"
+      >
+        <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-[#00FF88]/10 text-[#00FF88]">
+          <ShieldCheck size={18} />
+        </div>
+        <div className="flex-1">
+          <div className="font-bold text-sm text-white group-hover:text-[#00FF88] transition-colors">
+            {t('cgseRegistryLink')}
+          </div>
+          <div className="text-xs text-white/40">{t('cgseRegistryLinkDesc')}</div>
+        </div>
+        <ExternalLink
+          size={16}
+          className="text-white/30 group-hover:text-[#00FF88] transition-colors"
+        />
+      </a>
+
+      <div className="mt-6 bg-blue-500/10 border border-blue-500/20 p-4 rounded-xl flex items-start gap-3">
+        <Info size={18} className="text-blue-400 mt-0.5 shrink-0" />
+        <p className="text-xs text-blue-300 leading-relaxed">{t('cgseDataNote')}</p>
       </div>
     </div>
   );
