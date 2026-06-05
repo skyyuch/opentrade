@@ -82,6 +82,26 @@ const brokerHeader = {
   logoUrl: broker.logoUrl,
 };
 
+// List-endpoint projection of the securities broker (the `GET /v1/brokers`
+// shape differs from the detail shape). Only used as the non-bullion
+// fallback for the list handler below.
+const securitiesListItem = {
+  id: BROKER_ID,
+  slug: BROKER_SLUG,
+  category: 'SECURITIES' as const,
+  displayName: broker.displayName,
+  displayNameZhHans: broker.displayNameZhHans,
+  legalName: broker.legalName,
+  logoUrl: broker.logoUrl,
+  isClaimed: broker.isClaimed,
+  reviewCount: broker.reviewCount,
+  positiveRate: 50,
+  verifiedUserCount: broker.verifiedUserCount,
+  licenseTypes: ['HK_SFC_TYPE_1'],
+  licenses: [{ regulator: 'HK_SFC', licenseNumber: 'BTE111', status: 'ACTIVE' }],
+  hasDisciplinary: false,
+};
+
 const reviews = [
   {
     id: 'review-e2e-positive',
@@ -228,6 +248,97 @@ const complaints = [
   },
 ];
 
+// ADR-0045 §6: a single CGSE bullion dealer drives the bullion list →
+// detail → tab-switch e2e. It is a Broker row with category = BULLION whose
+// slug is namespaced `cgse-{memberCode}` (never collides with an SFC slug),
+// carrying a single HK_CGSE membership license (the 行員 number) instead of
+// SFC regulated-activity types. The list endpoint filters on `?category=`.
+const BULLION_SLUG = 'cgse-009';
+const BULLION_ID = 'broker-uuid-e2e-bullion-1';
+
+const bullionListItem = {
+  id: BULLION_ID,
+  slug: BULLION_SLUG,
+  category: 'BULLION' as const,
+  displayName: '恆豐金號',
+  displayNameZhHans: '恒丰金号',
+  legalName: 'Heng Fung Bullion E2E Ltd.',
+  logoUrl: null,
+  isClaimed: false,
+  reviewCount: 1,
+  positiveRate: 100,
+  verifiedUserCount: 0,
+  licenseTypes: [],
+  licenses: [{ regulator: 'HK_CGSE', licenseNumber: '009', status: 'ACTIVE' }],
+  hasDisciplinary: false,
+};
+
+const bullionBroker = {
+  id: BULLION_ID,
+  slug: BULLION_SLUG,
+  category: 'BULLION' as const,
+  displayName: '恆豐金號',
+  displayNameZhHans: '恒丰金号',
+  legalName: 'Heng Fung Bullion E2E Ltd.',
+  ceNumber: null,
+  description: 'A CGSE member bullion dealer fixture used only by e2e tests.',
+  websiteUrl: 'https://example.com',
+  logoUrl: null,
+  addressEn: null,
+  addressZh: null,
+  sfcDetailJson: null,
+  isClaimed: false,
+  activeYears: 14,
+  reviewCount: 1,
+  positiveRate: 100,
+  verifiedUserCount: 0,
+  verifiedComplaintCount: 0,
+  ratingDistribution: [],
+  sentimentAggregate: { positive: 1, neutral: 0, negative: 0 },
+  licenses: [
+    {
+      regulator: 'HK_CGSE',
+      licenseNumber: '009',
+      licenseType: 'HK_CGSE_MEMBER',
+      status: 'ACTIVE',
+      issuedAt: '2010-01-01T00:00:00.000Z',
+    },
+  ],
+  similarBrokers: [],
+};
+
+const bullionBrokerHeader = {
+  id: BULLION_ID,
+  slug: BULLION_SLUG,
+  displayName: bullionBroker.displayName,
+  displayNameZhHans: bullionBroker.displayNameZhHans,
+  legalName: bullionBroker.legalName,
+  logoUrl: bullionBroker.logoUrl,
+};
+
+const bullionReviews = [
+  {
+    id: 'review-e2e-bullion-positive',
+    brokerId: BULLION_ID,
+    contentHash: '0xbullionpositive',
+    ipfsCid: 'bafy-bullion-positive',
+    chainReviewId: 2001,
+    txHash: '0xtxbullionpositive',
+    title: 'Fair spreads on physical gold',
+    body: 'Bought and sold physical taels several times; quoted spreads matched the board and settlement was same-day.',
+    rating: 5,
+    sentiment: 'POSITIVE' as const,
+    status: 'CONFIRMED',
+    sourceLocale: 'en' as const,
+    createdAt: '2026-04-05T08:00:00.000Z',
+    author: {
+      displayName: 'Gloria E2E',
+      sbtTier: 'L2',
+      verifiedBrokers: [],
+    },
+  },
+];
+
 const sendJson = (res: ServerResponse, status: number, body: unknown): void => {
   const payload = JSON.stringify(body);
   res.statusCode = status;
@@ -243,6 +354,34 @@ const sendError = (res: ServerResponse, status: number, code: string, message: s
 const handle = (req: IncomingMessage, res: ServerResponse): void => {
   const url = req.url ?? '/';
   const method = req.method ?? 'GET';
+  const path = url.split('?')[0] ?? '/';
+  const query = new URLSearchParams(url.split('?')[1] ?? '');
+
+  // ADR-0045 D2/D7: the broker list endpoint filters on `?category=`. The
+  // bullion directory page + grid pin `category=BULLION`; anything else (or
+  // no category) falls back to the securities list item so the existing
+  // securities surfaces keep working.
+  if (method === 'GET' && path === '/v1/brokers') {
+    const category = query.get('category');
+    const brokers = category === 'BULLION' ? [bullionListItem] : [securitiesListItem];
+    sendJson(res, 200, { brokers, nextCursor: null });
+    return;
+  }
+
+  // Bullion detail / reviews / complaints (cgse-009). Checked before the
+  // securities slug branches because the slugs are disjoint namespaces.
+  if (method === 'GET' && path === `/v1/brokers/${BULLION_SLUG}`) {
+    sendJson(res, 200, { broker: bullionBroker });
+    return;
+  }
+  if (method === 'GET' && path.startsWith(`/v1/reviews/broker/${BULLION_SLUG}`)) {
+    sendJson(res, 200, { reviews: bullionReviews, nextCursor: null, broker: bullionBrokerHeader });
+    return;
+  }
+  if (method === 'GET' && path.startsWith(`/v1/complaints/broker/${BULLION_SLUG}`)) {
+    sendJson(res, 200, { complaints: [], nextCursor: null, broker: bullionBrokerHeader });
+    return;
+  }
 
   if (method === 'GET' && url.startsWith(`/v1/brokers/${BROKER_SLUG}`)) {
     sendJson(res, 200, { broker });
@@ -281,6 +420,11 @@ export const SEED = {
   reviewCount: reviews.length,
   complaintCount: complaints.length,
   verifiedComplaintCount: complaints.filter((c) => c.verifiedAt !== null).length,
+  // ADR-0045 §6: bullion (CGSE) fixture for the bullion list → detail e2e.
+  bullionSlug: BULLION_SLUG,
+  bullionId: BULLION_ID,
+  bullionLegalName: bullionBroker.legalName,
+  bullionMemberNumber: '009',
 };
 
 // Entrypoint when spawned as a standalone process (Playwright webServer)
