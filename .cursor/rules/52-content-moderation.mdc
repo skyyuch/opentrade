@@ -6,7 +6,8 @@ alwaysApply: false
 
 # Content Moderation Standards
 
-> 完整脈絡與決策見 [ADR-0034](mdc:docs/decisions/0034-content-moderation.md)。
+> 完整脈絡與決策見 [ADR-0034](mdc:docs/decisions/0034-content-moderation.md)
+> 與 [ADR-0044](mdc:docs/decisions/0044-pii-of-others-moderation-category.md)（PII 第五類）。
 > 本規則的最高約束來自 rule 00 / `AGENTS.md` 的業務紅線：**評論上鏈後不可刪、不可改**，
 > 且**平台不可成為審查工具**。內容審核存在的唯一理由是「在上鏈前」擋下少數明確禁止的內容，
 > 而不是控制哪些評論能出現。
@@ -28,17 +29,22 @@ alwaysApply: false
 
 ---
 
-## 四個類別（v1）
+## 五個類別
 
 | 類別 | 含義 |
 |---|---|
 | `PROFANITY` | 粗俗用語（中英 + 香港粵語粗口） |
 | `ATTACK` | 人身攻擊 / 仇恨言論 |
 | `CONTACT` | 引流 / 廣告（TG / 微信 / 電話 / 外部聯絡方式） |
-| `ILLEGAL` | 明確違法內容 |
+| `ILLEGAL` | 明確違法內容（含起底**意圖詞**，如「起底」「人肉搜尋」） |
+| `PII` | 起底他人：第三方**實際私人識別碼**被當作內容貼出（ADR-0044） |
 
-- 新增類別必須先改 ADR-0034（或寫 superseding ADR）。
-- `PII-of-others`（起底他人）為 v1 **刻意延後**（ADR-0034 A8），不可擅自加入。
+- 新增類別（第六類起）必須先改 ADR-0034 / ADR-0044（或寫 superseding ADR）。
+- `PII` 邊界（ADR-0044 D2，內容中立紅線的延伸）：
+  - ✅ 只擋**第三方私人識別碼**（baseline 只收 HKID 號碼 regex；住址等交 operator 自管詞庫）。
+  - ❌ **絕不**擋被評對象（券商 / KOL）的**公開身分 / 名稱**、評論者**自己**的資料、或任何負評 / 批評。
+  - 電話續歸 `CONTACT`、起底意圖詞續歸 `ILLEGAL`；`PII` 只加「實際識別碼外洩」。
+  - `reason`（ADR-0043 公開）**絕不可**寫入任何他人真實識別碼。
 
 ---
 
@@ -120,7 +126,8 @@ alwaysApply: false
 - ❌ log 或回傳命中的原始字串
 - ❌ 在 presentation / Zod 做權威審核（必須在 use case）
 - ❌ 閘門靜默開放（空表時不 fallback BASELINE）
-- ❌ 未寫 ADR 就新增類別或引入 PII 類別
+- ❌ 未寫 ADR 就新增類別（PII 已由 ADR-0044 引入；第六類起仍須先寫 ADR）
+- ❌ 用 `PII` 類別擋被評對象公開名稱 / 評論者自己的資料 / 任何負評（ADR-0044 D2）
 - ❌ 公開 audit view 洩漏詞文 / `isRegex` / snapshot / `actorUserId`（ADR-0043）
 - ❌ 在公開可見的 `reason` 寫入詞文或他人 PII
 - ❌ 新增「上鏈 / pin 使用者內容」的 use case 卻不接內容審核閘門
@@ -139,3 +146,4 @@ alwaysApply: false
 | rule 60 | 內容中立 guard test + 公開視圖 leak guard test 為必備 |
 | ADR-0034 | 本規則依據 |
 | ADR-0043 | 公開脫敏 audit view（透明度 follow-up） |
+| ADR-0044 | PII 第五類別（起底他人）+ 內容中立邊界 |
