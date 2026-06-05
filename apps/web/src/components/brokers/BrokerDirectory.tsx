@@ -48,6 +48,8 @@ type BrokersApiResponse = {
   nextCursor: string | null;
 };
 
+type DirectoryNamespace = 'brokers' | 'bullionDealers';
+
 type Props = {
   /**
    * Per ADR-0045 D2/D7: the vertical this directory renders. Every fetch
@@ -56,6 +58,13 @@ type Props = {
    * bullion gets the CGSE card + filter variant.
    */
   category: BrokerCategory;
+  /**
+   * The i18n namespace for the directory chrome + card copy. Securities uses
+   * `brokers`; bullion uses `bullionDealers` (same key set + CGSE card keys)
+   * so the SFC-flavoured strings ("持牌券商"...) never leak into the bullion
+   * grid.
+   */
+  namespace: DirectoryNamespace;
   initialBrokers: BrokerListItem[];
   initialCursor: string | null;
 };
@@ -112,9 +121,10 @@ function resolveBrokerName(
   return { primary: broker.legalName, secondary: hasChinese ? broker.displayName : null };
 }
 
-export const BrokerDirectory = ({ category, initialBrokers, initialCursor }: Props) => {
-  const t = useTranslations('brokers');
+export const BrokerDirectory = ({ category, namespace, initialBrokers, initialCursor }: Props) => {
+  const t = useTranslations(namespace);
   const locale = useLocale();
+  const isBullion = category === 'BULLION';
 
   const [query, setQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState('all');
@@ -202,23 +212,26 @@ export const BrokerDirectory = ({ category, initialBrokers, initialCursor }: Pro
         </button>
       </div>
 
-      {/* Category pills — SFC license types */}
-      <div className="flex flex-wrap gap-2 pt-2">
-        {SFC_LICENSE_FILTERS.map(({ key }) => (
-          <button
-            key={key}
-            type="button"
-            onClick={() => setActiveFilter(key)}
-            className={`rounded-full border px-4 py-1.5 text-xs font-medium transition-colors ${
-              activeFilter === key
-                ? 'border-[#00FF88]/50 bg-[#00FF88]/20 text-[#00FF88]'
-                : 'border-white/10 bg-white/5 text-white/60 hover:bg-white/10 hover:text-white'
-            }`}
-          >
-            {t(`filter_${key}`)}
-          </button>
-        ))}
-      </div>
+      {/* Category pills — SFC license types (securities only; CGSE has no
+          regulated-activity categories, so the bullion grid omits them) */}
+      {!isBullion && (
+        <div className="flex flex-wrap gap-2 pt-2">
+          {SFC_LICENSE_FILTERS.map(({ key }) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setActiveFilter(key)}
+              className={`rounded-full border px-4 py-1.5 text-xs font-medium transition-colors ${
+                activeFilter === key
+                  ? 'border-[#00FF88]/50 bg-[#00FF88]/20 text-[#00FF88]'
+                  : 'border-white/10 bg-white/5 text-white/60 hover:bg-white/10 hover:text-white'
+              }`}
+            >
+              {t(`filter_${key}`)}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Results count + sort */}
       <div className="flex items-center justify-between border-b border-white/10 pb-4 text-sm text-white/40">
@@ -254,7 +267,7 @@ export const BrokerDirectory = ({ category, initialBrokers, initialCursor }: Pro
         <>
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
             {filteredBrokers.map((broker) => (
-              <BrokerCard key={broker.id} broker={broker} locale={locale} />
+              <BrokerCard key={broker.id} broker={broker} locale={locale} namespace={namespace} />
             ))}
           </div>
 
@@ -277,14 +290,31 @@ export const BrokerDirectory = ({ category, initialBrokers, initialCursor }: Pro
   );
 };
 
-const BrokerCard = ({ broker, locale }: { broker: BrokerListItem; locale: string }) => {
-  const t = useTranslations('brokers');
+const BrokerCard = ({
+  broker,
+  locale,
+  namespace,
+}: {
+  broker: BrokerListItem;
+  locale: string;
+  namespace: DirectoryNamespace;
+}) => {
+  const t = useTranslations(namespace);
   const { primary, secondary } = resolveBrokerName(broker, locale);
   const initials = getInitials(primary);
+  const isBullion = broker.category === 'BULLION';
+
+  // Per ADR-0045 D3: the bullion card surfaces the CGSE membership number
+  // and an immutable SUSPENDED / REVOKED trust pill instead of SFC license
+  // types. The active CGSE membership is the most relevant license row.
+  const cgseLicense = isBullion
+    ? broker.licenses.find((l) => l.regulator === 'HK_CGSE')
+    : undefined;
+  const cgseSuspended = cgseLicense?.status === 'SUSPENDED' || cgseLicense?.status === 'REVOKED';
 
   return (
     <Link
-      href={`/brokers/${broker.slug}`}
+      href={`${isBullion ? '/bullion-dealers' : '/brokers'}/${broker.slug}`}
       className="group flex h-full cursor-pointer flex-col rounded-2xl border border-white/10 bg-zinc-900/40 p-6 backdrop-blur-xl transition-all hover:border-[#00FF88]/30 hover:bg-zinc-900/60"
     >
       {/* Top: avatar + name */}
@@ -310,14 +340,23 @@ const BrokerCard = ({ broker, locale }: { broker: BrokerListItem; locale: string
 
       {/* License + verified-users badges */}
       <div className="mb-4 flex flex-wrap gap-2">
-        {broker.licenseTypes.length > 0 && (
-          <div className="inline-flex items-center gap-1.5 rounded border border-white/5 bg-white/5 px-2.5 py-1">
-            <ShieldCheck size={14} className="text-[#00FF88]" />
-            <span className="text-[10px] font-medium tracking-wide text-white/70">
-              {formatLicenseTypes(broker.licenseTypes)}
-            </span>
-          </div>
-        )}
+        {isBullion
+          ? cgseLicense && (
+              <div className="inline-flex items-center gap-1.5 rounded border border-white/5 bg-white/5 px-2.5 py-1">
+                <ShieldCheck size={14} className="text-[#00FF88]" />
+                <span className="text-[10px] font-medium tracking-wide text-white/70">
+                  {t('cgseMember', { number: cgseLicense.licenseNumber })}
+                </span>
+              </div>
+            )
+          : broker.licenseTypes.length > 0 && (
+              <div className="inline-flex items-center gap-1.5 rounded border border-white/5 bg-white/5 px-2.5 py-1">
+                <ShieldCheck size={14} className="text-[#00FF88]" />
+                <span className="text-[10px] font-medium tracking-wide text-white/70">
+                  {formatLicenseTypes(broker.licenseTypes)}
+                </span>
+              </div>
+            )}
         {broker.verifiedUserCount > 0 && (
           <div
             className="inline-flex items-center gap-1.5 rounded border border-[#00FF88]/30 bg-[#00FF88]/10 px-2.5 py-1"
@@ -329,14 +368,25 @@ const BrokerCard = ({ broker, locale }: { broker: BrokerListItem; locale: string
             </span>
           </div>
         )}
-        {broker.hasDisciplinary && (
-          <div className="inline-flex items-center gap-1.5 rounded border border-red-500/20 bg-red-500/10 px-2.5 py-1">
-            <ShieldAlert size={14} className="text-red-400" />
-            <span className="text-[10px] font-bold tracking-wide text-red-400">
-              {t('hasDisciplinary')}
-            </span>
-          </div>
-        )}
+        {/* Per ADR-0045 D3: the immutable CGSE watch/suspended status is a
+            trust signal (never a delete). Securities show SFC disciplinary. */}
+        {isBullion
+          ? cgseSuspended && (
+              <div className="inline-flex items-center gap-1.5 rounded border border-red-500/20 bg-red-500/10 px-2.5 py-1">
+                <ShieldAlert size={14} className="text-red-400" />
+                <span className="text-[10px] font-bold tracking-wide text-red-400">
+                  {cgseLicense?.status === 'REVOKED' ? t('statusRevoked') : t('statusSuspended')}
+                </span>
+              </div>
+            )
+          : broker.hasDisciplinary && (
+              <div className="inline-flex items-center gap-1.5 rounded border border-red-500/20 bg-red-500/10 px-2.5 py-1">
+                <ShieldAlert size={14} className="text-red-400" />
+                <span className="text-[10px] font-bold tracking-wide text-red-400">
+                  {t('hasDisciplinary')}
+                </span>
+              </div>
+            )}
       </div>
 
       {/* Spacer */}

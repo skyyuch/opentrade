@@ -13,20 +13,20 @@ type Props = {
 
 export const generateMetadata = async (props: Props): Promise<Metadata> => {
   const params = await props.params;
-  const t = await getTranslations({ locale: params.locale, namespace: 'brokers' });
+  const t = await getTranslations({ locale: params.locale, namespace: 'bullionDealers' });
   return {
     title: `${t('title')} | OpenTrade`,
     description: t('subtitle'),
   };
 };
 
-const BrokersPage = async (props: Props): Promise<ReactNode> => {
+const BullionDealersPage = async (props: Props): Promise<ReactNode> => {
   const params = await props.params;
   setRequestLocale(params.locale);
 
-  const t = await getTranslations('brokers');
+  const t = await getTranslations('bullionDealers');
 
-  let brokers: {
+  let dealers: {
     id: string;
     slug: string;
     category: BrokerCategory;
@@ -48,15 +48,13 @@ const BrokersPage = async (props: Props): Promise<ReactNode> => {
   let error: string | null = null;
 
   try {
-    // Per ADR-0045 D2/D7: the securities page MUST send an explicit
-    // `category=SECURITIES`. The API defaults to returning every vertical,
-    // so once CGSE members are seeded an unfiltered call would mix bullion
-    // dealers into the securities grid.
-    const data = await fetchBrokers({ next: { revalidate: 60 }, category: 'SECURITIES' });
-    brokers = data.brokers;
+    // Per ADR-0045 D2/D7: the bullion directory reuses the broker grid but
+    // pins `category=BULLION` so only CGSE members appear here.
+    const data = await fetchBrokers({ next: { revalidate: 60 }, category: 'BULLION' });
+    dealers = data.brokers;
     nextCursor = data.nextCursor;
   } catch (err) {
-    error = err instanceof ApiClientError ? err.message : 'Failed to fetch brokers';
+    error = err instanceof ApiClientError ? err.message : 'Failed to fetch bullion dealers';
   }
 
   return (
@@ -80,9 +78,9 @@ const BrokersPage = async (props: Props): Promise<ReactNode> => {
           </div>
         ) : (
           <BrokerDirectory
-            category="SECURITIES"
-            namespace="brokers"
-            initialBrokers={brokers}
+            category="BULLION"
+            namespace="bullionDealers"
+            initialBrokers={dealers}
             initialCursor={nextCursor}
           />
         )}
@@ -95,4 +93,4 @@ const BrokersPage = async (props: Props): Promise<ReactNode> => {
   );
 };
 
-export default BrokersPage;
+export default BullionDealersPage;
