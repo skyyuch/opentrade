@@ -19,6 +19,7 @@ import {
   Building2,
   Eye,
   EyeOff,
+  Filter,
   Fingerprint,
   LayoutGrid,
   LogOut,
@@ -243,6 +244,12 @@ export const AuthGate = ({ children }: Props): ReactNode => {
       path: '/admin/kols',
       icon: TrendingUp,
       label: t('nav.kols'),
+    },
+    {
+      href: '/admin/moderation',
+      path: '/admin/moderation',
+      icon: Filter,
+      label: t('nav.moderation'),
     },
     {
       href: '/admin/brokers',
