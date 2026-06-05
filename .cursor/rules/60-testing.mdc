@@ -181,6 +181,18 @@ const nextConfig = {
 - 根 `eslint.config.mjs` ignore `**/.next-e2e/**`
 - `apps/web/tsconfig.json` include `.next-e2e/types/**/*.ts`（typed routes auto-gen 在此）+ exclude `.next-e2e/{cache,server,static}`（不讓 tsc 吃 build output）
 
+### Google UI swap 工作流的測試順序（per ADR-0045 D7）
+
+OpenTrade 有一條循環工作流：**對外 `apps/web` 的視覺由 Google（Gemini）設計，本團隊只接功能 / 資料 / state / i18n，先用 reuse 既有元件把功能跑通成「功能 baseline」，再把 Google 設計 swap 進去替換 baseline 的視覺 / JSX**（證券商頁、金商頁皆此模式）。
+
+因此測試順序有一條硬守則：
+
+- ✅ **component / e2e 測試對「最終 swap 進去的 Google UI」寫**——查 `getByRole` / `getByText` / DOM 結構要對著最終畫面。
+- ❌ **不要在 Google UI swap 之前，對會被丟棄的功能 baseline DOM 寫 component / e2e 測試**——baseline 的 markup 一旦被 swap 替換，這些測試大多要重寫（純重工）。
+- ✅ **unit 測試（純函式 / use case / filter helper 如 `buildBrokerListWhere`）與 i18n parity 檢查與畫面無關，不受此限**，可在 swap 前先寫。
+
+實務排序：**先完成 Google UI swap → 再寫 component / e2e**。若該 surface 短期內不會 swap（例如 `apps/console` 內部後台無 Google prompt、樣式本團隊自建），則無此限制，照常先寫測試。
+
 ### E2E 寫入路徑 vs 讀取路徑
 
 當登入流程涉及 Privy / Magic / WalletConnect 等不易 mock 的 SDK：
