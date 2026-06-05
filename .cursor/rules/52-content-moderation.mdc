@@ -1,6 +1,6 @@
 ---
 description: 內容審核（發佈前內容中立閘門 + 可審計詞庫）紅線與規範
-globs: ["apps/api/src/domains/moderation/**", "apps/api/src/domains/reviews/**", "packages/shared/src/moderation/**", "apps/web/src/components/reviews/**"]
+globs: ["apps/api/src/domains/moderation/**", "apps/api/src/domains/reviews/**", "apps/api/src/domains/complaints/**", "packages/shared/src/moderation/**", "apps/web/src/components/reviews/**"]
 alwaysApply: false
 ---
 
@@ -50,7 +50,9 @@ alwaysApply: false
 - ❌ 不可「只警告、仍放行」— 禁止內容會上鏈
 - ❌ 不可改成「人工審核佇列再決定是否發佈」— 那正是 OpenTrade 要消滅的「平台決定哪些評論出現」槓桿
 
-權威檢查點是 **use case**（`SubmitReviewUseCase`），不是 presentation / Zod `.refine()`（rule 30）。
+權威檢查點是 **use case**，不是 presentation / Zod `.refine()`（rule 30）。
+
+同一道閘門必須套用到**所有會產生不可刪內容的發佈路徑**：目前為 `SubmitReviewUseCase`、`SubmitComplaintUseCase`、`SubmitBrokerResponseUseCase`（後兩者見 ADR-0034 follow-up #1）。任何新的「使用者 / 商戶產生並上鏈 / pin 內容」的 use case 都必須在發佈前接同一個 `IContentModerator` port。
 
 ---
 
@@ -85,6 +87,18 @@ alwaysApply: false
 
 ---
 
+## 公開審計視圖（透明度，ADR-0043）
+
+公開的 audit view（`GET /v1/moderation/audit`）是對外證明「審核槓桿沒被濫用」的關鍵，但**絕不可洩漏詞庫本身**：
+
+- ✅ 公開只回 `action / category / actor 角色（admin｜system）/ reason / timestamp / id / termId`
+- ✅ 脫敏邏輯放 application 層（`PublicModerationAuditService`），集中且可單元測試（**必備** leak guard test：斷言公開 DTO 不含 `term`/`isRegex`/`note`/snapshot/`actorUserId`）
+- ❌ 公開視圖**絕不可**含詞條本文（`term`）、`isRegex`、`note`、raw `beforeJson`/`afterJson`、或 `actorUserId`（公開詞庫＝讓引流者照著繞過，違反 rule 50 精神）
+- ⚠️ `reason` 在公開視圖**可見** → operator **不可**在 `reason` 寫入詞文 / 命中字串 / 他人 PII
+- ✅ admin 端（`/v1/admin/moderation/terms/:id/audits`）仍可看完整未脫敏 snapshot（operator 合法需要）
+
+---
+
 ## 前端鏡像（UX only）
 
 - ✅ `ReviewForm` 可用 `BASELINE_MODERATION_TERMS` 跑 `moderateContent` 做**即時提示**
@@ -106,6 +120,9 @@ alwaysApply: false
 - ❌ 在 presentation / Zod 做權威審核（必須在 use case）
 - ❌ 閘門靜默開放（空表時不 fallback BASELINE）
 - ❌ 未寫 ADR 就新增類別或引入 PII 類別
+- ❌ 公開 audit view 洩漏詞文 / `isRegex` / snapshot / `actorUserId`（ADR-0043）
+- ❌ 在公開可見的 `reason` 寫入詞文或他人 PII
+- ❌ 新增「上鏈 / pin 使用者內容」的 use case 卻不接內容審核閘門
 
 ---
 
@@ -118,5 +135,6 @@ alwaysApply: false
 | rule 30 | 權威檢查在 use case；port/adapter 注入 |
 | rule 50 | 不 log / 不回傳命中字串（PII） |
 | rule 51 | 詞庫需母語者持續維護（粵語粗口、引流話術） |
-| rule 60 | 內容中立 guard test 為必備 |
+| rule 60 | 內容中立 guard test + 公開視圖 leak guard test 為必備 |
 | ADR-0034 | 本規則依據 |
+| ADR-0043 | 公開脫敏 audit view（透明度 follow-up） |
