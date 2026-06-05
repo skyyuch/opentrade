@@ -3,6 +3,7 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { BrokerDirectory } from '../../../components/brokers/BrokerDirectory';
 import { ApiClientError, fetchBrokers } from '../../../lib/api/client';
 
+import type { BrokerCategory, BrokerLicenseSummary } from '../../../lib/api/client';
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 
@@ -28,6 +29,7 @@ const BrokersPage = async (props: Props): Promise<ReactNode> => {
   let brokers: {
     id: string;
     slug: string;
+    category: BrokerCategory;
     // Per cursor rule 51 + ADR-0026: three-column name shape forwarded
     // from the API to the BrokerDirectory client component.
     displayName: string;
@@ -39,13 +41,18 @@ const BrokersPage = async (props: Props): Promise<ReactNode> => {
     positiveRate: number | null;
     verifiedUserCount: number;
     licenseTypes: string[];
+    licenses: BrokerLicenseSummary[];
     hasDisciplinary: boolean;
   }[] = [];
   let nextCursor: string | null = null;
   let error: string | null = null;
 
   try {
-    const data = await fetchBrokers({ next: { revalidate: 60 } });
+    // Per ADR-0045 D2/D7: the securities page MUST send an explicit
+    // `category=SECURITIES`. The API defaults to returning every vertical,
+    // so once CGSE members are seeded an unfiltered call would mix bullion
+    // dealers into the securities grid.
+    const data = await fetchBrokers({ next: { revalidate: 60 }, category: 'SECURITIES' });
     brokers = data.brokers;
     nextCursor = data.nextCursor;
   } catch (err) {
@@ -72,7 +79,11 @@ const BrokersPage = async (props: Props): Promise<ReactNode> => {
             {error}
           </div>
         ) : (
-          <BrokerDirectory initialBrokers={brokers} initialCursor={nextCursor} />
+          <BrokerDirectory
+            category="SECURITIES"
+            initialBrokers={brokers}
+            initialCursor={nextCursor}
+          />
         )}
 
         <footer className="mt-12 border-t border-white/10 pt-6 text-xs text-white/30">

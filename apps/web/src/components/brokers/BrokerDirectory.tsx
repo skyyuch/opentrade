@@ -15,9 +15,14 @@ import { useCallback, useEffect, useRef, useState, useTransition } from 'react';
 import { env } from '../../env';
 import { Link } from '../../i18n/navigation';
 
+import type { BrokerCategory, BrokerLicenseSummary } from '../../lib/api/client';
+
 type BrokerListItem = {
   id: string;
   slug: string;
+  // Per ADR-0045 D7: the vertical this row belongs to. Securities and
+  // bullion dealers share this component; the card branches on category.
+  category: BrokerCategory;
   // Per cursor rule 51 + ADR-0026: three-column name shape so the
   // resolver below can pick the right primary/secondary pair per
   // locale (`zh-Hans` reads the Simplified column, falling back to
@@ -32,6 +37,9 @@ type BrokerListItem = {
   /** Per ADR-0025: count of distinct users approved for this broker. */
   verifiedUserCount: number;
   licenseTypes: string[];
+  // Per ADR-0045 D3: registry + membership number + status; the bullion
+  // card renders the CGSE 行員 number and an immutable trust pill from it.
+  licenses: BrokerLicenseSummary[];
   hasDisciplinary: boolean;
 };
 
@@ -41,6 +49,13 @@ type BrokersApiResponse = {
 };
 
 type Props = {
+  /**
+   * Per ADR-0045 D2/D7: the vertical this directory renders. Every fetch
+   * (initial search + load more) sends it as `?category=` so the grid never
+   * mixes the other vertical's rows. Securities is the existing behaviour;
+   * bullion gets the CGSE card + filter variant.
+   */
+  category: BrokerCategory;
   initialBrokers: BrokerListItem[];
   initialCursor: string | null;
 };
@@ -97,7 +112,7 @@ function resolveBrokerName(
   return { primary: broker.legalName, secondary: hasChinese ? broker.displayName : null };
 }
 
-export const BrokerDirectory = ({ initialBrokers, initialCursor }: Props) => {
+export const BrokerDirectory = ({ category, initialBrokers, initialCursor }: Props) => {
   const t = useTranslations('brokers');
   const locale = useLocale();
 
@@ -112,6 +127,9 @@ export const BrokerDirectory = ({ initialBrokers, initialCursor }: Props) => {
   const fetchFromApi = useCallback(
     async (search: string, afterCursor?: string): Promise<BrokersApiResponse> => {
       const params = new URLSearchParams();
+      // Per ADR-0045 D2/D7: pin the vertical on every fetch so search +
+      // load-more never leak the other vertical's rows into this grid.
+      params.set('category', category);
       if (search.trim()) params.set('search', search.trim());
       if (afterCursor) params.set('cursor', afterCursor);
       params.set('limit', '30');
@@ -119,7 +137,7 @@ export const BrokerDirectory = ({ initialBrokers, initialCursor }: Props) => {
       const res = await fetch(`${env.NEXT_PUBLIC_API_URL}/v1/brokers${qs ? `?${qs}` : ''}`);
       return (await res.json()) as BrokersApiResponse;
     },
-    [],
+    [category],
   );
 
   useEffect(() => {

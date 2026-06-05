@@ -189,9 +189,32 @@ export const reviewIpfsContentUrl = (reviewId: string): string =>
 export const fetchHealth = (options?: FetchOptions): Promise<HealthReportDto> =>
   apiGet<HealthReportDto>('/v1/health', options);
 
+/**
+ * Per ADR-0045 D1: the broker vertical discriminator. `SECURITIES` is the
+ * SFC-licensed securities broker (existing behaviour); `BULLION` is a
+ * CGSE-member bullion / precious-metals dealer. Mirrors the
+ * `BrokerCategory` Prisma enum re-exported from `@opentrade/db`.
+ */
+export type BrokerCategory = 'SECURITIES' | 'BULLION';
+
+/**
+ * Per ADR-0045 D3: the minimal license shape the list endpoint ships so a
+ * card can render the registry membership (e.g. a CGSE 行員 number) and an
+ * immutable SUSPENDED / REVOKED trust pill without a per-row detail fetch.
+ * `regulator` is `HK_SFC` | `HK_CGSE`; `status` is the `LicenseStatus` enum.
+ */
+export type BrokerLicenseSummary = {
+  regulator: string;
+  licenseNumber: string;
+  status: string;
+};
+
 export type BrokerListItem = {
   id: string;
   slug: string;
+  // Per ADR-0045 D7: the vertical the front-end grid filters/labels by.
+  // Securities and bullion dealers share the same card component.
+  category: BrokerCategory;
   // Per cursor rule 51 + ADR-0026: every broker reference ships all
   // three name columns (TC + SC + EN) so the consumer can pick by
   // locale via `localizedBrokerName()` from @opentrade/shared.
@@ -209,6 +232,10 @@ export type BrokerListItem = {
    */
   verifiedUserCount: number;
   licenseTypes: string[];
+  // Per ADR-0045 D3: registry + membership number + status, used by the
+  // bullion card to show the CGSE 行員 number and an immutable trust pill.
+  // Additive for securities consumers (which key off `licenseTypes`).
+  licenses: BrokerLicenseSummary[];
   hasDisciplinary: boolean;
 };
 
@@ -218,11 +245,15 @@ export type BrokersResponse = {
 };
 
 export const fetchBrokers = (
-  options?: FetchOptions & { search?: string; limit?: number },
+  options?: FetchOptions & { search?: string; limit?: number; category?: BrokerCategory },
 ): Promise<BrokersResponse> => {
   const params = new URLSearchParams();
   if (options?.search) params.set('search', options.search);
   if (options?.limit !== undefined) params.set('limit', String(options.limit));
+  // Per ADR-0045 D2/D7: omitting `category` returns every vertical; the
+  // securities and bullion pages each send an explicit value so neither
+  // grid mixes the other vertical's rows once CGSE members are seeded.
+  if (options?.category) params.set('category', options.category);
   const qs = params.toString();
   return apiGet<BrokersResponse>(`/v1/brokers${qs ? `?${qs}` : ''}`, options);
 };
@@ -321,6 +352,11 @@ export type SfcDetailJson = {
 export type BrokerDetail = {
   id: string;
   slug: string;
+  // Per ADR-0045 D7: the vertical this detail page belongs to. The front-end
+  // varies the tab set by category (bullion dealers show 會籍 / 評論 / 投訴
+  // without the SFC license-detail tab). CGSE membership is carried in
+  // `licenses[]` below — no extra field needed.
+  category: BrokerCategory;
   // Per cursor rule 51 + ADR-0026: ship all three name columns
   // (TC + SC + EN).
   displayName: string;
