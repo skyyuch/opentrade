@@ -8,7 +8,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useOpenTradeAuth } from '../../../../hooks/useOpenTradeAuth';
 import { fetchAllBrokers } from '../../../../lib/api/client';
 
-import type { BrokerListItem } from '../../../../lib/api/client';
+import type { BrokerCategory, BrokerListItem } from '../../../../lib/api/client';
 
 const PAGE_SIZE = 50;
 
@@ -28,6 +28,9 @@ export function AdminBrokersClient(): React.ReactNode {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [claimFilter, setClaimFilter] = useState<'all' | 'claimed' | 'unclaimed'>('all');
+  // Per ADR-0045 D7: the vertical filter is client-side, consistent with the
+  // existing claim / license filters (all run over the in-memory roster).
+  const [categoryFilter, setCategoryFilter] = useState<'all' | BrokerCategory>('all');
   const [licenseFilter, setLicenseFilter] = useState<Set<string>>(new Set());
   const [showLicenseDropdown, setShowLicenseDropdown] = useState(false);
   const [page, setPage] = useState(1);
@@ -76,18 +79,22 @@ export function AdminBrokersClient(): React.ReactNode {
     }
     if (claimFilter === 'claimed') list = list.filter((b) => b.isClaimed);
     if (claimFilter === 'unclaimed') list = list.filter((b) => !b.isClaimed);
+    if (categoryFilter !== 'all') list = list.filter((b) => b.category === categoryFilter);
     if (licenseFilter.size > 0) {
       list = list.filter((b) => b.licenseTypes.some((lt) => licenseFilter.has(lt)));
     }
     return list;
-  }, [brokers, search, claimFilter, licenseFilter]);
+  }, [brokers, search, claimFilter, categoryFilter, licenseFilter]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   useEffect(() => {
     setPage(1);
-  }, [search, claimFilter, licenseFilter]);
+  }, [search, claimFilter, categoryFilter, licenseFilter]);
+
+  const categoryLabel = (category: BrokerCategory): string =>
+    category === 'BULLION' ? t('categoryBullion') : t('categorySecurities');
 
   if (loading) {
     return (
@@ -121,6 +128,17 @@ export function AdminBrokersClient(): React.ReactNode {
             <option value="all">{t('filterAll')}</option>
             <option value="claimed">{t('statusClaimed')}</option>
             <option value="unclaimed">{t('statusUnclaimed')}</option>
+          </select>
+
+          {/* Vertical (category) filter — per ADR-0045 D7 */}
+          <select
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value as 'all' | BrokerCategory)}
+            className="rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-sm focus:outline-none"
+          >
+            <option value="all">{t('filterCategoryAll')}</option>
+            <option value="SECURITIES">{t('categorySecurities')}</option>
+            <option value="BULLION">{t('categoryBullion')}</option>
           </select>
 
           {/* License type multi-select */}
@@ -169,6 +187,7 @@ export function AdminBrokersClient(): React.ReactNode {
             <thead>
               <tr className="border-b border-white/10 bg-black/40 text-left text-xs uppercase tracking-wider text-white/50">
                 <th className="px-4 py-3">{t('thBrokerName')}</th>
+                <th className="px-4 py-3">{t('thCategory')}</th>
                 <th className="px-4 py-3">{t('thCeNumber')}</th>
                 <th className="px-4 py-3">{t('thLicenseType')}</th>
                 <th className="whitespace-nowrap px-4 py-3">{t('thClaimStatus')}</th>
@@ -178,7 +197,7 @@ export function AdminBrokersClient(): React.ReactNode {
             <tbody>
               {paged.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="p-8 text-center text-white/40">
+                  <td colSpan={6} className="p-8 text-center text-white/40">
                     {t('noResults')}
                   </td>
                 </tr>
@@ -191,6 +210,17 @@ export function AdminBrokersClient(): React.ReactNode {
                   >
                     <td className="px-4 py-3 font-bold">
                       {locale === 'en' ? b.legalName : b.displayName}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3">
+                      <span
+                        className={
+                          b.category === 'BULLION'
+                            ? 'rounded-full bg-[#00FF88]/15 px-2.5 py-1 text-xs font-bold text-[#00FF88]'
+                            : 'rounded-full bg-white/10 px-2.5 py-1 text-xs font-bold text-white/60'
+                        }
+                      >
+                        {categoryLabel(b.category)}
+                      </span>
                     </td>
                     <td className="px-4 py-3 font-mono text-xs">{b.slug}</td>
                     <td className="px-4 py-3 text-white/80">
