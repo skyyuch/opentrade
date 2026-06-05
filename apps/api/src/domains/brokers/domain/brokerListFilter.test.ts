@@ -75,4 +75,38 @@ describe('buildBrokerListWhere', () => {
     expect(Object.prototype.hasOwnProperty.call(where, 'OR')).toBe(false);
     expect(where).toEqual({ tenantId: TENANT, deletedAt: null });
   });
+
+  it('does not trim a whitespace-only search — passes it through verbatim', () => {
+    // Contract: the helper is the pure filter seam and never trims; the
+    // route layer (`presentation/routes.ts`) forwards `query.data.search`
+    // straight from the zod-parsed query string. A whitespace-only string
+    // is therefore truthy and produces a real (if vacuous) OR predicate —
+    // documenting that any trimming/normalisation is the caller's job, so
+    // a future caller-side change can't silently alter this behaviour.
+    const where = buildBrokerListWhere({ tenantId: TENANT, search: '   ' });
+    expect(where).toEqual({
+      tenantId: TENANT,
+      deletedAt: null,
+      OR: [
+        { displayName: { contains: '   ', mode: 'insensitive' } },
+        { legalName: { contains: '   ', mode: 'insensitive' } },
+      ],
+    });
+  });
+
+  it('omits both optional predicates when category and search are passed as explicit undefined', () => {
+    // `BrokerListFilterInput` types both optionals as `T | undefined`, so
+    // the route can spread parsed query data that carries explicit
+    // `undefined` values. This guards the `exactOptionalPropertyTypes`
+    // path: an explicit undefined must behave identically to an absent key
+    // (ADR-0045 D2 zero-change for the no-filter case).
+    const where = buildBrokerListWhere({
+      tenantId: TENANT,
+      category: undefined,
+      search: undefined,
+    });
+    expect(where).toEqual({ tenantId: TENANT, deletedAt: null });
+    expect(Object.prototype.hasOwnProperty.call(where, 'category')).toBe(false);
+    expect(Object.prototype.hasOwnProperty.call(where, 'OR')).toBe(false);
+  });
 });
