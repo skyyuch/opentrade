@@ -11,6 +11,7 @@
     "reviews": "Review management",
     "complaints": "Complaint moderation",
     "kols": "KOL management",
+    "moderation": "Word list",
     "system": "System health",
     "brokerDashboard": "My broker",
     "profile": "My profile",
@@ -105,6 +106,71 @@
     "disclaimer": "This platform surfaces on-chain data only and does not constitute investment advice."
   },
   "admin": {
+    "moderation": {
+      "title": "Content word list",
+      "subtitle": "Manage the content-neutral pre-publication filter. A match is blocked before anchoring; the user edits their own text and resubmits.",
+      "neutralNotice": "Content-neutral red line: this list only blocks the four prohibited categories (profanity, personal attack, off-platform solicitation, illegal content). NEVER add any term that suppresses negative opinion (e.g. scam, trash, bad, avoid, lost money). Every change is recorded in an immutable audit trail.",
+      "addTerm": "Add term",
+      "filterAll": "All",
+      "colCategory": "Category",
+      "colTerm": "Term",
+      "colType": "Type",
+      "colStatus": "Status",
+      "colActions": "Actions",
+      "typeLiteral": "Literal",
+      "typeRegex": "Regex",
+      "statusEnabled": "Enabled",
+      "statusDisabled": "Disabled",
+      "loading": "Loading…",
+      "empty": "No terms yet.",
+      "enable": "Enable",
+      "disable": "Disable",
+      "edit": "Edit",
+      "viewAudits": "Audit history",
+      "delete": "Delete",
+      "category": {
+        "PROFANITY": "Profanity",
+        "ATTACK": "Personal attack",
+        "CONTACT": "Solicitation / ads",
+        "ILLEGAL": "Illegal content"
+      },
+      "form": {
+        "createTitle": "Add term",
+        "editTitle": "Edit term",
+        "category": "Category",
+        "term": "Term",
+        "termPlaceholder": "Enter the string or regex to filter",
+        "termRequired": "Term is required",
+        "isRegex": "Treat as a regular expression",
+        "note": "Note",
+        "notePlaceholder": "Optional: why this term was added",
+        "reason": "Change reason",
+        "reasonPlaceholder": "Optional: recorded in the audit trail",
+        "save": "Save",
+        "cancel": "Cancel",
+        "saveFailed": "Save failed, please retry"
+      },
+      "delete": {
+        "title": "Delete term",
+        "confirm": "Delete this term? (soft-delete; history is kept)",
+        "confirmButton": "Confirm delete",
+        "cancel": "Cancel",
+        "reasonLabel": "Delete reason (recorded in audit)"
+      },
+      "audit": {
+        "title": "Audit history",
+        "empty": "No audit records yet.",
+        "actor": "Actor",
+        "reason": "Reason",
+        "action": {
+          "CREATE": "Created",
+          "UPDATE": "Updated",
+          "ENABLE": "Enabled",
+          "DISABLE": "Disabled",
+          "DELETE": "Deleted"
+        }
+      }
+    },
     "dashboardTitle": "Platform overview",
     "totalUsers": "Total users",
     "totalReviews": "Total reviews",

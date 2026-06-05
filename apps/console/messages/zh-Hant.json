@@ -11,6 +11,7 @@
     "reviews": "評論管理",
     "complaints": "投訴審核",
     "kols": "KOL 管理",
+    "moderation": "詞庫審核",
     "system": "系統健康",
     "brokerDashboard": "我的券商",
     "profile": "我的資料",
@@ -105,6 +106,71 @@
     "disclaimer": "本平台僅呈現鏈上資料，不發表任何投資建議。"
   },
   "admin": {
+    "moderation": {
+      "title": "內容詞庫審核",
+      "subtitle": "管理發佈前的內容中立過濾詞庫。命中即在上鏈前擋下，由用戶自行修改重送。",
+      "neutralNotice": "內容中立紅線：本詞庫只用於擋下粗俗、人身攻擊、引流廣告、違法四類內容。嚴禁加入任何會壓制負面評論的詞（如「騙」「爛」「差」「避雷」「虧錢」）。每筆變更都會留下不可刪的審計紀錄。",
+      "addTerm": "新增詞條",
+      "filterAll": "全部",
+      "colCategory": "類別",
+      "colTerm": "詞條",
+      "colType": "類型",
+      "colStatus": "狀態",
+      "colActions": "操作",
+      "typeLiteral": "字串",
+      "typeRegex": "正則",
+      "statusEnabled": "啟用中",
+      "statusDisabled": "已停用",
+      "loading": "載入中…",
+      "empty": "尚無詞條。",
+      "enable": "啟用",
+      "disable": "停用",
+      "edit": "編輯",
+      "viewAudits": "審計歷史",
+      "delete": "刪除",
+      "category": {
+        "PROFANITY": "粗俗用語",
+        "ATTACK": "人身攻擊",
+        "CONTACT": "引流廣告",
+        "ILLEGAL": "違法內容"
+      },
+      "form": {
+        "createTitle": "新增詞條",
+        "editTitle": "編輯詞條",
+        "category": "類別",
+        "term": "詞條",
+        "termPlaceholder": "輸入要過濾的字串或正則",
+        "termRequired": "請輸入詞條內容",
+        "isRegex": "視為正則表達式",
+        "note": "備註",
+        "notePlaceholder": "選填：說明為何加入此詞",
+        "reason": "變更原因",
+        "reasonPlaceholder": "選填：記入審計紀錄",
+        "save": "儲存",
+        "cancel": "取消",
+        "saveFailed": "儲存失敗，請重試"
+      },
+      "delete": {
+        "title": "刪除詞條",
+        "confirm": "確定要刪除此詞條？（軟刪除，歷史保留）",
+        "confirmButton": "確認刪除",
+        "cancel": "取消",
+        "reasonLabel": "刪除原因（記入審計）"
+      },
+      "audit": {
+        "title": "審計歷史",
+        "empty": "尚無審計紀錄。",
+        "actor": "操作者",
+        "reason": "原因",
+        "action": {
+          "CREATE": "新增",
+          "UPDATE": "修改",
+          "ENABLE": "啟用",
+          "DISABLE": "停用",
+          "DELETE": "刪除"
+        }
+      }
+    },
     "dashboardTitle": "平台總覽",
     "totalUsers": "總用戶數",
     "totalReviews": "總評論數",

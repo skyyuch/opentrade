@@ -11,6 +11,7 @@
     "reviews": "评论管理",
     "complaints": "投诉审核",
     "kols": "KOL 管理",
+    "moderation": "词库审核",
     "system": "系统健康",
     "brokerDashboard": "我的券商",
     "profile": "我的资料",
@@ -105,6 +106,71 @@
     "disclaimer": "本平台仅呈现链上数据，不发表任何投资建议。"
   },
   "admin": {
+    "moderation": {
+      "title": "内容词库审核",
+      "subtitle": "管理发布前的内容中立过滤词库。命中即在上链前拦下，由用户自行修改重送。",
+      "neutralNotice": "内容中立红线：本词库只用于拦下粗俗、人身攻击、引流广告、违法四类内容。严禁加入任何会压制负面评论的词（如「骗」「烂」「差」「避雷」「亏钱」）。每笔变更都会留下不可删的审计记录。",
+      "addTerm": "新增词条",
+      "filterAll": "全部",
+      "colCategory": "类别",
+      "colTerm": "词条",
+      "colType": "类型",
+      "colStatus": "状态",
+      "colActions": "操作",
+      "typeLiteral": "字符串",
+      "typeRegex": "正则",
+      "statusEnabled": "启用中",
+      "statusDisabled": "已停用",
+      "loading": "加载中…",
+      "empty": "暂无词条。",
+      "enable": "启用",
+      "disable": "停用",
+      "edit": "编辑",
+      "viewAudits": "审计历史",
+      "delete": "删除",
+      "category": {
+        "PROFANITY": "粗俗用语",
+        "ATTACK": "人身攻击",
+        "CONTACT": "引流广告",
+        "ILLEGAL": "违法内容"
+      },
+      "form": {
+        "createTitle": "新增词条",
+        "editTitle": "编辑词条",
+        "category": "类别",
+        "term": "词条",
+        "termPlaceholder": "输入要过滤的字符串或正则",
+        "termRequired": "请输入词条内容",
+        "isRegex": "视为正则表达式",
+        "note": "备注",
+        "notePlaceholder": "选填：说明为何加入此词",
+        "reason": "变更原因",
+        "reasonPlaceholder": "选填：记入审计记录",
+        "save": "保存",
+        "cancel": "取消",
+        "saveFailed": "保存失败，请重试"
+      },
+      "delete": {
+        "title": "删除词条",
+        "confirm": "确定要删除此词条？（软删除，历史保留）",
+        "confirmButton": "确认删除",
+        "cancel": "取消",
+        "reasonLabel": "删除原因（记入审计）"
+      },
+      "audit": {
+        "title": "审计历史",
+        "empty": "暂无审计记录。",
+        "actor": "操作者",
+        "reason": "原因",
+        "action": {
+          "CREATE": "新增",
+          "UPDATE": "修改",
+          "ENABLE": "启用",
+          "DISABLE": "停用",
+          "DELETE": "删除"
+        }
+      }
+    },
     "dashboardTitle": "平台总览",
     "totalUsers": "总用户数",
     "totalReviews": "总评论数",
