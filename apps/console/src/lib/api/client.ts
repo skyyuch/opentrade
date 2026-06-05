@@ -274,9 +274,21 @@ export const apiGet = async <T>(path: string, options: FetchOptions = {}): Promi
 // Domain-specific typed fetchers
 // ---------------------------------------------------------------------------
 
+/**
+ * Per ADR-0045 D1: the broker vertical discriminator. `SECURITIES` is the
+ * SFC-licensed securities broker (existing behaviour); `BULLION` is a
+ * CGSE-member bullion / precious-metals dealer. Mirrors the `BrokerCategory`
+ * Prisma enum re-exported from `@opentrade/db` and the apps/web client type.
+ */
+export type BrokerCategory = 'SECURITIES' | 'BULLION';
+
 export type BrokerListItem = {
   id: string;
   slug: string;
+  // Per ADR-0045 D7: the vertical the admin broker table filters/labels by
+  // (client-side, consistent with the existing search / claim / license
+  // filters). Securities and bullion dealers share the same admin table.
+  category: BrokerCategory;
   // Per cursor rule 51 + ADR-0026: ship all three name columns
   // (TC + SC + EN) for every broker reference.
   displayName: string;
