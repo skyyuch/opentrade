@@ -716,6 +716,17 @@ User 已拍板優先序「Phase 1 收尾 → KOL → 商戶功能」。完整計
 4. ✅ ~~**公開 audit view**（透明度）~~（見摘要 57 — `GET /v1/moderation/audit` 公開脫敏端點 + `ADR-0043`；前端透明頁為非必須的自然下一步）
 5. ⏭️ **（選配）partial unique index** — user 評估後**選擇跳過**：價值低（重複詞條不影響正確性，空表本有 BASELINE fallback）且 Prisma 無法表達 partial/filtered unique → 需 raw SQL 並承擔 schema drift，不划算。未來真要做才考慮。
 
+**🟢 下一個建議起手點（已與 user 對齊，待新 session 執行）：公開審核透明頁（前端）**
+
+把 follow-up #4 的後端端點 `GET /v1/moderation/audit`（已上 main，回 `{ audits: [{ id, termId, action, category, actor, reason, createdAt }], nextCursor }`，脫敏無詞文）render 成一個**對外公開的透明頁**，這是對 grant / 投資人展示「公開、不可被濫用」最有故事價值的一件事。預估起手點：
+
+- `apps/web` 新增公開頁（route，無需登入）— 列出審核改動紀錄（action 動詞 + category 標籤 + actor 角色 + reason + 相對時間），cursor「載入更多」
+- web `client.ts` 加 typed fetcher 打 `/v1/moderation/audit`（沿用既有 public fetch pattern）
+- 三語 i18n（zh-Hant / zh-Hans / en）：頁標題/副標/action 動詞/category 標籤/actor 標籤/空狀態
+- 入口連結（footer 或 about/透明度頁）
+- component test（render 一頁 + 空狀態）
+- 紅線提醒：頁面**只 render 後端回的脫敏欄位**，前端不可自行去查或顯示詞文（rule 50 / rule 52）
+
 時間軸關鍵節點：
 
 - **2026-05-29 至 2026-06-04** — SmartTone 洽談
