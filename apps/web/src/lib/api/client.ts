@@ -27,6 +27,7 @@ import type {
   InstrumentDto,
   KolNoteDto,
   KolNoteListItemDto,
+  ModerationCategory,
 } from '@opentrade/shared';
 
 export type FetchOptions = {
@@ -1312,5 +1313,64 @@ export const uploadNoteImage = async (
   }
 
   return (await res.json()) as NoteImageUploadResponse;
+};
+
+// ---------------------------------------------------------------------------
+// Moderation transparency — public, redacted audit view (per ADR-0043)
+// ---------------------------------------------------------------------------
+
+// Re-export the shared category contract so the transparency page imports its
+// types from this client (single source of truth: `@opentrade/shared`).
+export type { ModerationCategory } from '@opentrade/shared';
+export { MODERATION_CATEGORIES, isModerationCategory } from '@opentrade/shared';
+
+export type ModerationAuditAction = 'CREATE' | 'UPDATE' | 'ENABLE' | 'DISABLE' | 'DELETE';
+
+/** Coarse actor role label — never an actor user id (ADR-0043 D1 / rule 52). */
+export type ModerationAuditActor = 'admin' | 'system';
+
+/**
+ * One redacted moderation-change record from `GET /v1/moderation/audit`.
+ *
+ * Per ADR-0043 D1 this is the ENTIRE public surface: it proves *that* a change
+ * happened, *what category*, *when*, *by an admin role*, and *why* — and the
+ * server never ships the term text, regex flag, note, raw snapshots, or actor
+ * user id. The transparency page renders only these fields (rule 50 / rule 52):
+ * the front-end must never try to fetch or display the blocklist itself.
+ */
+export type ModerationAuditEntry = {
+  id: string;
+  /** Opaque term UUID — lets readers see a term changed repeatedly, not what it is. */
+  termId: string;
+  action: ModerationAuditAction;
+  /** Null when the snapshot carried no recognisable category (legacy / malformed). */
+  category: ModerationCategory | null;
+  actor: ModerationAuditActor;
+  /** Operator-authored justification (free text, public — never term text / PII). */
+  reason: string | null;
+  /** ISO-8601 timestamp. */
+  createdAt: string;
+};
+
+export type ModerationAuditResponse = {
+  audits: ModerationAuditEntry[];
+  nextCursor: string | null;
+};
+
+/**
+ * Fetch the tenant's redacted moderation-change history
+ * (`GET /v1/moderation/audit`, public — no auth). Newest first,
+ * cursor-paginated; pass the previous response's `nextCursor` to page on.
+ * `limit` is clamped server-side to [1, 50].
+ */
+export const fetchModerationAudit = (
+  params: { limit?: number; cursor?: string } = {},
+  options?: FetchOptions,
+): Promise<ModerationAuditResponse> => {
+  const query = new URLSearchParams();
+  if (params.limit !== undefined) query.set('limit', String(params.limit));
+  if (params.cursor) query.set('cursor', params.cursor);
+  const qs = query.toString();
+  return apiGet<ModerationAuditResponse>(`/v1/moderation/audit${qs ? `?${qs}` : ''}`, options);
 };
 
