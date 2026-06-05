@@ -1956,6 +1956,10 @@ function ArbitrationTab() {
 function Sidebar({ broker }: { broker: BrokerDetail }) {
   const t = useTranslations('brokerDetail');
   const locale = useLocale();
+  // Per ADR-0045 D7: similar entities are same-vertical, so a bullion
+  // dealer's "similar dealers" must link to the bullion route — the shared
+  // /brokers/ path would 404 against a cgse-* slug.
+  const similarBasePath = broker.category === 'BULLION' ? '/bullion-dealers' : '/brokers';
 
   return (
     <div className="w-full lg:w-1/3 flex flex-col gap-6">
@@ -2003,7 +2007,7 @@ function Sidebar({ broker }: { broker: BrokerDetail }) {
               return (
                 <Link
                   key={sb.id}
-                  href={`/brokers/${sb.slug}`}
+                  href={`${similarBasePath}/${sb.slug}`}
                   className="flex gap-3 items-center group cursor-pointer hover:bg-white/5 p-2 -mx-2 rounded-lg transition-colors"
                 >
                   {sb.logoUrl ? (
