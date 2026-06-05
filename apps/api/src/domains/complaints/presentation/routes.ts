@@ -22,6 +22,7 @@ import { z } from 'zod';
 
 import { prisma } from '@opentrade/db';
 
+import { createCheckContentService } from '../../../domains/moderation/index.js';
 import { authMiddleware } from '../../../http/middleware/auth.js';
 import { env } from '../../../shared/env.js';
 import { AppError, ErrorCode } from '../../../shared/errors/index.js';
@@ -39,11 +40,18 @@ const DEFAULT_TENANT_ID = env.DEFAULT_TENANT_ID;
 const complaintRepo = new PrismaComplaintRepository(prisma);
 const responseRepo = new PrismaBrokerResponseRepository(prisma);
 const ipfsService = new PinataIpfsService(env.PINATA_JWT);
-const submitComplaint = new SubmitComplaintUseCase(complaintRepo, ipfsService);
+// ADR-0034: the same content-neutral pre-publication gate that guards
+// reviews also guards complaints + broker responses. The moderation domain
+// provides the checker; it is injected here (rule 30 — complaints does not
+// import a moderation use case directly, only the structural port the
+// reviews domain owns and which CheckContentService satisfies).
+const contentModerator = createCheckContentService(prisma);
+const submitComplaint = new SubmitComplaintUseCase(complaintRepo, ipfsService, contentModerator);
 const submitBrokerResponse = new SubmitBrokerResponseUseCase(
   complaintRepo,
   responseRepo,
   ipfsService,
+  contentModerator,
 );
 const listComplaints = new ListComplaintsUseCase(complaintRepo);
 

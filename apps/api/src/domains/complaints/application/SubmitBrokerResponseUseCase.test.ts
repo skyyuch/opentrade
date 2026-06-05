@@ -19,8 +19,11 @@ import { keccak256, toBytes } from 'viem';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { mock, type MockProxy } from 'vitest-mock-extended';
 
+import { AppError, ErrorCode } from '../../../shared/errors/index.js';
+
 import { SubmitBrokerResponseUseCase } from './SubmitBrokerResponseUseCase.js';
 
+import type { IContentModerator } from '../../reviews/domain/IContentModerator.js';
 import type { IIpfsService } from '../../reviews/infrastructure/IIpfsService.js';
 import type {
   BrokerResponseRecord,
@@ -86,13 +89,71 @@ describe('SubmitBrokerResponseUseCase', () => {
   let complaintRepo: MockProxy<IComplaintRepository>;
   let responseRepo: MockProxy<IBrokerResponseRepository>;
   let ipfsService: MockProxy<IIpfsService>;
+  let moderator: MockProxy<IContentModerator>;
   let useCase: SubmitBrokerResponseUseCase;
 
   beforeEach(() => {
     complaintRepo = mock<IComplaintRepository>();
     responseRepo = mock<IBrokerResponseRepository>();
     ipfsService = mock<IIpfsService>();
-    useCase = new SubmitBrokerResponseUseCase(complaintRepo, responseRepo, ipfsService);
+    moderator = mock<IContentModerator>();
+    moderator.check.mockResolvedValue({ ok: true, violations: [], categories: [] });
+    useCase = new SubmitBrokerResponseUseCase(complaintRepo, responseRepo, ipfsService, moderator);
+  });
+
+  describe('ADR-0034 — content moderation gate', () => {
+    it('checks the response body against the tenant blocklist after the ownership + uniqueness guards', async () => {
+      complaintRepo.findById.mockResolvedValue(fixtureComplaint());
+      responseRepo.existsForComplaint.mockResolvedValue(false);
+      ipfsService.pinJson.mockResolvedValue({ cid: FIXED_CID });
+      responseRepo.create.mockResolvedValue(fixtureResponseRecord());
+
+      await useCase.execute(
+        baseInput({ body: 'A measured, factual rebuttal of the claim.' }),
+        BROKER_ID,
+      );
+
+      expect(moderator.check).toHaveBeenCalledTimes(1);
+      expect(moderator.check).toHaveBeenCalledWith(
+        'A measured, factual rebuttal of the claim.',
+        '00000000-0000-4000-8000-000000000001',
+      );
+    });
+
+    it('rejects prohibited content with CONTENT_REJECTED (422) and never pins or persists', async () => {
+      complaintRepo.findById.mockResolvedValue(fixtureComplaint());
+      responseRepo.existsForComplaint.mockResolvedValue(false);
+      moderator.check.mockResolvedValueOnce({
+        ok: false,
+        violations: [{ category: 'ATTACK', term: 'idiot' }],
+        categories: ['ATTACK'],
+      });
+
+      await expect(useCase.execute(baseInput(), BROKER_ID)).rejects.toMatchObject({
+        code: ErrorCode.CONTENT_REJECTED,
+        statusCode: 422,
+        details: { reason: 'content_rejected', categories: ['ATTACK'] },
+      });
+
+      expect(ipfsService.pinJson).not.toHaveBeenCalled();
+      expect(responseRepo.create).not.toHaveBeenCalled();
+    });
+
+    it('does not leak the matched blocklist terms in the error (only categories)', async () => {
+      complaintRepo.findById.mockResolvedValue(fixtureComplaint());
+      responseRepo.existsForComplaint.mockResolvedValue(false);
+      moderator.check.mockResolvedValue({
+        ok: false,
+        violations: [{ category: 'CONTACT', term: 't\\.me/\\S+' }],
+        categories: ['CONTACT'],
+      });
+
+      const error = await useCase.execute(baseInput(), BROKER_ID).catch((e: unknown) => e);
+
+      expect(error).toBeInstanceOf(AppError);
+      expect((error as AppError).details).toMatchObject({ categories: ['CONTACT'] });
+      expect((error as AppError).details).not.toHaveProperty('violations');
+    });
   });
 
   it('pins IPFS payload with kind BROKER_RESPONSE and linked content hash', async () => {

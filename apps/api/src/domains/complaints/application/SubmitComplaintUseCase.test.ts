@@ -29,6 +29,7 @@ import { AppError, ErrorCode } from '../../../shared/errors/index.js';
 
 import { SubmitComplaintUseCase } from './SubmitComplaintUseCase.js';
 
+import type { IContentModerator } from '../../reviews/domain/IContentModerator.js';
 import type { IIpfsService } from '../../reviews/infrastructure/IIpfsService.js';
 import type { ComplaintRecord, SubmitComplaintInput } from '../domain/ComplaintEntity.js';
 import type { CreateComplaintData, IComplaintRepository } from '../domain/IComplaintRepository.js';
@@ -71,11 +72,14 @@ const fixtureRecord = (overrides: Partial<ComplaintRecord> = {}): ComplaintRecor
 describe('SubmitComplaintUseCase', () => {
   let repo: MockProxy<IComplaintRepository>;
   let ipfs: MockProxy<IIpfsService>;
+  let moderator: MockProxy<IContentModerator>;
   let useCase: SubmitComplaintUseCase;
 
   beforeEach(() => {
     repo = mock<IComplaintRepository>();
     ipfs = mock<IIpfsService>();
+    moderator = mock<IContentModerator>();
+    moderator.check.mockResolvedValue({ ok: true, violations: [], categories: [] });
     ipfs.pinJson.mockResolvedValue({ cid: FIXED_CID });
     repo.create.mockImplementation((data: CreateComplaintData) =>
       Promise.resolve(
@@ -90,7 +94,62 @@ describe('SubmitComplaintUseCase', () => {
         }),
       ),
     );
-    useCase = new SubmitComplaintUseCase(repo, ipfs);
+    useCase = new SubmitComplaintUseCase(repo, ipfs, moderator);
+  });
+
+  describe('ADR-0034 — content moderation gate', () => {
+    it('checks the combined title + body against the tenant blocklist before anything else', async () => {
+      await useCase.execute(
+        baseInput({ tenantId: 'tnt_mod_check', title: 'My title', body: 'My body content here' }),
+      );
+
+      expect(moderator.check).toHaveBeenCalledTimes(1);
+      expect(moderator.check).toHaveBeenCalledWith(
+        'My title\nMy body content here',
+        'tnt_mod_check',
+      );
+    });
+
+    it('rejects prohibited content with CONTENT_REJECTED (422) and never pins or persists', async () => {
+      moderator.check.mockResolvedValueOnce({
+        ok: false,
+        violations: [{ category: 'PROFANITY', term: 'fuck' }],
+        categories: ['PROFANITY'],
+      });
+
+      await expect(useCase.execute(baseInput())).rejects.toMatchObject({
+        code: ErrorCode.CONTENT_REJECTED,
+        statusCode: 422,
+        details: { reason: 'content_rejected', categories: ['PROFANITY'] },
+      });
+
+      expect(ipfs.pinJson).not.toHaveBeenCalled();
+      expect(repo.create).not.toHaveBeenCalled();
+    });
+
+    it('does not leak the matched blocklist terms in the error (only categories)', async () => {
+      moderator.check.mockResolvedValue({
+        ok: false,
+        violations: [{ category: 'CONTACT', term: 't\\.me/\\S+' }],
+        categories: ['CONTACT'],
+      });
+
+      const error = await useCase.execute(baseInput()).catch((e: unknown) => e);
+
+      expect(error).toBeInstanceOf(AppError);
+      expect((error as AppError).details).toMatchObject({ categories: ['CONTACT'] });
+      expect((error as AppError).details).not.toHaveProperty('violations');
+    });
+
+    it('allows a negative-but-clean complaint through to the pipeline', async () => {
+      const result = await useCase.execute(
+        baseInput({ body: 'This broker is a scam and ignored my withdrawal for weeks.' }),
+      );
+
+      expect(result.complaint.id).toBe('cmp_test_0001');
+      expect(ipfs.pinJson).toHaveBeenCalledTimes(1);
+      expect(repo.create).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe('ADR-0029 D1 — IPFS payload v2-for-complaint schema', () => {
