@@ -1,6 +1,6 @@
 ---
 description: 內容審核（發佈前內容中立閘門 + 可審計詞庫）紅線與規範
-globs: ["apps/api/src/domains/moderation/**", "apps/api/src/domains/reviews/**", "apps/api/src/domains/complaints/**", "packages/shared/src/moderation/**", "apps/web/src/components/reviews/**"]
+globs: ["apps/api/src/domains/moderation/**", "apps/api/src/domains/reviews/**", "apps/api/src/domains/complaints/**", "packages/shared/src/moderation/**", "apps/web/src/components/reviews/**", "apps/web/src/components/moderation/**", "apps/web/src/app/[locale]/transparency/**"]
 alwaysApply: false
 ---
 
@@ -96,6 +96,7 @@ alwaysApply: false
 - ❌ 公開視圖**絕不可**含詞條本文（`term`）、`isRegex`、`note`、raw `beforeJson`/`afterJson`、或 `actorUserId`（公開詞庫＝讓引流者照著繞過，違反 rule 50 精神）
 - ⚠️ `reason` 在公開視圖**可見** → operator **不可**在 `reason` 寫入詞文 / 命中字串 / 他人 PII
 - ✅ admin 端（`/v1/admin/moderation/terms/:id/audits`）仍可看完整未脫敏 snapshot（operator 合法需要）
+- ✅ web 公開透明頁（`apps/web` `/transparency/moderation`）**只 render 後端已脫敏欄位**（顯示 opaque `termId`，**不**顯示詞文）；前端**絕不可**自行查詢 / 顯示詞庫（詞文從不在 wire，天然安全）
 
 ---
 
