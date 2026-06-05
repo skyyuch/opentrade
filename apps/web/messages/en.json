@@ -83,6 +83,7 @@
     "settings": "Settings",
     "company": "Company",
     "systemStatus": "System status",
+    "moderationAudit": "Moderation transparency",
     "legal": "Legal",
     "disclaimer": "Disclaimer",
     "privacy": "Privacy policy",
@@ -942,5 +943,37 @@
     "pendingTxUrl": "⏳ Pending on-chain",
     "notFound": "Note not found",
     "disclaimer": "This content is published by the KOL and does not constitute investment advice."
+  },
+  "moderationAudit": {
+    "eyebrow": "Transparency",
+    "title": "Moderation transparency",
+    "subtitle": "OpenTrade's only content-moderation lever — a content-neutral pre-publication blocklist — records every change immutably. This page publishes those changes to prove the lever is never used to suppress negative reviews.",
+    "intro": "Moderation targets only four clearly prohibited categories (profanity, personal attacks, off-platform solicitation, illegal content) and never any specific broker or reviewer. To stop bad actors rephrasing around the filter, this page does not publish the blocklist itself — only each change's action, category, operator role, reason, and time.",
+    "action": {
+      "CREATE": "Added term",
+      "UPDATE": "Updated term",
+      "ENABLE": "Enabled term",
+      "DISABLE": "Disabled term",
+      "DELETE": "Removed term"
+    },
+    "category": {
+      "PROFANITY": "Profanity",
+      "ATTACK": "Personal attack",
+      "CONTACT": "Solicitation",
+      "ILLEGAL": "Illegal content",
+      "unknown": "Uncategorised"
+    },
+    "actor": {
+      "admin": "Admin",
+      "system": "System"
+    },
+    "reasonLabel": "Reason",
+    "noReason": "(no reason provided)",
+    "termLabel": "Term",
+    "loadMore": "Load more",
+    "loading": "Loading…",
+    "empty": "No moderation changes have been recorded yet.",
+    "error": "Could not load the moderation history right now. Please try again later.",
+    "disclaimer": "This page shows only redacted moderation metadata and never publishes any blocklist content. Moderation cannot and will not be used to delete or alter on-chain reviews or to suppress negative ones."
   }
 }

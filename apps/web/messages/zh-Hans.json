@@ -83,6 +83,7 @@
     "settings": "账号设置",
     "company": "公司",
     "systemStatus": "系统状态",
+    "moderationAudit": "审核透明度",
     "legal": "法律",
     "disclaimer": "免责声明",
     "privacy": "隐私政策",
@@ -942,5 +943,37 @@
     "pendingTxUrl": "⏳ 等待上链 (pending)",
     "notFound": "找不到这篇笔记",
     "disclaimer": "本内容由 KOL 自行发布，不构成任何投资建议。"
+  },
+  "moderationAudit": {
+    "eyebrow": "透明度",
+    "title": "审核透明度",
+    "subtitle": "OpenTrade 唯一的内容审核杠杆——发布前的内容中立过滤词库——每一次改动都留下不可删除的记录。这里公开展示这些改动，证明它没有被用来压制负面评论。",
+    "intro": "审核只针对四类明确禁止的内容（粗俗用语、人身攻击、引流广告、违法内容），绝不针对任何券商或评论者。为避免有心人照着词库绕过过滤，本页不会公开词条本文，仅显示改动的动作、类别、操作角色、原因与时间。",
+    "action": {
+      "CREATE": "新增词条",
+      "UPDATE": "更新词条",
+      "ENABLE": "启用词条",
+      "DISABLE": "停用词条",
+      "DELETE": "移除词条"
+    },
+    "category": {
+      "PROFANITY": "粗俗用语",
+      "ATTACK": "人身攻击",
+      "CONTACT": "引流广告",
+      "ILLEGAL": "违法内容",
+      "unknown": "未分类"
+    },
+    "actor": {
+      "admin": "管理员",
+      "system": "系统"
+    },
+    "reasonLabel": "原因",
+    "noReason": "（未提供原因）",
+    "termLabel": "词条",
+    "loadMore": "加载更多",
+    "loading": "加载中…",
+    "empty": "目前没有任何审核改动记录。",
+    "error": "暂时无法加载审核记录，请稍后再试。",
+    "disclaimer": "本页仅显示脱敏后的审核信息，不会公开任何词库内容。审核无法、也不会被用来删改链上评论或压制负评。"
   }
 }

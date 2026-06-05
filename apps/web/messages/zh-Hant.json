@@ -83,6 +83,7 @@
     "settings": "帳號設定",
     "company": "公司",
     "systemStatus": "系統狀態",
+    "moderationAudit": "審核透明度",
     "legal": "法律",
     "disclaimer": "免責聲明",
     "privacy": "隱私政策",
@@ -942,5 +943,37 @@
     "pendingTxUrl": "⏳ 等待上鏈 (pending)",
     "notFound": "找不到這篇筆記",
     "disclaimer": "本內容由 KOL 自行發布，不構成任何投資建議。"
+  },
+  "moderationAudit": {
+    "eyebrow": "透明度",
+    "title": "審核透明度",
+    "subtitle": "OpenTrade 唯一的內容審核槓桿——發佈前的內容中立過濾詞庫——每一次改動都留下不可刪除的紀錄。這裡公開展示這些改動，證明它沒有被用來壓制負面評論。",
+    "intro": "審核只針對四類明確禁止的內容（粗俗用語、人身攻擊、引流廣告、違法內容），絕不針對任何商戶或評論者。為避免有心人照著詞庫繞過過濾，本頁不會公開詞條本文，僅顯示改動的動作、類別、操作角色、原因與時間。",
+    "action": {
+      "CREATE": "新增詞條",
+      "UPDATE": "更新詞條",
+      "ENABLE": "啟用詞條",
+      "DISABLE": "停用詞條",
+      "DELETE": "移除詞條"
+    },
+    "category": {
+      "PROFANITY": "粗俗用語",
+      "ATTACK": "人身攻擊",
+      "CONTACT": "引流廣告",
+      "ILLEGAL": "違法內容",
+      "unknown": "未分類"
+    },
+    "actor": {
+      "admin": "管理員",
+      "system": "系統"
+    },
+    "reasonLabel": "原因",
+    "noReason": "（未提供原因）",
+    "termLabel": "詞條",
+    "loadMore": "載入更多",
+    "loading": "載入中…",
+    "empty": "目前沒有任何審核改動紀錄。",
+    "error": "暫時無法載入審核紀錄，請稍後再試。",
+    "disclaimer": "本頁僅顯示脫敏後的審核資訊，不會公開任何詞庫內容。審核無法、也不會被用來刪改鏈上評論或壓制負評。"
   }
 }
