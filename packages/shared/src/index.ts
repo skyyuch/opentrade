@@ -31,3 +31,14 @@ export type {
   KolNoteListItemDto,
   RichTextDocument,
 } from './kol/note';
+
+// Content moderation — pure, content-neutral pre-publication gate (per ADR-0034).
+export { moderateContent } from './moderation/moderate';
+export { BASELINE_MODERATION_TERMS } from './moderation/baseline';
+export { MODERATION_CATEGORIES, isModerationCategory } from './moderation/types';
+export type {
+  ModerationCategory,
+  ModerationResult,
+  ModerationTermInput,
+  ModerationViolation,
+} from './moderation/types';
