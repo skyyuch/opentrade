@@ -1,9 +1,9 @@
-import { expect, fn, userEvent, within } from '@storybook/test';
 import { useState } from 'react';
+import { expect, fn, userEvent, within } from 'storybook/test';
 
 import { SentimentPicker, type Sentiment } from './SentimentPicker';
 
-import type { Meta, StoryObj } from '@storybook/react';
+import type { Meta, StoryObj } from '@storybook/react-vite';
 
 const enLabels = { positive: 'Positive', neutral: 'Neutral', negative: 'Negative' };
 const zhHantLabels = { positive: '讚', neutral: '普通', negative: '不好' };

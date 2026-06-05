@@ -17,6 +17,21 @@ alwaysApply: false
 | API contract | **Pactum** 或自製 |
 | Visual regression | **Chromatic** 或 Playwright screenshot |
 
+### Vitest 4 設定硬規則（per ADR-0042）
+
+自 Vitest 4（Module Runner）起，jsdom workspace（`packages/ui` / `apps/web`）的
+jest-dom matcher **必須在 `vitest.setup.ts` 自行註冊**，不可再靠
+`import '@testing-library/jest-dom/vitest'` 自動 extend：
+
+- ❌ `import '@testing-library/jest-dom/vitest';` — Module Runner 不與外部化的
+  auto-extend entry 共用同一 `expect` 實例，runtime 會炸 `Invalid Chai property: toBeInTheDocument`。
+- ✅ 在 setup 檔 `import * as matchers from '@testing-library/jest-dom/matchers';`
+  + `import { expect } from 'vitest';` → `expect.extend(matchers);`（同實例註冊）。
+- ✅ 型別：`declare module 'vitest' { interface Matchers<T = any> extends TestingLibraryMatchers<any, T> {} }`
+  （Vitest 4.1.6+ 已停止合併外部對 `Assertion` 介面的擴充，須改擴充 `Matchers`）。
+- 全 repo 統一鎖 **Vite 7.x**（非 8）：Vite 8 = Rolldown 會打掛 Storybook 10 的
+  `builder-vite`。升 Vite 8 / plugin-react 6（React Compiler）須另寫 ADR。
+
 ---
 
 ## 測試金字塔

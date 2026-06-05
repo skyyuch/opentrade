@@ -11,18 +11,17 @@ import type { StorybookConfig } from '@storybook/react-vite';
 
 const config: StorybookConfig = {
   stories: ['../src/**/*.mdx', '../src/**/*.stories.@(ts|tsx)'],
-  addons: [
-    '@storybook/addon-essentials',
-    '@storybook/addon-a11y',
-    '@storybook/addon-themes',
-    '@storybook/addon-interactions',
-  ],
+  // Storybook 10 folded viewport/controls/interactions/actions into core, so
+  // `@storybook/addon-essentials` and `@storybook/addon-interactions` are gone
+  // (per ADR-0042). Docs is now an explicit `@storybook/addon-docs` opt-in.
+  addons: ['@storybook/addon-docs', '@storybook/addon-a11y', '@storybook/addon-themes'],
   framework: {
     name: '@storybook/react-vite',
     options: {},
   },
   docs: {
-    autodocs: 'tag',
+    // Storybook 10 removed `docs.autodocs`; autodocs is now opt-in via the
+    // `autodocs` tag set in `.storybook/preview.tsx` (per ADR-0042).
     defaultName: 'Documentation',
   },
   typescript: {

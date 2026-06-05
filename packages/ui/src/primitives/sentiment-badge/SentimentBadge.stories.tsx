@@ -1,8 +1,8 @@
-import { expect, within } from '@storybook/test';
+import { expect, within } from 'storybook/test';
 
 import { SentimentBadge } from './SentimentBadge';
 
-import type { Meta, StoryObj } from '@storybook/react';
+import type { Meta, StoryObj } from '@storybook/react-vite';
 
 const zhHantLabels = { POSITIVE: '讚', NEUTRAL: '普通', NEGATIVE: '不好' } as const;
 const zhHansLabels = { POSITIVE: '赞', NEUTRAL: '普通', NEGATIVE: '不好' } as const;

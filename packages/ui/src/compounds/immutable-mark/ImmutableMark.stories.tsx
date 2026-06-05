@@ -2,7 +2,7 @@ import { Button } from '../../primitives/button/Button';
 
 import { ImmutableMark } from './ImmutableMark';
 
-import type { Meta, StoryObj } from '@storybook/react';
+import type { Meta, StoryObj } from '@storybook/react-vite';
 
 const meta = {
   title: 'Compounds / ImmutableMark',

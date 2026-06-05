@@ -125,6 +125,7 @@ YYYY-MM-DD
 | 0039 | KOL analyst notes — immutable rich-text on-chain + IPFS        | Accepted                   | 2026-05-31 |
 | 0040 | Upgrade Next.js 14 → 16 as a dedicated migration milestone     | Accepted                   | 2026-06-04 |
 | 0041 | Adopt Prisma 7 (supersedes 0013)                               | Accepted                   | 2026-06-04 |
+| 0042 | Upgrade Vite 7 / Vitest 4 / Storybook 10; defer plugin-react 6 | Accepted                   | 2026-06-05 |
 
 ---
 
