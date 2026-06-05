@@ -20,6 +20,8 @@ import { fileURLToPath } from 'node:url';
 
 import bcrypt from 'bcryptjs';
 
+import { BASELINE_MODERATION_TERMS } from '@opentrade/shared';
+
 import { prisma, Prisma } from '../src/index.js';
 import { syncBrokers } from '../src/sfc/sync-brokers.js';
 
@@ -165,6 +167,40 @@ const seedKols = async (): Promise<void> => {
   console.log(`  ✔ KOLs: ${created} created, ${updated} updated (${data.length} total)`);
 };
 
+/**
+ * Seeds the `hk` tenant's moderation blocklist from the shared BASELINE list
+ * (ADR-0034). Idempotent via find-or-create on (tenantId, category, term,
+ * isRegex) — the table has no DB-level unique constraint yet (Phase B will add
+ * a partial unique index that accounts for soft-delete), so we dedup in code
+ * here to honour rule 31. The runtime gate also falls back to this exact
+ * BASELINE when the table is empty, so seeding is an optimisation (populates
+ * the Phase B admin UI), not a correctness dependency.
+ */
+const seedModerationTerms = async (): Promise<void> => {
+  const tenant = await prisma.tenant.findUnique({ where: { code: 'hk' } });
+  if (!tenant) {
+    console.log('  ⚠ Tenant "hk" not found. Skipping moderation term seed.');
+    return;
+  }
+
+  let created = 0;
+  for (const term of BASELINE_MODERATION_TERMS) {
+    const isRegex = term.isRegex ?? false;
+    const existing = await prisma.moderationTerm.findFirst({
+      where: { tenantId: tenant.id, category: term.category, term: term.term, isRegex },
+    });
+    if (existing) continue;
+    await prisma.moderationTerm.create({
+      data: { tenantId: tenant.id, category: term.category, term: term.term, isRegex },
+    });
+    created++;
+  }
+
+  console.log(
+    `  ✔ moderation terms: ${created} created, ${BASELINE_MODERATION_TERMS.length - created} already present`,
+  );
+};
+
 const main = async (): Promise<void> => {
   console.log('Seeding @opentrade/db...');
   console.log('• Tenants');
@@ -175,6 +211,8 @@ const main = async (): Promise<void> => {
   await seedBrokers();
   console.log('• HK KOLs');
   await seedKols();
+  console.log('• Moderation Terms');
+  await seedModerationTerms();
   console.log('Done.');
 };
 

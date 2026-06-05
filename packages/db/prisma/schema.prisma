@@ -121,6 +121,8 @@ model Tenant {
   signals                 Signal[]
   notifications           Notification[]
   kolNotes                KolNote[]
+  moderationTerms         ModerationTerm[]
+  moderationTermAudits    ModerationTermAudit[]
 
   @@map("tenants")
 }
@@ -902,4 +904,79 @@ model PriceRecord {
   @@unique([symbol, source, timestamp])
   @@index([symbol, timestamp])
   @@map("price_records")
+}
+
+// ---------------------------------------------------------------------------
+// Content Moderation (per ADR-0034)
+//
+// Layer 1 of content moderation: a content-NEUTRAL, pre-publication gate that
+// blocks prohibited content (profanity / personal attacks / off-platform
+// solicitation / illegal) BEFORE a review is anchored on-chain (the only safe
+// point given on-chain irreversibility, ADR-0019). It MUST NOT be used to
+// suppress negative opinion — that is a rule 00 / rule 52 red line.
+//
+// The wordlist is admin-editable from the console; every mutation is recorded
+// in `ModerationTermAudit` (append-only) so the lever is attributable and
+// non-abusable. The pure matching engine lives in `@opentrade/shared`; the API
+// loads enabled terms (cached) and is the sole authority. The web client runs
+// the same engine against a bundled BASELINE list for advisory UX only.
+// ---------------------------------------------------------------------------
+
+/// Category of a blocked term. Content-NEUTRAL by construction: there is
+/// deliberately no "negative sentiment" category — criticism is always allowed.
+enum ModerationCategory {
+  PROFANITY // 髒話 / 粗口 (zh/en + Cantonese)
+  ATTACK // 人身攻擊 / hate speech directed at a person
+  CONTACT // off-platform solicitation / ads (URLs, TG/WhatsApp handles, phone)
+  ILLEGAL // threats, incitement to crime, etc.
+}
+
+/// A single blocked term or pattern. Tenant-scoped (rule 31). Soft-deletable
+/// via `deletedAt`; `enabled` toggles enforcement without losing history.
+/// `term` itself is NOT PII; do NOT store matched user text here.
+model ModerationTerm {
+  id              String             @id @default(uuid()) @db.Uuid
+  tenantId        String             @db.Uuid
+  category        ModerationCategory
+  /// Literal substring (normalised) when `isRegex = false`, or a JS regex
+  /// source string when `isRegex = true`.
+  term            String
+  isRegex         Boolean            @default(false)
+  enabled         Boolean            @default(true)
+  /// Optional operator note (e.g. why this term was added). Not user content.
+  note            String?            @db.Text
+  /// User id of the admin who created the term (nullable for seeded baseline).
+  createdByUserId String?            @db.Uuid
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  deletedAt       DateTime?
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  // Runtime hot path: load enabled terms for a tenant (optionally by category).
+  @@index([tenantId, enabled, category])
+  @@map("moderation_terms")
+}
+
+/// Append-only audit trail for every change to a `ModerationTerm`. Written in
+/// the SAME transaction as the change (ADR-0034 D3). NEVER deleted — this is
+/// what makes the moderation lever transparent and non-abusable. `beforeJson`
+/// / `afterJson` snapshot the term row only (no user content, no PII).
+model ModerationTermAudit {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @db.Uuid
+  termId      String   @db.Uuid
+  /// One of: CREATE | UPDATE | ENABLE | DISABLE | DELETE.
+  action      String
+  beforeJson  Json?
+  afterJson   Json?
+  /// User id of the admin who performed the action (nullable for seed/system).
+  actorUserId String?  @db.Uuid
+  reason      String?  @db.Text
+  createdAt   DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, termId, createdAt])
+  @@map("moderation_term_audits")
 }
