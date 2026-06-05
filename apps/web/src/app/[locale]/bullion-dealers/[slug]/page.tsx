@@ -86,8 +86,13 @@ const BullionDealerDetailPage = async (props: Props): Promise<ReactNode> => {
           {t('backToDealers')}
         </Link>
 
-        <header className="mb-10 block lg:flex items-start justify-between gap-8 bg-zinc-900/40 border border-white/10 rounded-2xl p-6 md:p-8 backdrop-blur-xl">
-          <div className="flex items-start gap-6">
+        <header className="relative mb-10 block lg:flex items-start justify-between gap-8 overflow-hidden bg-zinc-900/40 border border-white/10 rounded-2xl p-6 md:p-8 backdrop-blur-xl">
+          {/* Per Google UI swap: soft atmospheric glows inside the header card
+              (green top-right, blue bottom-left) matching the bullion design. */}
+          <div className="pointer-events-none absolute right-[-10%] top-[-50%] size-96 rounded-full bg-[#00FF88] opacity-10 blur-[120px]" />
+          <div className="pointer-events-none absolute bottom-[-50%] left-[-10%] size-96 rounded-full bg-blue-500 opacity-10 blur-[120px]" />
+
+          <div className="relative z-10 flex items-start gap-6">
             {broker.logoUrl ? (
               <img
                 src={broker.logoUrl}
@@ -148,7 +153,7 @@ const BullionDealerDetailPage = async (props: Props): Promise<ReactNode> => {
             </div>
           </div>
 
-          <div className="mt-8 lg:mt-0 flex gap-4 lg:flex-col lg:items-end">
+          <div className="relative z-10 mt-8 lg:mt-0 flex gap-4 lg:flex-col lg:items-end">
             {cgse && (
               <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#00FF88]/10 border border-[#00FF88]/30">
                 <ShieldCheck size={16} className="text-[#00FF88]" />
