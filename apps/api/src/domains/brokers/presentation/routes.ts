@@ -24,6 +24,7 @@ import { prisma } from '@opentrade/db';
 import { authMiddleware } from '../../../http/middleware/auth.js';
 import { env } from '../../../shared/env.js';
 import { AppError, ErrorCode } from '../../../shared/errors/index.js';
+import { buildBrokerListWhere } from '../domain/brokerListFilter.js';
 import { aggregateSentiment } from '../domain/sentimentAggregate.js';
 
 import type { AppHonoEnv } from '../../../http/types.js';
@@ -34,6 +35,10 @@ const listQuerySchema = z.object({
   cursor: z.string().uuid().optional(),
   limit: z.coerce.number().int().min(1).max(100).optional(),
   search: z.string().max(100).optional(),
+  // Per ADR-0045 D2/D7: optional vertical discriminator. Omitting it
+  // returns every category (the front-end securities / bullion pages each
+  // send an explicit value). Values mirror the BrokerCategory enum.
+  category: z.enum(['SECURITIES', 'BULLION']).optional(),
 });
 
 export const brokersRouter = new Hono<AppHonoEnv>();
@@ -49,18 +54,15 @@ brokersRouter.get('/', async (c) => {
   const limit = Math.min(query.data.limit ?? 20, 100);
 
   const where: Parameters<typeof prisma.broker.findMany>[0] = {
-    where: {
+    // Per ADR-0045 D2: the list filter is built by the pure
+    // `buildBrokerListWhere` helper (the domain's single filter seam, unit
+    // tested in brokerListFilter.test.ts). When no category is supplied the
+    // clause is identical to the pre-bullion filter.
+    where: buildBrokerListWhere({
       tenantId: DEFAULT_TENANT_ID,
-      deletedAt: null,
-      ...(query.data.search
-        ? {
-            OR: [
-              { displayName: { contains: query.data.search, mode: 'insensitive' as const } },
-              { legalName: { contains: query.data.search, mode: 'insensitive' as const } },
-            ],
-          }
-        : {}),
-    },
+      search: query.data.search,
+      category: query.data.category,
+    }),
     orderBy: [{ displayName: 'asc' as const }],
     take: limit + 1,
     include: {
@@ -119,9 +121,23 @@ brokersRouter.get('/', async (c) => {
         ? sfcDetail['disciplinaryActions']
         : [];
 
+      const licenses = (
+        b as unknown as {
+          licenses: {
+            regulator: string;
+            licenseType: string;
+            licenseNumber: string;
+            status: string;
+          }[];
+        }
+      ).licenses;
+
       return {
         id: b.id,
         slug: b.slug,
+        // Per ADR-0045 D7: the front-end grid filters/labels by category;
+        // securities and bullion dealers share the same card component.
+        category: b.category,
         // Per ADR-0026: ship three name columns (TC + SC + EN) so the
         // consumer can render in the reader's locale via
         // localizedBrokerName() from @opentrade/shared.
@@ -133,9 +149,16 @@ brokersRouter.get('/', async (c) => {
         reviewCount,
         positiveRate,
         verifiedUserCount: verifiedCountBySlug.get(b.slug) ?? 0,
-        licenseTypes: (b as unknown as { licenses: { licenseType: string }[] }).licenses.map(
-          (l) => l.licenseType,
-        ),
+        licenseTypes: licenses.map((l) => l.licenseType),
+        // Per ADR-0045 D3: surface the registry + membership number +
+        // status at list level so a bullion card can render the CGSE 行員
+        // number and an immutable SUSPENDED / REVOKED trust pill without an
+        // extra detail fetch. Additive for securities consumers.
+        licenses: licenses.map((l) => ({
+          regulator: l.regulator,
+          licenseNumber: l.licenseNumber,
+          status: l.status,
+        })),
         hasDisciplinary: disciplinaryActions.length > 0,
       };
     }),
@@ -264,6 +287,12 @@ brokersRouter.get('/:slug', async (c) => {
     broker: {
       id: broker.id,
       slug: broker.slug,
+      // Per ADR-0045 D7: the detail page reuses the broker layout but
+      // varies the tab set by category (bullion dealers show 會籍 / 評論 /
+      // 投訴, no SFC license-detail tab). The CGSE membership itself
+      // (regulator = HK_CGSE, licenseNumber = 行員編號, status) is already
+      // carried in `licenses[]` below — no extra field needed.
+      category: broker.category,
       // Per ADR-0026: ship three name columns (TC + SC + EN).
       displayName: broker.displayName,
       displayNameZhHans: broker.displayNameZhHans,
