@@ -157,6 +157,24 @@ describe('ReviewForm — submit gating', () => {
     expect(submitReviewMock).not.toHaveBeenCalled();
   });
 
+  it('blocks submission and warns when the text trips the moderation mirror (ADR-0034)', async () => {
+    stubAuthenticated();
+    renderForm();
+    await userEvent.click(screen.getByRole('radio', { name: 'Negative' }));
+    await userEvent.type(
+      screen.getByPlaceholderText('Summarise your experience in one sentence'),
+      'Honest opinion',
+    );
+    await userEvent.type(
+      screen.getByPlaceholderText('Describe your experience in detail (at least 10 characters)'),
+      'fuck this broker, total scam and useless',
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Submit review' }));
+
+    expect(await screen.findByText(/content we can't publish/)).toBeInTheDocument();
+    expect(submitReviewMock).not.toHaveBeenCalled();
+  });
+
   it('does not call submitReview when body is shorter than 10 characters', async () => {
     stubAuthenticated();
     renderForm();

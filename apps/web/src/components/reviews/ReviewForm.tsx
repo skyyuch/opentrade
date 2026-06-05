@@ -14,6 +14,7 @@ import { usePrivy } from '@privy-io/react-auth';
 import { useLocale, useTranslations } from 'next-intl';
 import { useCallback, useMemo, useState } from 'react';
 
+import { BASELINE_MODERATION_TERMS, moderateContent } from '@opentrade/shared';
 import { SentimentPicker, type Sentiment } from '@opentrade/ui';
 
 import { useLoginRedirect } from '../../hooks/useLoginRedirect';
@@ -64,6 +65,22 @@ export const ReviewForm = ({ brokerId, brokerName }: Props): ReactNode => {
     async (e: FormEvent) => {
       e.preventDefault();
       if (sentiment === null || !title.trim() || body.trim().length < 10) return;
+
+      // ADR-0034: advisory client-side mirror of the server's content-neutral
+      // gate. Catches obvious cases instantly so the user can fix them before a
+      // round-trip; the API (full DB blocklist) remains the sole authority.
+      const verdict = moderateContent(`${title.trim()}\n${body.trim()}`, BASELINE_MODERATION_TERMS);
+      if (!verdict.ok) {
+        const listFormat = new Intl.ListFormat(currentLocale, {
+          style: 'long',
+          type: 'conjunction',
+        });
+        const categories = listFormat.format(
+          verdict.categories.map((category) => t(`moderationCategory.${category}`)),
+        );
+        setState({ kind: 'error', message: t('moderationBlocked', { categories }) });
+        return;
+      }
 
       setState({ kind: 'submitting' });
 

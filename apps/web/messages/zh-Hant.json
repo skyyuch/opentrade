@@ -284,6 +284,13 @@
     "successTitle": "評論已提交！",
     "successMessage": "你的評論正在上鏈中，完成後將無法刪除或修改。",
     "errorTitle": "提交失敗",
+    "moderationBlocked": "你的內容包含不適當字眼（{categories}），請修改後再提交。評論一旦上鏈將無法刪改。",
+    "moderationCategory": {
+      "PROFANITY": "粗俗用語",
+      "ATTACK": "人身攻擊",
+      "CONTACT": "引流／廣告聯絡方式",
+      "ILLEGAL": "違法內容"
+    },
     "stars": "{count} 顆星"
   },
   "complaintCard": {
@@ -567,14 +574,16 @@
       "RATE_LIMIT_EXCEEDED": "請求頻率過高，請稍後再試。",
       "SERVICE_UNAVAILABLE": "服務暫時不可用，請稍後再試。",
       "INTERNAL_ERROR": "發生未預期的錯誤，請稍後再試。",
-      "INVALID_CREDENTIALS": "帳號或密碼不正確。"
+      "INVALID_CREDENTIALS": "帳號或密碼不正確。",
+      "CONTENT_REJECTED": "你的內容包含不適當字眼，請修改後再提交。"
     },
     "reason": {
       "pending_exists": "你已有一筆審核中的申請，請等待管理員處理後再提交。",
       "broker_already_verified": "你已通過此券商的驗證，無須重複申請。",
       "no_file": "請選擇要上傳的檔案。",
       "invalid_file_type": "不支援的檔案格式，請上傳 PDF、JPG、PNG 或 WebP。",
-      "file_too_large": "檔案過大，請上傳小於 10MB 的檔案。"
+      "file_too_large": "檔案過大，請上傳小於 10MB 的檔案。",
+      "content_rejected": "你的內容包含不適當字眼（如粗口、人身攻擊、引流或違法內容），請修改後再提交。"
     }
   },
   "kols": {

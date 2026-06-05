@@ -36,6 +36,8 @@ const REASON_KEYS = new Set([
   'no_file',
   'invalid_file_type',
   'file_too_large',
+  // content moderation (ADR-0034)
+  'content_rejected',
 ] as const);
 
 /** Codes mirror `apps/api/src/shared/errors/ErrorCode.ts`. */
@@ -49,6 +51,7 @@ const CODE_KEYS = new Set([
   'SERVICE_UNAVAILABLE',
   'INTERNAL_ERROR',
   'INVALID_CREDENTIALS',
+  'CONTENT_REJECTED',
 ] as const);
 
 type Translator = (key: string) => string;

@@ -284,6 +284,13 @@
     "successTitle": "Review submitted!",
     "successMessage": "Your review is being anchored on chain. Once confirmed, it cannot be deleted or modified.",
     "errorTitle": "Submission failed",
+    "moderationBlocked": "Your text contains content we can't publish ({categories}). Please edit it and try again — reviews can't be deleted or changed once on chain.",
+    "moderationCategory": {
+      "PROFANITY": "profanity",
+      "ATTACK": "personal attacks",
+      "CONTACT": "off-platform contact or ads",
+      "ILLEGAL": "illegal content"
+    },
     "stars": "{count, plural, one {# star} other {# stars}}"
   },
   "complaintCard": {
@@ -567,14 +574,16 @@
       "RATE_LIMIT_EXCEEDED": "You're going a bit too fast. Please wait a moment and try again.",
       "SERVICE_UNAVAILABLE": "The service is temporarily unavailable. Please try again shortly.",
       "INTERNAL_ERROR": "Something went wrong on our side. Please try again.",
-      "INVALID_CREDENTIALS": "Username or password is incorrect."
+      "INVALID_CREDENTIALS": "Username or password is incorrect.",
+      "CONTENT_REJECTED": "Your text contains content we can't publish. Please edit it and try again."
     },
     "reason": {
       "pending_exists": "You already have a pending verification request. Please wait for the admin review to complete.",
       "broker_already_verified": "You've already been verified for this broker — no need to resubmit.",
       "no_file": "Please select a file to upload.",
       "invalid_file_type": "Unsupported file type. Please upload a PDF, JPG, PNG, or WebP file.",
-      "file_too_large": "The file is too large. Please upload a file smaller than 10MB."
+      "file_too_large": "The file is too large. Please upload a file smaller than 10MB.",
+      "content_rejected": "Your text contains content we can't publish (such as profanity, personal attacks, solicitation, or illegal content). Please edit it and try again."
     }
   },
   "kols": {
