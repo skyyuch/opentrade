@@ -29,6 +29,7 @@ export { getDbEnv, type DbEnv } from './env.js';
 // tsconfig.base.json's `verbatimModuleSyntax: true` enforces it.
 export {
   AssetClass,
+  BrokerCategory,
   KolStatus,
   LicenseStatus,
   LicenseType,
