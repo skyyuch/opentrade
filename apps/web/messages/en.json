@@ -290,7 +290,8 @@
       "PROFANITY": "profanity",
       "ATTACK": "personal attacks",
       "CONTACT": "off-platform contact or ads",
-      "ILLEGAL": "illegal content"
+      "ILLEGAL": "illegal content",
+      "PII": "exposing someone's private data"
     },
     "stars": "{count, plural, one {# star} other {# stars}}"
   },
@@ -948,7 +949,7 @@
     "eyebrow": "Transparency",
     "title": "Moderation transparency",
     "subtitle": "OpenTrade's only content-moderation lever — a content-neutral pre-publication blocklist — records every change immutably. This page publishes those changes to prove the lever is never used to suppress negative reviews.",
-    "intro": "Moderation targets only four clearly prohibited categories (profanity, personal attacks, off-platform solicitation, illegal content) and never any specific broker or reviewer. To stop bad actors rephrasing around the filter, this page does not publish the blocklist itself — only each change's action, category, operator role, reason, and time.",
+    "intro": "Moderation targets only five clearly prohibited categories (profanity, personal attacks, off-platform solicitation, illegal content, exposing a third party's private data) and never any specific broker or reviewer. To stop bad actors rephrasing around the filter, this page does not publish the blocklist itself — only each change's action, category, operator role, reason, and time.",
     "action": {
       "CREATE": "Added term",
       "UPDATE": "Updated term",
@@ -961,6 +962,7 @@
       "ATTACK": "Personal attack",
       "CONTACT": "Solicitation",
       "ILLEGAL": "Illegal content",
+      "PII": "Doxxing",
       "unknown": "Uncategorised"
     },
     "actor": {
