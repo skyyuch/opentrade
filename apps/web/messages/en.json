@@ -67,6 +67,7 @@
   "nav": {
     "home": "Home",
     "brokers": "Brokers",
+    "bullionDealers": "Bullion Dealers",
     "kolDirectory": "KOL Directory",
     "verify": "Verify",
     "settings": "Settings",
@@ -79,6 +80,7 @@
     "mission": "Bringing fairness back to financial-service reviews — immutable, on chain.",
     "platform": "Platform",
     "brokers": "Brokers",
+    "bullionDealers": "Bullion Dealers",
     "verify": "Verify",
     "settings": "Settings",
     "company": "Company",

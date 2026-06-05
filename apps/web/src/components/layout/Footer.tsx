@@ -25,6 +25,12 @@ export const Footer = (): ReactNode => {
               <Link href="/brokers" className="text-sm text-muted-foreground hover:text-foreground">
                 {t('brokers')}
               </Link>
+              <Link
+                href="/bullion-dealers"
+                className="text-sm text-muted-foreground hover:text-foreground"
+              >
+                {t('bullionDealers')}
+              </Link>
               <Link href="/verify" className="text-sm text-muted-foreground hover:text-foreground">
                 {t('verify')}
               </Link>

@@ -67,6 +67,7 @@
   "nav": {
     "home": "首页",
     "brokers": "券商",
+    "bullionDealers": "金商",
     "kolDirectory": "KOL 目录",
     "verify": "身份验证",
     "settings": "账号设置",
@@ -79,6 +80,7 @@
     "mission": "区块链让金融服务评论回归公正 — 不可删除，不可篡改。",
     "platform": "平台",
     "brokers": "券商",
+    "bullionDealers": "金商",
     "verify": "身份验证",
     "settings": "账号设置",
     "company": "公司",

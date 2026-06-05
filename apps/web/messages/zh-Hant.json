@@ -67,6 +67,7 @@
   "nav": {
     "home": "首頁",
     "brokers": "證券商",
+    "bullionDealers": "金商",
     "kolDirectory": "KOL 目錄",
     "verify": "身份驗證",
     "settings": "帳號設定",
@@ -79,6 +80,7 @@
     "mission": "區塊鏈讓金融服務評論回歸公正 — 不可刪除，不可篡改。",
     "platform": "平台",
     "brokers": "證券商",
+    "bullionDealers": "金商",
     "verify": "身份驗證",
     "settings": "帳號設定",
     "company": "公司",
