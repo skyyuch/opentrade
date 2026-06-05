@@ -1056,7 +1056,7 @@ function ReviewCard({
  */
 function MembershipTab({ broker }: { broker: BrokerDetail }) {
   const t = useTranslations('brokerDetail');
-  const cgse = broker.licenses.find((l) => l.regulator === 'HK_CGSE') ?? broker.licenses[0];
+  const cgse = broker.licenses.find((l) => l.regulator === 'HK_CGSE');
 
   const statusLabel =
     cgse?.status === 'REVOKED'

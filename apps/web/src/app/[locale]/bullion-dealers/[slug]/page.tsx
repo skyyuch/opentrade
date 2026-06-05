@@ -67,7 +67,7 @@ const BullionDealerDetailPage = async (props: Props): Promise<ReactNode> => {
         ? broker.legalName
         : null;
 
-  const cgse = broker.licenses.find((l) => l.regulator === 'HK_CGSE') ?? broker.licenses[0];
+  const cgse = broker.licenses.find((l) => l.regulator === 'HK_CGSE');
   const isInactive = cgse?.status === 'REVOKED' || cgse?.status === 'SUSPENDED';
 
   return (
@@ -122,7 +122,7 @@ const BullionDealerDetailPage = async (props: Props): Promise<ReactNode> => {
                 {isInactive && (
                   <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-red-500/10 border border-red-500/20 text-red-400 text-[11px] font-bold">
                     <ShieldAlert size={12} />
-                    {cgse?.status === 'REVOKED' ? t('statusRevoked') : t('statusSuspended')}
+                    {cgse.status === 'REVOKED' ? t('statusRevoked') : t('statusSuspended')}
                   </div>
                 )}
               </div>

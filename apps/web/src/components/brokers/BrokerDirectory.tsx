@@ -375,7 +375,7 @@ const BrokerCard = ({
               <div className="inline-flex items-center gap-1.5 rounded border border-red-500/20 bg-red-500/10 px-2.5 py-1">
                 <ShieldAlert size={14} className="text-red-400" />
                 <span className="text-[10px] font-bold tracking-wide text-red-400">
-                  {cgseLicense?.status === 'REVOKED' ? t('statusRevoked') : t('statusSuspended')}
+                  {cgseLicense.status === 'REVOKED' ? t('statusRevoked') : t('statusSuspended')}
                 </span>
               </div>
             )
