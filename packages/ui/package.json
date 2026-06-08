@@ -79,7 +79,7 @@
     "autoprefixer": "^10.4.20",
     "axe-core": "^4.10.3",
     "jsdom": "^26.1.0",
-    "postcss": "^8.5.1",
+    "postcss": "^8.5.15",
     "prettier-plugin-tailwindcss": "^0.6.9",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
