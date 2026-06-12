@@ -46,10 +46,17 @@ ENV PNPM_DISABLE_NETWORK_DIAGNOSTICS=true
 # OpenSSL is bundled in node:22-slim, but the `pg` driver and Node TLS
 # resolve libssl.so.* at runtime (e.g. for TLS to RDS). Installing the
 # package explicitly keeps that lookup happy across slim image variants.
+# python3/make/g++: node-gyp toolchain for native optional deps that the
+# workspace lockfile pulls in (bufferutil, utf-8-validate via the web3
+# stack — `pnpm install` builds the whole workspace's deps). Build
+# stages only; the runtime stage ships none of it.
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
     openssl \
     ca-certificates \
+    python3 \
+    make \
+    g++ \
  && rm -rf /var/lib/apt/lists/*
 
 RUN corepack enable \
@@ -67,7 +74,9 @@ WORKDIR /workspace
 # =============================================================================
 FROM base AS deps
 
-COPY pnpm-lock.yaml pnpm-workspace.yaml package.json .npmrc ./
+# tsconfig.base.json is needed by packages/db's prisma.config.ts (loaded
+# by `prisma generate` since ADR-0041) and by app tsconfigs extending it.
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json .npmrc tsconfig.base.json ./
 
 COPY apps/api/package.json apps/api/
 COPY apps/web/package.json apps/web/

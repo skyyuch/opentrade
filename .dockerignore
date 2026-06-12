@@ -1,0 +1,104 @@
+# Build context for every app Dockerfile is the monorepo root, so Docker
+# reads THIS file (a `.dockerignore` inside apps/<app>/ is ignored when
+# the context is the root — classic Docker only honours
+# `<context>/.dockerignore`, and BuildKit's per-Dockerfile variant must
+# be named `Dockerfile.dockerignore`). This file therefore serves
+# apps/api, apps/web, and apps/console builds alike.
+#
+# Keep this list aligned with `.gitignore`. When in doubt, add an entry
+# here and to `.gitignore` together.
+
+# ----- mirrors .gitignore -----
+**/node_modules
+**/.pnp
+**/.pnp.js
+**/.pnpm-store
+**/.yarn
+**/.npm
+
+**/dist
+**/build
+**/out
+**/.next
+**/.next-e2e
+**/.turbo
+**/.swc
+**/*.tsbuildinfo
+**/storybook-static
+
+# Prisma 7 generated client — a build artefact regenerated inside the
+# builder stage (ADR-0041); never copy the host's local copy.
+packages/db/src/generated
+
+# Foundry / Solidity (app images never read these but they're large)
+**/cache
+**/broadcast
+**/artifacts
+**/typechain-types
+packages/contracts/lib
+
+# Tests / coverage
+**/coverage
+**/.nyc_output
+**/*.lcov
+**/test-results
+**/playwright-report
+**/playwright/.cache
+
+# Env + secrets — never bake into an image
+**/.env
+**/.env.*
+!**/.env.example
+
+# AWS / wallet artefacts
+**/.aws
+aws-exports.js
+**/*.pem
+**/*.key
+**/private-key*
+**/keystore
+**/wallet.json
+
+# Terraform never belongs in app images
+infra
+**/*.tfstate
+**/*.tfstate.*
+**/*.tfvars
+**/.terraform
+**/.terraform.lock.hcl
+
+# OS / IDE noise
+.DS_Store
+Thumbs.db
+.idea
+**/*.iml
+**/.vscode
+**/.cursor
+**/.history
+
+# Logs
+**/*.log
+**/logs
+**/npm-debug.log*
+**/yarn-*.log*
+**/pnpm-debug.log*
+
+# Misc tarballs / deploy artefacts
+**/*.tgz
+**/*.tar.gz
+**/.vercel
+**/.netlify
+**/.serverless
+
+# ----- build-time-only -----
+**/.git
+.github
+docs
+**/README.md
+!packages/db/README.md
+!apps/api/README.md
+**/CHANGELOG.md
+
+# Local docker overrides
+docker-compose.override.yml
+local.config.*
