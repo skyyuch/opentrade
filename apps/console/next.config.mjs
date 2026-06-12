@@ -33,6 +33,10 @@ const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
 const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  // Standalone server output for the Docker runtime stage; see
+  // apps/web/next.config.mjs for the full rationale (ADR-0046 D5).
+  output: 'standalone',
+  outputFileTracingRoot: new URL('../../', import.meta.url).pathname,
   transpilePackages: ['@opentrade/ui', '@opentrade/shared', '@opentrade/config'],
   typedRoutes: true,
   // See apps/web/next.config.mjs for the full rationale: Next 16's Turbopack
