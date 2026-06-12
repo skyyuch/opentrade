@@ -130,6 +130,7 @@ YYYY-MM-DD
 | 0043 | Public, redacted moderation audit view (transparency, ADR-0034)      | Accepted                   | 2026-06-05 |
 | 0044 | Add `PII` (third-party doxxing) moderation category (amends 0034)    | Accepted                   | 2026-06-05 |
 | 0045 | Add bullion-dealer vertical as a `Broker` category sourced from CGSE | Accepted                   | 2026-06-05 |
+| 0046 | UAT deployment topology on ECS Fargate + PRD environment design      | Accepted                   | 2026-06-12 |
 
 ---
 
