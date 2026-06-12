@@ -37,6 +37,9 @@ infra/terraform/
     │                            SG; optional ALB target-group attachment,
     │                            Secrets Manager injection (ADR-0046 D2)
     ├── ecr-repo/              ← ECR repository for one container image
+    ├── github-oidc-deploy/    ← GitHub Actions OIDC provider + deploy role
+    │                            (ECR push + forced ECS deployments only,
+    │                            ADR-0047)
     ├── frontend-cdn/          ← CloudFront with ALB origin for one SSR
     │                            Next.js app (ADR-0046 D4); legacy S3
     │                            bucket retained pending cleanup
