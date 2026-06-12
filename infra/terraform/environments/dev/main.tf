@@ -126,6 +126,9 @@ module "ecs" {
     module.app_secrets.secret_arn_list,
     [module.rds.master_password_secret_arn],
   )
+
+  # apps/api admin logo/avatar upload writes into the assets bucket.
+  task_role_s3_write_bucket_arns = [module.assets_cdn.bucket_arn]
 }
 
 # --------------------------------------------------------------------------

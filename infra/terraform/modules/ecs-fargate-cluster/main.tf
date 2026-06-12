@@ -131,3 +131,24 @@ resource "aws_iam_role_policy" "task_secrets_read" {
   role   = aws_iam_role.task.id
   policy = data.aws_iam_policy_document.task_secrets_read[0].json
 }
+
+# apps/api uploads broker logos / avatars (PutObjectCommand only — no
+# read/delete from app code; reads go through CloudFront).
+data "aws_iam_policy_document" "task_s3_write" {
+  count = length(var.task_role_s3_write_bucket_arns) > 0 ? 1 : 0
+
+  statement {
+    sid       = "AppWritesAllowedBuckets"
+    effect    = "Allow"
+    actions   = ["s3:PutObject"]
+    resources = [for arn in var.task_role_s3_write_bucket_arns : "${arn}/*"]
+  }
+}
+
+resource "aws_iam_role_policy" "task_s3_write" {
+  count = length(var.task_role_s3_write_bucket_arns) > 0 ? 1 : 0
+
+  name   = "${var.name_prefix}-ecs-task-s3-write"
+  role   = aws_iam_role.task.id
+  policy = data.aws_iam_policy_document.task_s3_write[0].json
+}

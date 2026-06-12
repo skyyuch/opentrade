@@ -25,3 +25,14 @@ variable "task_role_managed_secret_arns" {
     error_message = "Every entry must be a Secrets Manager ARN."
   }
 }
+
+variable "task_role_s3_write_bucket_arns" {
+  description = "S3 bucket ARNs the running container may write objects into (s3:PutObject on every key). apps/api uploads broker logos / avatars to the assets bucket through this grant."
+  type        = list(string)
+  default     = []
+
+  validation {
+    condition     = alltrue([for a in var.task_role_s3_write_bucket_arns : can(regex("^arn:aws:s3:::", a))])
+    error_message = "Every entry must be an S3 bucket ARN (arn:aws:s3:::bucket-name)."
+  }
+}
