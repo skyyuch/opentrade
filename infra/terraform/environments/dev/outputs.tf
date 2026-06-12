@@ -84,7 +84,7 @@ output "web_cdn_url" {
 }
 
 output "web_bucket_name" {
-  description = "S3 bucket holding the apps/web Next.js artefact."
+  description = "Legacy static-origin S3 bucket for apps/web. Unused since the ALB origin swap (ADR-0046 D4); retained pending cleanup."
   value       = module.web_cdn.bucket_name
 }
 
@@ -94,7 +94,7 @@ output "console_cdn_url" {
 }
 
 output "console_bucket_name" {
-  description = "S3 bucket holding the apps/console Next.js artefact."
+  description = "Legacy static-origin S3 bucket for apps/console. Unused since the ALB origin swap (ADR-0046 D4); retained pending cleanup."
   value       = module.console_cdn.bucket_name
 }
 

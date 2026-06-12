@@ -13,10 +13,15 @@ variable "bucket_name" {
   type        = string
 }
 
-variable "default_root_object" {
-  description = "Document served at `/`. Next.js static export uses `index.html`."
+variable "alb_dns_name" {
+  description = "DNS name of the ALB this distribution uses as its origin (ADR-0046 D4). HTTP-only origin leg; TLS terminates at CloudFront."
   type        = string
-  default     = "index.html"
+}
+
+variable "routing_header_name" {
+  description = "Custom origin header CloudFront injects so the ALB listener can route to this app's target group (ADR-0046 D3). The header value is `var.name`."
+  type        = string
+  default     = "X-Opentrade-App"
 }
 
 variable "noindex" {

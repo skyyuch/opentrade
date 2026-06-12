@@ -1,9 +1,10 @@
 # --------------------------------------------------------------------------
-# S3 bucket (private origin)
+# S3 bucket (legacy static origin — retained, no longer the CDN origin)
 # --------------------------------------------------------------------------
-# The bucket is fully private — public access is blocked at the bucket
-# level, and CloudFront reaches it through Origin Access Control (OAC).
-# Direct browser access to S3 returns 403.
+# ADR-0046 D4 switched the distribution origin to the ALB (the apps are
+# Next.js SSR, which a static S3 origin cannot serve). The bucket, OAC,
+# and bucket policy are retained per the ADR's "Neutral" note; removal
+# is a separate cleanup follow-up.
 
 resource "aws_s3_bucket" "this" {
   bucket        = var.bucket_name
@@ -81,58 +82,80 @@ resource "aws_cloudfront_response_headers_policy" "this" {
 }
 
 # --------------------------------------------------------------------------
-# CloudFront distribution
+# CloudFront distribution (ALB origin, SSR pass-through — ADR-0046 D4)
 # --------------------------------------------------------------------------
 # Phase 0 uses the default *.cloudfront.net domain. Custom domains
 # (opentrade.io, console.opentrade.io) need ACM certificates in
 # us-east-1, which is not yet enabled per ADR-0016. Phase 4+ will add
 # `aliases`, `viewer_certificate`, and `acm_certificate_arn` here.
+#
+# The origin leg is HTTP-only: an HTTPS origin needs a certificate the
+# ALB cannot have without a domain. Viewer TLS still terminates at
+# CloudFront's default certificate, and the injected routing header +
+# the ALB's CloudFront-prefix-list SG lock the origin down (ADR-0046 D3).
+# No SPA fallback: the SSR origin owns its 404s; masking errors as 200s
+# would hide real failures.
 
 resource "aws_cloudfront_distribution" "this" {
-  enabled             = true
-  is_ipv6_enabled     = true
-  comment             = "${var.name_prefix}-${var.name}"
-  default_root_object = var.default_root_object
-  price_class         = var.price_class
+  enabled         = true
+  is_ipv6_enabled = true
+  comment         = "${var.name_prefix}-${var.name}"
+  price_class     = var.price_class
 
   origin {
-    domain_name              = aws_s3_bucket.this.bucket_regional_domain_name
-    origin_id                = "s3-${var.name}"
-    origin_access_control_id = aws_cloudfront_origin_access_control.this.id
+    domain_name = var.alb_dns_name
+    origin_id   = "alb-${var.name}"
+
+    custom_origin_config {
+      http_port              = 80
+      https_port             = 443
+      origin_protocol_policy = "http-only"
+      origin_ssl_protocols   = ["TLSv1.2"]
+    }
+
+    # Routing + origin lock: the ALB listener forwards on this header
+    # and 403s anything without it. CloudFront overrides a same-named
+    # viewer header, so clients cannot spoof their way to another app.
+    custom_header {
+      name  = var.routing_header_name
+      value = var.name
+    }
   }
 
+  # SSR pages: no caching (responses vary by cookie/locale/auth), all
+  # viewer headers, cookies, and query strings forwarded to Next.js.
   default_cache_behavior {
-    target_origin_id       = "s3-${var.name}"
+    target_origin_id       = "alb-${var.name}"
+    viewer_protocol_policy = "redirect-to-https"
+    allowed_methods        = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
+    cached_methods         = ["GET", "HEAD"]
+    compress               = true
+
+    # AWS-managed `CachingDisabled` cache policy.
+    cache_policy_id = "4135ea2d-6df8-44a3-9df3-4b5a84be39ad"
+
+    # AWS-managed `AllViewer` origin request policy (forwards all
+    # headers — incl. Accept-Language for next-intl — plus cookies and
+    # query strings).
+    origin_request_policy_id = "216adef6-5c7f-47e4-b989-5492eafa07d3"
+
+    response_headers_policy_id = var.noindex ? aws_cloudfront_response_headers_policy.this[0].id : null
+  }
+
+  # Hashed immutable build assets: cache aggressively at the edge.
+  ordered_cache_behavior {
+    path_pattern           = "/_next/static/*"
+    target_origin_id       = "alb-${var.name}"
     viewer_protocol_policy = "redirect-to-https"
     allowed_methods        = ["GET", "HEAD"]
     cached_methods         = ["GET", "HEAD"]
     compress               = true
 
-    # AWS-managed `CachingOptimized` cache policy.
+    # AWS-managed `CachingOptimized` cache policy (URL-only cache key,
+    # long TTLs honouring the immutable Cache-Control from Next.js).
     cache_policy_id = "658327ea-f89d-4fab-a63d-7e88639e58f6"
 
-    # AWS-managed `CORS-S3Origin` origin request policy (forwards
-    # nothing the origin doesn't need; cheapest cache key).
-    origin_request_policy_id = "88a5eaf4-2fd4-4709-b370-b4c650ea3fcf"
-
     response_headers_policy_id = var.noindex ? aws_cloudfront_response_headers_policy.this[0].id : null
-  }
-
-  # SPA fallback: serve `index.html` for unknown paths so client-side
-  # routing works. Both apps/web and apps/console produce SPA-style
-  # output for static segments.
-  custom_error_response {
-    error_code            = 404
-    response_code         = 200
-    response_page_path    = "/${var.default_root_object}"
-    error_caching_min_ttl = 60
-  }
-
-  custom_error_response {
-    error_code            = 403
-    response_code         = 200
-    response_page_path    = "/${var.default_root_object}"
-    error_caching_min_ttl = 60
   }
 
   restrictions {

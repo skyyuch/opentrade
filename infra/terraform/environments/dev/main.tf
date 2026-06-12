@@ -302,23 +302,29 @@ module "sfc_sync" {
 # --------------------------------------------------------------------------
 # Frontend CDNs (one per Next.js app, per ADR-0010)
 # --------------------------------------------------------------------------
+# Origins point at the ALB (SSR per ADR-0046 D4). The module `name` must
+# match the alb module's `apps` key — it is the routing header value.
 
 module "web_cdn" {
   source = "../../modules/frontend-cdn"
 
-  name        = "web"
-  name_prefix = var.name_prefix
-  bucket_name = "${var.name_prefix}-web-${var.account_id}"
-  noindex     = false # apps/web is the SEO-facing surface
+  name                = "web"
+  name_prefix         = var.name_prefix
+  bucket_name         = "${var.name_prefix}-web-${var.account_id}"
+  alb_dns_name        = module.alb.alb_dns_name
+  routing_header_name = module.alb.routing_header_name
+  noindex             = false # apps/web is the SEO-facing surface
 }
 
 module "console_cdn" {
   source = "../../modules/frontend-cdn"
 
-  name        = "console"
-  name_prefix = var.name_prefix
-  bucket_name = "${var.name_prefix}-console-${var.account_id}"
-  noindex     = true # Console is robots-disallow per ADR-0010
+  name                = "console"
+  name_prefix         = var.name_prefix
+  bucket_name         = "${var.name_prefix}-console-${var.account_id}"
+  alb_dns_name        = module.alb.alb_dns_name
+  routing_header_name = module.alb.routing_header_name
+  noindex             = true # Console is robots-disallow per ADR-0010
 }
 
 # --------------------------------------------------------------------------
