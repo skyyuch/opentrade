@@ -39,6 +39,12 @@ variable "name_prefix" {
   default     = "opentrade-dev"
 }
 
+variable "github_repository" {
+  description = "GitHub repository (owner/name, case-sensitive) whose main-branch workflow runs may assume the deploy role (ADR-0047)."
+  type        = string
+  default     = "skyyuch/opentrade"
+}
+
 # --------------------------------------------------------------------------
 # Network
 # --------------------------------------------------------------------------

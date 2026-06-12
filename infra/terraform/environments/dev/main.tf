@@ -283,6 +283,33 @@ module "service_worker" {
 }
 
 # --------------------------------------------------------------------------
+# GitHub Actions deploy role (ADR-0047)
+# --------------------------------------------------------------------------
+# deploy.yml assumes this role via OIDC to push images and force new
+# deployments. Scope is exactly the three ECR repos + four ECS services;
+# Terraform plan/apply stays on the owner's machine (rule 80).
+
+module "github_deploy" {
+  source = "../../modules/github-oidc-deploy"
+
+  name_prefix       = var.name_prefix
+  github_repository = var.github_repository
+
+  ecr_repository_arns = [
+    module.ecr_api.repository_arn,
+    module.ecr_web.repository_arn,
+    module.ecr_console.repository_arn,
+  ]
+
+  ecs_service_arns = [
+    module.service_web.service_arn,
+    module.service_console.service_arn,
+    module.service_api.service_arn,
+    module.service_worker.service_arn,
+  ]
+}
+
+# --------------------------------------------------------------------------
 # SFC broker sync scheduled task (ADR-0020)
 # --------------------------------------------------------------------------
 

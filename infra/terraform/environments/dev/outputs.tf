@@ -118,6 +118,11 @@ output "app_secret_arns" {
   value       = module.app_secrets.secret_arns
 }
 
+output "github_deploy_role_arn" {
+  description = "GitHub Actions deploy role ARN. Set as the AWS_DEPLOY_ROLE_ARN repository variable after apply; deploy.yml stays skipped until it exists (ADR-0047)."
+  value       = module.github_deploy.role_arn
+}
+
 output "assets_cdn_url" {
   description = "CloudFront URL for static assets (logos, avatars). Used by the logo crawl script."
   value       = module.assets_cdn.cloudfront_url
