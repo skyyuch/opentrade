@@ -1,0 +1,153 @@
+# OpenTrade — UAT deploy pipeline (ADR-0047)
+#
+# On every push to main: build the three container images, push them to
+# ECR (:dev + :<sha>), then force new deployments on the ECS services so
+# Fargate pulls the fresh :dev tag. The outbox worker shares the api
+# image (ADR-0046 D2), so the api job rolls two services.
+#
+# Authentication is GitHub OIDC → the opentrade-dev-github-deploy role
+# (modules/github-oidc-deploy). No long-lived AWS keys exist in this
+# repository (rule 80). The role cannot register task definitions or
+# pass IAM roles — task shape stays Terraform-owned; CI only refreshes
+# the image bytes behind the pinned tag.
+#
+# Terraform is deliberately absent here: plan/apply stay on the owner's
+# machine (rule 80 / ADR-0018 D7). This workflow is inert until the
+# owner applies the stage-7 Terraform and sets the repository variables
+# below — the job-level guard keeps it green (skipped) before then.
+#
+# Required repository variables (Settings → Secrets and variables →
+# Actions → Variables), set after `terraform apply`:
+#   AWS_DEPLOY_ROLE_ARN      — `terraform output github_deploy_role_arn`
+#   AWS_REGION               — ap-southeast-1 (rule 80: never hardcoded)
+#   NEXT_PUBLIC_API_URL      — `terraform output api_cdn_url`
+#   NEXT_PUBLIC_PRIVY_APP_ID — Privy dashboard app id (public value)
+#   NEXT_PUBLIC_CHAIN_ID     — optional; defaults to 84532 (Base Sepolia)
+
+name: deploy
+
+on:
+  push:
+    branches: [main]
+  # Manual re-run lever: re-deploy the current main without a new commit
+  # (e.g. after the owner rotates a secret value or the first bootstrap).
+  workflow_dispatch:
+
+# Never cancel a mid-rollout deploy; queue the next one instead.
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write # OIDC token for aws-actions/configure-aws-credentials
+
+jobs:
+  deploy:
+    name: ${{ matrix.app }}
+    # Inert until the deploy role exists (stage-7 apply) — see header.
+    if: vars.AWS_DEPLOY_ROLE_ARN != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    strategy:
+      # One app failing should not stop the others from shipping.
+      fail-fast: false
+      matrix:
+        include:
+          - app: api
+            repository: opentrade-api
+            # Worker reuses the api image with a command override.
+            services: opentrade-dev-api opentrade-dev-outbox-worker
+          - app: web
+            repository: opentrade-web
+            services: opentrade-dev-web
+          - app: console
+            repository: opentrade-console
+            services: opentrade-dev-console
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          submodules: false
+
+      - name: Fail fast on missing front-end build args
+        # NEXT_PUBLIC_* are compile-time constants (ADR-0046 D5); building
+        # without them would bake a broken bundle and deploy it.
+        if: matrix.app != 'api'
+        env:
+          API_URL: ${{ vars.NEXT_PUBLIC_API_URL }}
+          PRIVY_APP_ID: ${{ vars.NEXT_PUBLIC_PRIVY_APP_ID }}
+        run: |
+          if [ -z "$API_URL" ] || [ -z "$PRIVY_APP_ID" ]; then
+            echo "::error::NEXT_PUBLIC_API_URL and NEXT_PUBLIC_PRIVY_APP_ID repository variables must be set before front-end deploys."
+            exit 1
+          fi
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set up Docker Buildx
+        # Buildx enables the GitHub Actions layer cache below; without it
+        # every deploy rebuilds pnpm install + next build from scratch.
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push api image
+        if: matrix.app == 'api'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/api/Dockerfile
+          push: true
+          tags: |
+            ${{ steps.ecr.outputs.registry }}/${{ matrix.repository }}:dev
+            ${{ steps.ecr.outputs.registry }}/${{ matrix.repository }}:${{ github.sha }}
+          cache-from: type=gha,scope=${{ matrix.app }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.app }}
+
+      - name: Build and push ${{ matrix.app }} image
+        if: matrix.app != 'api'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/${{ matrix.app }}/Dockerfile
+          push: true
+          tags: |
+            ${{ steps.ecr.outputs.registry }}/${{ matrix.repository }}:dev
+            ${{ steps.ecr.outputs.registry }}/${{ matrix.repository }}:${{ github.sha }}
+          build-args: |
+            NEXT_PUBLIC_API_URL=${{ vars.NEXT_PUBLIC_API_URL }}
+            NEXT_PUBLIC_PRIVY_APP_ID=${{ vars.NEXT_PUBLIC_PRIVY_APP_ID }}
+            NEXT_PUBLIC_CHAIN_ID=${{ vars.NEXT_PUBLIC_CHAIN_ID || '84532' }}
+          cache-from: type=gha,scope=${{ matrix.app }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.app }}
+
+      - name: Force new ECS deployments
+        # :dev is MUTABLE and the task definitions pin it, so a forced
+        # deployment is all it takes — no task-definition registration.
+        run: |
+          for service in ${{ matrix.services }}; do
+            aws ecs update-service \
+              --cluster opentrade-dev-cluster \
+              --service "$service" \
+              --force-new-deployment \
+              --query 'service.{service: serviceName, status: status}' \
+              --output table
+          done
+
+      - name: Wait for services to stabilise
+        # Circuit breaker (ecs-service module) auto-rolls-back a bad
+        # image; this wait surfaces that as a red job instead of a
+        # silently reverted deploy.
+        run: |
+          aws ecs wait services-stable \
+            --cluster opentrade-dev-cluster \
+            --services ${{ matrix.services }}
