@@ -30,6 +30,9 @@ infra/terraform/
     │                            managed master password
     ├── ecs-fargate-cluster/   ← ECS cluster (no service yet) + task roles
     │                            + log group
+    ├── ecs-service/           ← one Fargate task definition + service +
+    │                            SG; optional ALB target-group attachment,
+    │                            Secrets Manager injection (ADR-0046 D2)
     ├── ecr-repo/              ← ECR repository for one container image
     ├── frontend-cdn/          ← S3 (private, OAC) + CloudFront for one
     │                            Next.js app artefact
