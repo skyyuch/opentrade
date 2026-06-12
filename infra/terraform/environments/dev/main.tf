@@ -70,13 +70,33 @@ module "app_secrets" {
 }
 
 # --------------------------------------------------------------------------
-# ECR repository for apps/api
+# ECR repositories — one per container image (ADR-0046 D2)
 # --------------------------------------------------------------------------
+# The outbox worker reuses the opentrade-api image with a different
+# command, so three repos cover all four UAT services.
 
 module "ecr_api" {
   source = "../../modules/ecr-repo"
 
   repository_name      = "opentrade-api"
+  image_tag_mutability = "MUTABLE" # Dev: `:dev` tag overwrites freely
+  scan_on_push         = true
+  force_delete         = true
+}
+
+module "ecr_web" {
+  source = "../../modules/ecr-repo"
+
+  repository_name      = "opentrade-web"
+  image_tag_mutability = "MUTABLE" # Dev: `:dev` tag overwrites freely
+  scan_on_push         = true
+  force_delete         = true
+}
+
+module "ecr_console" {
+  source = "../../modules/ecr-repo"
+
+  repository_name      = "opentrade-console"
   image_tag_mutability = "MUTABLE" # Dev: `:dev` tag overwrites freely
   scan_on_push         = true
   force_delete         = true

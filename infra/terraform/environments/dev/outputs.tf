@@ -43,6 +43,16 @@ output "ecr_repo_url" {
   value       = module.ecr_api.repository_url
 }
 
+output "ecr_web_repo_url" {
+  description = "ECR repository URL for the apps/web image. `docker push` target."
+  value       = module.ecr_web.repository_url
+}
+
+output "ecr_console_repo_url" {
+  description = "ECR repository URL for the apps/console image. `docker push` target."
+  value       = module.ecr_console.repository_url
+}
+
 output "web_cdn_url" {
   description = "CloudFront URL for apps/web. Phase 4+ will swap this for opentrade.io behind ACM."
   value       = module.web_cdn.cloudfront_url
