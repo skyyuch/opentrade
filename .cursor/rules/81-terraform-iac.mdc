@@ -223,6 +223,7 @@ terraform {
 | `rds-postgres` | `deletion_protection` | `false` | `true` |
 | `rds-postgres` | `skip_final_snapshot` | `true` | `false` |
 | `frontend-cdn` | `price_class` | `"PriceClass_100"` | `"PriceClass_All"` |
+| `api-cdn` | `price_class` | `"PriceClass_100"` | `"PriceClass_All"` |
 | `ecr-repo` | `image_tag_mutability` | `"MUTABLE"` | `"IMMUTABLE"` |
 | `secrets` | `recovery_window_in_days` | `0` | `30` |
 | `alb` | `enable_deletion_protection` | `false` | `true` |
