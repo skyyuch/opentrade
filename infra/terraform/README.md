@@ -22,6 +22,9 @@ infra/terraform/
 │                                module together.  This is what you `apply`
 │                                day-to-day.
 └── modules/
+    ├── alb/                   ← single internet-facing ALB; CloudFront
+    │                            header routing to per-app target groups,
+    │                            403 default action (ADR-0046 D3)
     ├── vpc/                   ← VPC + public/private subnets + IGW + NAT
     ├── rds-postgres/          ← Postgres 16 RDS instance + Secrets Manager
     │                            managed master password
