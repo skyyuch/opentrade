@@ -8,7 +8,8 @@
 #
 # See ADR-0018 for the full design rationale (D1: three independent
 # workflows; D3: Corepack-managed pnpm; D4: local turbo cache only in
-# Phase 0; D8: zero AWS credentials).
+# Phase 0). The sole AWS credential lives in deploy.yml (ADR-0047);
+# quality-gate workflows stay credential-free.
 
 name: ci
 
@@ -23,8 +24,8 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-# CI is purely read-only. Per ADR-0018 D8 + rule 80, no AWS credentials
-# are configured in Phase 0; GitHub OIDC arrives in Phase 4+.
+# Quality gates are purely read-only. The OIDC deploy credential exists
+# only in deploy.yml, scoped per ADR-0047 (amends ADR-0018 D8).
 permissions:
   contents: read
 
