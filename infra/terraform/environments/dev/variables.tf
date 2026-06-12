@@ -93,9 +93,30 @@ variable "db_username" {
 variable "app_secret_names" {
   description = "Secrets Manager secret names that apps/api will read. Slots only — values populated outside Terraform."
   type        = list(string)
+
+  # Mirrors the runtime requirements of `apps/api/src/shared/env.ts`
+  # (ADR-0046 D9). Notes:
+  #   - `database-url` holds the full Postgres connection string, composed
+  #     by the operator from the RDS endpoint + managed master password so
+  #     it never enters Terraform state (rule 50).
+  #   - `jwt-private-key-pem` / `jwt-public-key-pem` are the ES256 keypair;
+  #     the former symmetric `jwt-secret` slot was removed (never populated,
+  #     superseded by the keypair — rule 50 forbids HS256 anyway).
+  #   - `deepl-api-key` is deprecated but kept: ADR-0027 may rewire it for
+  #     on-demand translation.
   default = [
-    "opentrade/dev/jwt-secret",
+    "opentrade/dev/database-url",
+    "opentrade/dev/privy-app-id",
     "opentrade/dev/privy-app-secret",
+    "opentrade/dev/privy-verification-key",
+    "opentrade/dev/jwt-private-key-pem",
+    "opentrade/dev/jwt-public-key-pem",
+    "opentrade/dev/pinata-jwt",
+    "opentrade/dev/chain-relayer-private-key",
+    "opentrade/dev/default-tenant-id",
+    "opentrade/dev/review-registry-address",
+    "opentrade/dev/kol-signal-registry-address",
+    "opentrade/dev/kol-note-registry-address",
     "opentrade/dev/deepl-api-key",
   ]
 }
