@@ -53,6 +53,16 @@ output "service_console_name" {
   value       = module.service_console.service_name
 }
 
+output "service_api_name" {
+  description = "ECS service name for apps/api. CI forces new deployments against it."
+  value       = module.service_api.service_name
+}
+
+output "service_worker_name" {
+  description = "ECS service name for the outbox worker. CI forces new deployments against it."
+  value       = module.service_worker.service_name
+}
+
 output "ecr_repo_url" {
   description = "ECR repository URL for the apps/api image. `docker push` target."
   value       = module.ecr_api.repository_url

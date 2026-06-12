@@ -34,9 +34,10 @@ module "vpc" {
 # --------------------------------------------------------------------------
 # RDS Postgres
 # --------------------------------------------------------------------------
-# Phase 0 ships the database with NO client SGs attached — the apps/api
-# ECS service won't exist until Phase 1. The `client_security_group_ids`
-# input is therefore left empty; Phase 1 will pass the service SG.
+# Postgres admits exactly the workloads that need it: the SFC sync task,
+# the API service, and the outbox worker (ADR-0046 D2). Front-end
+# services have no DB access by design (rule 00: frontends go through
+# the API).
 
 module "rds" {
   source = "../../modules/rds-postgres"
@@ -55,7 +56,11 @@ module "rds" {
   deletion_protection          = false
   skip_final_snapshot          = true
   performance_insights_enabled = false
-  client_security_group_ids    = [module.sfc_sync.security_group_id]
+  client_security_group_ids = [
+    module.sfc_sync.security_group_id,
+    module.service_api.security_group_id,
+    module.service_worker.security_group_id,
+  ]
 }
 
 # --------------------------------------------------------------------------
@@ -198,6 +203,80 @@ module "service_console" {
   container_port        = 3000
   target_group_arn      = module.alb.target_group_arns["console"]
   alb_security_group_id = module.alb.security_group_id
+}
+
+# --------------------------------------------------------------------------
+# ECS services — Hono API + outbox worker (ADR-0046 D2)
+# --------------------------------------------------------------------------
+# Both run the opentrade-api image; the worker overrides the command and
+# takes no inbound traffic. They share one secrets map because
+# apps/api/src/shared/env.ts fails fast at import on every required key,
+# so the API task must also carry the worker-leaning chain secrets (the
+# values are valid either way). Secret *values* are written outside
+# Terraform per ADR-0017 D10 / rule 50 — these are ARN references only.
+
+locals {
+  api_secret_env = {
+    DATABASE_URL                = module.app_secrets.secret_arns["opentrade/dev/database-url"]
+    PRIVY_APP_ID                = module.app_secrets.secret_arns["opentrade/dev/privy-app-id"]
+    PRIVY_APP_SECRET            = module.app_secrets.secret_arns["opentrade/dev/privy-app-secret"]
+    PRIVY_VERIFICATION_KEY      = module.app_secrets.secret_arns["opentrade/dev/privy-verification-key"]
+    JWT_PRIVATE_KEY_PEM         = module.app_secrets.secret_arns["opentrade/dev/jwt-private-key-pem"]
+    JWT_PUBLIC_KEY_PEM          = module.app_secrets.secret_arns["opentrade/dev/jwt-public-key-pem"]
+    PINATA_JWT                  = module.app_secrets.secret_arns["opentrade/dev/pinata-jwt"]
+    DEFAULT_TENANT_ID           = module.app_secrets.secret_arns["opentrade/dev/default-tenant-id"]
+    CHAIN_RELAYER_PRIVATE_KEY   = module.app_secrets.secret_arns["opentrade/dev/chain-relayer-private-key"]
+    REVIEW_REGISTRY_ADDRESS     = module.app_secrets.secret_arns["opentrade/dev/review-registry-address"]
+    KOL_SIGNAL_REGISTRY_ADDRESS = module.app_secrets.secret_arns["opentrade/dev/kol-signal-registry-address"]
+    KOL_NOTE_REGISTRY_ADDRESS   = module.app_secrets.secret_arns["opentrade/dev/kol-note-registry-address"]
+  }
+
+  api_plain_env = {
+    NODE_ENV           = "production"
+    CORS_ORIGIN        = "${module.web_cdn.cloudfront_url},${module.console_cdn.cloudfront_url}"
+    ASSETS_BUCKET_NAME = module.assets_cdn.bucket_name
+    ASSETS_CDN_URL     = module.assets_cdn.cloudfront_url
+  }
+}
+
+module "service_api" {
+  source = "../../modules/ecs-service"
+
+  name_prefix             = var.name_prefix
+  service_name            = "api"
+  cluster_arn             = module.ecs.cluster_arn
+  vpc_id                  = module.vpc.vpc_id
+  private_subnet_ids      = module.vpc.private_subnet_ids
+  task_execution_role_arn = module.ecs.task_execution_role_arn
+  task_role_arn           = module.ecs.task_role_arn
+  log_group_name          = module.ecs.log_group_name
+
+  image                 = "${module.ecr_api.repository_url}:dev"
+  container_port        = 4000
+  target_group_arn      = module.alb.target_group_arns["api"]
+  alb_security_group_id = module.alb.security_group_id
+
+  environment = local.api_plain_env
+  secrets     = local.api_secret_env
+}
+
+module "service_worker" {
+  source = "../../modules/ecs-service"
+
+  name_prefix             = var.name_prefix
+  service_name            = "outbox-worker"
+  cluster_arn             = module.ecs.cluster_arn
+  vpc_id                  = module.vpc.vpc_id
+  private_subnet_ids      = module.vpc.private_subnet_ids
+  task_execution_role_arn = module.ecs.task_execution_role_arn
+  task_role_arn           = module.ecs.task_role_arn
+  log_group_name          = module.ecs.log_group_name
+
+  image   = "${module.ecr_api.repository_url}:dev"
+  command = ["node", "dist/tasks/outbox-worker.js"]
+
+  environment = local.api_plain_env
+  secrets     = local.api_secret_env
 }
 
 # --------------------------------------------------------------------------
