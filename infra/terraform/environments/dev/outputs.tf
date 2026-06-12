@@ -98,6 +98,11 @@ output "console_bucket_name" {
   value       = module.console_cdn.bucket_name
 }
 
+output "api_cdn_url" {
+  description = "CloudFront URL fronting the Hono API. Browsers call this; it is also the NEXT_PUBLIC_API_URL build arg for the front-end images (ADR-0046 D5)."
+  value       = module.api_cdn.cloudfront_url
+}
+
 output "sfc_sync_task_definition_arn" {
   description = "ARN of the SFC broker sync ECS task definition (ADR-0020)."
   value       = module.sfc_sync.task_definition_arn

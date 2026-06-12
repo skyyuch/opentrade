@@ -25,6 +25,9 @@ infra/terraform/
     ├── alb/                   ← single internet-facing ALB; CloudFront
     │                            header routing to per-app target groups,
     │                            403 default action (ADR-0046 D3)
+    ├── api-cdn/               ← pass-through CloudFront distribution
+    │                            fronting the API via the ALB (HTTPS
+    │                            without a domain, ADR-0046 D4)
     ├── vpc/                   ← VPC + public/private subnets + IGW + NAT
     ├── rds-postgres/          ← Postgres 16 RDS instance + Secrets Manager
     │                            managed master password
@@ -34,8 +37,9 @@ infra/terraform/
     │                            SG; optional ALB target-group attachment,
     │                            Secrets Manager injection (ADR-0046 D2)
     ├── ecr-repo/              ← ECR repository for one container image
-    ├── frontend-cdn/          ← S3 (private, OAC) + CloudFront for one
-    │                            Next.js app artefact
+    ├── frontend-cdn/          ← CloudFront with ALB origin for one SSR
+    │                            Next.js app (ADR-0046 D4); legacy S3
+    │                            bucket retained pending cleanup
     └── secrets/               ← Secrets Manager scaffolding (empty slots
                                  for app secrets; values populated outside
                                  Terraform per rule 50)

@@ -328,6 +328,22 @@ module "console_cdn" {
 }
 
 # --------------------------------------------------------------------------
+# API CDN (ADR-0046 D4)
+# --------------------------------------------------------------------------
+# HTTPS front for the Hono API: pass-through distribution (no caching),
+# default *.cloudfront.net TLS. Its URL is the NEXT_PUBLIC_API_URL build
+# arg when baking the web/console images (apply first, build second).
+
+module "api_cdn" {
+  source = "../../modules/api-cdn"
+
+  name                = "api"
+  name_prefix         = var.name_prefix
+  alb_dns_name        = module.alb.alb_dns_name
+  routing_header_name = module.alb.routing_header_name
+}
+
+# --------------------------------------------------------------------------
 # Static assets CDN (logos, avatars, etc.)
 # --------------------------------------------------------------------------
 # Unlike frontend-cdn, this has no SPA fallback — missing keys return 404.
