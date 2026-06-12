@@ -225,6 +225,9 @@ terraform {
 | `frontend-cdn` | `price_class` | `"PriceClass_100"` | `"PriceClass_All"` |
 | `ecr-repo` | `image_tag_mutability` | `"MUTABLE"` | `"IMMUTABLE"` |
 | `secrets` | `recovery_window_in_days` | `0` | `30` |
+| `alb` | `enable_deletion_protection` | `false` | `true` |
+| `ecs-service` | `task_cpu` / `task_memory` | `256` / `512` | per-service 調高（ADR-0046 D7） |
+| `ecs-service` | `desired_count` | `1` | `>= 2`（跨 AZ） |
 
 ### 紅線
 
