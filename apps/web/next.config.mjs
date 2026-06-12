@@ -33,6 +33,14 @@ const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
 const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  // Produce `.next/standalone/` with a self-contained `server.js` + pruned
+  // node_modules so the Docker runtime stage ships no pnpm store (ADR-0046
+  // D5). Ignored by `next dev`; only affects `next build`.
+  output: 'standalone',
+  // Pin file tracing to the monorepo root so standalone output resolves
+  // workspace deps (`@opentrade/ui` etc.) instead of warning about multiple
+  // lockfiles and guessing the wrong root.
+  outputFileTracingRoot: new URL('../../', import.meta.url).pathname,
   // Build output dir is overridable so the Playwright e2e harness can
   // build into `.next-e2e/` and avoid sharing the bundler's persistent
   // cache with the developer's long-running `pnpm dev` process.
