@@ -158,6 +158,49 @@ module "alb" {
 }
 
 # --------------------------------------------------------------------------
+# ECS services — Next.js front ends (ADR-0046 D2)
+# --------------------------------------------------------------------------
+# All NEXT_PUBLIC_* configuration is baked into the images at build time
+# (ADR-0046 D5), so the running containers need no app-level environment.
+# PORT=3000 / HOSTNAME=0.0.0.0 are set in the Dockerfiles.
+
+module "service_web" {
+  source = "../../modules/ecs-service"
+
+  name_prefix             = var.name_prefix
+  service_name            = "web"
+  cluster_arn             = module.ecs.cluster_arn
+  vpc_id                  = module.vpc.vpc_id
+  private_subnet_ids      = module.vpc.private_subnet_ids
+  task_execution_role_arn = module.ecs.task_execution_role_arn
+  task_role_arn           = module.ecs.task_role_arn
+  log_group_name          = module.ecs.log_group_name
+
+  image                 = "${module.ecr_web.repository_url}:dev"
+  container_port        = 3000
+  target_group_arn      = module.alb.target_group_arns["web"]
+  alb_security_group_id = module.alb.security_group_id
+}
+
+module "service_console" {
+  source = "../../modules/ecs-service"
+
+  name_prefix             = var.name_prefix
+  service_name            = "console"
+  cluster_arn             = module.ecs.cluster_arn
+  vpc_id                  = module.vpc.vpc_id
+  private_subnet_ids      = module.vpc.private_subnet_ids
+  task_execution_role_arn = module.ecs.task_execution_role_arn
+  task_role_arn           = module.ecs.task_role_arn
+  log_group_name          = module.ecs.log_group_name
+
+  image                 = "${module.ecr_console.repository_url}:dev"
+  container_port        = 3000
+  target_group_arn      = module.alb.target_group_arns["console"]
+  alb_security_group_id = module.alb.security_group_id
+}
+
+# --------------------------------------------------------------------------
 # SFC broker sync scheduled task (ADR-0020)
 # --------------------------------------------------------------------------
 

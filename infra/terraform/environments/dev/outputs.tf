@@ -43,6 +43,16 @@ output "ecs_task_role_arn" {
   value       = module.ecs.task_role_arn
 }
 
+output "service_web_name" {
+  description = "ECS service name for apps/web. CI forces new deployments against it."
+  value       = module.service_web.service_name
+}
+
+output "service_console_name" {
+  description = "ECS service name for apps/console. CI forces new deployments against it."
+  value       = module.service_console.service_name
+}
+
 output "ecr_repo_url" {
   description = "ECR repository URL for the apps/api image. `docker push` target."
   value       = module.ecr_api.repository_url
