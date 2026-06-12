@@ -23,6 +23,11 @@ output "rds_master_password_secret_arn" {
   value       = module.rds.master_password_secret_arn
 }
 
+output "alb_dns_name" {
+  description = "Public DNS name of the ALB. Every CloudFront distribution uses this as its origin domain (ADR-0046 D3/D4)."
+  value       = module.alb.alb_dns_name
+}
+
 output "ecs_cluster_arn" {
   description = "ECS cluster ARN. The Phase-1 task definition + service will attach to this cluster."
   value       = module.ecs.cluster_arn

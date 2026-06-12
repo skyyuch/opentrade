@@ -124,6 +124,40 @@ module "ecs" {
 }
 
 # --------------------------------------------------------------------------
+# Application load balancer (ADR-0046 D3)
+# --------------------------------------------------------------------------
+# Single internet-facing ALB fronting the three HTTP services. Each
+# CloudFront distribution injects `X-Opentrade-App: <app>` as a custom
+# origin header; listener rules route on it. The map key doubles as the
+# header match value, so it must equal the CloudFront-side header value.
+
+module "alb" {
+  source = "../../modules/alb"
+
+  name_prefix       = var.name_prefix
+  vpc_id            = module.vpc.vpc_id
+  public_subnet_ids = module.vpc.public_subnet_ids
+
+  apps = {
+    web = {
+      container_port    = 3000
+      health_check_path = "/" # Next.js SSR root; locale redirects (3xx) count as healthy
+      priority          = 10
+    }
+    console = {
+      container_port    = 3000
+      health_check_path = "/"
+      priority          = 20
+    }
+    api = {
+      container_port    = 4000
+      health_check_path = "/v1/health"
+      priority          = 30
+    }
+  }
+}
+
+# --------------------------------------------------------------------------
 # SFC broker sync scheduled task (ADR-0020)
 # --------------------------------------------------------------------------
 
