@@ -32,14 +32,22 @@ import type { SfcBrokerData } from '../src/sfc/types.js';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 type TenantSeed = {
+  id: string;
   code: string;
   name: string;
   defaultLocale: string;
   timezone: string;
 };
 
+// Pinned so DEFAULT_TENANT_ID is identical across local / UAT / PRD and the
+// secret can be written before the seed runs (ADR-0048 D3). The upsert stays
+// idempotent on `code`; only the create branch applies this id, so existing
+// databases are untouched.
+const HK_TENANT_ID = 'e05ea634-e71d-447c-bd3d-87942eda6a2a';
+
 const tenants: readonly TenantSeed[] = [
   {
+    id: HK_TENANT_ID,
     code: 'hk',
     name: 'Hong Kong',
     defaultLocale: 'zh-Hant',
@@ -57,6 +65,7 @@ const seedTenants = async (): Promise<void> => {
         timezone: tenant.timezone,
       },
       create: {
+        id: tenant.id,
         code: tenant.code,
         name: tenant.name,
         defaultLocale: tenant.defaultLocale,
