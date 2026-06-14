@@ -31,6 +31,8 @@ const SFC_BASE_URL = 'https://apps.sfc.hk/publicregWeb/corp';
 const REQUEST_DELAY_MS = 350;
 const BATCH_LOG_INTERVAL = 50;
 const FORCE_MODE = process.argv.includes('--force');
+const LIMIT_ARG = process.argv.find((a) => a.startsWith('--limit='));
+const LIMIT = LIMIT_ARG ? Number.parseInt(LIMIT_ARG.split('=')[1] ?? '', 10) : undefined;
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -435,6 +437,7 @@ async function main(): Promise<void> {
     where: whereClause,
     select: { id: true, ceNumber: true, displayName: true },
     orderBy: { ceNumber: 'asc' },
+    ...(LIMIT !== undefined && Number.isFinite(LIMIT) && LIMIT > 0 ? { take: LIMIT } : {}),
   });
 
   console.log(
