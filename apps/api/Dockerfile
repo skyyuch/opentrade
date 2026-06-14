@@ -132,6 +132,28 @@ RUN pnpm --filter @opentrade/api build
 RUN pnpm --filter @opentrade/api --prod deploy --ignore-scripts /deploy
 
 # =============================================================================
+# 3b. migrate — one-off schema migration + seed image (ADR-0048 D1).
+#
+# Layered FROM builder so it carries the full workspace: the `prisma` CLI
+# (devDep), `tsx`, the generated client, every migration SQL file, and
+# scripts/seed.ts + its seed data JSON — none of which survive the
+# `--prod deploy` runtime tree above. Run on demand as a one-off ECS task
+# (owner-local `aws ecs run-task`, NOT in CI — ADR-0048 D2); DATABASE_URL
+# is injected from Secrets Manager.
+#
+# Kept BEFORE `runtime` so `runtime` stays the Dockerfile's last stage and
+# deploy.yml's untargeted build still produces the API service image. Build
+# this stage explicitly: `docker build --target migrate ...`.
+# =============================================================================
+FROM builder AS migrate
+
+WORKDIR /workspace/packages/db
+
+# `prisma migrate deploy` applies pending migrations idempotently; the seed
+# upserts are idempotent too (ADR-0048 D3), so re-running this task is safe.
+CMD ["sh", "-c", "pnpm exec prisma migrate deploy && pnpm exec tsx scripts/seed.ts"]
+
+# =============================================================================
 # 4. runtime — what actually ships to ECS.
 # =============================================================================
 FROM node:${NODE_VERSION}-slim AS runtime
