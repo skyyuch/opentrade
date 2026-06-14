@@ -132,6 +132,7 @@ YYYY-MM-DD
 | 0045 | Add bullion-dealer vertical as a `Broker` category sourced from CGSE | Accepted                   | 2026-06-05 |
 | 0046 | UAT deployment topology on ECS Fargate + PRD environment design      | Accepted                   | 2026-06-12 |
 | 0047 | GitHub OIDC deploy pipeline for UAT (amends 0018 D8)                 | Accepted                   | 2026-06-12 |
+| 0048 | UAT migration via one-off ECS task + deterministic HK tenant id      | Accepted                   | 2026-06-14 |
 
 ---
 
