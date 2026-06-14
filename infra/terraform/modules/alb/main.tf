@@ -21,7 +21,7 @@ data "aws_ec2_managed_prefix_list" "cloudfront_origin_facing" {
 
 resource "aws_security_group" "alb" {
   name_prefix = "${var.name_prefix}-alb-"
-  description = "ALB — HTTP from CloudFront origin-facing ranges only"
+  description = "ALB - HTTP from CloudFront origin-facing ranges only"
   vpc_id      = var.vpc_id
 
   tags = {

@@ -6,7 +6,7 @@
 
 resource "aws_security_group" "sync_task" {
   name_prefix = "${var.name_prefix}-sfc-sync-"
-  description = "SFC broker sync ECS task — egress-all, no ingress"
+  description = "SFC broker sync ECS task - egress-all, no ingress"
   vpc_id      = var.vpc_id
 
   tags = {
