@@ -236,6 +236,7 @@ locals {
     CHAIN_RELAYER_PRIVATE_KEY   = module.app_secrets.secret_arns["opentrade/dev/chain-relayer-private-key"]
     REVIEW_REGISTRY_ADDRESS     = module.app_secrets.secret_arns["opentrade/dev/review-registry-address"]
     REVIEWER_SBT_ADDRESS        = module.app_secrets.secret_arns["opentrade/dev/reviewer-sbt-address"]
+    KOL_SBT_ADDRESS             = module.app_secrets.secret_arns["opentrade/dev/kol-sbt-address"]
     KOL_SIGNAL_REGISTRY_ADDRESS = module.app_secrets.secret_arns["opentrade/dev/kol-signal-registry-address"]
     KOL_NOTE_REGISTRY_ADDRESS   = module.app_secrets.secret_arns["opentrade/dev/kol-note-registry-address"]
   }

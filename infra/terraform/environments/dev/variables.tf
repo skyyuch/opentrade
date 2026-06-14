@@ -127,6 +127,8 @@ variable "app_secret_names" {
     "opentrade/dev/chain-relayer-private-key",
     "opentrade/dev/default-tenant-id",
     "opentrade/dev/review-registry-address",
+    "opentrade/dev/reviewer-sbt-address",
+    "opentrade/dev/kol-sbt-address",
     "opentrade/dev/kol-signal-registry-address",
     "opentrade/dev/kol-note-registry-address",
     "opentrade/dev/deepl-api-key",
