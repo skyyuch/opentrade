@@ -244,6 +244,7 @@ locals {
     CORS_ORIGIN        = "${module.web_cdn.cloudfront_url},${module.console_cdn.cloudfront_url}"
     ASSETS_BUCKET_NAME = module.assets_cdn.bucket_name
     ASSETS_CDN_URL     = module.assets_cdn.cloudfront_url
+    CHAIN_RPC_URL      = var.chain_rpc_url
   }
 }
 

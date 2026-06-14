@@ -89,6 +89,12 @@ variable "db_username" {
   default     = "opentrade_admin"
 }
 
+variable "chain_rpc_url" {
+  description = "RPC endpoint the API / outbox worker use to read and submit on-chain transactions. Not chain-hardcoded in code (rule 00); the value is environment config. Defaults to the public Base Sepolia RPC for dev."
+  type        = string
+  default     = "https://sepolia.base.org"
+}
+
 # --------------------------------------------------------------------------
 # Application secret slots
 # --------------------------------------------------------------------------
