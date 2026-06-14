@@ -235,6 +235,7 @@ locals {
     DEFAULT_TENANT_ID           = module.app_secrets.secret_arns["opentrade/dev/default-tenant-id"]
     CHAIN_RELAYER_PRIVATE_KEY   = module.app_secrets.secret_arns["opentrade/dev/chain-relayer-private-key"]
     REVIEW_REGISTRY_ADDRESS     = module.app_secrets.secret_arns["opentrade/dev/review-registry-address"]
+    REVIEWER_SBT_ADDRESS        = module.app_secrets.secret_arns["opentrade/dev/reviewer-sbt-address"]
     KOL_SIGNAL_REGISTRY_ADDRESS = module.app_secrets.secret_arns["opentrade/dev/kol-signal-registry-address"]
     KOL_NOTE_REGISTRY_ADDRESS   = module.app_secrets.secret_arns["opentrade/dev/kol-note-registry-address"]
   }
@@ -354,8 +355,10 @@ module "sfc_sync" {
   private_subnet_ids      = module.vpc.private_subnet_ids
   ecr_image               = "${module.ecr_api.repository_url}:dev"
   rds_security_group_id   = module.rds.security_group_id
-  db_secret_arn           = module.rds.master_password_secret_arn
-  enabled                 = false # Enable when API image with sync entry point is pushed
+  # Full connection string (with sslmode), NOT the RDS master-password JSON —
+  # same source the api/worker/migrate tasks use (ADR-0048).
+  db_secret_arn = module.app_secrets.secret_arns["opentrade/dev/database-url"]
+  enabled       = true # API image with the sync entry point is deployed
 }
 
 # --------------------------------------------------------------------------
