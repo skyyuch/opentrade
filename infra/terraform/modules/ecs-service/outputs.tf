@@ -19,6 +19,6 @@ output "task_definition_family" {
 }
 
 output "security_group_id" {
-  description = "Service security group ID. Pass into the RDS module's client_security_group_ids for services that need Postgres."
+  description = "Service security group ID. Pass into the RDS module's client_security_groups map for services that need Postgres."
   value       = aws_security_group.service.id
 }

@@ -9,6 +9,6 @@ output "eventbridge_rule_arn" {
 }
 
 output "security_group_id" {
-  description = "Security group ID of the sync task. Pass to RDS client_security_group_ids."
+  description = "Security group ID of the sync task. The module manages its own RDS ingress rule (via rds_security_group_id), so this is exposed for reference only — do not also add it to the RDS client_security_groups map (duplicate rule + dependency cycle)."
   value       = aws_security_group.sync_task.id
 }

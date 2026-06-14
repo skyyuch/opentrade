@@ -80,8 +80,8 @@ variable "performance_insights_enabled" {
   default     = false
 }
 
-variable "client_security_group_ids" {
-  description = "Security group IDs allowed to talk to the database on port 5432. Empty in Phase 0 (no compute attached yet); Phase 1 will pass the apps/api ECS service SG."
-  type        = list(string)
-  default     = []
+variable "client_security_groups" {
+  description = "Map of static client name -> security group ID allowed to talk to the database on 5432. A map (not a list) so for_each keys stay known at plan time even when the SG IDs are created in the same apply; list/toset would force a two-phase -target apply. Empty in Phase 0; UAT passes the apps/api + outbox-worker SGs."
+  type        = map(string)
+  default     = {}
 }

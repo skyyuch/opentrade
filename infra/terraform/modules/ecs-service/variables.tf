@@ -55,8 +55,14 @@ variable "container_port" {
   default     = null
 }
 
+variable "attach_to_alb" {
+  description = "Whether this service registers into an ALB target group and admits ALB ingress. Static (plan-time) toggle so count/for_each never depend on the apply-time-unknown target_group_arn. When true, target_group_arn, container_port, and alb_security_group_id must all be set."
+  type        = bool
+  default     = false
+}
+
 variable "target_group_arn" {
-  description = "ALB target group to register tasks into. Null for background services (no load balancer attachment)."
+  description = "ALB target group to register tasks into. Required when attach_to_alb is true; null for background services."
   type        = string
   default     = null
 }

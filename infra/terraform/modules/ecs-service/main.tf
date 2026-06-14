@@ -11,7 +11,10 @@
 
 locals {
   qualified_name = "${var.name_prefix}-${var.service_name}"
-  has_lb         = var.target_group_arn != null
+  # Static toggle: deriving this from `target_group_arn != null` makes every
+  # count/for_each that reads it unresolvable at plan time on a greenfield
+  # apply (the ARN is known only after the ALB module applies).
+  has_lb = var.attach_to_alb
 
   container_definition = merge(
     {
@@ -150,8 +153,8 @@ resource "aws_ecs_service" "this" {
 
   lifecycle {
     precondition {
-      condition     = !local.has_lb || (var.container_port != null && var.alb_security_group_id != null)
-      error_message = "When target_group_arn is set, container_port and alb_security_group_id must also be set."
+      condition     = !local.has_lb || (var.container_port != null && var.alb_security_group_id != null && var.target_group_arn != null)
+      error_message = "When attach_to_alb is true, target_group_arn, container_port, and alb_security_group_id must all be set."
     }
   }
 }

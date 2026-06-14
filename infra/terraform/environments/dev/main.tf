@@ -34,10 +34,13 @@ module "vpc" {
 # --------------------------------------------------------------------------
 # RDS Postgres
 # --------------------------------------------------------------------------
-# Postgres admits exactly the workloads that need it: the SFC sync task,
-# the API service, and the outbox worker (ADR-0046 D2). Front-end
-# services have no DB access by design (rule 00: frontends go through
-# the API).
+# Postgres admits exactly the workloads that need it: the API service and
+# the outbox worker (ADR-0046 D2). The SFC sync task manages its own RDS
+# ingress rule inside the sfc-sync-task module (it is passed
+# rds_security_group_id below), so listing it here too would create a
+# duplicate ingress rule and a rds<->sfc_sync module dependency cycle.
+# Front-end services have no DB access by design (rule 00: frontends go
+# through the API).
 
 module "rds" {
   source = "../../modules/rds-postgres"
@@ -56,11 +59,10 @@ module "rds" {
   deletion_protection          = false
   skip_final_snapshot          = true
   performance_insights_enabled = false
-  client_security_group_ids = [
-    module.sfc_sync.security_group_id,
-    module.service_api.security_group_id,
-    module.service_worker.security_group_id,
-  ]
+  client_security_groups = {
+    "api"           = module.service_api.security_group_id
+    "outbox-worker" = module.service_worker.security_group_id
+  }
 }
 
 # --------------------------------------------------------------------------
@@ -186,6 +188,7 @@ module "service_web" {
 
   image                 = "${module.ecr_web.repository_url}:dev"
   container_port        = 3000
+  attach_to_alb         = true
   target_group_arn      = module.alb.target_group_arns["web"]
   alb_security_group_id = module.alb.security_group_id
 }
@@ -204,6 +207,7 @@ module "service_console" {
 
   image                 = "${module.ecr_console.repository_url}:dev"
   container_port        = 3000
+  attach_to_alb         = true
   target_group_arn      = module.alb.target_group_arns["console"]
   alb_security_group_id = module.alb.security_group_id
 }
@@ -256,6 +260,7 @@ module "service_api" {
 
   image                 = "${module.ecr_api.repository_url}:dev"
   container_port        = 4000
+  attach_to_alb         = true
   target_group_arn      = module.alb.target_group_arns["api"]
   alb_security_group_id = module.alb.security_group_id
 
