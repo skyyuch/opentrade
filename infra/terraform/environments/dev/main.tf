@@ -62,6 +62,7 @@ module "rds" {
   client_security_groups = {
     "api"           = module.service_api.security_group_id
     "outbox-worker" = module.service_worker.security_group_id
+    "migrate"       = module.migrate.security_group_id
   }
 }
 
@@ -312,6 +313,28 @@ module "github_deploy" {
     module.service_api.service_arn,
     module.service_worker.service_arn,
   ]
+}
+
+# --------------------------------------------------------------------------
+# One-off schema migration + seed task (ADR-0048)
+# --------------------------------------------------------------------------
+# Runs prisma migrate deploy + seed against the private RDS from inside the
+# VPC. Image = the apps/api Dockerfile `migrate` stage pushed as
+# opentrade-api:migrate. Invoked owner-local via `aws ecs run-task`
+# (ADR-0048 D2), never by CI. Its SG is in the RDS client map above.
+
+module "migrate" {
+  source = "../../modules/migrate-task"
+
+  name_prefix             = var.name_prefix
+  cluster_arn             = module.ecs.cluster_arn
+  task_execution_role_arn = module.ecs.task_execution_role_arn
+  task_role_arn           = module.ecs.task_role_arn
+  log_group_name          = module.ecs.log_group_name
+  vpc_id                  = module.vpc.vpc_id
+  private_subnet_ids      = module.vpc.private_subnet_ids
+  ecr_image               = "${module.ecr_api.repository_url}:migrate"
+  database_url_secret_arn = module.app_secrets.secret_arns["opentrade/dev/database-url"]
 }
 
 # --------------------------------------------------------------------------

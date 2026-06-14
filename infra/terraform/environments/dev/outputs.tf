@@ -103,6 +103,16 @@ output "api_cdn_url" {
   value       = module.api_cdn.cloudfront_url
 }
 
+output "migrate_task_definition_family" {
+  description = "Family of the one-off migrate+seed task definition (ADR-0048). Pass to `aws ecs run-task --task-definition`."
+  value       = module.migrate.task_definition_family
+}
+
+output "migrate_security_group_id" {
+  description = "Security group ID for the migrate task. Use in the `aws ecs run-task` network configuration."
+  value       = module.migrate.security_group_id
+}
+
 output "sfc_sync_task_definition_arn" {
   description = "ARN of the SFC broker sync ECS task definition (ADR-0020)."
   value       = module.sfc_sync.task_definition_arn
