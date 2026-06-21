@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Accepted (registry-identity decisions D3 / D5 / D6 amended by [ADR-0050](./0050-rebrand-cgse-to-hkgx.md) — CGSE 金銀業貿易場 rebranded to HKGX 香港黃金交易所)
 
 ## Date
 
