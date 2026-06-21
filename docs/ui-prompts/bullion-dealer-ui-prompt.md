@@ -1,11 +1,13 @@
 # Google UI Prompt — Bullion Dealer (金商) Vertical
 
 > **What this is.** A ready-to-paste prompt for Google (Gemini) to design the
-> visuals for OpenTrade's new **bullion-dealer (金商 / CGSE member)** vertical.
+> visuals for OpenTrade's new **bullion-dealer (金商 / HKGX member)** vertical.
 > Per [ADR-0045](../decisions/0045-bullion-dealer-vertical-cgse.md) D7, all
 > bullion-dealer page visuals are designed by Google; this team only wires
 > data, API, state, and i18n. The DB and API shapes are now final, so the
-> prop / field / tab structure below is exact.
+> prop / field / tab structure below is exact. The registry was rebranded from
+> CGSE (金銀業貿易場) to HKGX (香港黃金交易所) per
+> [ADR-0050](../decisions/0050-rebrand-cgse-to-hkgx.md).
 >
 > **How to use.** Copy everything inside the fenced block titled
 > "PROMPT TO PASTE" and give it to Google. The data shapes and labels are
@@ -38,8 +40,10 @@ You are designing two pages for OpenTrade, a Web3 decentralized review
 platform for Hong Kong financial-service providers. Reviews are written to a
 blockchain and can NEVER be edited or deleted by anyone, including the
 platform. We are adding a new vertical: BULLION DEALERS (Chinese: 金商) — gold
-and silver dealers that are members of the CGSE (Chinese Gold & Silver
-Exchange Society / 香港金銀業貿易場), a self-regulatory bullion exchange.
+and silver dealers that are members of the HKGX (Hong Kong Gold Exchange /
+香港黃金交易所), Hong Kong's sole spot gold & silver exchange and a
+self-regulatory bullion exchange (the corporatised successor to the former
+Chinese Gold & Silver Exchange Society / 金銀業貿易場 since 2025).
 
 These pages must be visually CONSISTENT with our existing "securities broker"
 pages, which already use this design language:
@@ -58,7 +62,7 @@ pages, which already use this design language:
   directly. Do NOT invent new data fields.
 
 The product is a PURE INFORMATION PLATFORM. It gives NO investment advice.
-Every page must carry a disclaimer. CGSE is a self-regulatory bullion
+Every page must carry a disclaimer. HKGX is a self-regulatory bullion
 exchange, NOT a statutory securities regulator — never imply it is the SFC.
 
 ================================================================
@@ -67,14 +71,14 @@ SURFACE A — BULLION DEALER LIST / DIRECTORY PAGE
 A grid of bullion-dealer cards (reuse the securities broker grid layout: 1
 column mobile, 2 columns md, 3 columns lg). Above the grid: a page title
 ("金商目錄"), a subtitle, a search box, and a "showing N dealers" count + sort
-dropdown. NOTE: bullion dealers do NOT have SFC license-type filter pills (CGSE
+dropdown. NOTE: bullion dealers do NOT have SFC license-type filter pills (HKGX
 has no regulated-activity categories) — so OMIT the row of filter pills that
 the securities page shows.
 
 Each CARD consumes this exact JSON (one array item from GET /v1/brokers?category=BULLION):
 {
   "id": "uuid",
-  "slug": "cgse-009",                 // routing key, never shown as text
+  "slug": "hkgx-009",                 // routing key, never shown as text
   "category": "BULLION",
   "displayName": "...",               // Traditional Chinese name
   "displayNameZhHans": "..." | null,  // Simplified Chinese name
@@ -85,7 +89,7 @@ Each CARD consumes this exact JSON (one array item from GET /v1/brokers?category
   "positiveRate": 83 | null,          // percentage, or null if no reviews
   "verifiedUserCount": 4,
   "licenses": [
-    { "regulator": "HK_CGSE", "licenseNumber": "009", "status": "ACTIVE" }
+    { "regulator": "HK_HKGX", "licenseNumber": "009", "status": "ACTIVE" }
   ]
 }
 
@@ -95,10 +99,10 @@ Card content (top to bottom):
    line. The reader's locale decides which is primary (the app injects the
    correct strings; you just lay out a primary + optional secondary line).
 2. A badge row:
-   - A neon "CGSE 行員 {licenseNumber}" pill (shield-check icon) — read
-     licenseNumber from the licenses[] entry whose regulator === "HK_CGSE".
+   - A neon "HKGX 行員 {licenseNumber}" pill (shield-check icon) — read
+     licenseNumber from the licenses[] entry whose regulator === "HK_HKGX".
    - If verifiedUserCount > 0: a neon pill "{count} verified users".
-   - TRUST SIGNAL (red): if that CGSE license status is "SUSPENDED" or
+   - TRUST SIGNAL (red): if that HKGX license status is "SUSPENDED" or
      "REVOKED", show a red pill ("已被停業" / "已被除牌"). This is an
      immutable trust signal — design it to be noticeable but not alarming.
 3. Bottom row: a large positive-rate percentage (neon) + "{reviewCount}
@@ -106,7 +110,7 @@ Card content (top to bottom):
 
 Card links to /bullion-dealers/{slug}.
 
-Page footer: a one-line disclaimer that data comes from the public CGSE member
+Page footer: a one-line disclaimer that data comes from the public HKGX member
 roster and is not investment advice.
 
 ================================================================
@@ -117,7 +121,7 @@ two-column body (main content 2/3 + sidebar 1/3). The detail consumes
 GET /v1/brokers/{slug}, which returns (bullion-relevant fields):
 {
   "id": "uuid",
-  "slug": "cgse-009",
+  "slug": "hkgx-009",
   "category": "BULLION",
   "displayName": "...", "displayNameZhHans": "..."|null, "legalName": "...",
   "description": "..."|null,
@@ -131,7 +135,7 @@ GET /v1/brokers/{slug}, which returns (bullion-relevant fields):
   "verifiedComplaintCount": 1,
   "sentimentAggregate": { "positive": 9, "neutral": 1, "negative": 2 },
   "licenses": [
-    { "regulator": "HK_CGSE", "licenseType": "HK_CGSE_MEMBER",
+    { "regulator": "HK_HKGX", "licenseType": "HK_HKGX_MEMBER",
       "licenseNumber": "009", "status": "ACTIVE", "issuedAt": "..."|null }
   ],
   "similarBrokers": [ ... same-shape mini list ... ]
@@ -144,23 +148,23 @@ HEADER CARD:
 - Back link "返回金商列表".
 - Logo + localized name (primary) + other-language name (secondary).
 - isClaimed → "已認領商戶" (blue) else "未認領商戶" (grey).
-- If CGSE status is SUSPENDED/REVOKED → a red status badge in the header.
+- If HKGX status is SUSPENDED/REVOKED → a red status badge in the header.
 - websiteUrl link + "活躍 N 年" if activeYears present.
-- On the right: a neon "CGSE 行員 {licenseNumber}" membership pill (this
+- On the right: a neon "HKGX 行員 {licenseNumber}" membership pill (this
   replaces the securities page's "SFC 發牌機構" badge).
 
 TAB SET (exactly 3 tabs, in this order — far slimmer than securities because
-CGSE carries little structured data):
+HKGX carries little structured data):
 1. 會籍 (Membership) — a compact record card showing:
    - 法團名稱 (corporate name: legalName + displayName)
-   - 行員編號 (member number = licenses[].licenseNumber for HK_CGSE)
+   - 行員編號 (member number = licenses[].licenseNumber for HK_HKGX)
    - 會籍狀態 (status pill: ACTIVE→"在冊行員" neon green / SUSPENDED→"已被停業"
      red / REVOKED→"已被除牌" red)
    - 入會生效日期 (effective date, from issuedAt, only if present)
-   - A link out to the official CGSE member roster
-     (https://www.cgse.com.hk/chines/en/member-list)
-   - An info note: data sourced from the public CGSE roster, for reference
-     only, not investment advice; CGSE is a self-regulatory exchange.
+   - A link out to the official HKGX member roster
+     (https://hkgx.com.hk/en/member/memberlist)
+   - An info note: data sourced from the public HKGX roster, for reference
+     only, not investment advice; HKGX is a self-regulatory exchange.
    Design this membership card cleanly — it is the bullion analogue of the
    securities "license" tab but with a SINGLE membership status, not 10
    regulated-activity categories.
@@ -199,7 +203,7 @@ TRILINGUAL LABELS (the app supplies these; design must fit all three)
 ================================================================
 Concept              | zh-Hant      | zh-Hans      | English
 Nav / page title     | 金商          | 金商          | Bullion Dealers
-CGSE member pill     | CGSE 行員 {n} | CGSE 行员 {n} | CGSE Member {n}
+HKGX member pill     | HKGX 行員 {n} | HKGX 行员 {n} | HKGX Member {n}
 Status ACTIVE        | 在冊行員       | 在册行员       | Active member
 Status SUSPENDED     | 已被停業       | 已被停业       | Suspended
 Status REVOKED       | 已被除牌       | 已被除牌       | Revoked
@@ -229,7 +233,8 @@ HARD RULES (do not violate)
 
 ## References
 
-- [ADR-0045](../decisions/0045-bullion-dealer-vertical-cgse.md) — D7 (UI division of labour), D3 (CGSE license shape)
+- [ADR-0045](../decisions/0045-bullion-dealer-vertical-cgse.md) — D7 (UI division of labour), D3 (HKGX license shape)
+- [ADR-0050](../decisions/0050-rebrand-cgse-to-hkgx.md) — CGSE → HKGX registry rebrand
 - API list/detail shapes: `apps/api/src/domains/brokers/presentation/routes.ts`
 - Functional baseline already wired: `BrokerDirectory.tsx`, `BrokerDetailTabs.tsx`
 - Trilingual labels: `apps/web/messages/{zh-Hant,zh-Hans,en}.json` (`bullionDealers` + `brokerDetail` namespaces)
