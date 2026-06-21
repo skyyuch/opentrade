@@ -1,28 +1,42 @@
-# OpenTrade — UAT deploy pipeline (ADR-0047)
+# OpenTrade — UAT deploy pipeline (ADR-0047, ADR-0051)
 #
-# On every push to main: build the three container images, push them to
-# ECR (:dev + :<sha>), then force new deployments on the ECS services so
-# Fargate pulls the fresh :dev tag. The outbox worker shares the api
-# image (ADR-0046 D2), so the api job rolls two services.
+# On every push to main:
+#   1. migrate gate (ADR-0051): build/push the :migrate image, run
+#      `prisma migrate deploy` as a one-off ECS task, and wait for exit 0.
+#   2. only if migration succeeds, build the three runtime images, push them
+#      to ECR (:dev + :<sha>), and force new ECS deployments so Fargate pulls
+#      the fresh :dev tag. The outbox worker shares the api image
+#      (ADR-0046 D2), so the api job rolls two services.
 #
-# Authentication is GitHub OIDC → the opentrade-dev-github-deploy role
-# (modules/github-oidc-deploy). No long-lived AWS keys exist in this
-# repository (rule 80). The role cannot register task definitions or
-# pass IAM roles — task shape stays Terraform-owned; CI only refreshes
-# the image bytes behind the pinned tag.
+# The migrate-before-rollout ordering kills the half-deploy class of bug
+# (new code shipped against an un-migrated schema). A failed migration blocks
+# the rollout, so services keep serving the previous consistent image.
+#
+# Authentication is GitHub OIDC. Two single-purpose roles
+# (modules/github-oidc-deploy): the migrate gate assumes
+# opentrade-dev-github-migrate (RunTask the migrate task + PassRole its two
+# roles + push :migrate, nothing else — ADR-0051 D2); the rollout jobs assume
+# opentrade-dev-github-deploy (ECR push + force-deploy only — ADR-0047 D2).
+# No long-lived AWS keys exist in this repository (rule 80); neither role can
+# register task definitions.
 #
 # Terraform is deliberately absent here: plan/apply stay on the owner's
-# machine (rule 80 / ADR-0018 D7). This workflow is inert until the
-# owner applies the stage-7 Terraform and sets the repository variables
-# below — the job-level guard keeps it green (skipped) before then.
+# machine (rule 80 / ADR-0018 D7). This workflow is inert until the owner
+# applies the Terraform and sets the repository variables below — the
+# job-level guards keep it green (skipped) before then. Because the rollout
+# jobs `needs: migrate`, an unset AWS_MIGRATE_ROLE_ARN skips the whole deploy.
 #
 # Required repository variables (Settings → Secrets and variables →
 # Actions → Variables), set after `terraform apply`:
-#   AWS_DEPLOY_ROLE_ARN      — `terraform output github_deploy_role_arn`
-#   AWS_REGION               — ap-southeast-1 (rule 80: never hardcoded)
-#   NEXT_PUBLIC_API_URL      — `terraform output api_cdn_url`
-#   NEXT_PUBLIC_PRIVY_APP_ID — Privy dashboard app id (public value)
-#   NEXT_PUBLIC_CHAIN_ID     — optional; defaults to 84532 (Base Sepolia)
+#   AWS_DEPLOY_ROLE_ARN          — `terraform output github_deploy_role_arn`
+#   AWS_MIGRATE_ROLE_ARN         — `terraform output github_migrate_role_arn`
+#   AWS_MIGRATE_SUBNET_IDS       — comma-separated private subnet IDs
+#                                  (`terraform output vpc_private_subnet_ids`)
+#   AWS_MIGRATE_SECURITY_GROUP_ID — `terraform output migrate_security_group_id`
+#   AWS_REGION                   — ap-southeast-1 (rule 80: never hardcoded)
+#   NEXT_PUBLIC_API_URL          — `terraform output api_cdn_url`
+#   NEXT_PUBLIC_PRIVY_APP_ID     — Privy dashboard app id (public value)
+#   NEXT_PUBLIC_CHAIN_ID         — optional; defaults to 84532 (Base Sepolia)
 
 name: deploy
 
@@ -43,9 +57,90 @@ permissions:
   id-token: write # OIDC token for aws-actions/configure-aws-credentials
 
 jobs:
+  # ---------------------------------------------------------------------------
+  # Migrate gate (ADR-0051): apply pending DB migrations BEFORE any rollout.
+  # Builds/pushes the :migrate image, runs `prisma migrate deploy` as a one-off
+  # ECS task, and fails the job (blocking rollout) on a non-zero task exit.
+  # Migrate-only — never seeds/enriches (ADR-0051 D3); reference-data stays an
+  # explicit owner/dispatch operation (ADR-0049).
+  # ---------------------------------------------------------------------------
+  migrate:
+    name: migrate
+    # Inert until the migration role exists — see header. A skipped migrate job
+    # cascades to skip the dependent rollout jobs, so deploy is gated too.
+    if: vars.AWS_MIGRATE_ROLE_ARN != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          submodules: false
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ vars.AWS_MIGRATE_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push migrate image
+        # The migrate stage is FROM builder, sharing every layer with the api
+        # build up to the toolchain — cache-from the api scope for warm builds.
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/api/Dockerfile
+          target: migrate
+          push: true
+          tags: ${{ steps.ecr.outputs.registry }}/opentrade-api:migrate
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,mode=max,scope=migrate
+
+      - name: Run migration and wait for completion
+        # Override the task command to migrate-only (the image default also
+        # seeds; we never auto-seed — ADR-0051 D3). Subnets + SG come from repo
+        # variables (account-specific IDs, not hardcoded — rule 80).
+        run: |
+          set -euo pipefail
+          task_arn=$(aws ecs run-task \
+            --cluster opentrade-dev-cluster \
+            --task-definition opentrade-dev-migrate \
+            --launch-type FARGATE \
+            --network-configuration "awsvpcConfiguration={subnets=[${{ vars.AWS_MIGRATE_SUBNET_IDS }}],securityGroups=[${{ vars.AWS_MIGRATE_SECURITY_GROUP_ID }}],assignPublicIp=DISABLED}" \
+            --overrides '{"containerOverrides":[{"name":"migrate","command":["sh","-c","pnpm exec prisma migrate deploy"]}]}' \
+            --query 'tasks[0].taskArn' --output text)
+          echo "Launched migrate task: $task_arn"
+          task_id="${task_arn##*/}"
+
+          aws ecs wait tasks-stopped --cluster opentrade-dev-cluster --tasks "$task_id"
+
+          exit_code=$(aws ecs describe-tasks \
+            --cluster opentrade-dev-cluster --tasks "$task_id" \
+            --query 'tasks[0].containers[0].exitCode' --output text)
+          stopped_reason=$(aws ecs describe-tasks \
+            --cluster opentrade-dev-cluster --tasks "$task_id" \
+            --query 'tasks[0].stoppedReason' --output text)
+          echo "Migrate task exit code: $exit_code ($stopped_reason)"
+
+          if [ "$exit_code" != "0" ]; then
+            echo "::error::Migration failed (exit $exit_code) — blocking rollout. Check CloudWatch log group for the migrate/migrate/$task_id stream."
+            exit 1
+          fi
+
   deploy:
     name: ${{ matrix.app }}
-    # Inert until the deploy role exists (stage-7 apply) — see header.
+    # Rollout only after a successful migration (ADR-0051). `needs: migrate`
+    # means a skipped/failed migrate job skips the rollout, never half-deploys.
+    needs: migrate
+    # Inert until the deploy role exists — see header.
     if: vars.AWS_DEPLOY_ROLE_ARN != ''
     runs-on: ubuntu-latest
     timeout-minutes: 30
