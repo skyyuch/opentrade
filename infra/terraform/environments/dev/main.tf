@@ -316,6 +316,19 @@ module "github_deploy" {
     module.service_api.service_arn,
     module.service_worker.service_arn,
   ]
+
+  # Dedicated migration role (ADR-0051): the deploy.yml migrate gate assumes
+  # this to run `prisma migrate deploy` before any service rollout, killing the
+  # half-deploy class of bug (new code vs un-migrated schema). Scoped to RunTask
+  # on the migrate task + PassRole its two roles + push the :migrate image only.
+  create_migrate_role         = true
+  migrate_task_definition_arn = module.migrate.task_definition_arn
+  migrate_cluster_arn         = module.ecs.cluster_arn
+  migrate_pass_role_arns = [
+    module.ecs.task_role_arn,
+    module.ecs.task_execution_role_arn,
+  ]
+  migrate_ecr_repository_arns = [module.ecr_api.repository_arn]
 }
 
 # --------------------------------------------------------------------------

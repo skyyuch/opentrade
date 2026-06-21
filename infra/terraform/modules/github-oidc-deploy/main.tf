@@ -105,3 +105,105 @@ resource "aws_iam_role_policy" "deploy" {
   role   = aws_iam_role.deploy.id
   policy = data.aws_iam_policy_document.deploy.json
 }
+
+# --------------------------------------------------------------------------
+# Migration role (ADR-0051) — amends ADR-0047 D2 / ADR-0048 D2
+# --------------------------------------------------------------------------
+# Single-purpose role for the deploy.yml migrate gate. Reuses the same
+# OIDC-federated trust (repo + ref pinned) as the deploy role, but its policy
+# grants ONLY: push the :migrate image, RunTask the migrate task definition in
+# one cluster, DescribeTasks to await it, and PassRole the migrate task's two
+# IAM roles to ECS. It cannot register task definitions, touch services, or
+# pass any other role. Created only when var.create_migrate_role is true.
+
+locals {
+  # Strip the trailing :<revision> and wildcard it so the RunTask grant tracks
+  # the family across Terraform re-registrations (a new revision each apply).
+  migrate_task_definition_family_arn = var.create_migrate_role ? "${replace(var.migrate_task_definition_arn, "/:[0-9]+$/", "")}:*" : ""
+}
+
+resource "aws_iam_role" "migrate" {
+  count              = var.create_migrate_role ? 1 : 0
+  name               = "${var.name_prefix}-github-migrate"
+  assume_role_policy = data.aws_iam_policy_document.github_assume.json
+
+  # Build the :migrate image, run the task, await it — fits the 1-hour default.
+  max_session_duration = 3600
+}
+
+data "aws_iam_policy_document" "migrate" {
+  count = var.create_migrate_role ? 1 : 0
+
+  statement {
+    sid       = "EcrLogin"
+    effect    = "Allow"
+    actions   = ["ecr:GetAuthorizationToken"]
+    resources = ["*"]
+  }
+
+  statement {
+    sid    = "EcrPushMigrateImage"
+    effect = "Allow"
+    actions = [
+      "ecr:BatchCheckLayerAvailability",
+      "ecr:BatchGetImage",
+      "ecr:GetDownloadUrlForLayer",
+      "ecr:InitiateLayerUpload",
+      "ecr:UploadLayerPart",
+      "ecr:CompleteLayerUpload",
+      "ecr:PutImage",
+    ]
+    resources = var.migrate_ecr_repository_arns
+  }
+
+  # RunTask only on the migrate family, only in the named cluster. IAM cannot
+  # constrain containerOverrides.command — accepted in ADR-0051 D2 (CI already
+  # controls the serving image, i.e. arbitrary code against the same DB).
+  statement {
+    sid       = "EcsRunMigrateTask"
+    effect    = "Allow"
+    actions   = ["ecs:RunTask"]
+    resources = [local.migrate_task_definition_family_arn]
+
+    condition {
+      test     = "ArnEquals"
+      variable = "ecs:cluster"
+      values   = [var.migrate_cluster_arn]
+    }
+  }
+
+  # DescribeTasks has no resource-level support; scope it to the cluster.
+  statement {
+    sid       = "EcsDescribeTasks"
+    effect    = "Allow"
+    actions   = ["ecs:DescribeTasks"]
+    resources = ["*"]
+
+    condition {
+      test     = "ArnEquals"
+      variable = "ecs:cluster"
+      values   = [var.migrate_cluster_arn]
+    }
+  }
+
+  # PassRole exactly the migrate task + execution roles, and only to ECS.
+  statement {
+    sid       = "PassMigrateTaskRoles"
+    effect    = "Allow"
+    actions   = ["iam:PassRole"]
+    resources = var.migrate_pass_role_arns
+
+    condition {
+      test     = "StringEquals"
+      variable = "iam:PassedToService"
+      values   = ["ecs-tasks.amazonaws.com"]
+    }
+  }
+}
+
+resource "aws_iam_role_policy" "migrate" {
+  count  = var.create_migrate_role ? 1 : 0
+  name   = "${var.name_prefix}-github-migrate"
+  role   = aws_iam_role.migrate[0].id
+  policy = data.aws_iam_policy_document.migrate[0].json
+}

@@ -38,3 +38,43 @@ variable "ecs_service_arns" {
     error_message = "Provide at least one ECS service ARN (arn:aws:ecs:...)."
   }
 }
+
+# --------------------------------------------------------------------------
+# Dedicated migration role (ADR-0051) — optional, off by default
+# --------------------------------------------------------------------------
+# A SECOND, single-purpose role trust-pinned to the same repo+ref. It can
+# RunTask the migrate task definition (any revision) inside one cluster,
+# PassRole exactly the migrate task/execution roles, and push the :migrate
+# image — and nothing else. Kept separate from the deploy role so a compromise
+# of one credential does not grant the other's powers. The deploy.yml migrate
+# gate assumes it; the app rollout jobs keep using the deploy role.
+
+variable "create_migrate_role" {
+  description = "Whether to create the dedicated migration role (ADR-0051). When false, only the deploy role is created and the migrate_* inputs are ignored."
+  type        = bool
+  default     = false
+}
+
+variable "migrate_task_definition_arn" {
+  description = "ARN of the migrate task definition (any revision). The migration role's RunTask grant covers the whole family (trailing :<revision> is stripped and wildcarded). Required when create_migrate_role = true."
+  type        = string
+  default     = ""
+}
+
+variable "migrate_cluster_arn" {
+  description = "ECS cluster ARN the migration role may RunTask / DescribeTasks within (enforced via an ecs:cluster condition). Required when create_migrate_role = true."
+  type        = string
+  default     = ""
+}
+
+variable "migrate_pass_role_arns" {
+  description = "IAM role ARNs the migration role may PassRole to ECS — exactly the migrate task role and execution role. Constrained by an iam:PassedToService = ecs-tasks.amazonaws.com condition. Required when create_migrate_role = true."
+  type        = list(string)
+  default     = []
+}
+
+variable "migrate_ecr_repository_arns" {
+  description = "ECR repository ARNs the migration role may push the :migrate image to (typically just opentrade-api). Required when create_migrate_role = true."
+  type        = list(string)
+  default     = []
+}
