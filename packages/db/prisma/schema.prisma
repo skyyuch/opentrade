@@ -64,18 +64,20 @@ enum SbtTier {
 /// (e.g. INSURANCE, MPF) can be added here as non-breaking enum values.
 enum BrokerCategory {
   SECURITIES // SFC-licensed securities broker (existing behaviour).
-  BULLION // CGSE-member bullion / precious-metals dealer (per ADR-0045).
+  BULLION // HKGX-member bullion / precious-metals dealer (per ADR-0045 / ADR-0050).
 }
 
 /// Regulator (or self-regulatory body) that issued a broker license. V1 ships
-/// HK_SFC; HK_CGSE is the Chinese Gold & Silver Exchange Society, a
-/// self-regulatory bullion exchange whose member roster is the authoritative
-/// source for bullion dealers (per ADR-0045). Future regulators (SG_MAS,
-/// TW_FSC, JP_FSA, ...) can be added as non-breaking enum values. Naming uses
-/// an ISO-country prefix to avoid name collisions.
+/// HK_SFC; HK_HKGX is the Hong Kong Gold Exchange (香港黃金交易所) — the
+/// corporatised successor to the Chinese Gold & Silver Exchange Society
+/// (金銀業貿易場 / CGSE) since 2025-01-01 — a self-regulatory bullion exchange
+/// whose member roster is the authoritative source for bullion dealers (per
+/// ADR-0045, rebranded per ADR-0050). Future regulators (SG_MAS, TW_FSC,
+/// JP_FSA, ...) can be added as non-breaking enum values. Naming uses an
+/// ISO-country prefix to avoid name collisions.
 enum Regulator {
   HK_SFC
-  HK_CGSE // Chinese Gold & Silver Exchange Society (香港金銀業貿易場).
+  HK_HKGX // Hong Kong Gold Exchange (香港黃金交易所) — formerly CGSE, per ADR-0050.
 }
 
 /// Specific license category. Naming convention is `<REGULATOR>_<CATEGORY>`,
@@ -96,10 +98,10 @@ enum LicenseType {
   HK_SFC_TYPE_9 // Asset management — 提供資產管理
   HK_SFC_TYPE_10 // Providing credit rating services — 提供信貸評級服務
 
-  // CGSE membership is a single status (not 10 regulated-activity categories
+  // HKGX membership is a single status (not 10 regulated-activity categories
   // like SFC), so one value suffices; the 行員編號 member code (e.g. 001, 009)
-  // is stored in BrokerLicense.licenseNumber. Per ADR-0045 D3.
-  HK_CGSE_MEMBER // CGSE membership — 香港金銀業貿易場行員
+  // is stored in BrokerLicense.licenseNumber. Per ADR-0045 D3 / ADR-0050.
+  HK_HKGX_MEMBER // HKGX membership — 香港黃金交易所行員
 }
 
 /// Lifecycle of a single broker license. Per project red-line rules we NEVER
@@ -192,8 +194,8 @@ model User {
 
 /// A reviewable, registered financial-service provider. Originally Hong Kong
 /// SFC-licensed securities brokers (seeded from public SFC data), the meaning
-/// is widened by `category` to cover other verticals — currently CGSE-member
-/// bullion dealers (per ADR-0045 D4). The model is intentionally NOT renamed
+/// is widened by `category` to cover other verticals — currently HKGX-member
+/// bullion dealers (per ADR-0045 D4 / ADR-0050). The model is intentionally NOT renamed
 /// to `Provider`; revisit only if a third non-broker category proves the name
 /// is a real problem.
 ///

@@ -22,11 +22,11 @@ import bcrypt from 'bcryptjs';
 
 import { BASELINE_MODERATION_TERMS } from '@opentrade/shared';
 
-import { syncCgseMembers } from '../src/cgse/sync-members.js';
+import { syncHkgxMembers } from '../src/hkgx/sync-members.js';
 import { prisma, Prisma } from '../src/index.js';
 import { syncBrokers } from '../src/sfc/sync-brokers.js';
 
-import type { CgseMemberData } from '../src/cgse/types.js';
+import type { HkgxMemberData } from '../src/hkgx/types.js';
 import type { SfcBrokerData } from '../src/sfc/types.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -93,23 +93,23 @@ const seedBrokers = async (): Promise<void> => {
   console.log(`  ✔ licenses: ${result.licensesCreated} created, ${result.licensesRevoked} revoked`);
 };
 
-const seedCgseMembers = async (): Promise<void> => {
-  const jsonPath = resolve(__dirname, '../seed-data/cgse-members.json');
-  let data: CgseMemberData[];
+const seedHkgxMembers = async (): Promise<void> => {
+  const jsonPath = resolve(__dirname, '../seed-data/hkgx-members.json');
+  let data: HkgxMemberData[];
   try {
-    data = JSON.parse(readFileSync(jsonPath, 'utf-8')) as CgseMemberData[];
+    data = JSON.parse(readFileSync(jsonPath, 'utf-8')) as HkgxMemberData[];
   } catch {
-    console.log('  ⚠ seed-data/cgse-members.json not found. Run `pnpm fetch:cgse` first.');
+    console.log('  ⚠ seed-data/hkgx-members.json not found. Run `pnpm fetch:hkgx` first.');
     return;
   }
 
-  console.log(`  Loading ${data.length} bullion dealers from cgse-members.json...`);
-  const result = await syncCgseMembers(prisma, data);
+  console.log(`  Loading ${data.length} bullion dealers from hkgx-members.json...`);
+  const result = await syncHkgxMembers(prisma, data);
   console.log(
     `  ✔ bullion brokers: ${result.brokersCreated} created, ${result.brokersUpdated} updated`,
   );
   console.log(
-    `  ✔ CGSE licenses: ${result.licensesCreated} created, ${result.licensesUpdated} updated, ${result.membersRetired} retired`,
+    `  ✔ HKGX licenses: ${result.licensesCreated} created, ${result.licensesUpdated} updated, ${result.membersRetired} retired`,
   );
 };
 
@@ -240,8 +240,8 @@ const main = async (): Promise<void> => {
   await seedAdminUser();
   console.log('• SFC Brokers');
   await seedBrokers();
-  console.log('• CGSE Bullion Dealers');
-  await seedCgseMembers();
+  console.log('• HKGX Bullion Dealers');
+  await seedHkgxMembers();
   console.log('• HK KOLs');
   await seedKols();
   console.log('• Moderation Terms');

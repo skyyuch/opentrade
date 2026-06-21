@@ -1,5 +1,5 @@
 /**
- * BrokerDirectory — bullion (CGSE) variant component tests (ADR-0045 §6).
+ * BrokerDirectory — bullion (HKGX) variant component tests (ADR-0045 §6).
  *
  * These cover the BULLION branch of the shared directory grid, written
  * against the final Google-swapped UI (per ADR-0045 D7 + cursor rule 60: the
@@ -7,15 +7,15 @@
  * branch is exercised implicitly elsewhere; here we pin the bullion-specific
  * deltas the swap introduced:
  *
- *   1. The CGSE 行員 number renders as the headline trust badge
- *      (`cgseMember` neon pill), not the SFC license-type treatment.
+ *   1. The HKGX 行員 number renders as the headline trust badge
+ *      (`hkgxMember` neon pill), not the SFC license-type treatment.
  *   2. The immutable SUSPENDED / REVOKED roster status renders as a factual
  *      trust pill (never a delete, per rule 00).
- *   3. The SFC license-type filter pills are suppressed for bullion (CGSE has
+ *   3. The SFC license-type filter pills are suppressed for bullion (HKGX has
  *      no regulated-activity categories) — only the "Advanced filter" button
  *      remains.
  *   4. Each card links to the namespaced `/bullion-dealers/:slug` route so a
- *      cgse-* slug never hits the securities `/brokers/` path.
+ *      hkgx-* slug never hits the securities `/brokers/` path.
  *
  * Mock strategy:
  *   - `@/i18n/navigation` Link is stubbed to a plain <a> so we can assert the
@@ -47,7 +47,7 @@ type Dealer = Parameters<typeof BrokerDirectory>[0]['initialBrokers'][number];
 
 const activeDealer: Dealer = {
   id: 'dealer-active',
-  slug: 'cgse-009',
+  slug: 'hkgx-009',
   category: 'BULLION',
   displayName: '恆豐金號',
   displayNameZhHans: '恒丰金号',
@@ -58,13 +58,13 @@ const activeDealer: Dealer = {
   positiveRate: 83,
   verifiedUserCount: 0,
   licenseTypes: [],
-  licenses: [{ regulator: 'HK_CGSE', licenseNumber: '009', status: 'ACTIVE' }],
+  licenses: [{ regulator: 'HK_HKGX', licenseNumber: '009', status: 'ACTIVE' }],
   hasDisciplinary: false,
 };
 
 const suspendedDealer: Dealer = {
   id: 'dealer-suspended',
-  slug: 'cgse-100',
+  slug: 'hkgx-100',
   category: 'BULLION',
   displayName: '停業金商',
   displayNameZhHans: '停业金商',
@@ -75,13 +75,13 @@ const suspendedDealer: Dealer = {
   positiveRate: null,
   verifiedUserCount: 0,
   licenseTypes: [],
-  licenses: [{ regulator: 'HK_CGSE', licenseNumber: '100', status: 'SUSPENDED' }],
+  licenses: [{ regulator: 'HK_HKGX', licenseNumber: '100', status: 'SUSPENDED' }],
   hasDisciplinary: false,
 };
 
 const revokedDealer: Dealer = {
   id: 'dealer-revoked',
-  slug: 'cgse-200',
+  slug: 'hkgx-200',
   category: 'BULLION',
   displayName: '除牌金商',
   displayNameZhHans: '除牌金商',
@@ -92,7 +92,7 @@ const revokedDealer: Dealer = {
   positiveRate: null,
   verifiedUserCount: 0,
   licenseTypes: [],
-  licenses: [{ regulator: 'HK_CGSE', licenseNumber: '200', status: 'REVOKED' }],
+  licenses: [{ regulator: 'HK_HKGX', licenseNumber: '200', status: 'REVOKED' }],
   hasDisciplinary: false,
 };
 
@@ -135,10 +135,10 @@ const mount = (locale: 'en' | 'zh-Hant', dealers: Dealer[]) => {
   return renderDirectory(locale, dealers);
 };
 
-describe('BrokerDirectory — bullion (CGSE) variant', () => {
-  it('renders the CGSE member number as the headline trust badge', async () => {
+describe('BrokerDirectory — bullion (HKGX) variant', () => {
+  it('renders the HKGX member number as the headline trust badge', async () => {
     mount('en', [activeDealer]);
-    expect(await screen.findByText('CGSE Member 009')).toBeInTheDocument();
+    expect(await screen.findByText('HKGX Member 009')).toBeInTheDocument();
     expect(screen.getByText('Heng Fung Bullion Ltd.')).toBeInTheDocument();
     await waitFor(() => expect(fetchSpy).toHaveBeenCalled());
   });
@@ -146,7 +146,7 @@ describe('BrokerDirectory — bullion (CGSE) variant', () => {
   it('links each card to the namespaced /bullion-dealers/:slug route', async () => {
     mount('en', [activeDealer]);
     const link = await screen.findByRole('link', { name: /Heng Fung Bullion/ });
-    expect(link).toHaveAttribute('href', '/bullion-dealers/cgse-009');
+    expect(link).toHaveAttribute('href', '/bullion-dealers/hkgx-009');
   });
 
   it('renders the immutable SUSPENDED roster status as a trust pill', async () => {
@@ -159,9 +159,9 @@ describe('BrokerDirectory — bullion (CGSE) variant', () => {
     expect(await screen.findByText('Revoked')).toBeInTheDocument();
   });
 
-  it('suppresses the SFC license-type filter pills (CGSE has no RA categories)', async () => {
+  it('suppresses the SFC license-type filter pills (HKGX has no RA categories)', async () => {
     mount('en', [activeDealer]);
-    await screen.findByText('CGSE Member 009');
+    await screen.findByText('HKGX Member 009');
     // The securities grid renders six SFC filter pill buttons; the bullion
     // grid renders none, leaving only the "Advanced filter" button.
     const buttons = screen.getAllByRole('button');

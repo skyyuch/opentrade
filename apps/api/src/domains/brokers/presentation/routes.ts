@@ -151,7 +151,7 @@ brokersRouter.get('/', async (c) => {
         verifiedUserCount: verifiedCountBySlug.get(b.slug) ?? 0,
         licenseTypes: licenses.map((l) => l.licenseType),
         // Per ADR-0045 D3: surface the registry + membership number +
-        // status at list level so a bullion card can render the CGSE 行員
+        // status at list level so a bullion card can render the HKGX 行員
         // number and an immutable SUSPENDED / REVOKED trust pill without an
         // extra detail fetch. Additive for securities consumers.
         licenses: licenses.map((l) => ({
@@ -289,8 +289,8 @@ brokersRouter.get('/:slug', async (c) => {
       slug: broker.slug,
       // Per ADR-0045 D7: the detail page reuses the broker layout but
       // varies the tab set by category (bullion dealers show 會籍 / 評論 /
-      // 投訴, no SFC license-detail tab). The CGSE membership itself
-      // (regulator = HK_CGSE, licenseNumber = 行員編號, status) is already
+      // 投訴, no SFC license-detail tab). The HKGX membership itself
+      // (regulator = HK_HKGX, licenseNumber = 行員編號, status) is already
       // carried in `licenses[]` below — no extra field needed.
       category: broker.category,
       // Per ADR-0026: ship three name columns (TC + SC + EN).

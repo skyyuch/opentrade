@@ -248,12 +248,12 @@ const complaints = [
   },
 ];
 
-// ADR-0045 §6: a single CGSE bullion dealer drives the bullion list →
+// ADR-0045 §6: a single HKGX bullion dealer drives the bullion list →
 // detail → tab-switch e2e. It is a Broker row with category = BULLION whose
-// slug is namespaced `cgse-{memberCode}` (never collides with an SFC slug),
-// carrying a single HK_CGSE membership license (the 行員 number) instead of
+// slug is namespaced `hkgx-{memberCode}` (never collides with an SFC slug),
+// carrying a single HK_HKGX membership license (the 行員 number) instead of
 // SFC regulated-activity types. The list endpoint filters on `?category=`.
-const BULLION_SLUG = 'cgse-009';
+const BULLION_SLUG = 'hkgx-009';
 const BULLION_ID = 'broker-uuid-e2e-bullion-1';
 
 const bullionListItem = {
@@ -269,7 +269,7 @@ const bullionListItem = {
   positiveRate: 100,
   verifiedUserCount: 0,
   licenseTypes: [],
-  licenses: [{ regulator: 'HK_CGSE', licenseNumber: '009', status: 'ACTIVE' }],
+  licenses: [{ regulator: 'HK_HKGX', licenseNumber: '009', status: 'ACTIVE' }],
   hasDisciplinary: false,
 };
 
@@ -281,7 +281,7 @@ const bullionBroker = {
   displayNameZhHans: '恒丰金号',
   legalName: 'Heng Fung Bullion E2E Ltd.',
   ceNumber: null,
-  description: 'A CGSE member bullion dealer fixture used only by e2e tests.',
+  description: 'An HKGX member bullion dealer fixture used only by e2e tests.',
   websiteUrl: 'https://example.com',
   logoUrl: null,
   addressEn: null,
@@ -297,9 +297,9 @@ const bullionBroker = {
   sentimentAggregate: { positive: 1, neutral: 0, negative: 0 },
   licenses: [
     {
-      regulator: 'HK_CGSE',
+      regulator: 'HK_HKGX',
       licenseNumber: '009',
-      licenseType: 'HK_CGSE_MEMBER',
+      licenseType: 'HK_HKGX_MEMBER',
       status: 'ACTIVE',
       issuedAt: '2010-01-01T00:00:00.000Z',
     },
@@ -368,7 +368,7 @@ const handle = (req: IncomingMessage, res: ServerResponse): void => {
     return;
   }
 
-  // Bullion detail / reviews / complaints (cgse-009). Checked before the
+  // Bullion detail / reviews / complaints (hkgx-009). Checked before the
   // securities slug branches because the slugs are disjoint namespaces.
   if (method === 'GET' && path === `/v1/brokers/${BULLION_SLUG}`) {
     sendJson(res, 200, { broker: bullionBroker });
@@ -420,7 +420,7 @@ export const SEED = {
   reviewCount: reviews.length,
   complaintCount: complaints.length,
   verifiedComplaintCount: complaints.filter((c) => c.verifiedAt !== null).length,
-  // ADR-0045 §6: bullion (CGSE) fixture for the bullion list → detail e2e.
+  // ADR-0045 §6: bullion (HKGX) fixture for the bullion list → detail e2e.
   bullionSlug: BULLION_SLUG,
   bullionId: BULLION_ID,
   bullionLegalName: bullionBroker.legalName,

@@ -1,5 +1,5 @@
 /**
- * BrokerDetailTabs — bullion (CGSE) tab-variant + MembershipTab tests
+ * BrokerDetailTabs — bullion (HKGX) tab-variant + MembershipTab tests
  * (ADR-0045 §6, D7).
  *
  * Written against the final Google-swapped detail UI (the markup is now
@@ -7,9 +7,9 @@
  * BrokerDetailTabs varies its tab set by `broker.category`; for BULLION it
  * must render only 會籍 / 評論 / 投訴 (Membership / Reviews / Complaints) and
  * drop the SFC license-detail, related-KOL, and arbitration tabs. The
- * MembershipTab replaces the SFC-heavy LicenseTab with a compact CGSE record:
+ * MembershipTab replaces the SFC-heavy LicenseTab with a compact HKGX record:
  * 行員編號, the immutable ACTIVE / SUSPENDED / REVOKED status (a trust signal,
- * never a delete, per rule 00), and a link to the public CGSE roster.
+ * never a delete, per rule 00), and a link to the public HKGX roster.
  *
  * Mock strategy:
  *   - `usePrivy` is stubbed unauthenticated so the embedded SubmitReviewCta
@@ -57,13 +57,13 @@ vi.mock('@/i18n/navigation', () => ({
 
 const baseBullionBroker: BrokerDetail = {
   id: 'dealer-1',
-  slug: 'cgse-009',
+  slug: 'hkgx-009',
   category: 'BULLION',
   displayName: '恆豐金號',
   displayNameZhHans: '恒丰金号',
   legalName: 'Heng Fung Bullion Ltd.',
   ceNumber: null,
-  description: 'A CGSE member bullion dealer fixture.',
+  description: 'An HKGX member bullion dealer fixture.',
   websiteUrl: null,
   logoUrl: null,
   addressEn: null,
@@ -79,8 +79,8 @@ const baseBullionBroker: BrokerDetail = {
   sentimentAggregate: { positive: 8, neutral: 2, negative: 2 },
   licenses: [
     {
-      regulator: 'HK_CGSE',
-      licenseType: 'HK_CGSE_MEMBER',
+      regulator: 'HK_HKGX',
+      licenseType: 'HK_HKGX_MEMBER',
       licenseNumber: '009',
       status: 'ACTIVE',
       issuedAt: '2010-01-01T00:00:00.000Z',
@@ -92,11 +92,11 @@ const baseBullionBroker: BrokerDetail = {
 const suspendedBroker: BrokerDetail = {
   ...baseBullionBroker,
   id: 'dealer-2',
-  slug: 'cgse-100',
+  slug: 'hkgx-100',
   licenses: [
     {
-      regulator: 'HK_CGSE',
-      licenseType: 'HK_CGSE_MEMBER',
+      regulator: 'HK_HKGX',
+      licenseType: 'HK_HKGX_MEMBER',
       licenseNumber: '100',
       status: 'SUSPENDED',
       issuedAt: '2012-06-01T00:00:00.000Z',
@@ -141,23 +141,23 @@ describe('BrokerDetailTabs — bullion tab set (ADR-0045 D7)', () => {
   });
 });
 
-describe('MembershipTab — CGSE record (ADR-0045 D7)', () => {
-  it('shows the CGSE membership record with member number and ACTIVE status', async () => {
+describe('MembershipTab — HKGX record (ADR-0045 D7)', () => {
+  it('shows the HKGX membership record with member number and ACTIVE status', async () => {
     renderTabs(baseBullionBroker);
     await userEvent.click(screen.getByRole('button', { name: 'Membership' }));
 
-    expect(screen.getByText('CGSE Membership Record')).toBeInTheDocument();
+    expect(screen.getByText('HKGX Membership Record')).toBeInTheDocument();
     expect(screen.getByText('009')).toBeInTheDocument();
     expect(screen.getByText('Active member')).toBeInTheDocument();
   });
 
-  it('links to the public CGSE roster and carries the self-regulatory disclaimer', async () => {
+  it('links to the public HKGX roster and carries the self-regulatory disclaimer', async () => {
     renderTabs(baseBullionBroker);
     await userEvent.click(screen.getByRole('button', { name: 'Membership' }));
 
-    const rosterLink = screen.getByRole('link', { name: /Official CGSE member roster/ });
-    expect(rosterLink).toHaveAttribute('href', 'https://www.cgse.com.hk/chines/en/member-list');
-    // Per rule 00 red line: every bullion surface states CGSE is a
+    const rosterLink = screen.getByRole('link', { name: /Official HKGX member roster/ });
+    expect(rosterLink).toHaveAttribute('href', 'https://hkgx.com.hk/en/member/memberlist');
+    // Per rule 00 red line: every bullion surface states HKGX is a
     // self-regulatory exchange and the platform gives no investment advice.
     expect(screen.getByText('Investment risk & disclaimer')).toBeInTheDocument();
   });

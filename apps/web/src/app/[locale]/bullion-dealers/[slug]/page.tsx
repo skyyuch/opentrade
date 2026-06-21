@@ -1,12 +1,12 @@
 /**
- * `/bullion-dealers/:slug` — Bullion-dealer (CGSE member) detail page.
+ * `/bullion-dealers/:slug` — Bullion-dealer (HKGX member) detail page.
  *
  * Per ADR-0045 D7 this reuses the broker detail layout + BrokerDetailTabs
- * for a consistent experience, but renders a bullion-specific header (CGSE
+ * for a consistent experience, but renders a bullion-specific header (HKGX
  * membership pill instead of the SFC license badge) and a slim 會籍 / 評論 /
  * 投訴 tab set. The data comes from the same `GET /v1/brokers/:slug` endpoint
  * (a bullion dealer is a Broker row with category = BULLION; its slug is
- * namespaced `cgse-{memberCode}` so it never collides with an SFC broker).
+ * namespaced `hkgx-{memberCode}` so it never collides with an SFC broker).
  */
 
 import { ArrowLeft, CheckCircle, ExternalLink, ShieldAlert, ShieldCheck } from 'lucide-react';
@@ -67,8 +67,8 @@ const BullionDealerDetailPage = async (props: Props): Promise<ReactNode> => {
         ? broker.legalName
         : null;
 
-  const cgse = broker.licenses.find((l) => l.regulator === 'HK_CGSE');
-  const isInactive = cgse?.status === 'REVOKED' || cgse?.status === 'SUSPENDED';
+  const hkgx = broker.licenses.find((l) => l.regulator === 'HK_HKGX');
+  const isInactive = hkgx?.status === 'REVOKED' || hkgx?.status === 'SUSPENDED';
 
   return (
     <div className="-mt-16 relative pt-16 text-white">
@@ -127,7 +127,7 @@ const BullionDealerDetailPage = async (props: Props): Promise<ReactNode> => {
                 {isInactive && (
                   <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-red-500/10 border border-red-500/20 text-red-400 text-[11px] font-bold">
                     <ShieldAlert size={12} />
-                    {cgse.status === 'REVOKED' ? t('statusRevoked') : t('statusSuspended')}
+                    {hkgx.status === 'REVOKED' ? t('statusRevoked') : t('statusSuspended')}
                   </div>
                 )}
               </div>
@@ -154,11 +154,11 @@ const BullionDealerDetailPage = async (props: Props): Promise<ReactNode> => {
           </div>
 
           <div className="relative z-10 mt-8 lg:mt-0 flex gap-4 lg:flex-col lg:items-end">
-            {cgse && (
+            {hkgx && (
               <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#00FF88]/10 border border-[#00FF88]/30">
                 <ShieldCheck size={16} className="text-[#00FF88]" />
                 <span className="text-xs font-bold text-[#00FF88]">
-                  {t('cgseMembershipPill', { number: cgse.licenseNumber })}
+                  {t('hkgxMembershipPill', { number: hkgx.licenseNumber })}
                 </span>
               </div>
             )}

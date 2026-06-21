@@ -50,7 +50,7 @@ const BrokersPage = async (props: Props): Promise<ReactNode> => {
   try {
     // Per ADR-0045 D2/D7: the securities page MUST send an explicit
     // `category=SECURITIES`. The API defaults to returning every vertical,
-    // so once CGSE members are seeded an unfiltered call would mix bullion
+    // so once HKGX members are seeded an unfiltered call would mix bullion
     // dealers into the securities grid.
     const data = await fetchBrokers({ next: { revalidate: 60 }, category: 'SECURITIES' });
     brokers = data.brokers;

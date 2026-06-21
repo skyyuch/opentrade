@@ -37,7 +37,7 @@ describe('buildBrokerListWhere', () => {
     });
   });
 
-  it('adds a BULLION category predicate (CGSE vertical)', () => {
+  it('adds a BULLION category predicate (HKGX vertical)', () => {
     expect(buildBrokerListWhere({ tenantId: TENANT, category: 'BULLION' })).toEqual({
       tenantId: TENANT,
       deletedAt: null,

@@ -38,7 +38,7 @@ type BrokerListItem = {
   verifiedUserCount: number;
   licenseTypes: string[];
   // Per ADR-0045 D3: registry + membership number + status; the bullion
-  // card renders the CGSE 行員 number and an immutable trust pill from it.
+  // card renders the HKGX 行員 number and an immutable trust pill from it.
   licenses: BrokerLicenseSummary[];
   hasDisciplinary: boolean;
 };
@@ -55,12 +55,12 @@ type Props = {
    * Per ADR-0045 D2/D7: the vertical this directory renders. Every fetch
    * (initial search + load more) sends it as `?category=` so the grid never
    * mixes the other vertical's rows. Securities is the existing behaviour;
-   * bullion gets the CGSE card + filter variant.
+   * bullion gets the HKGX card + filter variant.
    */
   category: BrokerCategory;
   /**
    * The i18n namespace for the directory chrome + card copy. Securities uses
-   * `brokers`; bullion uses `bullionDealers` (same key set + CGSE card keys)
+   * `brokers`; bullion uses `bullionDealers` (same key set + HKGX card keys)
    * so the SFC-flavoured strings ("持牌券商"...) never leak into the bullion
    * grid.
    */
@@ -212,7 +212,7 @@ export const BrokerDirectory = ({ category, namespace, initialBrokers, initialCu
         </button>
       </div>
 
-      {/* Category pills — SFC license types (securities only; CGSE has no
+      {/* Category pills — SFC license types (securities only; HKGX has no
           regulated-activity categories, so the bullion grid omits them) */}
       {!isBullion && (
         <div className="flex flex-wrap gap-2 pt-2">
@@ -304,13 +304,13 @@ const BrokerCard = ({
   const initials = getInitials(primary);
   const isBullion = broker.category === 'BULLION';
 
-  // Per ADR-0045 D3: the bullion card surfaces the CGSE membership number
+  // Per ADR-0045 D3: the bullion card surfaces the HKGX membership number
   // and an immutable SUSPENDED / REVOKED trust pill instead of SFC license
-  // types. The active CGSE membership is the most relevant license row.
-  const cgseLicense = isBullion
-    ? broker.licenses.find((l) => l.regulator === 'HK_CGSE')
+  // types. The active HKGX membership is the most relevant license row.
+  const hkgxLicense = isBullion
+    ? broker.licenses.find((l) => l.regulator === 'HK_HKGX')
     : undefined;
-  const cgseSuspended = cgseLicense?.status === 'SUSPENDED' || cgseLicense?.status === 'REVOKED';
+  const hkgxSuspended = hkgxLicense?.status === 'SUSPENDED' || hkgxLicense?.status === 'REVOKED';
 
   return (
     <Link
@@ -341,14 +341,14 @@ const BrokerCard = ({
       {/* License + verified-users badges */}
       <div className="mb-4 flex flex-wrap gap-2">
         {isBullion
-          ? cgseLicense && (
-              // Per ADR-0045 D3 + Google UI swap: the CGSE 行員 number is the
+          ? hkgxLicense && (
+              // Per ADR-0045 D3 + Google UI swap: the HKGX 行員 number is the
               // bullion card's headline trust badge, so it renders in the neon
               // accent (not the muted SFC-license treatment).
               <div className="inline-flex items-center gap-1.5 rounded border border-[#00FF88]/20 bg-[#00FF88]/10 px-2.5 py-1">
                 <ShieldCheck size={14} className="text-[#00FF88]" />
                 <span className="text-[10px] font-medium tracking-wide text-[#00FF88]">
-                  {t('cgseMember', { number: cgseLicense.licenseNumber })}
+                  {t('hkgxMember', { number: hkgxLicense.licenseNumber })}
                 </span>
               </div>
             )
@@ -371,17 +371,17 @@ const BrokerCard = ({
             </span>
           </div>
         )}
-        {/* Per ADR-0045 D3: the immutable CGSE watch/suspended status is a
+        {/* Per ADR-0045 D3: the immutable HKGX watch/suspended status is a
             trust signal (never a delete). Securities show SFC disciplinary. */}
         {isBullion
-          ? cgseSuspended && (
+          ? hkgxSuspended && (
               // Per ADR-0045 D3 + Google UI swap: the immutable SUSPENDED /
               // REVOKED status is a factual trust signal (never a delete),
               // rendered in the softer red-400 tone Google designed —
               // noticeable but not alarming.
               <div className="inline-flex items-center gap-1.5 rounded border border-red-400/20 bg-red-400/10 px-2.5 py-1">
                 <span className="text-[10px] font-bold tracking-wide text-red-400">
-                  {cgseLicense.status === 'REVOKED' ? t('statusRevoked') : t('statusSuspended')}
+                  {hkgxLicense.status === 'REVOKED' ? t('statusRevoked') : t('statusSuspended')}
                 </span>
               </div>
             )

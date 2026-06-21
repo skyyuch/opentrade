@@ -138,7 +138,7 @@ function TabBar({
     label: `${t('tabReviews')} (${broker.reviewCount})`,
   };
 
-  // Per ADR-0045 D7: CGSE carries far less content than the SFC register
+  // Per ADR-0045 D7: HKGX carries far less content than the SFC register
   // (no 10 regulated-activity types, no responsible officers / disciplinary
   // detail), so bullion dealers show a slim 會籍 / 評論 / 投訴 tab set
   // without the SFC license-detail, related-KOL or arbitration tabs.
@@ -1048,28 +1048,28 @@ function ReviewCard({
 /**
  * MembershipTab — bullion-dealer 會籍 tab per ADR-0045 D7.
  *
- * Replaces the SFC-heavy LicenseTab for `category = BULLION`. CGSE membership
+ * Replaces the SFC-heavy LicenseTab for `category = BULLION`. HKGX membership
  * is a single status (not 10 regulated-activity categories), so this renders
  * a compact record: the 行員編號 (licenseNumber), the immutable
  * ACTIVE / SUSPENDED / REVOKED status (a trust signal, never a delete per
- * rule 00), the effective date, plus a link to the public CGSE roster.
+ * rule 00), the effective date, plus a link to the public HKGX roster.
  */
 function MembershipTab({ broker }: { broker: BrokerDetail }) {
   const t = useTranslations('brokerDetail');
-  const cgse = broker.licenses.find((l) => l.regulator === 'HK_CGSE');
+  const hkgx = broker.licenses.find((l) => l.regulator === 'HK_HKGX');
 
   const statusLabel =
-    cgse?.status === 'REVOKED'
+    hkgx?.status === 'REVOKED'
       ? t('statusRevoked')
-      : cgse?.status === 'SUSPENDED'
+      : hkgx?.status === 'SUSPENDED'
         ? t('statusSuspended')
         : t('statusActive');
-  const isInactive = cgse?.status === 'REVOKED' || cgse?.status === 'SUSPENDED';
+  const isInactive = hkgx?.status === 'REVOKED' || hkgx?.status === 'SUSPENDED';
 
   return (
     <div className="p-6 rounded-2xl bg-zinc-900/20 border border-white/5">
       <h3 className="font-bold text-lg mb-6 flex items-center gap-2">
-        <ShieldCheck className="text-[#00FF88]" /> {t('cgseMembershipRecord')}
+        <ShieldCheck className="text-[#00FF88]" /> {t('hkgxMembershipRecord')}
       </h3>
 
       <div className="space-y-1 text-sm">
@@ -1082,7 +1082,7 @@ function MembershipTab({ broker }: { broker: BrokerDetail }) {
         <div className="grid grid-cols-1 sm:grid-cols-3 py-3 border-b border-white/5">
           <span className="text-white/40 mb-1 sm:mb-0">{t('memberNumber')}</span>
           <span className="sm:col-span-2 font-mono text-lg">
-            {cgse?.licenseNumber ?? t('noData')}
+            {hkgx?.licenseNumber ?? t('noData')}
           </span>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 py-3 border-b border-white/5">
@@ -1100,16 +1100,16 @@ function MembershipTab({ broker }: { broker: BrokerDetail }) {
             </span>
           </span>
         </div>
-        {cgse?.issuedAt && (
+        {hkgx?.issuedAt && (
           <div className="grid grid-cols-1 sm:grid-cols-3 py-3 border-b border-white/5">
             <span className="text-white/40 mb-1 sm:mb-0">{t('membershipSince')}</span>
-            <span className="sm:col-span-2">{new Date(cgse.issuedAt).toLocaleDateString()}</span>
+            <span className="sm:col-span-2">{new Date(hkgx.issuedAt).toLocaleDateString()}</span>
           </div>
         )}
       </div>
 
       <a
-        href="https://www.cgse.com.hk/chines/en/member-list"
+        href="https://hkgx.com.hk/en/member/memberlist"
         target="_blank"
         rel="noopener noreferrer"
         className="mt-6 flex items-center gap-3 p-4 rounded-xl bg-black/20 border border-white/5 hover:border-[#00FF88]/30 transition-colors group"
@@ -1119,9 +1119,9 @@ function MembershipTab({ broker }: { broker: BrokerDetail }) {
         </div>
         <div className="flex-1">
           <div className="font-bold text-sm text-white group-hover:text-[#00FF88] transition-colors">
-            {t('cgseRegistryLink')}
+            {t('hkgxRegistryLink')}
           </div>
-          <div className="text-xs text-white/40">{t('cgseRegistryLinkDesc')}</div>
+          <div className="text-xs text-white/40">{t('hkgxRegistryLinkDesc')}</div>
         </div>
         <ExternalLink
           size={16}
@@ -1130,13 +1130,13 @@ function MembershipTab({ broker }: { broker: BrokerDetail }) {
       </a>
 
       {/* Per Google UI swap + rule 00 red line: every bullion surface carries
-          a disclaimer making clear CGSE is a self-regulatory exchange (not the
+          a disclaimer making clear HKGX is a self-regulatory exchange (not the
           SFC) and the platform gives no investment advice. */}
       <div className="mt-8 bg-white/5 border border-white/10 p-4 rounded-xl flex items-start gap-4">
         <Info size={20} className="text-[#00FF88] mt-0.5 shrink-0" />
         <div className="text-sm text-white/60 leading-relaxed">
-          <p className="font-bold text-white/80 mb-1">{t('cgseDataNoteTitle')}</p>
-          {t('cgseDataNote')}
+          <p className="font-bold text-white/80 mb-1">{t('hkgxDataNoteTitle')}</p>
+          {t('hkgxDataNote')}
         </div>
       </div>
     </div>
@@ -1958,7 +1958,7 @@ function Sidebar({ broker }: { broker: BrokerDetail }) {
   const locale = useLocale();
   // Per ADR-0045 D7: similar entities are same-vertical, so a bullion
   // dealer's "similar dealers" must link to the bullion route — the shared
-  // /brokers/ path would 404 against a cgse-* slug.
+  // /brokers/ path would 404 against a hkgx-* slug.
   const similarBasePath = broker.category === 'BULLION' ? '/bullion-dealers' : '/brokers';
 
   return (

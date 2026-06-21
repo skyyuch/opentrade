@@ -20,7 +20,7 @@ const LOCALES = [
 
 const NAV_LINKS = [
   { href: '/brokers', key: 'brokers' },
-  // Per ADR-0045 D7: bullion dealers (CGSE members) are a sibling vertical
+  // Per ADR-0045 D7: bullion dealers (HKGX members) are a sibling vertical
   // to securities brokers, surfaced as a dedicated nav entry.
   { href: '/bullion-dealers', key: 'bullionDealers' },
   { href: '/kols', key: 'kolDirectory' },

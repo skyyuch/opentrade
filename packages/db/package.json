@@ -39,7 +39,7 @@
     "db:backfill:sentiment": "dotenv -e ../../.env -- tsx scripts/backfill-sentiment.ts",
     "db:backfill:prod": "pnpm db:backfill:zh-hans && pnpm db:backfill:source-locale && pnpm db:backfill:sentiment",
     "fetch:sfc": "tsx scripts/fetch-sfc-brokers.ts",
-    "fetch:cgse": "tsx scripts/fetch-cgse-members.ts",
+    "fetch:hkgx": "tsx scripts/fetch-hkgx-members.ts",
     "fetch:sfc:details": "dotenv -e ../../.env -- tsx scripts/fetch-sfc-details.ts",
     "crawl:logos": "dotenv -e ../../.env -- tsx scripts/crawl-broker-logos.ts",
     "sync:sfc": "dotenv -e ../../.env -- tsx scripts/sync-sfc-brokers.ts",

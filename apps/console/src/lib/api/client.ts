@@ -277,7 +277,7 @@ export const apiGet = async <T>(path: string, options: FetchOptions = {}): Promi
 /**
  * Per ADR-0045 D1: the broker vertical discriminator. `SECURITIES` is the
  * SFC-licensed securities broker (existing behaviour); `BULLION` is a
- * CGSE-member bullion / precious-metals dealer. Mirrors the `BrokerCategory`
+ * HKGX-member bullion / precious-metals dealer. Mirrors the `BrokerCategory`
  * Prisma enum re-exported from `@opentrade/db` and the apps/web client type.
  */
 export type BrokerCategory = 'SECURITIES' | 'BULLION';

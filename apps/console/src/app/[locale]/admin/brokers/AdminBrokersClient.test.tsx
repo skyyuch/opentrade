@@ -63,7 +63,7 @@ const securitiesBroker: BrokerListItem = {
 
 const bullionBroker: BrokerListItem = {
   id: 'bul-1',
-  slug: 'cgse-009',
+  slug: 'hkgx-009',
   category: 'BULLION',
   displayName: '金商B',
   displayNameZhHans: '金商B',

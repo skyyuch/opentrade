@@ -49,7 +49,7 @@ const BullionDealersPage = async (props: Props): Promise<ReactNode> => {
 
   try {
     // Per ADR-0045 D2/D7: the bullion directory reuses the broker grid but
-    // pins `category=BULLION` so only CGSE members appear here.
+    // pins `category=BULLION` so only HKGX members appear here.
     const data = await fetchBrokers({ next: { revalidate: 60 }, category: 'BULLION' });
     dealers = data.brokers;
     nextCursor = data.nextCursor;

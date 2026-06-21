@@ -1,18 +1,18 @@
 /**
- * Offline fetcher for CGSE (Chinese Gold & Silver Exchange Society) bullion
- * dealers. Scrapes the public member-list page (English + Traditional Chinese
- * editions) and writes a normalised JSON file to
- * `seed-data/cgse-members.json`. Per ADR-0045 D5.
+ * Offline fetcher for HKGX (Hong Kong Gold Exchange / 香港黃金交易所) bullion
+ * dealers — successor to CGSE since 2025-01-01 (per ADR-0050). Scrapes the
+ * public member-list page (English + Traditional Chinese editions) and writes a
+ * normalised JSON file to `seed-data/hkgx-members.json`. Per ADR-0045 D5.
  *
  * Run via:
- *   pnpm --filter @opentrade/db fetch:cgse
+ *   pnpm --filter @opentrade/db fetch:hkgx
  *
  * Workflow: a developer runs this, reviews the git diff, and commits — so every
  * membership change is an auditable diff and a markup change fails loudly in
- * front of a human, not silently in production. The runtime never calls CGSE
+ * front of a human, not silently in production. The runtime never calls HKGX
  * (cursor rule 31 §外部參考資料同步).
  *
- * Status overrides: CGSE has no structured watch/suspended list (suspensions
+ * Status overrides: HKGX has no structured watch/suspended list (suspensions
  * appear in unstructured announcements). Every scraped member is ACTIVE; any
  * SUSPENDED / REVOKED status previously curated into the committed JSON is
  * preserved here across re-scrapes so a re-fetch never silently re-activates a
@@ -23,32 +23,32 @@ import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { fetchCgseMembers } from '../src/cgse/scrape.js';
+import { fetchHkgxMembers } from '../src/hkgx/scrape.js';
 
-import type { CgseMemberData, CgseMemberStatus } from '../src/cgse/types.js';
+import type { HkgxMemberData, HkgxMemberStatus } from '../src/hkgx/types.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-const OUT_PATH = resolve(__dirname, '../seed-data/cgse-members.json');
+const OUT_PATH = resolve(__dirname, '../seed-data/hkgx-members.json');
 
 /** Build a `memberCode -> status` map of curated non-ACTIVE overrides. */
-function loadStatusOverrides(): Map<string, CgseMemberStatus> {
-  const overrides = new Map<string, CgseMemberStatus>();
+function loadStatusOverrides(): Map<string, HkgxMemberStatus> {
+  const overrides = new Map<string, HkgxMemberStatus>();
   if (!existsSync(OUT_PATH)) return overrides;
   try {
-    const existing = JSON.parse(readFileSync(OUT_PATH, 'utf-8')) as CgseMemberData[];
+    const existing = JSON.parse(readFileSync(OUT_PATH, 'utf-8')) as HkgxMemberData[];
     for (const member of existing) {
       if (member.status !== 'ACTIVE') overrides.set(member.memberCode, member.status);
     }
   } catch {
-    console.log('  ⚠ Could not parse existing cgse-members.json — ignoring overrides.');
+    console.log('  ⚠ Could not parse existing hkgx-members.json — ignoring overrides.');
   }
   return overrides;
 }
 
 async function main(): Promise<void> {
-  console.log('Fetching CGSE member list (English + Traditional Chinese editions)...');
-  const members = await fetchCgseMembers();
+  console.log('Fetching HKGX member list (English + Traditional Chinese editions)...');
+  const members = await fetchHkgxMembers();
   console.log(`  Scraped ${members.length} members.`);
 
   const overrides = loadStatusOverrides();

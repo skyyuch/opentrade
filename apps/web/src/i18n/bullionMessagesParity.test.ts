@@ -2,7 +2,7 @@
  * Trilingual i18n parity guard for the bullion-dealer vertical (ADR-0045 D6).
  *
  * The bullion pages reuse the broker grid + detail layout but pull copy from
- * the dedicated `bullionDealers` namespace plus a set of CGSE-specific keys
+ * the dedicated `bullionDealers` namespace plus a set of HKGX-specific keys
  * added to the shared `brokerDetail` namespace (membership tab, status
  * labels, registry link, disclaimer). next-intl resolves keys at runtime, so
  * a key that exists in `en` but is missing from `zh-Hant` / `zh-Hans` ships a
@@ -37,7 +37,7 @@ type LocaleId = keyof typeof LOCALES;
 
 // The namespaces the bullion vertical reads from. `bullionDealers` is
 // bullion-only; `brokerDetail` is shared with securities but carries the
-// CGSE membership keys the bullion detail page depends on.
+// HKGX membership keys the bullion detail page depends on.
 const NAMESPACES = ['bullionDealers', 'brokerDetail'] as const;
 
 /**
@@ -99,27 +99,27 @@ describe('bullion vertical i18n parity (ADR-0045 D6)', () => {
     });
   }
 
-  it('covers the CGSE membership keys the bullion detail page renders', () => {
+  it('covers the HKGX membership keys the bullion detail page renders', () => {
     // Load-bearing assertion: the MembershipTab + bullion detail header read
     // these exact keys (BrokerDetailTabs.tsx / bullion-dealers/[slug]/page.tsx).
     // If a rename drops one, every locale must still resolve it.
     const requiredBrokerDetailKeys = [
       'tabMembership',
-      'cgseMembershipRecord',
-      'cgseMembershipPill',
+      'hkgxMembershipRecord',
+      'hkgxMembershipPill',
       'memberNumber',
       'membershipStatus',
       'statusActive',
       'statusSuspended',
       'statusRevoked',
       'membershipSince',
-      'cgseRegistryLink',
-      'cgseRegistryLinkDesc',
-      'cgseDataNoteTitle',
-      'cgseDataNote',
+      'hkgxRegistryLink',
+      'hkgxRegistryLinkDesc',
+      'hkgxDataNoteTitle',
+      'hkgxDataNote',
       'backToDealers',
     ];
-    const requiredBullionKeys = ['cgseMember', 'statusSuspended', 'statusRevoked', 'disclaimer'];
+    const requiredBullionKeys = ['hkgxMember', 'statusSuspended', 'statusRevoked', 'disclaimer'];
 
     for (const locale of Object.keys(LOCALES) as LocaleId[]) {
       const brokerDetail = namespaceKeySet(locale, 'brokerDetail');
