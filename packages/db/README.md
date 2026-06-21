@@ -155,6 +155,32 @@ and [`infra/terraform/README.md`](../../infra/terraform/README.md#deploy-checkli
 pins these as required steps after `db:migrate:deploy` and before the
 new `apps/api` container becomes healthy.
 
+#### One-time data fixes (not in `db:backfill:prod`)
+
+These are one-shot corrections for databases provisioned before a specific
+change. They are **not** part of `db:backfill:prod` because a fresh
+environment never needs them (the seed already produces the correct data):
+
+| Script                      | Purpose                                                    | ADR                |
+| --------------------------- | ---------------------------------------------------------- | ------------------ |
+| `db:backfill:bullion-slugs` | Renames legacy `cgse-{code}` broker slugs to `hkgx-{code}` | ADR-0050, ADR-0051 |
+
+Idempotent (only touches slugs still starting with `cgse-`) and `--dry-run`
+aware. Run once against any database seeded before the HKGX rebrand
+(local dev + UAT); applied 2026-06-21. Against the private UAT RDS, run it
+in-VPC via the migrate task command override (ADR-0049):
+
+```bash
+# preview locally
+pnpm --filter @opentrade/db db:backfill:bullion-slugs -- --dry-run
+
+# in-VPC against UAT (owner-local, ADR-0049)
+aws ecs run-task --cluster opentrade-dev-cluster \
+  --task-definition opentrade-dev-migrate --launch-type FARGATE \
+  --network-configuration '...' \
+  --overrides '{"containerOverrides":[{"name":"migrate","command":["sh","-c","pnpm exec tsx scripts/backfill-bullion-slugs.ts"]}]}'
+```
+
 ---
 
 ## Deprecated columns awaiting drop
