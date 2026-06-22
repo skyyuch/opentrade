@@ -339,6 +339,60 @@ const bullionReviews = [
   },
 ];
 
+// ADR-0053 §6: three KOLs drive the KOL category-filter read-path e2e. The
+// directory server-renders the full list once and filters the two orthogonal
+// category axes (type / focus) + the "未分類" (null) bucket client-side, so the
+// `GET /v1/kols` stub ignores query params and returns the same roster.
+const kolFinancialEquity = {
+  id: 'kol-e2e-fin',
+  slug: 'e2e-money-talk',
+  displayName: 'E2E Money Talk',
+  bio: 'A financial KOL fixture used only by e2e tests.',
+  avatarUrl: null,
+  status: 'APPROVED' as const,
+  type: 'FINANCIAL_KOL' as const,
+  focus: 'EQUITY' as const,
+  socialLinks: null,
+  credentials: null,
+  iamSmartVerified: true,
+  adminNote: null,
+  createdAt: '2026-06-01T00:00:00.000Z',
+};
+
+const kolIndicatorCrypto = {
+  id: 'kol-e2e-vendor',
+  slug: 'e2e-signal-shop',
+  displayName: 'E2E Signal Shop',
+  bio: 'An indicator-vendor KOL fixture used only by e2e tests.',
+  avatarUrl: null,
+  status: 'APPROVED' as const,
+  type: 'INDICATOR_VENDOR' as const,
+  focus: 'CRYPTO' as const,
+  socialLinks: null,
+  credentials: null,
+  iamSmartVerified: false,
+  adminNote: null,
+  createdAt: '2026-06-02T00:00:00.000Z',
+};
+
+const kolUncategorised = {
+  id: 'kol-e2e-uncat',
+  slug: 'e2e-mystery-caller',
+  displayName: 'E2E Mystery Caller',
+  bio: 'An uncategorised KOL fixture (null type/focus) used only by e2e tests.',
+  avatarUrl: null,
+  status: 'UNCLAIMED' as const,
+  type: null,
+  focus: null,
+  socialLinks: null,
+  credentials: null,
+  iamSmartVerified: false,
+  adminNote: null,
+  createdAt: '2026-06-03T00:00:00.000Z',
+};
+
+const kols = [kolFinancialEquity, kolIndicatorCrypto, kolUncategorised];
+
 const sendJson = (res: ServerResponse, status: number, body: unknown): void => {
   const payload = JSON.stringify(body);
   res.statusCode = status;
@@ -398,6 +452,13 @@ const handle = (req: IncomingMessage, res: ServerResponse): void => {
     sendJson(res, 200, { complaints, nextCursor: null, broker: brokerHeader });
     return;
   }
+  // ADR-0053 §6: KOL directory list. The directory filters category axes
+  // client-side, so this returns the full roster regardless of query params.
+  if (method === 'GET' && path === '/v1/kols') {
+    sendJson(res, 200, { kols, total: kols.length });
+    return;
+  }
+
   if (method === 'GET' && url === '/v1/health') {
     sendJson(res, 200, { ok: true });
     return;
@@ -425,6 +486,12 @@ export const SEED = {
   bullionId: BULLION_ID,
   bullionLegalName: bullionBroker.legalName,
   bullionMemberNumber: '009',
+  // ADR-0053 §6: KOL category read-path fixtures.
+  kolFinancialName: kolFinancialEquity.displayName,
+  kolFinancialSlug: kolFinancialEquity.slug,
+  kolVendorName: kolIndicatorCrypto.displayName,
+  kolUncategorisedName: kolUncategorised.displayName,
+  kolCount: kols.length,
 };
 
 // Entrypoint when spawned as a standalone process (Playwright webServer)
