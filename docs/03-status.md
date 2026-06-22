@@ -1064,6 +1064,7 @@ aws sso login --profile opentrade-dev
 - 願景：[`00-vision.md`](./00-vision.md)
 - 架構：[`01-architecture.md`](./01-architecture.md)
 - 路線圖：[`02-roadmap.md`](./02-roadmap.md)
+- 功能待開發清單（股東溝通版）：[`05-feature-backlog.md`](./05-feature-backlog.md)
 - 術語：[`04-glossary.md`](./04-glossary.md)
 - 架構決策：[`decisions/`](./decisions/)
 - 對話歸檔：[`conversations/`](./conversations/) — 最新 [2026-05-27 UI Polish S3 — /become-a-kol + Kol.adminNote](./conversations/2026-05-27-ui-polish-s3-become-a-kol.md)

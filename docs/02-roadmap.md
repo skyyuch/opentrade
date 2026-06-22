@@ -1,7 +1,8 @@
 # OpenTrade 路線圖
 
-> 本文件描述「我們什麼時候做什麼」。
+> 本文件描述「我們什麼時候做什麼」（工程 Phase 視角）。
 > 進度狀態見 [`03-status.md`](./03-status.md)（每 session 更新）。
+> 功能優先序 / 股東溝通視角的待開發清單見 [`05-feature-backlog.md`](./05-feature-backlog.md)。
 
 ---
 
@@ -316,3 +317,4 @@
 - 願景：[`00-vision.md`](./00-vision.md)
 - 架構：[`01-architecture.md`](./01-architecture.md)
 - 當前狀態：[`03-status.md`](./03-status.md)
+- 功能待開發清單（股東溝通版）：[`05-feature-backlog.md`](./05-feature-backlog.md)
