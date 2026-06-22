@@ -1068,7 +1068,7 @@ aws sso login --profile opentrade-dev
 - 功能待開發清單（股東溝通版）：[`05-feature-backlog.md`](./05-feature-backlog.md)
 - 術語：[`04-glossary.md`](./04-glossary.md)
 - 架構決策：[`decisions/`](./decisions/)
-- 對話歸檔：[`conversations/`](./conversations/) — 最新 [2026-05-27 UI Polish S3 — /become-a-kol + Kol.adminNote](./conversations/2026-05-27-ui-polish-s3-become-a-kol.md)
+- 對話歸檔：[`conversations/`](./conversations/) — 最新 [2026-06-22 conductor TG spec→ratify→grind（ADR-0055）](./conversations/2026-06-22-conductor-tg-spec-ratify.md)
 - 上線 Checklist：[`launch-checklist.md`](./launch-checklist.md) — 12 段 blocking/recommended/continuous 分級 + Log 後台子計畫
 - Google UI Prompt（金商）：[`ui-prompts/bullion-dealer-ui-prompt.md`](./ui-prompts/bullion-dealer-ui-prompt.md) — ADR-0045 D7 交付物
 - GitHub: [skyyuch/opentrade](https://github.com/skyyuch/opentrade)
