@@ -42,7 +42,7 @@ jobs:
 
     steps:
       - name: Checkout repository (with submodules)
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           # OpenZeppelin v5.6.1 + OpenZeppelin-Upgradeable v5.6.1 +
           # forge-std all live as git submodules under
@@ -89,7 +89,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           # solhint reads only test/**/*.sol per ADR-0015 D6 and
           # .solhintignore excludes lib/, so OZ submodules are not
