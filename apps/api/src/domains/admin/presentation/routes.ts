@@ -790,6 +790,11 @@ const updateKolCategoryUseCase = new UpdateKolCategoryUseCase(kolRepo);
 
 const listKolsSchema = z.object({
   status: z.enum(['UNCLAIMED', 'PENDING', 'APPROVED', 'REJECTED', 'SUSPENDED']).optional(),
+  // Per ADR-0053 §5: optional server-side category filters for the console
+  // KOL management screen. Omitting a dimension returns every value for that
+  // axis (mirrors the public GET /v1/kols filter).
+  type: z.enum(['FINANCIAL_KOL', 'INDICATOR_VENDOR']).optional(),
+  focus: z.enum(['EQUITY', 'CRYPTO', 'FOREX']).optional(),
   limit: z.coerce.number().int().min(1).max(100).default(50),
   offset: z.coerce.number().int().min(0).default(0),
 });
@@ -804,6 +809,12 @@ adminRouter.get('/kols', authMiddleware('admin'), async (c) => {
   };
   if (query.status !== undefined) {
     opts.status = query.status;
+  }
+  if (query.type !== undefined) {
+    opts.type = query.type;
+  }
+  if (query.focus !== undefined) {
+    opts.focus = query.focus;
   }
 
   const { kols, total } = await listKolsUseCase.execute(opts);
