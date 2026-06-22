@@ -909,6 +909,10 @@ export const rejectComplaint = (id: string, adminNote: string, options?: FetchOp
 
 export type KolStatus = 'UNCLAIMED' | 'PENDING' | 'APPROVED' | 'REJECTED' | 'SUSPENDED';
 
+/** Per ADR-0053: the two independent, nullable KOL category dimensions. */
+export type KolType = 'FINANCIAL_KOL' | 'INDICATOR_VENDOR';
+export type KolFocus = 'EQUITY' | 'CRYPTO' | 'FOREX';
+
 export type KolSocialLinks = {
   youtube?: string;
   instagram?: string;
@@ -928,6 +932,12 @@ export type AdminKolItem = {
   bio: string | null;
   avatarUrl: string | null;
   status: KolStatus;
+  /**
+   * Per ADR-0053: nullable category dimensions. `null` means "未分類 / not yet
+   * assigned" — an admin sets or overrides them via `setKolCategory`.
+   */
+  type: KolType | null;
+  focus: KolFocus | null;
   socialLinks: KolSocialLinks | null;
   credentials: KolCredential[] | null;
   iamSmartVerified: boolean;
@@ -991,6 +1001,18 @@ export const suspendKol = (
   options?: FetchOptions,
 ): Promise<{ kol: AdminKolItem }> =>
   apiPatch<{ kol: AdminKolItem }>(`/v1/admin/kols/${id}/suspend`, {}, options);
+
+/**
+ * Per ADR-0053 §3: set or clear a KOL's category dimensions. Send only the
+ * keys to change — a `null` value clears that dimension back to "未分類", an
+ * omitted key is left untouched server-side.
+ */
+export const setKolCategory = (
+  id: string,
+  category: { type?: KolType | null; focus?: KolFocus | null },
+  options?: FetchOptions,
+): Promise<{ kol: AdminKolItem }> =>
+  apiPatch<{ kol: AdminKolItem }>(`/v1/admin/kols/${id}/category`, category, options);
 
 // ---------------------------------------------------------------------------
 // Admin — Signals read-only list per ADR-0036
