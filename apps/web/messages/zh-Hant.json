@@ -690,7 +690,19 @@
     "cannotViewSignalsDesc": "此 KOL 尚未認證綁定錢包，無法讀取防篡改的鏈上歷史訊號。",
     "tabNotes": "分析筆記",
     "noNotes": "目前沒有分析筆記",
-    "noNotesDesc": "這位 KOL 尚未發布任何分析筆記"
+    "noNotesDesc": "這位 KOL 尚未發布任何分析筆記",
+    "filterTypeLabel": "類型",
+    "filterFocusLabel": "市場",
+    "filterTypeAll": "全部類型",
+    "filterFocusAll": "全部市場",
+    "typeFinancialKol": "財演",
+    "typeIndicatorVendor": "技術指標賣家",
+    "focusEquity": "股票",
+    "focusCrypto": "加密",
+    "focusForex": "外匯",
+    "categoryUncategorised": "未分類",
+    "showingCount": "顯示 {count} / 共 {total} 位 KOL",
+    "clearFilters": "清除篩選"
   },
   "kolConsole": {
     "consoleTitle": "KOL 控制台",

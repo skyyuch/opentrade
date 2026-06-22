@@ -876,6 +876,18 @@ export const uploadVerifyEvidence = async (
 
 export type KolStatus = 'UNCLAIMED' | 'PENDING' | 'APPROVED' | 'REJECTED' | 'SUSPENDED';
 
+/**
+ * Per ADR-0053 D1: the two independent, orthogonal KOL category dimensions.
+ * Both are nullable (`null` = uncategorised / not yet assigned, per D3 — there
+ * is no default) so the directory filter exposes an explicit "未分類" bucket.
+ * Values mirror the `KolType` / `KolFocus` Prisma enums re-exported from
+ * `@opentrade/db`; the public `GET /v1/kols` endpoint accepts them as the
+ * optional `?type=` / `?focus=` query params (mirroring the broker `?category=`
+ * filter — omitting a dimension returns every value for that axis).
+ */
+export type KolType = 'FINANCIAL_KOL' | 'INDICATOR_VENDOR';
+export type KolFocus = 'EQUITY' | 'CRYPTO' | 'FOREX';
+
 export type KolSocialLinks = {
   youtube?: string;
   instagram?: string;
@@ -895,6 +907,14 @@ export type KolListItem = {
   bio: string | null;
   avatarUrl: string | null;
   status: KolStatus;
+  /**
+   * Per ADR-0053: the KOL category dimensions. Both are `null` for any KOL
+   * not yet categorised (the "未分類" state — there is no default per D3). The
+   * list/detail responses always carry both fields; the directory renders them
+   * as label chips and filters on them client-side (incl. the null bucket).
+   */
+  type: KolType | null;
+  focus: KolFocus | null;
   socialLinks: KolSocialLinks | null;
   credentials: KolCredential[] | null;
   iamSmartVerified: boolean;
@@ -918,12 +938,18 @@ export type KolsResponse = {
 };
 
 export const fetchKols = (
-  params?: { limit?: number; offset?: number },
+  // Per ADR-0053: `type` / `focus` narrow the directory by the two orthogonal
+  // category axes. Omitting a dimension returns every value for that axis. The
+  // null ("未分類") bucket is not expressible as a query param, so the directory
+  // filters that case client-side over the loaded list.
+  params?: { limit?: number; offset?: number; type?: KolType; focus?: KolFocus },
   options?: FetchOptions,
 ): Promise<KolsResponse> => {
   const query = new URLSearchParams();
   if (params?.limit !== undefined) query.set('limit', String(params.limit));
   if (params?.offset !== undefined) query.set('offset', String(params.offset));
+  if (params?.type) query.set('type', params.type);
+  if (params?.focus) query.set('focus', params.focus);
   const qs = query.toString();
   return apiGet<KolsResponse>(`/v1/kols${qs ? `?${qs}` : ''}`, options);
 };

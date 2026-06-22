@@ -690,7 +690,19 @@
     "cannotViewSignalsDesc": "此 KOL 尚未认证绑定钱包，无法读取防篡改的链上历史讯号。",
     "tabNotes": "分析笔记",
     "noNotes": "目前没有分析笔记",
-    "noNotesDesc": "这位 KOL 尚未发布任何分析笔记"
+    "noNotesDesc": "这位 KOL 尚未发布任何分析笔记",
+    "filterTypeLabel": "类型",
+    "filterFocusLabel": "市场",
+    "filterTypeAll": "全部类型",
+    "filterFocusAll": "全部市场",
+    "typeFinancialKol": "财演",
+    "typeIndicatorVendor": "技术指标卖家",
+    "focusEquity": "股票",
+    "focusCrypto": "加密",
+    "focusForex": "外汇",
+    "categoryUncategorised": "未分类",
+    "showingCount": "显示 {count} / 共 {total} 位 KOL",
+    "clearFilters": "清除筛选"
   },
   "kolConsole": {
     "consoleTitle": "KOL 控制台",

@@ -30,7 +30,9 @@ export { getDbEnv, type DbEnv } from './env.js';
 export {
   AssetClass,
   BrokerCategory,
+  KolFocus,
   KolStatus,
+  KolType,
   LicenseStatus,
   LicenseType,
   NotificationType,

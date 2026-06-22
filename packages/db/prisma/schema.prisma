@@ -391,6 +391,26 @@ enum KolStatus {
   SUSPENDED // Admin suspended (post-approval); cannot emit new signals.
 }
 
+/// Kind of KOL — the first of two orthogonal, filterable category dimensions
+/// per ADR-0053 (mirrors the BrokerCategory discriminator of ADR-0045, but
+/// split across two axes because KOL type and asset focus are independent).
+/// Both terms are registered in docs/04-glossary.md. New values are
+/// non-breaking Postgres ADD VALUEs.
+enum KolType {
+  FINANCIAL_KOL // 財演 — publicly calls buy/sell.
+  INDICATOR_VENDOR // 技術指標賣家 — sells self-built trading-signal indicators.
+}
+
+/// Asset focus — the second category dimension per ADR-0053. A deliberately
+/// COARSE, profile-level descriptor for discovery/filtering, distinct from the
+/// fine-grained per-signal `AssetClass` (ADR-0038) used for settlement routing
+/// (see ADR-0053 D4). New values (e.g. COMMODITY) can be appended non-breaking.
+enum KolFocus {
+  EQUITY // 股票
+  CRYPTO // 加密
+  FOREX // 外匯
+}
+
 /// Broad asset class for KOL signals. Per ADR-0036 D5 + ADR-0038: classifies
 /// which oracle pipeline handles settlement and doubles as the `Instrument`
 /// catalog category (ADR-0038 D2 — the picker surfaces the five user-facing
@@ -644,6 +664,14 @@ model Kol {
   bio              String?   @db.Text
   avatarUrl        String?
   status           KolStatus @default(UNCLAIMED)
+  /// First category dimension (kind of KOL) per ADR-0053. Nullable with NO
+  /// default: a KOL has no inherent type, so NULL = "uncategorised / not yet
+  /// assigned" (set later by onboarding/admin), avoiding any wrong backfill.
+  type             KolType?
+  /// Second category dimension (asset focus) per ADR-0053. Nullable for the
+  /// same reason as `type`; deliberately coarse and distinct from the
+  /// per-signal `AssetClass` (ADR-0053 D4).
+  focus            KolFocus?
   /// JSON: { youtube?: string, instagram?: string, twitter?: string }
   socialLinks      Json?
   /// JSON array: [{ type: "CFA"|"SFC_TYPE_4"|..., verified: boolean, verifiedAt?: string }]
@@ -673,6 +701,11 @@ model Kol {
 
   @@index([tenantId, status])
   @@index([tenantId, userId])
+  // Category filter dimensions per ADR-0053 D5. The two axes are filtered
+  // independently, so two composite (tenantId, <dim>) indexes rather than one
+  // combined index (which would not cover focus-only queries).
+  @@index([tenantId, type])
+  @@index([tenantId, focus])
   @@map("kols")
 }
 

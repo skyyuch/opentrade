@@ -18,6 +18,12 @@ export class ListKolsUseCase {
     if (options.status !== undefined) {
       countFilter.status = options.status;
     }
+    if (options.type !== undefined) {
+      countFilter.type = options.type;
+    }
+    if (options.focus !== undefined) {
+      countFilter.focus = options.focus;
+    }
 
     const [kols, total] = await Promise.all([
       this.kolRepo.list(options),

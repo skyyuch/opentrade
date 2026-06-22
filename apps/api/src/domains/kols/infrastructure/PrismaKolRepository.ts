@@ -7,6 +7,8 @@
 
 import { Prisma, type PrismaClient } from '@opentrade/db';
 
+import { buildKolListWhere } from '../domain/kolListFilter.js';
+
 import type { IKolRepository, KolListOptions } from '../domain/IKolRepository.js';
 import type { ApplyKolInput, KolRecord, KolStatusValue } from '../domain/KolEntity.js';
 
@@ -27,6 +29,8 @@ function toRecord(row: {
   bio: string | null;
   avatarUrl: string | null;
   status: string;
+  type: string | null;
+  focus: string | null;
   socialLinks: unknown;
   credentials: unknown;
   iamSmartVerified: boolean;
@@ -45,6 +49,8 @@ function toRecord(row: {
     bio: row.bio,
     avatarUrl: row.avatarUrl,
     status: row.status as KolStatusValue,
+    type: row.type as KolRecord['type'],
+    focus: row.focus as KolRecord['focus'],
     socialLinks: row.socialLinks as KolRecord['socialLinks'],
     credentials: row.credentials as KolRecord['credentials'],
     iamSmartVerified: row.iamSmartVerified,
@@ -113,11 +119,7 @@ export class PrismaKolRepository implements IKolRepository {
 
   async list(options: KolListOptions): Promise<KolRecord[]> {
     const rows = await this.prisma.kol.findMany({
-      where: {
-        tenantId: options.tenantId,
-        ...(options.status ? { status: options.status } : {}),
-        deletedAt: null,
-      },
+      where: buildKolListWhere(options),
       orderBy: { createdAt: 'desc' },
       take: options.limit ?? 50,
       skip: options.offset ?? 0,
@@ -127,11 +129,7 @@ export class PrismaKolRepository implements IKolRepository {
 
   async count(options: Omit<KolListOptions, 'limit' | 'offset'>): Promise<number> {
     return this.prisma.kol.count({
-      where: {
-        tenantId: options.tenantId,
-        ...(options.status ? { status: options.status } : {}),
-        deletedAt: null,
-      },
+      where: buildKolListWhere(options),
     });
   }
 

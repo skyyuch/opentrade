@@ -114,14 +114,31 @@ kolsRouter.post('/apply', authMiddleware('user'), async (c) => {
 const listQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(50),
   offset: z.coerce.number().int().min(0).default(0),
+  // Per ADR-0053: two independent, optional category dimensions. Omitting a
+  // dimension returns every value for that axis (the REST default, mirroring
+  // the broker `?category=` filter). Values mirror the KolType / KolFocus enums.
+  type: z.enum(['FINANCIAL_KOL', 'INDICATOR_VENDOR']).optional(),
+  focus: z.enum(['EQUITY', 'CRYPTO', 'FOREX']).optional(),
 });
 
 kolsRouter.get('/', async (c) => {
   const query = listQuerySchema.parse(c.req.query());
 
+  // Per ADR-0053: forward the optional type/focus filters to both the
+  // APPROVED and UNCLAIMED slices so the directory filter narrows the merged
+  // public list. `exactOptionalPropertyTypes` requires we omit the keys
+  // entirely when undefined rather than passing `undefined`.
+  const categoryFilter: {
+    type?: 'FINANCIAL_KOL' | 'INDICATOR_VENDOR';
+    focus?: 'EQUITY' | 'CRYPTO' | 'FOREX';
+  } = {};
+  if (query.type !== undefined) categoryFilter.type = query.type;
+  if (query.focus !== undefined) categoryFilter.focus = query.focus;
+
   const approved = await listKolsUseCase.execute({
     tenantId: DEFAULT_TENANT_ID,
     status: 'APPROVED',
+    ...categoryFilter,
     limit: query.limit,
     offset: query.offset,
   });
@@ -129,6 +146,7 @@ kolsRouter.get('/', async (c) => {
   const unclaimed = await listKolsUseCase.execute({
     tenantId: DEFAULT_TENANT_ID,
     status: 'UNCLAIMED',
+    ...categoryFilter,
     limit: query.limit,
     offset: query.offset,
   });
