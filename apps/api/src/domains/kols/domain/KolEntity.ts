@@ -72,6 +72,18 @@ export type ClaimKolInput = {
   kolId: string;
 };
 
+/**
+ * Per ADR-0053 Implementation Notes §3: the per-row category assignment an
+ * admin makes (set or override) on the console KOL management screen. Both
+ * dimensions are independently settable and explicitly nullable so an admin
+ * can clear a previously-assigned value back to the "未分類" state. A field
+ * left `undefined` is not touched; an explicit `null` clears it.
+ */
+export type UpdateKolCategoryInput = {
+  type?: KolTypeValue | null;
+  focus?: KolFocusValue | null;
+};
+
 export type KolRecord = {
   id: string;
   tenantId: string;

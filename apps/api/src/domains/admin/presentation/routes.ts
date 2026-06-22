@@ -28,6 +28,7 @@ import { ListComplaintsUseCase } from '../../complaints/application/ListComplain
 import { VerifyComplaintUseCase } from '../../complaints/application/VerifyComplaintUseCase.js';
 import { PrismaComplaintRepository } from '../../complaints/infrastructure/PrismaComplaintRepository.js';
 import { ListKolsUseCase } from '../../kols/application/ListKolsUseCase.js';
+import { UpdateKolCategoryUseCase } from '../../kols/application/UpdateKolCategoryUseCase.js';
 import { PrismaKolRepository } from '../../kols/infrastructure/PrismaKolRepository.js';
 
 import type { AppHonoEnv } from '../../../http/types.js';
@@ -785,6 +786,7 @@ adminRouter.get('/activity', authMiddleware('admin'), async (c) => {
 
 const kolRepo = new PrismaKolRepository(prisma);
 const listKolsUseCase = new ListKolsUseCase(kolRepo);
+const updateKolCategoryUseCase = new UpdateKolCategoryUseCase(kolRepo);
 
 const listKolsSchema = z.object({
   status: z.enum(['UNCLAIMED', 'PENDING', 'APPROVED', 'REJECTED', 'SUSPENDED']).optional(),
@@ -889,4 +891,39 @@ adminRouter.patch('/kols/:id/suspend', authMiddleware('admin'), async (c) => {
 
   const updated = await kolRepo.updateStatus(id, 'SUSPENDED', { adminUserId: user.userId });
   return c.json({ kol: updated });
+});
+
+// Per ADR-0053 §3: admin sets or overrides the two independent, nullable
+// category dimensions. Both keys are optional and nullable — a present `null`
+// clears that dimension back to "未分類", an absent key leaves it untouched.
+// At least one key must be present so the PATCH is never a silent no-op.
+const updateKolCategorySchema = z
+  .object({
+    type: z.enum(['FINANCIAL_KOL', 'INDICATOR_VENDOR']).nullable().optional(),
+    focus: z.enum(['EQUITY', 'CRYPTO', 'FOREX']).nullable().optional(),
+  })
+  .refine((v) => 'type' in v || 'focus' in v, {
+    message: 'At least one of type or focus must be supplied',
+  });
+
+adminRouter.patch('/kols/:id/category', authMiddleware('admin'), async (c) => {
+  const id = c.req.param('id');
+  const body = updateKolCategorySchema.parse(await c.req.json());
+
+  // exactOptionalPropertyTypes: forward only the keys the admin actually
+  // sent so the repository can distinguish "clear" (null) from "untouched"
+  // (absent), mirroring the nullable-no-default column semantics (ADR-0053 D3).
+  const command: Parameters<typeof updateKolCategoryUseCase.execute>[0] = { id };
+  if ('type' in body) command.type = body.type ?? null;
+  if ('focus' in body) command.focus = body.focus ?? null;
+
+  try {
+    const updated = await updateKolCategoryUseCase.execute(command);
+    return c.json({ kol: updated });
+  } catch (err) {
+    if (err instanceof Error && err.message.includes('not found')) {
+      throw AppError.notFound(`KOL ${id} not found`);
+    }
+    throw err;
+  }
 });

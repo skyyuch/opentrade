@@ -10,7 +10,12 @@ import { Prisma, type PrismaClient } from '@opentrade/db';
 import { buildKolListWhere } from '../domain/kolListFilter.js';
 
 import type { IKolRepository, KolListOptions } from '../domain/IKolRepository.js';
-import type { ApplyKolInput, KolRecord, KolStatusValue } from '../domain/KolEntity.js';
+import type {
+  ApplyKolInput,
+  KolRecord,
+  KolStatusValue,
+  UpdateKolCategoryInput,
+} from '../domain/KolEntity.js';
 
 function slugify(name: string): string {
   return name
@@ -174,6 +179,20 @@ export class PrismaKolRepository implements IKolRepository {
     });
 
     return toRecord(result);
+  }
+
+  async updateCategory(id: string, updates: UpdateKolCategoryInput): Promise<KolRecord> {
+    // Per ADR-0053 §3: category assignment is consumer-less off-chain
+    // metadata, so — unlike create/updateStatus/claimProfile — we do NOT
+    // emit an outbox event (no notification, no chain write). Only the keys
+    // explicitly supplied are written; `exactOptionalPropertyTypes` lets a
+    // present `null` clear a dimension while an absent key is left untouched.
+    const data: Prisma.KolUpdateInput = {};
+    if ('type' in updates) data.type = updates.type ?? null;
+    if ('focus' in updates) data.focus = updates.focus ?? null;
+
+    const row = await this.prisma.kol.update({ where: { id }, data });
+    return toRecord(row);
   }
 
   async claimProfile(
