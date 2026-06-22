@@ -17,6 +17,35 @@ export const KOL_STATUS_VALUES = [
   'SUSPENDED',
 ] as const satisfies readonly KolStatusValue[];
 
+/**
+ * First category dimension per ADR-0053 (the kind of KOL). Mirrors the
+ * `KolType` Prisma enum as a hand-written domain union so the domain layer
+ * keeps zero runtime infrastructure imports (rule 10), the same pattern as
+ * `KolStatusValue`.
+ *   - FINANCIAL_KOL    財演 — publicly calls buy/sell.
+ *   - INDICATOR_VENDOR 技術指標賣家 — sells self-built trading-signal indicators.
+ */
+export type KolTypeValue = 'FINANCIAL_KOL' | 'INDICATOR_VENDOR';
+
+export const KOL_TYPE_VALUES = [
+  'FINANCIAL_KOL',
+  'INDICATOR_VENDOR',
+] as const satisfies readonly KolTypeValue[];
+
+/**
+ * Second category dimension per ADR-0053 (asset focus). A deliberately coarse,
+ * profile-level descriptor distinct from the per-signal `AssetClass` (ADR-0053
+ * D4). Mirrors the `KolFocus` Prisma enum.
+ *   - EQUITY 股票 / CRYPTO 加密 / FOREX 外匯
+ */
+export type KolFocusValue = 'EQUITY' | 'CRYPTO' | 'FOREX';
+
+export const KOL_FOCUS_VALUES = [
+  'EQUITY',
+  'CRYPTO',
+  'FOREX',
+] as const satisfies readonly KolFocusValue[];
+
 export type CredentialEntry = {
   type: string;
   verified: boolean;
@@ -52,6 +81,14 @@ export type KolRecord = {
   bio: string | null;
   avatarUrl: string | null;
   status: KolStatusValue;
+  /**
+   * Category dimensions per ADR-0053. Nullable with no default: a KOL has no
+   * inherent type/focus, so `null` is a first-class "uncategorised / not yet
+   * assigned" state (set later by onboarding/admin). Surfaced read-only on the
+   * list + detail responses so the directory can filter and label.
+   */
+  type: KolTypeValue | null;
+  focus: KolFocusValue | null;
   socialLinks: SocialLinks | null;
   credentials: CredentialEntry[] | null;
   iamSmartVerified: boolean;

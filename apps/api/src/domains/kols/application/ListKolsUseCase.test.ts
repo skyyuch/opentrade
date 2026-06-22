@@ -26,6 +26,8 @@ const fixtureRecord = (overrides: Partial<KolRecord> = {}): KolRecord => ({
   bio: null,
   avatarUrl: null,
   status: 'APPROVED',
+  type: null,
+  focus: null,
   socialLinks: null,
   credentials: null,
   iamSmartVerified: false,
@@ -76,6 +78,30 @@ describe('ListKolsUseCase', () => {
 
     expect(repo.list).toHaveBeenCalledWith(options);
     expect(repo.count).toHaveBeenCalledWith({ tenantId: TENANT_ID, status: 'PENDING' });
+  });
+
+  it('passes type and focus category filters to both list and count (ADR-0053)', async () => {
+    const options: KolListOptions = {
+      tenantId: TENANT_ID,
+      status: 'APPROVED',
+      type: 'FINANCIAL_KOL',
+      focus: 'CRYPTO',
+      limit: 50,
+      offset: 0,
+    };
+
+    repo.list.mockResolvedValue([]);
+    repo.count.mockResolvedValue(0);
+
+    await useCase.execute(options);
+
+    expect(repo.list).toHaveBeenCalledWith(options);
+    expect(repo.count).toHaveBeenCalledWith({
+      tenantId: TENANT_ID,
+      status: 'APPROVED',
+      type: 'FINANCIAL_KOL',
+      focus: 'CRYPTO',
+    });
   });
 
   it('returns empty array when no kols match', async () => {

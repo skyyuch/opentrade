@@ -690,7 +690,19 @@
     "cannotViewSignalsDesc": "This KOL has not verified their wallet. On-chain tamper-proof signal history is unavailable.",
     "tabNotes": "Notes",
     "noNotes": "No analyst notes yet",
-    "noNotesDesc": "This KOL hasn't published any analyst notes yet"
+    "noNotesDesc": "This KOL hasn't published any analyst notes yet",
+    "filterTypeLabel": "Type",
+    "filterFocusLabel": "Focus",
+    "filterTypeAll": "All types",
+    "filterFocusAll": "All focus",
+    "typeFinancialKol": "Financial KOL",
+    "typeIndicatorVendor": "Indicator Vendor",
+    "focusEquity": "Equities",
+    "focusCrypto": "Crypto",
+    "focusForex": "Forex",
+    "categoryUncategorised": "Uncategorised",
+    "showingCount": "Showing {count} / {total} KOLs",
+    "clearFilters": "Clear filters"
   },
   "kolConsole": {
     "consoleTitle": "KOL Console",

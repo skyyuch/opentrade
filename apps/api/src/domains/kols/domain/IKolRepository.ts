@@ -5,11 +5,21 @@
  * infrastructure layer provides the Prisma implementation.
  */
 
-import type { KolRecord, KolStatusValue, ApplyKolInput } from './KolEntity.js';
+import type {
+  KolRecord,
+  KolStatusValue,
+  KolTypeValue,
+  KolFocusValue,
+  ApplyKolInput,
+} from './KolEntity.js';
 
 export type KolListOptions = {
   tenantId: string;
   status?: KolStatusValue;
+  /** Optional category filter per ADR-0053; omitting returns every type. */
+  type?: KolTypeValue;
+  /** Optional asset-focus filter per ADR-0053; omitting returns every focus. */
+  focus?: KolFocusValue;
   limit?: number;
   offset?: number;
 };

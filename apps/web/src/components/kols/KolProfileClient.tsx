@@ -221,6 +221,23 @@ function ProfileCard({
 
         {/* Badges */}
         <div className="flex w-full flex-wrap justify-center gap-2">
+          {/* Category chips (ADR-0053) — rendered only when assigned. */}
+          {kol.type && (
+            <span className="rounded-full border border-blue-500/20 bg-blue-500/10 px-3 py-1 text-xs font-bold text-blue-300">
+              {t(kol.type === 'FINANCIAL_KOL' ? 'typeFinancialKol' : 'typeIndicatorVendor')}
+            </span>
+          )}
+          {kol.focus && (
+            <span className="rounded-full border border-purple-500/20 bg-purple-500/10 px-3 py-1 text-xs font-bold text-purple-300">
+              {t(
+                kol.focus === 'EQUITY'
+                  ? 'focusEquity'
+                  : kol.focus === 'CRYPTO'
+                    ? 'focusCrypto'
+                    : 'focusForex',
+              )}
+            </span>
+          )}
           {kol.iamSmartVerified && (
             <span className="rounded-full border border-[#00FF88]/20 bg-[#00FF88]/10 px-3 py-1 text-xs font-bold text-[#00FF88]">
               {t('iamSmartBadge')}

@@ -39,6 +39,8 @@ const fixtureKol = (overrides: Partial<KolRecord> = {}): KolRecord => ({
   bio: null,
   avatarUrl: null,
   status: 'APPROVED',
+  type: null,
+  focus: null,
   socialLinks: null,
   credentials: null,
   iamSmartVerified: false,
