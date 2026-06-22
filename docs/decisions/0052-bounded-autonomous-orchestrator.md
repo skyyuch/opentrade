@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted (owner ratified 2026-06-22). Relates rule 96 (task decomposition),
+Accepted (owner ratified 2026-06-22; amended by [ADR-0055](./0055-telegram-driven-spec-then-ratify.md)). Relates rule 96 (task decomposition),
 rule 97 (status/ADR discipline), rule 98 (session handoff), rule 70 (branch /
 commit / PR), rule 50 (security), rule 00 (red lines). Amends none.
 

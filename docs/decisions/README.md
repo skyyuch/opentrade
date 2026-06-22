@@ -136,9 +136,10 @@ YYYY-MM-DD
 | 0049 | UAT enrichment via in-VPC run-task overrides on the migrate image                            | Accepted                   | 2026-06-14 |
 | 0050 | Rebrand the bullion registry from CGSE (金銀業貿易場) to HKGX (香港黃金交易所) (amends 0045) | Accepted                   | 2026-06-21 |
 | 0051 | Automated migrate gate in the deploy pipeline (amends 0047 D2, 0048 D2)                      | Accepted                   | 2026-06-21 |
-| 0052 | Bounded autonomous handoff orchestration via an external Cursor-SDK tool                     | Accepted                   | 2026-06-22 |
+| 0052 | Bounded autonomous handoff orchestration via an external Cursor-SDK tool                     | Accepted (amended by 0055) | 2026-06-22 |
 | 0053 | Add a filterable KOL category as two `Kol` dimensions (type + focus)                         | Accepted                   | 2026-06-22 |
 | 0054 | Solo-stage self-review with admin merge (clarifies rule 70 review requirement)               | Accepted                   | 2026-06-22 |
+| 0055 | Telegram-driven spec/ADR drafting then owner ratification before grind (amends 0052)         | Accepted                   | 2026-06-22 |
 
 ---
 
