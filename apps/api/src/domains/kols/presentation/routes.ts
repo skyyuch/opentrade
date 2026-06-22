@@ -70,6 +70,10 @@ const applyBodySchema = z.object({
       }),
     )
     .optional(),
+  // Per ADR-0053 §3: optional self-declared category dimensions. Mirrors the
+  // KolType / KolFocus enums; omitting leaves the column null ("未分類").
+  type: z.enum(['FINANCIAL_KOL', 'INDICATOR_VENDOR']).optional(),
+  focus: z.enum(['EQUITY', 'CRYPTO', 'FOREX']).optional(),
 });
 
 // ---------------------------------------------------------------------------
@@ -94,6 +98,8 @@ kolsRouter.post('/apply', authMiddleware('user'), async (c) => {
     input.socialLinks = sl;
   }
   if (body.credentials !== undefined) input.credentials = body.credentials;
+  if (body.type !== undefined) input.type = body.type;
+  if (body.focus !== undefined) input.focus = body.focus;
 
   try {
     const kol = await applyKolUseCase.execute(input);

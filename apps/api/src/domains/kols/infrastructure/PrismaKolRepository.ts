@@ -83,6 +83,10 @@ export class PrismaKolRepository implements IKolRepository {
           slug,
           displayName: input.displayName,
           bio: input.bio ?? null,
+          // Per ADR-0053 §3: self-declared category dimensions captured at
+          // onboarding. Omitting leaves them null for later admin assignment.
+          type: input.type ?? null,
+          focus: input.focus ?? null,
           socialLinks: input.socialLinks ?? Prisma.JsonNull,
           credentials: input.credentials ?? Prisma.JsonNull,
           status: 'PENDING',

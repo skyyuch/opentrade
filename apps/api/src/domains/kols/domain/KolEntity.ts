@@ -65,6 +65,14 @@ export type ApplyKolInput = {
   bio?: string;
   socialLinks?: SocialLinks;
   credentials?: CredentialEntry[];
+  /**
+   * Per ADR-0053 §3: an applicant may self-declare their category dimensions
+   * during onboarding. Optional — omitting leaves the column null ("未分類")
+   * for an admin to assign later. Admin can still override post-application
+   * via `updateCategory`.
+   */
+  type?: KolTypeValue;
+  focus?: KolFocusValue;
 };
 
 export type ClaimKolInput = {
