@@ -9,6 +9,7 @@ import {
   fetchAdminKolDetail,
   fetchAdminKols,
   rejectKol,
+  setKolCategory,
   suspendKol,
 } from '../../../../lib/api/client';
 
@@ -16,7 +17,9 @@ import type {
   AdminKolDetailResponse,
   AdminKolItem,
   FetchOptions,
+  KolFocus,
   KolStatus,
+  KolType,
 } from '../../../../lib/api/client';
 import type { MouseEvent as ReactMouseEvent } from 'react';
 
@@ -27,10 +30,26 @@ const TABS: TabKey[] = ['PENDING', 'APPROVED', 'UNCLAIMED', 'SUSPENDED', 'REJECT
 const REJECT_MIN = 5;
 const REJECT_MAX = 500;
 
+const KOL_TYPES: KolType[] = ['FINANCIAL_KOL', 'INDICATOR_VENDOR'];
+const KOL_FOCUSES: KolFocus[] = ['EQUITY', 'CRYPTO', 'FOREX'];
+
+const TYPE_LABEL_KEY: Record<KolType, string> = {
+  FINANCIAL_KOL: 'typeFinancialKol',
+  INDICATOR_VENDOR: 'typeIndicatorVendor',
+};
+
+const FOCUS_LABEL_KEY: Record<KolFocus, string> = {
+  EQUITY: 'focusEquity',
+  CRYPTO: 'focusCrypto',
+  FOREX: 'focusForex',
+};
+
 export function KolsClient(): React.ReactNode {
   const { getAccessToken } = useOpenTradeAuth();
   const t = useTranslations('adminKols');
   const [tab, setTab] = useState<TabKey>('PENDING');
+  const [typeFilter, setTypeFilter] = useState<KolType | ''>('');
+  const [focusFilter, setFocusFilter] = useState<KolFocus | ''>('');
   const [items, setItems] = useState<AdminKolItem[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -41,16 +60,23 @@ export function KolsClient(): React.ReactNode {
   const [pendingReject, setPendingReject] = useState<AdminKolItem | null>(null);
   const [rejectNote, setRejectNote] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
+  // Draft category edits inside the detail modal (per ADR-0053 §3).
+  const [draftType, setDraftType] = useState<KolType | ''>('');
+  const [draftFocus, setDraftFocus] = useState<KolFocus | ''>('');
+  const [categorySaving, setCategorySaving] = useState(false);
+  const [categorySaved, setCategorySaved] = useState(false);
 
   const loadKols = useCallback(
-    async (status: TabKey, signal?: AbortSignal) => {
+    async (status: TabKey, type: KolType | '', focus: KolFocus | '', signal?: AbortSignal) => {
       setLoading(true);
       const token = getAccessToken();
       if (!token) return;
       try {
         const apiStatus: KolStatus | undefined = status === 'ALL' ? undefined : status;
-        const params: { status?: KolStatus; limit?: number; offset?: number } = {};
+        const params: { status?: KolStatus; type?: KolType; focus?: KolFocus } = {};
         if (apiStatus !== undefined) params.status = apiStatus;
+        if (type !== '') params.type = type;
+        if (focus !== '') params.focus = focus;
         const opts: FetchOptions = { accessToken: token };
         if (signal) opts.signal = signal;
         const res = await fetchAdminKols(params, opts);
@@ -68,9 +94,9 @@ export function KolsClient(): React.ReactNode {
 
   useEffect(() => {
     const controller = new AbortController();
-    void loadKols(tab, controller.signal);
+    void loadKols(tab, typeFilter, focusFilter, controller.signal);
     return () => controller.abort();
-  }, [loadKols, tab]);
+  }, [loadKols, tab, typeFilter, focusFilter]);
 
   useEffect(() => {
     if (!selectedKol && !pendingReject) return undefined;
@@ -90,10 +116,38 @@ export function KolsClient(): React.ReactNode {
     try {
       const detail = await fetchAdminKolDetail(item.id, { accessToken: token });
       setSelectedKol({ ...detail, item });
+      setDraftType(detail.kol.type ?? '');
+      setDraftFocus(detail.kol.focus ?? '');
+      setCategorySaved(false);
     } catch {
       /* stay on list */
     } finally {
       setDetailLoading(false);
+    }
+  };
+
+  const handleSaveCategory = async () => {
+    if (!selectedKol) return;
+    const token = getAccessToken();
+    if (!token) return;
+    setCategorySaving(true);
+    setCategorySaved(false);
+    try {
+      const { kol } = await setKolCategory(
+        selectedKol.kol.id,
+        { type: draftType === '' ? null : draftType, focus: draftFocus === '' ? null : draftFocus },
+        { accessToken: token },
+      );
+      // Reflect the saved values in both the open modal and the list row.
+      setSelectedKol((prev) => (prev ? { ...prev, kol } : prev));
+      setItems((prev) =>
+        prev.map((it) => (it.id === kol.id ? { ...it, type: kol.type, focus: kol.focus } : it)),
+      );
+      setCategorySaved(true);
+    } catch {
+      /* swallow — keep the draft so the admin can retry */
+    } finally {
+      setCategorySaving(false);
     }
   };
 
@@ -177,6 +231,36 @@ export function KolsClient(): React.ReactNode {
         ))}
       </div>
 
+      {/* Category filters (per ADR-0053 §5) */}
+      <div className="flex flex-wrap gap-3">
+        <select
+          aria-label={t('detailType')}
+          value={typeFilter}
+          onChange={(e) => setTypeFilter(e.target.value as KolType | '')}
+          className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-white outline-none focus:border-[#00FF88]/50"
+        >
+          <option value="">{t('filterAllTypes')}</option>
+          {KOL_TYPES.map((v) => (
+            <option key={v} value={v}>
+              {t(TYPE_LABEL_KEY[v])}
+            </option>
+          ))}
+        </select>
+        <select
+          aria-label={t('detailFocus')}
+          value={focusFilter}
+          onChange={(e) => setFocusFilter(e.target.value as KolFocus | '')}
+          className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-white outline-none focus:border-[#00FF88]/50"
+        >
+          <option value="">{t('filterAllFocus')}</option>
+          {KOL_FOCUSES.map((v) => (
+            <option key={v} value={v}>
+              {t(FOCUS_LABEL_KEY[v])}
+            </option>
+          ))}
+        </select>
+      </div>
+
       {/* List */}
       {loading ? (
         <div className="flex items-center justify-center py-12">
@@ -200,7 +284,19 @@ export function KolsClient(): React.ReactNode {
             >
               <div className="flex flex-col gap-1">
                 <span className="font-medium">{kol.displayName}</span>
-                <span className="text-xs text-white/40">@{kol.slug}</span>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="text-xs text-white/40">@{kol.slug}</span>
+                  {kol.type && (
+                    <span className="rounded bg-purple-500/15 px-1.5 py-0.5 text-[10px] font-medium text-purple-300">
+                      {t(TYPE_LABEL_KEY[kol.type])}
+                    </span>
+                  )}
+                  {kol.focus && (
+                    <span className="rounded bg-blue-500/15 px-1.5 py-0.5 text-[10px] font-medium text-blue-300">
+                      {t(FOCUS_LABEL_KEY[kol.focus])}
+                    </span>
+                  )}
+                </div>
               </div>
               <div className="flex items-center gap-2">
                 <span
@@ -315,6 +411,66 @@ export function KolsClient(): React.ReactNode {
                     ))}
                   </div>
                 )}
+                {/* Category assignment (per ADR-0053 §3) */}
+                <div className="rounded-lg border border-white/10 bg-white/5 p-3">
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-white/40">
+                    {t('categoryHeading')}
+                  </p>
+                  <div className="flex flex-wrap items-end gap-3">
+                    <label className="flex flex-col gap-1 text-xs text-white/50">
+                      {t('detailType')}
+                      <select
+                        value={draftType}
+                        onChange={(e) => {
+                          setDraftType(e.target.value as KolType | '');
+                          setCategorySaved(false);
+                        }}
+                        className="rounded-lg border border-white/10 bg-black/40 px-3 py-1.5 text-sm text-white outline-none focus:border-[#00FF88]/50"
+                      >
+                        <option value="">{t('categoryUnassigned')}</option>
+                        {KOL_TYPES.map((v) => (
+                          <option key={v} value={v}>
+                            {t(TYPE_LABEL_KEY[v])}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="flex flex-col gap-1 text-xs text-white/50">
+                      {t('detailFocus')}
+                      <select
+                        value={draftFocus}
+                        onChange={(e) => {
+                          setDraftFocus(e.target.value as KolFocus | '');
+                          setCategorySaved(false);
+                        }}
+                        className="rounded-lg border border-white/10 bg-black/40 px-3 py-1.5 text-sm text-white outline-none focus:border-[#00FF88]/50"
+                      >
+                        <option value="">{t('categoryUnassigned')}</option>
+                        {KOL_FOCUSES.map((v) => (
+                          <option key={v} value={v}>
+                            {t(FOCUS_LABEL_KEY[v])}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => void handleSaveCategory()}
+                      disabled={
+                        categorySaving ||
+                        (draftType === (selectedKol.kol.type ?? '') &&
+                          draftFocus === (selectedKol.kol.focus ?? ''))
+                      }
+                      className="rounded bg-white/10 px-3 py-1.5 text-xs font-bold text-white hover:bg-white/20 disabled:opacity-40"
+                    >
+                      {categorySaving ? t('savingCategory') : t('saveCategory')}
+                    </button>
+                    {categorySaved && (
+                      <span className="text-xs text-[#00FF88]">{t('categorySaved')}</span>
+                    )}
+                  </div>
+                </div>
+
                 {selectedKol.kol.status === 'REJECTED' && selectedKol.kol.adminNote && (
                   <div className="rounded-lg border border-red-500/30 bg-red-500/5 p-3 text-sm">
                     <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-red-300">

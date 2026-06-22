@@ -966,11 +966,13 @@ export type AdminKolsResponse = {
 };
 
 export const fetchAdminKols = (
-  params?: { status?: KolStatus; limit?: number; offset?: number },
+  params?: { status?: KolStatus; type?: KolType; focus?: KolFocus; limit?: number; offset?: number },
   options?: FetchOptions,
 ): Promise<AdminKolsResponse> => {
   const query = new URLSearchParams();
   if (params?.status) query.set('status', params.status);
+  if (params?.type) query.set('type', params.type);
+  if (params?.focus) query.set('focus', params.focus);
   if (params?.limit !== undefined) query.set('limit', String(params.limit));
   if (params?.offset !== undefined) query.set('offset', String(params.offset));
   const qs = query.toString();

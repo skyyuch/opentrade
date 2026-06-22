@@ -341,7 +341,21 @@
     "detailSignals": "信号数",
     "detailFollowers": "关注者",
     "detailIamSmart": "智方便验证",
-    "detailRejectionReason": "拒绝原因（已通知申请者）"
+    "detailRejectionReason": "拒绝原因（已通知申请者）",
+    "detailType": "类型",
+    "detailFocus": "领域",
+    "typeFinancialKol": "财演",
+    "typeIndicatorVendor": "技术指标卖家",
+    "focusEquity": "股票",
+    "focusCrypto": "加密货币",
+    "focusForex": "外汇",
+    "categoryUnassigned": "未分类",
+    "filterAllTypes": "全部类型",
+    "filterAllFocus": "全部领域",
+    "categoryHeading": "分类",
+    "saveCategory": "保存分类",
+    "savingCategory": "保存中…",
+    "categorySaved": "已保存"
   },
   "broker": {
     "dashboardTitle": "我的券商",

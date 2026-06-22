@@ -341,7 +341,21 @@
     "detailSignals": "Signals",
     "detailFollowers": "Followers",
     "detailIamSmart": "iAM Smart",
-    "detailRejectionReason": "Rejection reason (shared with applicant)"
+    "detailRejectionReason": "Rejection reason (shared with applicant)",
+    "detailType": "Type",
+    "detailFocus": "Focus",
+    "typeFinancialKol": "Financial KOL",
+    "typeIndicatorVendor": "Indicator vendor",
+    "focusEquity": "Equity",
+    "focusCrypto": "Crypto",
+    "focusForex": "Forex",
+    "categoryUnassigned": "Unassigned",
+    "filterAllTypes": "All types",
+    "filterAllFocus": "All focus",
+    "categoryHeading": "Category",
+    "saveCategory": "Save category",
+    "savingCategory": "Saving…",
+    "categorySaved": "Saved"
   },
   "broker": {
     "dashboardTitle": "My broker",
