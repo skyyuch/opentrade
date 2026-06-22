@@ -177,6 +177,8 @@ feat(api): add review submission endpoint
 - 安全 / 合約相關：至少 2 位
 - 跨 domain 改動：對應 domain owner
 
+> **Solo 階段例外（[ADR-0054](mdc:docs/decisions/0054-solo-stage-admin-merge.md)）**：專案目前只有 owner 一個人類貢獻者，無第二位 reviewer 可滿足 branch protection 的 required-review gate。此階段「至少 1 位 reviewer」由 **owner 明確授權 merge** 滿足，owner 可用 `gh pr merge --squash --admin` 清掉 review gate。**前提不變**：CI 必須全綠（不可繞 CI）、只 squash-merge、不 force-push main、`contracts`/security/`infra` 改動仍需 owner 逐項審視、**AI agent 永不自行決定 admin-merge**（需 owner 當下授權，merge 永遠是人類動作）。第二位 reviewer 加入即 sunset，回復本節原規則。
+
 ---
 
 ## CODEOWNERS
@@ -234,7 +236,7 @@ feat(api): add review submission endpoint
 - ❌ Commit 私鑰、API key
 - ❌ 改別人的 commit history（rewrite shared branch）
 - ❌ PR 沒寫 description
-- ❌ 跳過 review 自己 merge（緊急 hotfix 需事後 ADR）
+- ❌ 跳過 review 自己 merge（緊急 hotfix 需事後 ADR；**solo 階段例外見 ADR-0054**）
 - ❌ Commit message 用中文
 
 ---
