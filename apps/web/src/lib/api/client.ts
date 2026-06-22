@@ -1009,6 +1009,10 @@ export const fetchMyKolProfile = (
 export type ApplyKolInput = {
   displayName: string;
   bio?: string;
+  // Per ADR-0053 §3: optional self-declared category dimensions captured at
+  // onboarding. Omitting leaves them null for later admin assignment.
+  type?: KolType;
+  focus?: KolFocus;
   socialLinks?: {
     youtube?: string;
     instagram?: string;
