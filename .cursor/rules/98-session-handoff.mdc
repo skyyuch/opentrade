@@ -56,6 +56,24 @@ alwaysApply: true
 
 ---
 
+## 自動化路徑：cursor-conductor（ADR-0052）
+
+本條規則描述的是**人為手動 handoff**（agent 提醒 → 使用者複製新 prompt 開新 chat）。
+這個流程已可由外部工具 **`cursor-conductor`** 自動化（見 [ADR-0052](mdc:docs/decisions/0052-bounded-autonomous-orchestrator.md)）：
+
+- 每個原子單元跑在**全新 agent session**（= 真 handoff，context 不過載，與本規則同哲學）
+- context 不靠 agent 記憶傳遞，而是靠 **repo 本身（code + `docs/03-status.md`）** —— 與本規則 Step 1/Step 5 一致
+- 圍欄內自動接力（feature branch only、碰 ADR/contracts/security/infra 硬停）
+- 中途需使用者決策時，透過 **Telegram** 問答後 `resume` 續跑
+
+何時用哪個：
+- **互動式開發 / 探索 / 架構討論** → 維持本規則的人為 handoff
+- **已拆好的、圍欄內的執行型工作（連續多單元）** → 可交給 conductor 自動跑
+
+conductor 為**專案外工具**（獨立 repo），OpenTrade repo 零足跡；它不取代本規則，而是把本規則的「換手」動作機械化。
+
+---
+
 ## Handoff 動作（使用者同意後執行）
 
 依序進行：
