@@ -175,6 +175,25 @@ model Instrument {
 - ❌ 不 review 直接執行 migration
 - ❌ Drop column 不分階段（先 deprecate → 兩個 release 後才 drop）
 
+### 向後相容（expand/contract）— 自動 migrate gate 的前提（ADR-0051）
+
+UAT/PRD 的 `deploy.yml` 有 **migrate gate**：每次部署**先**自動跑
+`prisma migrate deploy`，成功才滾動服務（ADR-0051）。這消除了「新碼對上未
+migrate 的 schema」破窗，但 migrate 與 rollout 之間仍有數秒「舊碼對上新
+schema」的視窗。因此：
+
+- ✅ migration **預設必須向後相容**：正在線上的舊版程式碼在 migration 套用
+  後仍能正常讀寫（純 additive column、`ADD VALUE`、加 index 都安全）。
+- ❌ **非向後相容的 DDL 不可一步到位** —— enum `RENAME VALUE`、column
+  `RENAME`/`DROP`、`NOT NULL` 收緊，舊碼在新 schema 下會炸。必須走
+  **expand/contract** 分兩次部署：
+  1. **expand**：加新（新 enum value / 新 column），部署能同時讀新舊的碼
+  2. **backfill**：用獨立 backfill script 搬資料（見 §Backfill Scripts）
+  3. **contract**：確認沒有舊碼在線後，下一次部署才移除舊的
+- ⚠️ 教訓（2026-06-21，ADR-0050 → ADR-0051）：`HK_CGSE → HK_HKGX` 用一步
+  `RENAME VALUE` + 半套部署（前端先上、DB 未 migrate）造成 `/v1/brokers`
+  全 500。gate 修掉了「新碼/舊 schema」這半邊；另一半要靠這條紀律。
+
 ---
 
 ## Repository Pattern

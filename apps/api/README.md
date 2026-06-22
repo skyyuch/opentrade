@@ -156,6 +156,14 @@ shape it was compiled against.
    with the new task definition; the `/v1/health` HEALTHCHECK gates
    traffic.
 
+For UAT, steps 1 and 4 are automated: the `deploy.yml` migrate gate runs
+`prisma migrate deploy` before any service rollout, blocking the rollout on a
+failed migration (ADR-0051). It does **not** run seeds or backfills — those
+stay explicit. One-time data fixes (not part of `db:backfill:prod`, e.g.
+`db:backfill:bullion-slugs` for the HKGX rebrand) are listed under
+[`packages/db/README.md` → One-time data fixes](../../packages/db/README.md#one-time-data-fixes-not-in-dbbackfillprod)
+and run owner-local in-VPC via the migrate task command override (ADR-0049).
+
 ## Endpoints
 
 | Method | Path         | Auth   | Purpose                                |

@@ -37,6 +37,7 @@
     "db:backfill:zh-hans": "dotenv -e ../../.env -- tsx scripts/backfill-zh-hans.ts",
     "db:backfill:source-locale": "dotenv -e ../../.env -- tsx scripts/backfill-source-locale.ts",
     "db:backfill:sentiment": "dotenv -e ../../.env -- tsx scripts/backfill-sentiment.ts",
+    "db:backfill:bullion-slugs": "dotenv -e ../../.env -- tsx scripts/backfill-bullion-slugs.ts",
     "db:backfill:prod": "pnpm db:backfill:zh-hans && pnpm db:backfill:source-locale && pnpm db:backfill:sentiment",
     "fetch:sfc": "tsx scripts/fetch-sfc-brokers.ts",
     "fetch:hkgx": "tsx scripts/fetch-hkgx-members.ts",

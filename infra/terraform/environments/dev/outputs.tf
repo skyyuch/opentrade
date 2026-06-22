@@ -133,6 +133,11 @@ output "github_deploy_role_arn" {
   value       = module.github_deploy.role_arn
 }
 
+output "github_migrate_role_arn" {
+  description = "GitHub Actions migration role ARN (ADR-0051). Set as the AWS_MIGRATE_ROLE_ARN repository variable after apply; the deploy.yml migrate gate assumes it and the app rollout jobs depend on it, so deploy stays gated until it exists."
+  value       = module.github_deploy.migrate_role_arn
+}
+
 output "assets_cdn_url" {
   description = "CloudFront URL for static assets (logos, avatars). Used by the logo crawl script."
   value       = module.assets_cdn.cloudfront_url
