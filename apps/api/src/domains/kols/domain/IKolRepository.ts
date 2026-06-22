@@ -11,6 +11,7 @@ import type {
   KolTypeValue,
   KolFocusValue,
   ApplyKolInput,
+  UpdateKolCategoryInput,
 } from './KolEntity.js';
 
 export type KolListOptions = {
@@ -57,4 +58,12 @@ export type IKolRepository = {
       socialLinks?: Record<string, string>;
     },
   ): Promise<KolRecord>;
+
+  /**
+   * Per ADR-0053 §3: set or clear the KOL's category dimensions (`type` /
+   * `focus`). Pure off-chain discovery metadata — no outbox event, no on-chain
+   * effect (ADR-0053 Consequences §Neutral). Only the keys present in
+   * `updates` are written; a present `null` clears that dimension.
+   */
+  updateCategory(id: string, updates: UpdateKolCategoryInput): Promise<KolRecord>;
 };

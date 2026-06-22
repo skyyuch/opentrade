@@ -22,6 +22,7 @@ import { useOpenTradeAuth } from '../../../../hooks/useOpenTradeAuth';
 import { Link } from '../../../../i18n/navigation';
 import { applyKol, fetchMyKolProfile, ApiClientError } from '../../../../lib/api/client';
 
+import type { KolFocus, KolType } from '../../../../lib/api/client';
 import type { ReactNode } from 'react';
 
 type KolApplicationStatus = 'NOT_STARTED' | 'PENDING' | 'APPROVED' | 'REJECTED';
@@ -46,6 +47,8 @@ export default function KolOnboardingPage(): ReactNode {
   const [bio, setBio] = useState('');
   const [twitter, setTwitter] = useState('');
   const [youtube, setYoutube] = useState('');
+  const [kolType, setKolType] = useState<KolType | ''>('');
+  const [kolFocus, setKolFocus] = useState<KolFocus | ''>('');
   const [licenseType, setLicenseType] = useState('');
   const [agreed, setAgreed] = useState(false);
 
@@ -108,6 +111,8 @@ export default function KolOnboardingPage(): ReactNode {
       if (licenseType) {
         input.credentials = [{ type: licenseType, verified: false as const }];
       }
+      if (kolType) input.type = kolType;
+      if (kolFocus) input.focus = kolFocus;
 
       await applyKol(input, { accessToken: token });
       setAppStatus('PENDING');
@@ -124,7 +129,7 @@ export default function KolOnboardingPage(): ReactNode {
     } finally {
       setSubmitting(false);
     }
-  }, [getAccessToken, displayName, bio, youtube, twitter, licenseType, t]);
+  }, [getAccessToken, displayName, bio, youtube, twitter, kolType, kolFocus, licenseType, t]);
 
   if (loading) {
     return (
@@ -345,6 +350,39 @@ export default function KolOnboardingPage(): ReactNode {
                 />
               </div>
             </div>
+
+            {/* Category dimensions (per ADR-0053 §3) */}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div>
+                <label className="mb-2 block text-sm font-bold text-white/70">
+                  {t('onboardingType')}
+                </label>
+                <select
+                  value={kolType}
+                  onChange={(e) => setKolType(e.target.value as KolType | '')}
+                  className="w-full cursor-pointer appearance-none rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-sm text-white transition-colors focus:border-purple-400 focus:outline-none"
+                >
+                  <option value="">{t('onboardingTypeSelect')}</option>
+                  <option value="FINANCIAL_KOL">{t('onboardingTypeFinancialKol')}</option>
+                  <option value="INDICATOR_VENDOR">{t('onboardingTypeIndicatorVendor')}</option>
+                </select>
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-bold text-white/70">
+                  {t('onboardingFocus')}
+                </label>
+                <select
+                  value={kolFocus}
+                  onChange={(e) => setKolFocus(e.target.value as KolFocus | '')}
+                  className="w-full cursor-pointer appearance-none rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-sm text-white transition-colors focus:border-purple-400 focus:outline-none"
+                >
+                  <option value="">{t('onboardingFocusSelect')}</option>
+                  <option value="EQUITY">{t('onboardingFocusEquity')}</option>
+                  <option value="CRYPTO">{t('onboardingFocusCrypto')}</option>
+                  <option value="FOREX">{t('onboardingFocusForex')}</option>
+                </select>
+              </div>
+            </div>
           </div>
 
           <div className="flex justify-between border-t border-white/10 pt-6">
@@ -447,6 +485,28 @@ export default function KolOnboardingPage(): ReactNode {
               <li className="flex justify-between border-b border-white/5 pb-2">
                 <span className="text-white/50">{t('onboardingDisplayName')}</span>
                 <span className="font-bold text-white">{displayName || '—'}</span>
+              </li>
+              <li className="flex justify-between border-b border-white/5 pb-2">
+                <span className="text-white/50">{t('onboardingSummaryType')}</span>
+                <span className="font-bold text-white">
+                  {kolType === 'FINANCIAL_KOL'
+                    ? t('onboardingTypeFinancialKol')
+                    : kolType === 'INDICATOR_VENDOR'
+                      ? t('onboardingTypeIndicatorVendor')
+                      : t('onboardingSummaryNone')}
+                </span>
+              </li>
+              <li className="flex justify-between border-b border-white/5 pb-2">
+                <span className="text-white/50">{t('onboardingSummaryFocus')}</span>
+                <span className="font-bold text-white">
+                  {kolFocus === 'EQUITY'
+                    ? t('onboardingFocusEquity')
+                    : kolFocus === 'CRYPTO'
+                      ? t('onboardingFocusCrypto')
+                      : kolFocus === 'FOREX'
+                        ? t('onboardingFocusForex')
+                        : t('onboardingSummaryNone')}
+                </span>
               </li>
               <li className="flex justify-between pb-2">
                 <span className="text-white/50">{t('onboardingSummaryLicense')}</span>

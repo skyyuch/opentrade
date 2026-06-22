@@ -341,7 +341,21 @@
     "detailSignals": "訊號數",
     "detailFollowers": "追蹤者",
     "detailIamSmart": "智方便驗證",
-    "detailRejectionReason": "拒絕原因（已通知申請者）"
+    "detailRejectionReason": "拒絕原因（已通知申請者）",
+    "detailType": "類型",
+    "detailFocus": "領域",
+    "typeFinancialKol": "財演",
+    "typeIndicatorVendor": "技術指標賣家",
+    "focusEquity": "股票",
+    "focusCrypto": "加密貨幣",
+    "focusForex": "外匯",
+    "categoryUnassigned": "未分類",
+    "filterAllTypes": "全部類型",
+    "filterAllFocus": "全部領域",
+    "categoryHeading": "分類",
+    "saveCategory": "儲存分類",
+    "savingCategory": "儲存中…",
+    "categorySaved": "已儲存"
   },
   "broker": {
     "dashboardTitle": "我的券商",

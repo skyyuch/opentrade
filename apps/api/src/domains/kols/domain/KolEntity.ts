@@ -65,11 +65,31 @@ export type ApplyKolInput = {
   bio?: string;
   socialLinks?: SocialLinks;
   credentials?: CredentialEntry[];
+  /**
+   * Per ADR-0053 §3: an applicant may self-declare their category dimensions
+   * during onboarding. Optional — omitting leaves the column null ("未分類")
+   * for an admin to assign later. Admin can still override post-application
+   * via `updateCategory`.
+   */
+  type?: KolTypeValue;
+  focus?: KolFocusValue;
 };
 
 export type ClaimKolInput = {
   userId: string;
   kolId: string;
+};
+
+/**
+ * Per ADR-0053 Implementation Notes §3: the per-row category assignment an
+ * admin makes (set or override) on the console KOL management screen. Both
+ * dimensions are independently settable and explicitly nullable so an admin
+ * can clear a previously-assigned value back to the "未分類" state. A field
+ * left `undefined` is not touched; an explicit `null` clears it.
+ */
+export type UpdateKolCategoryInput = {
+  type?: KolTypeValue | null;
+  focus?: KolFocusValue | null;
 };
 
 export type KolRecord = {
