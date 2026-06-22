@@ -88,4 +88,14 @@ describe('ApplyKolUseCase', () => {
 
     expect(repo.create).toHaveBeenCalledWith(input);
   });
+
+  it('passes self-declared category dimensions to the repository (ADR-0053)', async () => {
+    const input = fixtureInput({ type: 'FINANCIAL_KOL', focus: 'CRYPTO' });
+    repo.findByUserId.mockResolvedValue(null);
+    repo.create.mockResolvedValue(fixtureRecord({ type: 'FINANCIAL_KOL', focus: 'CRYPTO' }));
+
+    await useCase.execute(input);
+
+    expect(repo.create).toHaveBeenCalledWith(input);
+  });
 });
