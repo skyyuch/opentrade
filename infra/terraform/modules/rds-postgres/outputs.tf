@@ -28,6 +28,11 @@ output "master_password_secret_arn" {
   value       = one(aws_db_instance.this.master_user_secret[*].secret_arn)
 }
 
+output "master_password_secret_kms_key_arn" {
+  description = "KMS key ARN encrypting the RDS-managed master password secret. The ECS task execution role needs kms:Decrypt on it to inject the password at launch (ADR-0056)."
+  value       = one(aws_db_instance.this.master_user_secret[*].kms_key_id)
+}
+
 output "security_group_id" {
   description = "Security group attached to the Postgres instance. Pass into the apps/api ECS service SG to allow ingress."
   value       = aws_security_group.this.id
