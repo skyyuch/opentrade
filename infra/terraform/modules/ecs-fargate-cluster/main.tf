@@ -93,6 +93,19 @@ data "aws_iam_policy_document" "task_execution_extras" {
       resources = var.task_role_managed_secret_arns
     }
   }
+
+  # Decrypt secrets encrypted with a customer-managed KMS key at launch. The
+  # RDS-managed master password secret uses such a key, so injecting its
+  # `password` into DB_PASSWORD requires kms:Decrypt here (ADR-0056).
+  dynamic "statement" {
+    for_each = length(var.task_exec_kms_decrypt_key_arns) > 0 ? [1] : []
+    content {
+      sid       = "DecryptInjectedSecretKeys"
+      effect    = "Allow"
+      actions   = ["kms:Decrypt"]
+      resources = var.task_exec_kms_decrypt_key_arns
+    }
+  }
 }
 
 resource "aws_iam_role_policy" "task_execution_extras" {

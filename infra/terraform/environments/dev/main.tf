@@ -130,6 +130,11 @@ module "ecs" {
     [module.rds.master_password_secret_arn],
   )
 
+  # ADR-0056: ECS injects DB_PASSWORD from the RDS-managed secret, which is
+  # encrypted with a customer-managed KMS key — the execution role needs
+  # kms:Decrypt on it to fetch the secret at task launch.
+  task_exec_kms_decrypt_key_arns = [module.rds.master_password_secret_kms_key_arn]
+
   # apps/api admin logo/avatar upload writes into the assets bucket.
   task_role_s3_write_bucket_arns = [module.assets_cdn.bucket_arn]
 }
@@ -225,7 +230,11 @@ module "service_console" {
 
 locals {
   api_secret_env = {
-    DATABASE_URL                = module.app_secrets.secret_arns["opentrade/dev/database-url"]
+    # ADR-0056: DB password comes from the RDS-managed secret's `password` JSON
+    # key (single source of truth). The container entrypoint composes
+    # DATABASE_URL from this + the DB_* plain env below, so the hand-filled
+    # `database-url` secret is gone — no more drift on RDS password rotation.
+    DB_PASSWORD                 = "${module.rds.master_password_secret_arn}:password::"
     PRIVY_APP_ID                = module.app_secrets.secret_arns["opentrade/dev/privy-app-id"]
     PRIVY_APP_SECRET            = module.app_secrets.secret_arns["opentrade/dev/privy-app-secret"]
     PRIVY_VERIFICATION_KEY      = module.app_secrets.secret_arns["opentrade/dev/privy-verification-key"]
@@ -247,6 +256,13 @@ locals {
     ASSETS_BUCKET_NAME = module.assets_cdn.bucket_name
     ASSETS_CDN_URL     = module.assets_cdn.cloudfront_url
     CHAIN_RPC_URL      = var.chain_rpc_url
+
+    # ADR-0056: non-secret DB connection parts. The container entrypoint
+    # combines these with the injected DB_PASSWORD into DATABASE_URL.
+    DB_USERNAME = module.rds.db_username
+    DB_HOST     = module.rds.db_address
+    DB_PORT     = tostring(module.rds.db_port)
+    DB_NAME     = module.rds.db_name
   }
 }
 
