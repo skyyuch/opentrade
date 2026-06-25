@@ -149,6 +149,11 @@ FROM builder AS migrate
 
 WORKDIR /workspace/packages/db
 
+# Same entrypoint as runtime (ADR-0056): composes DATABASE_URL from the
+# RDS-managed secret's password + DB_* env when DATABASE_URL is unset.
+COPY --chmod=0755 apps/api/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
+
 # `prisma migrate deploy` applies pending migrations idempotently; the seed
 # upserts are idempotent too (ADR-0048 D3), so re-running this task is safe.
 CMD ["sh", "-c", "pnpm exec prisma migrate deploy && pnpm exec tsx scripts/seed.ts"]
@@ -179,6 +184,11 @@ WORKDIR /app
 
 COPY --from=builder --chown=opentrade:opentrade /deploy ./
 
+# Entrypoint composes DATABASE_URL from the RDS-managed secret's password +
+# DB_* env at launch (ADR-0056); copied as root so it stays root-owned and
+# world-executable for the non-root runtime user.
+COPY --chmod=0755 apps/api/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+
 USER opentrade
 
 EXPOSE 4000
@@ -190,5 +200,7 @@ EXPOSE 4000
 # this image.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
   CMD node -e "fetch('http://127.0.0.1:' + (process.env.PORT || process.env.SERVER_PORT || 4000) + '/v1/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
+
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 
 CMD ["node", "dist/main.js"]
