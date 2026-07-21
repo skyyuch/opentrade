@@ -990,6 +990,95 @@ export const fetchNews = (
   return apiGet<NewsResponse>(`/v1/news${qs ? `?${qs}` : ''}`, options);
 };
 
+// ---------------------------------------------------------------------------
+// Economic calendar (per ADR-0058)
+//
+// A chronological calendar of official macroeconomic releases. The compliance
+// contract (ADR-0058 D1) means an event carries ONLY facts published by the
+// statistical authority itself — indicator name / release time / region /
+// covered period / previous value / post-release actual value / official
+// link. NEVER a forecast or consensus value, NEVER an impact/importance
+// rating. `region` / `category` are filters only, never a ranking axis.
+// The DTO mirrors `EconomicEventDto` in apps/api's calendar domain (apps may
+// not import from other apps, rule 10 — same discipline as `NewsItem`).
+// ---------------------------------------------------------------------------
+
+export type EconomicRegion = 'US' | 'HK' | 'CN';
+
+export const ECONOMIC_REGIONS = ['US', 'HK', 'CN'] as const satisfies readonly EconomicRegion[];
+
+export type EconomicCategory =
+  | 'INFLATION'
+  | 'GROWTH'
+  | 'EMPLOYMENT'
+  | 'RATE_DECISION'
+  | 'TRADE'
+  | 'OTHER';
+
+export const ECONOMIC_CATEGORIES = [
+  'INFLATION',
+  'GROWTH',
+  'EMPLOYMENT',
+  'RATE_DECISION',
+  'TRADE',
+  'OTHER',
+] as const satisfies readonly EconomicCategory[];
+
+export type EconomicEventItem = {
+  id: string;
+  indicatorCode: string;
+  nameZhHant: string;
+  nameZhHans: string;
+  nameEn: string;
+  region: EconomicRegion;
+  category: EconomicCategory;
+  /** ISO-8601 UTC release timestamp — the sole ordering key (ADR-0058 D1). */
+  scheduledAt: string;
+  /** The covered period, e.g. "2026-06" / "2026 Q2". */
+  periodLabel: string;
+  /** Decimal-as-string; null when the authority published no previous figure. */
+  previousValue: string | null;
+  /** Decimal-as-string; null until the authority releases the figure (D3). */
+  actualValue: string | null;
+  unit: string;
+  sourceName: string;
+  /** Canonical link to the official release page (outbound, D1). */
+  sourceUrl: string;
+};
+
+export type CalendarResponse = {
+  items: EconomicEventItem[];
+  nextCursor: string | null;
+};
+
+/**
+ * Fetch economic-calendar events (`GET /v1/calendar`, public — no auth).
+ * Chronological by `scheduledAt` (earliest first), cursor-paginated.
+ * `from` / `to` bound the window (ISO strings); `region` / `category` filter.
+ * `limit` is clamped server-side to [1, 100] (default 50).
+ */
+export const fetchCalendar = (
+  params?: {
+    from?: string;
+    to?: string;
+    region?: EconomicRegion;
+    category?: EconomicCategory;
+    limit?: number;
+    cursor?: string;
+  },
+  options?: FetchOptions,
+): Promise<CalendarResponse> => {
+  const query = new URLSearchParams();
+  if (params?.from) query.set('from', params.from);
+  if (params?.to) query.set('to', params.to);
+  if (params?.region) query.set('region', params.region);
+  if (params?.category) query.set('category', params.category);
+  if (params?.limit !== undefined) query.set('limit', String(params.limit));
+  if (params?.cursor) query.set('cursor', params.cursor);
+  const qs = query.toString();
+  return apiGet<CalendarResponse>(`/v1/calendar${qs ? `?${qs}` : ''}`, options);
+};
+
 export type KolProfileResponse = {
   kol: KolListItem;
   signalCount: number;
