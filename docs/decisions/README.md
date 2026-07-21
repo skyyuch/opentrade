@@ -140,6 +140,8 @@ YYYY-MM-DD
 | 0053 | Add a filterable KOL category as two `Kol` dimensions (type + focus)                         | Accepted                   | 2026-06-22 |
 | 0054 | Solo-stage self-review with admin merge (clarifies rule 70 review requirement)               | Accepted                   | 2026-06-22 |
 | 0055 | Telegram-driven spec/ADR drafting then owner ratification before grind (amends 0052)         | Accepted                   | 2026-06-22 |
+| 0056 | Compose DATABASE_URL from the RDS-managed secret at container start (amends 0046 D9, 0048)   | Accepted                   | 2026-06-25 |
+| 0057 | Third-party financial-news aggregation — headline-only, chronological, via curated RSS       | Accepted                   | 2026-07-01 |
 
 ---
 
