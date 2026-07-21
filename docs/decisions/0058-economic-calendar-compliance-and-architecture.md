@@ -2,10 +2,11 @@
 
 ## Status
 
-Proposed (drafted 2026-07-21 via plan approval; awaiting owner ratification per
-[ADR-0055](./0055-telegram-driven-spec-then-ratify.md) before any product code is
-written). Data-source choice (official statistical authorities) is the MVP path;
-a third-party aggregated economic-calendar API is deferred (see D2 / Alternatives).
+Accepted (drafted 2026-07-21 via plan approval as Proposed; ratified by the
+owner on 2026-07-21 per the [ADR-0055](./0055-telegram-driven-spec-then-ratify.md)
+spec-then-ratify gate). Data-source choice (official statistical authorities) is
+the MVP path; a third-party aggregated economic-calendar API is deferred (see
+D2 / Alternatives).
 
 ## Date
 
