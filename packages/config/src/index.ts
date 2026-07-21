@@ -10,6 +10,7 @@
  *   - `@opentrade/config/chains`    — chain definitions (viem)
  *   - `@opentrade/config/contracts` — contract address registry
  *   - `@opentrade/config/locales`   — i18n locale list
+ *   - `@opentrade/config/news`      — curated financial-news RSS feed registry
  */
 
 export const PACKAGE_NAME = '@opentrade/config' as const;
@@ -22,3 +23,6 @@ export type { ContractAddresses } from './contracts.js';
 
 export { defaultLocale, supportedLocales, isSupportedLocale } from './locales.js';
 export type { SupportedLocale } from './locales.js';
+
+export { NEWS_FEED_SOURCES, enabledNewsFeeds } from './news.js';
+export type { NewsFeedSource } from './news.js';

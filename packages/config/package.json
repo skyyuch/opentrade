@@ -22,6 +22,10 @@
     "./locales": {
       "types": "./src/locales.ts",
       "default": "./src/locales.ts"
+    },
+    "./news": {
+      "types": "./src/news.ts",
+      "default": "./src/news.ts"
     }
   },
   "files": [
