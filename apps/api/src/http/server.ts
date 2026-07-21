@@ -20,6 +20,7 @@ import { cors } from 'hono/cors';
 
 import { adminRouter } from '../domains/admin/index.js';
 import { brokersRouter } from '../domains/brokers/index.js';
+import { calendarRouter } from '../domains/calendar/index.js';
 import { complaintsRouter } from '../domains/complaints/index.js';
 import { feedRouter } from '../domains/feed/index.js';
 import { healthRouter } from '../domains/health/index.js';
@@ -78,6 +79,7 @@ export const createServer = (): Hono<AppHonoEnv> => {
   app.route('/v1/signals', signalsRouter);
   app.route('/v1/instruments', instrumentsRouter);
   app.route('/v1/news', newsRouter);
+  app.route('/v1/calendar', calendarRouter);
   app.route('/v1/notes', notesRouter);
   app.route('/v1/moderation', moderationPublicRouter);
   app.route('/v1/admin', adminRouter);
