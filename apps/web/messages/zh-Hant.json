@@ -105,6 +105,7 @@
     "loadMore": "載入更多",
     "empty": "目前沒有新聞。",
     "error": "暫時無法載入新聞，請稍後再試。",
+    "calendarCta": "查看財經日曆",
     "disclaimer": "本頁新聞為第三方來源之標題聚合，僅供資訊參考，不構成任何投資建議；OpenTrade 不對外部內容負責。"
   },
   "calendar": {

@@ -34,6 +34,12 @@ export const Footer = (): ReactNode => {
               <Link href="/news" className="text-sm text-muted-foreground hover:text-foreground">
                 {t('news')}
               </Link>
+              <Link
+                href="/calendar"
+                className="text-sm text-muted-foreground hover:text-foreground"
+              >
+                {t('calendar')}
+              </Link>
               <Link href="/verify" className="text-sm text-muted-foreground hover:text-foreground">
                 {t('verify')}
               </Link>

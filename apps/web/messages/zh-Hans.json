@@ -105,6 +105,7 @@
     "loadMore": "载入更多",
     "empty": "目前没有新闻。",
     "error": "暂时无法载入新闻，请稍后再试。",
+    "calendarCta": "查看财经日历",
     "disclaimer": "本页新闻为第三方来源之标题聚合，仅供资讯参考，不构成任何投资建议；OpenTrade 不对外部内容负责。"
   },
   "calendar": {

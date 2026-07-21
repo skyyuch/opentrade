@@ -105,6 +105,7 @@
     "loadMore": "Load more",
     "empty": "No news yet.",
     "error": "News is temporarily unavailable. Please try again later.",
+    "calendarCta": "View the economic calendar",
     "disclaimer": "Headlines on this page are aggregated from third-party sources for information only and do not constitute investment advice; OpenTrade is not responsible for external content."
   },
   "calendar": {

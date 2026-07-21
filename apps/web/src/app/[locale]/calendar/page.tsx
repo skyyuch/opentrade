@@ -1,9 +1,10 @@
 import { ArrowRight } from 'lucide-react';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 
-import { NewsList } from '@/components/news/NewsList';
+import { CalendarList } from '@/components/calendar/CalendarList';
 import { Link } from '@/i18n/navigation';
-import { ApiClientError, fetchNews } from '@/lib/api/client';
+import { ApiClientError, fetchCalendar } from '@/lib/api/client';
+import { calendarWindow } from '@/lib/calendarWindow';
 
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
@@ -12,29 +13,35 @@ type Props = { params: Promise<{ locale: string }> };
 
 export const generateMetadata = async (props: Props): Promise<Metadata> => {
   const params = await props.params;
-  const t = await getTranslations({ locale: params.locale, namespace: 'news' });
+  const t = await getTranslations({ locale: params.locale, namespace: 'calendar' });
   return {
     title: `${t('title')} | OpenTrade`,
     description: t('subtitle'),
   };
 };
 
-const NewsPage = async (props: Props): Promise<ReactNode> => {
+const CalendarPage = async (props: Props): Promise<ReactNode> => {
   const params = await props.params;
   setRequestLocale(params.locale);
 
-  const t = await getTranslations('news');
+  const t = await getTranslations('calendar');
 
-  let items: Awaited<ReturnType<typeof fetchNews>>['items'] = [];
+  let items: Awaited<ReturnType<typeof fetchCalendar>>['items'] = [];
   let nextCursor: string | null = null;
   let error: string | null = null;
 
   try {
-    const data = await fetchNews({ limit: 30 }, { next: { revalidate: 300 } });
+    // Seed the default view: the current HK week, chronological, no filters
+    // (matches CalendarList's initial state — ADR-0058 D1/D7).
+    const window = calendarWindow('week', new Date());
+    const data = await fetchCalendar(
+      { from: window.from, to: window.to, limit: 50 },
+      { next: { revalidate: 300 } },
+    );
     items = data.items;
     nextCursor = data.nextCursor;
   } catch (err) {
-    error = err instanceof ApiClientError ? err.message : 'Failed to fetch news';
+    error = err instanceof ApiClientError ? err.message : 'Failed to fetch calendar';
   }
 
   return (
@@ -57,16 +64,16 @@ const NewsPage = async (props: Props): Promise<ReactNode> => {
             {t('error')}
           </div>
         ) : (
-          <NewsList initialItems={items} initialCursor={nextCursor} />
+          <CalendarList initialItems={items} initialCursor={nextCursor} />
         )}
 
-        {/* News → calendar cross-link (ADR-0058 D8: light linking, no per-event tagging) */}
+        {/* Calendar → news cross-link (ADR-0058 D8: light linking, no per-event tagging) */}
         <div className="mt-10">
           <Link
-            href="/calendar"
+            href="/news"
             className="inline-flex items-center gap-2 text-sm font-medium text-[#00FF88]/80 transition-colors hover:text-[#00FF88]"
           >
-            {t('calendarCta')}
+            {t('newsCta')}
             <ArrowRight size={14} />
           </Link>
         </div>
@@ -79,4 +86,4 @@ const NewsPage = async (props: Props): Promise<ReactNode> => {
   );
 };
 
-export default NewsPage;
+export default CalendarPage;
