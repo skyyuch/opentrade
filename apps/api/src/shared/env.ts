@@ -183,6 +183,15 @@ const envSchema = z.object({
   DEEPL_API_KEY: z.string().optional(),
 
   /**
+   * FRED (Federal Reserve Bank of St. Louis) API key for the calendar-fetcher
+   * task (ADR-0058 D2). Free key from https://fredaccount.stlouisfed.org/apikeys.
+   * Per rule 50 the value lives in AWS Secrets Manager (never hard-coded); the
+   * slot is optional so the API still boots without it — when unset the
+   * calendar-fetcher simply has no provider and stays inert.
+   */
+  FRED_API_KEY: z.string().optional(),
+
+  /**
    * S3 bucket for static assets (logos, avatars). Used by admin upload
    * endpoints. Bucket is `opentrade-dev-assets-{account_id}` per terraform.
    */
