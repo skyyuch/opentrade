@@ -18,6 +18,7 @@ import { PrismaSignalRepository } from './domains/signals/infrastructure/PrismaS
 import { createServer } from './http/server.js';
 import { env } from './shared/env.js';
 import { logger } from './shared/observability/logger.js';
+import { NewsFetcher, RssFeedProvider } from './tasks/news-fetcher/index.js';
 import { PriceRecorder, YahooFinanceProvider } from './tasks/price-recorder/index.js';
 import { SettleWorker } from './tasks/settle-worker.js';
 
@@ -60,12 +61,25 @@ const settleWorker = new SettleWorker(prisma, signalRepo, {
   intervalMs: 5 * 60 * 1000, // 5 minutes
 });
 
+// News Fetcher (per ADR-0057): polls curated RSS feeds and upserts headlines
+// into the news_items cache that GET /v1/news reads.
+const newsFetcher = new NewsFetcher(prisma, {
+  intervalMs: 15 * 60 * 1000, // 15 minutes
+  provider: new RssFeedProvider(),
+});
+
 priceRecorder.start();
 settleWorker.start();
+newsFetcher.start();
 
 logger.info(
-  { event: 'workers.started', priceRecorderInterval: '1h', settleWorkerInterval: '5m' },
-  'Background workers started (PriceRecorder + SettleWorker)',
+  {
+    event: 'workers.started',
+    priceRecorderInterval: '1h',
+    settleWorkerInterval: '5m',
+    newsFetcherInterval: '15m',
+  },
+  'Background workers started (PriceRecorder + SettleWorker + NewsFetcher)',
 );
 
 /**
@@ -78,6 +92,7 @@ const shutdown = (signal: NodeJS.Signals): void => {
 
   priceRecorder.stop();
   settleWorker.stop();
+  newsFetcher.stop();
 
   server.close((err) => {
     void prisma.$disconnect().then(() => {
