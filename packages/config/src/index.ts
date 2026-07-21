@@ -11,6 +11,7 @@
  *   - `@opentrade/config/contracts` — contract address registry
  *   - `@opentrade/config/locales`   — i18n locale list
  *   - `@opentrade/config/news`      — curated financial-news RSS feed registry
+ *   - `@opentrade/config/calendar`  — economic-calendar official-source registry
  */
 
 export const PACKAGE_NAME = '@opentrade/config' as const;
@@ -26,3 +27,6 @@ export type { SupportedLocale } from './locales.js';
 
 export { NEWS_FEED_SOURCES, enabledNewsFeeds } from './news.js';
 export type { NewsFeedSource } from './news.js';
+
+export { CALENDAR_INDICATOR_SOURCES, enabledCalendarIndicators } from './calendar.js';
+export type { CalendarCategory, CalendarIndicatorSource, CalendarRegion } from './calendar.js';

@@ -26,6 +26,10 @@
     "./news": {
       "types": "./src/news.ts",
       "default": "./src/news.ts"
+    },
+    "./calendar": {
+      "types": "./src/calendar.ts",
+      "default": "./src/calendar.ts"
     }
   },
   "files": [
