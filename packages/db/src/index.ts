@@ -30,6 +30,8 @@ export { getDbEnv, type DbEnv } from './env.js';
 export {
   AssetClass,
   BrokerCategory,
+  EconomicCategory,
+  EconomicRegion,
   KolFocus,
   KolStatus,
   KolType,
@@ -51,6 +53,7 @@ export {
 export type {
   Broker,
   BrokerLicense,
+  EconomicEvent,
   Instrument,
   Kol,
   KolFollow,
