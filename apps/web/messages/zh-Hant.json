@@ -69,6 +69,7 @@
     "brokers": "證券商",
     "bullionDealers": "金商",
     "kolDirectory": "KOL 目錄",
+    "news": "新聞",
     "verify": "身份驗證",
     "settings": "帳號設定",
     "status": "系統狀態",
@@ -81,6 +82,7 @@
     "platform": "平台",
     "brokers": "證券商",
     "bullionDealers": "金商",
+    "news": "新聞",
     "verify": "身份驗證",
     "settings": "帳號設定",
     "company": "公司",
@@ -92,6 +94,16 @@
     "terms": "使用條款",
     "copyright": "© 2026 OpenTrade. All rights reserved.",
     "regulatoryNotice": "本平台不提供任何投資建議。所有評論一經上鏈即不可刪除、不可篡改。平台不會因任何原因刪除評論。"
+  },
+  "news": {
+    "eyebrow": "市場資訊",
+    "title": "財經新聞",
+    "subtitle": "聚合可信第三方財經媒體的即時新聞標題，依發佈時間排序、不做編輯排序。點擊標題前往原文。",
+    "showingCount": "顯示 {count} 則新聞",
+    "loadMore": "載入更多",
+    "empty": "目前沒有新聞。",
+    "error": "暫時無法載入新聞，請稍後再試。",
+    "disclaimer": "本頁新聞為第三方來源之標題聚合，僅供資訊參考，不構成任何投資建議；OpenTrade 不對外部內容負責。"
   },
   "brokers": {
     "eyebrow": "證券商目錄",

@@ -954,6 +954,42 @@ export const fetchKols = (
   return apiGet<KolsResponse>(`/v1/kols${qs ? `?${qs}` : ''}`, options);
 };
 
+// ---------------------------------------------------------------------------
+// News (per ADR-0057)
+//
+// A chronological feed of third-party financial-news headlines. The compliance
+// contract (ADR-0057 D1) means an item carries ONLY headline / source /
+// outbound link / timestamp — never an article body. `symbol` is a
+// forward-compatible per-instrument filter seam (D4) that the MVP UI does not
+// use.
+// ---------------------------------------------------------------------------
+
+export type NewsItem = {
+  id: string;
+  title: string;
+  sourceName: string;
+  sourceUrl: string;
+  publishedAt: string;
+  lang: string;
+};
+
+export type NewsResponse = {
+  items: NewsItem[];
+  nextCursor: string | null;
+};
+
+export const fetchNews = (
+  params?: { limit?: number; cursor?: string; symbol?: string },
+  options?: FetchOptions,
+): Promise<NewsResponse> => {
+  const query = new URLSearchParams();
+  if (params?.limit !== undefined) query.set('limit', String(params.limit));
+  if (params?.cursor) query.set('cursor', params.cursor);
+  if (params?.symbol) query.set('symbol', params.symbol);
+  const qs = query.toString();
+  return apiGet<NewsResponse>(`/v1/news${qs ? `?${qs}` : ''}`, options);
+};
+
 export type KolProfileResponse = {
   kol: KolListItem;
   signalCount: number;

@@ -69,6 +69,7 @@
     "brokers": "Brokers",
     "bullionDealers": "Bullion Dealers",
     "kolDirectory": "KOL Directory",
+    "news": "News",
     "verify": "Verify",
     "settings": "Settings",
     "status": "System status",
@@ -81,6 +82,7 @@
     "platform": "Platform",
     "brokers": "Brokers",
     "bullionDealers": "Bullion Dealers",
+    "news": "News",
     "verify": "Verify",
     "settings": "Settings",
     "company": "Company",
@@ -92,6 +94,16 @@
     "terms": "Terms of use",
     "copyright": "© 2026 OpenTrade. All rights reserved.",
     "regulatoryNotice": "This platform does not provide investment advice. All reviews are permanently stored on-chain — they cannot be deleted or tampered with."
+  },
+  "news": {
+    "eyebrow": "Market Info",
+    "title": "Financial News",
+    "subtitle": "Aggregated headlines from trusted third-party financial media, ordered chronologically with no editorial ranking. Tap a headline to read the original.",
+    "showingCount": "Showing {count} articles",
+    "loadMore": "Load more",
+    "empty": "No news yet.",
+    "error": "News is temporarily unavailable. Please try again later.",
+    "disclaimer": "Headlines on this page are aggregated from third-party sources for information only and do not constitute investment advice; OpenTrade is not responsible for external content."
   },
   "brokers": {
     "eyebrow": "Broker directory",

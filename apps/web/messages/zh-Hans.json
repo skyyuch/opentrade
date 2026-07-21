@@ -69,6 +69,7 @@
     "brokers": "券商",
     "bullionDealers": "金商",
     "kolDirectory": "KOL 目录",
+    "news": "新闻",
     "verify": "身份验证",
     "settings": "账号设置",
     "status": "系统状态",
@@ -81,6 +82,7 @@
     "platform": "平台",
     "brokers": "券商",
     "bullionDealers": "金商",
+    "news": "新闻",
     "verify": "身份验证",
     "settings": "账号设置",
     "company": "公司",
@@ -92,6 +94,16 @@
     "terms": "使用条款",
     "copyright": "© 2026 OpenTrade. All rights reserved.",
     "regulatoryNotice": "本平台不提供任何投资建议。所有评论一经上链即不可删除、不可篡改。平台不会因任何原因删除评论。"
+  },
+  "news": {
+    "eyebrow": "市场资讯",
+    "title": "财经新闻",
+    "subtitle": "聚合可信第三方财经媒体的即时新闻标题，按发布时间排序、不做编辑排序。点击标题前往原文。",
+    "showingCount": "显示 {count} 则新闻",
+    "loadMore": "载入更多",
+    "empty": "目前没有新闻。",
+    "error": "暂时无法载入新闻，请稍后再试。",
+    "disclaimer": "本页新闻为第三方来源之标题聚合，仅供资讯参考，不构成任何投资建议；OpenTrade 不对外部内容负责。"
   },
   "brokers": {
     "eyebrow": "券商目录",

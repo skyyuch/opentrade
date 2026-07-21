@@ -24,6 +24,9 @@ const NAV_LINKS = [
   // to securities brokers, surfaced as a dedicated nav entry.
   { href: '/bullion-dealers', key: 'bullionDealers' },
   { href: '/kols', key: 'kolDirectory' },
+  // Per ADR-0057: neutral third-party financial-news feed (headline-only,
+  // chronological, no editorial ranking).
+  { href: '/news', key: 'news' },
   { href: '/verify', key: 'verify' },
 ] as const;
 
