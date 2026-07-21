@@ -55,6 +55,7 @@ export type {
   Kol,
   KolFollow,
   KolNote,
+  NewsItem,
   Notification,
   OutboxEvent,
   PriceRecord,
