@@ -43,8 +43,31 @@ variable "rds_security_group_id" {
   type        = string
 }
 
-variable "db_secret_arn" {
-  description = "Secrets Manager ARN for the RDS master password (injected as DATABASE_URL)."
+# ADR-0056: the container entrypoint composes DATABASE_URL from the injected
+# DB_PASSWORD (RDS-managed secret, single source of truth — survives the 7-day
+# rotation) plus the plain DB_* connection parts below.
+variable "db_password_secret_arn" {
+  description = "Secrets Manager valueFrom for the DB password, e.g. '<rds-managed-secret-arn>:password::'. Injected as DB_PASSWORD."
+  type        = string
+}
+
+variable "db_username" {
+  description = "Postgres master username (non-secret)."
+  type        = string
+}
+
+variable "db_host" {
+  description = "Postgres endpoint hostname (non-secret)."
+  type        = string
+}
+
+variable "db_port" {
+  description = "Postgres listener port (non-secret)."
+  type        = string
+}
+
+variable "db_name" {
+  description = "Database name (non-secret)."
   type        = string
 }
 
