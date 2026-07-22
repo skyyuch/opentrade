@@ -51,21 +51,22 @@
 - 動工前先寫一份合規邊界文件讓大家拍板，再做輕量呈現。
 - 契合度較低，排在核心功能之後。
 
-### 4. 新聞 — ✅ MVP 已完成（獨立新聞頁）／🚧 強化規劃中
+### 4. 新聞 — ✅ 已完成（MVP + 強化，已 merge main 2026-07-22）
 
 - 合規 ADR 已拍板（ADR-0057）+ 獨立新聞頁 `/news` 已實作：**中立的第三方財經新聞標題聚合 / 外連**，只取標題+來源+時間+外連、不轉載全文（版權）、嚴格時序不做編輯排序（避免被當成投資建議），每頁附免責。
 - 資料來源：策展 RSS 聚合（`packages/config`），背景 task 每 15 分鐘抓取 upsert 進 `news_items` 快取表；公開 `GET /v1/news`。
 - 預留未來「報價關聯新聞」接縫（`NewsItem.symbols` + `?symbol=` 過濾），但報價頁尚不存在，本次不實作關聯新聞。
 - ✅ **強化：RSS 來源擴充 + 逐源 ToS 確認完成（2026-07-21，ADR-0058 D8 前半）**：`packages/config/news.ts` 逐源 ToS audit — Yahoo Finance（EN + 新增繁中港版）與新增香港政府新聞網財經（繁中 + 英）確認允許標題聚合+外連並 enabled；RTHK（知識產權告示禁未經書面同意連結）與 Now 財經（feed 已 404 + 無 RSS 授權）disable 存查；明報/經濟通/中新網/人民網等候選經審視後不採用（條款不允許）。ADR-0057 三源 ToS follow-up 已清。
-- 🚧 **強化餘項（ADR-0058 D8 後半）**：與財經日曆輕量導流連動（隨段 6 web `/calendar` 頁一起做）。
+- ✅ **強化餘項（ADR-0058 D8 後半）完成**：日曆↔新聞雙向導流已隨 `/calendar` 頁交付（PR #52 merged 2026-07-22）。
 
-### 5. 財經日曆 — 🚧 規劃中（ADR-0058，官方來源宏觀經濟事件）
+### 5. 財經日曆 — ✅ 已完成（ADR-0058 六段全數交付，已 merge main 2026-07-22）
 
 - 新獨立頁 `/calendar`：聚合**官方統計機構**的宏觀經濟數據發布（CPI、GDP、非農/失業率、零售銷售、利率決議等），讓用戶看到市場關注的官方數據何時公布、數字是多少。
 - 合規契約（沿 ADR-0057 精神、ADR-0058 D1）：**只呈現官方事實**（事件名+時間+地區+涵蓋期+前值+公布後實際值+官方外連）、嚴格時序、**不做重要性星級/影響度評級**、**不含市場預期/共識值**、不做解讀、每頁免責、公開免登入。
 - 資料來源（ADR-0058 D2）：美國 BLS/BEA 發布時間表 + FRED（實際值，需 API key 走 Secrets Manager）先行 → 香港政府統計處次之 → 中國國家統計局後續批次。來源清單放 `packages/config`，不寫死。
 - 架構完整複製既有 news vertical：`EconomicEvent` 快取表（global reference、無 tenant）+ calendar domain 四層 + 公開 `GET /v1/calendar` + `calendar-fetcher` 排程 task（schedule 先 upsert、實際值公布後回填）+ `/calendar` 頁。
-- 執行紀律（rule 96/98）：拆 6 段、每段獨立 session 交接、UI 排最後。
+- 執行紀律（rule 96/98）：拆 6 段、每段獨立 session 交接、UI 排最後 —— 已依此完成（PR #52 merged 2026-07-22）。
+- 後續批次（未排程）：HK 政府統計處來源、CN 國統局來源；正式環境需在 Secrets Manager 填 `FRED_API_KEY` 才有資料。
 
 ---
 
