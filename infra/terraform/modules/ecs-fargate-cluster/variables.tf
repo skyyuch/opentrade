@@ -26,6 +26,17 @@ variable "task_role_managed_secret_arns" {
   }
 }
 
+variable "task_exec_kms_decrypt_key_arns" {
+  description = "KMS key ARNs the task EXECUTION role may kms:Decrypt, so ECS can inject secrets encrypted with a customer-managed key (the RDS-managed master password secret) at launch (ADR-0056)."
+  type        = list(string)
+  default     = []
+
+  validation {
+    condition     = alltrue([for a in var.task_exec_kms_decrypt_key_arns : can(regex("^arn:aws:kms:", a))])
+    error_message = "Every entry must be a KMS key ARN (arn:aws:kms:...)."
+  }
+}
+
 variable "task_role_s3_write_bucket_arns" {
   description = "S3 bucket ARNs the running container may write objects into (s3:PutObject on every key). apps/api uploads broker logos / avatars to the assets bucket through this grant."
   type        = list(string)
