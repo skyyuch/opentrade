@@ -393,11 +393,60 @@ const kolUncategorised = {
 
 const kols = [kolFinancialEquity, kolIndicatorCrypto, kolUncategorised];
 
+// ADR-0058 §6: two economic events drive the /calendar read-path e2e — one
+// released (actualValue backfilled, D3) and one upcoming (actualValue null).
+// `scheduledAt` is generated relative to "now" so both rows always land
+// inside the page's default current-HK-week window regardless of when the
+// suite runs. The stub applies the `region` / `category` query filters (the
+// real API does this server-side) so the filter-chip refetch is observable.
+const HOUR_MS = 60 * 60 * 1000;
+
+const calendarReleasedEvent = {
+  id: 'econ-e2e-released',
+  indicatorCode: 'US_CPI_YOY',
+  nameZhHant: '美國消費物價指數（按年）',
+  nameZhHans: '美国消费物价指数（按年）',
+  nameEn: 'US CPI (YoY)',
+  region: 'US' as const,
+  category: 'INFLATION' as const,
+  scheduledAt: new Date(Date.now() - 2 * HOUR_MS).toISOString(),
+  periodLabel: '2026-06',
+  previousValue: '3.1',
+  actualValue: '3.4',
+  unit: '%_YOY',
+  sourceName: 'BLS',
+  sourceUrl: 'https://www.bls.gov/cpi/',
+};
+
+const calendarUpcomingEvent = {
+  id: 'econ-e2e-upcoming',
+  indicatorCode: 'HK_GDP_QOQ',
+  nameZhHant: '香港本地生產總值（按季）',
+  nameZhHans: '香港本地生产总值（按季）',
+  nameEn: 'HK GDP (QoQ)',
+  region: 'HK' as const,
+  category: 'GROWTH' as const,
+  scheduledAt: new Date(Date.now() + 2 * HOUR_MS).toISOString(),
+  periodLabel: '2026 Q2',
+  previousValue: '0.8',
+  actualValue: null,
+  unit: '%',
+  sourceName: 'C&SD',
+  sourceUrl: 'https://www.censtatd.gov.hk/en/scode490.html',
+};
+
+const economicEvents = [calendarReleasedEvent, calendarUpcomingEvent];
+
 const sendJson = (res: ServerResponse, status: number, body: unknown): void => {
   const payload = JSON.stringify(body);
   res.statusCode = status;
   res.setHeader('content-type', 'application/json');
   res.setHeader('content-length', Buffer.byteLength(payload).toString());
+  // Client-island refetches (e.g. the /calendar filter chips) run in the
+  // browser at localhost:{WEB_PORT} against this stub at 127.0.0.1:{STUB_PORT}
+  // — cross-origin, so the stub must answer CORS like the real API does.
+  // Test-only permissiveness; never ships (rule 50).
+  res.setHeader('access-control-allow-origin', '*');
   res.end(payload);
 };
 
@@ -459,6 +508,19 @@ const handle = (req: IncomingMessage, res: ServerResponse): void => {
     return;
   }
 
+  // ADR-0058 §6: economic calendar. Chronological fixtures; the stub honours
+  // the region/category filters so the /calendar filter chips are testable,
+  // and ignores from/to (both fixtures always sit inside the default window).
+  if (method === 'GET' && path === '/v1/calendar') {
+    const region = query.get('region');
+    const category = query.get('category');
+    let items = economicEvents;
+    if (region !== null) items = items.filter((e) => e.region === region);
+    if (category !== null) items = items.filter((e) => e.category === category);
+    sendJson(res, 200, { items, nextCursor: null });
+    return;
+  }
+
   if (method === 'GET' && url === '/v1/health') {
     sendJson(res, 200, { ok: true });
     return;
@@ -492,6 +554,10 @@ export const SEED = {
   kolVendorName: kolIndicatorCrypto.displayName,
   kolUncategorisedName: kolUncategorised.displayName,
   kolCount: kols.length,
+  // ADR-0058 §6: economic-calendar read-path fixtures.
+  calendarReleasedNameEn: calendarReleasedEvent.nameEn,
+  calendarUpcomingNameEn: calendarUpcomingEvent.nameEn,
+  calendarEventCount: economicEvents.length,
 };
 
 // Entrypoint when spawned as a standalone process (Playwright webServer)

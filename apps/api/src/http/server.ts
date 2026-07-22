@@ -20,6 +20,7 @@ import { cors } from 'hono/cors';
 
 import { adminRouter } from '../domains/admin/index.js';
 import { brokersRouter } from '../domains/brokers/index.js';
+import { calendarRouter } from '../domains/calendar/index.js';
 import { complaintsRouter } from '../domains/complaints/index.js';
 import { feedRouter } from '../domains/feed/index.js';
 import { healthRouter } from '../domains/health/index.js';
@@ -27,6 +28,7 @@ import { identityRouter, JoseJwtService } from '../domains/identity/index.js';
 import { instrumentsRouter } from '../domains/instruments/index.js';
 import { kolsRouter } from '../domains/kols/index.js';
 import { moderationAdminRouter, moderationPublicRouter } from '../domains/moderation/index.js';
+import { newsRouter } from '../domains/news/index.js';
 import { notesRouter } from '../domains/notes/index.js';
 import { notificationsRouter } from '../domains/notifications/index.js';
 import { reviewsRouter } from '../domains/reviews/index.js';
@@ -76,6 +78,8 @@ export const createServer = (): Hono<AppHonoEnv> => {
   app.route('/v1/notifications', notificationsRouter);
   app.route('/v1/signals', signalsRouter);
   app.route('/v1/instruments', instrumentsRouter);
+  app.route('/v1/news', newsRouter);
+  app.route('/v1/calendar', calendarRouter);
   app.route('/v1/notes', notesRouter);
   app.route('/v1/moderation', moderationPublicRouter);
   app.route('/v1/admin', adminRouter);

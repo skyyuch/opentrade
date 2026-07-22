@@ -18,8 +18,12 @@ import { PrismaSignalRepository } from './domains/signals/infrastructure/PrismaS
 import { createServer } from './http/server.js';
 import { env } from './shared/env.js';
 import { logger } from './shared/observability/logger.js';
+import { CalendarFetcher, FredCalendarProvider } from './tasks/calendar-fetcher/index.js';
+import { NewsFetcher, RssFeedProvider } from './tasks/news-fetcher/index.js';
 import { PriceRecorder, YahooFinanceProvider } from './tasks/price-recorder/index.js';
 import { SettleWorker } from './tasks/settle-worker.js';
+
+import type { ICalendarProvider } from './tasks/calendar-fetcher/index.js';
 
 const app = createServer();
 
@@ -60,12 +64,41 @@ const settleWorker = new SettleWorker(prisma, signalRepo, {
   intervalMs: 5 * 60 * 1000, // 5 minutes
 });
 
+// News Fetcher (per ADR-0057): polls curated RSS feeds and upserts headlines
+// into the news_items cache that GET /v1/news reads.
+const newsFetcher = new NewsFetcher(prisma, {
+  intervalMs: 15 * 60 * 1000, // 15 minutes
+  provider: new RssFeedProvider(),
+});
+
+// Calendar Fetcher (per ADR-0058): polls official statistical sources and
+// upserts events into the economic_events cache that GET /v1/calendar reads.
+// The FRED provider is only wired when an API key is configured (Secrets
+// Manager, rule 50); otherwise the fetcher runs with no providers and stays
+// inert.
+const calendarProviders: ICalendarProvider[] = env.FRED_API_KEY
+  ? [new FredCalendarProvider({ apiKey: env.FRED_API_KEY })]
+  : [];
+const calendarFetcher = new CalendarFetcher(prisma, {
+  intervalMs: 6 * 60 * 60 * 1000, // 6 hours
+  providers: calendarProviders,
+});
+
 priceRecorder.start();
 settleWorker.start();
+newsFetcher.start();
+calendarFetcher.start();
 
 logger.info(
-  { event: 'workers.started', priceRecorderInterval: '1h', settleWorkerInterval: '5m' },
-  'Background workers started (PriceRecorder + SettleWorker)',
+  {
+    event: 'workers.started',
+    priceRecorderInterval: '1h',
+    settleWorkerInterval: '5m',
+    newsFetcherInterval: '15m',
+    calendarFetcherInterval: '6h',
+    calendarProviders: calendarProviders.length,
+  },
+  'Background workers started (PriceRecorder + SettleWorker + NewsFetcher + CalendarFetcher)',
 );
 
 /**
@@ -78,6 +111,8 @@ const shutdown = (signal: NodeJS.Signals): void => {
 
   priceRecorder.stop();
   settleWorker.stop();
+  newsFetcher.stop();
+  calendarFetcher.stop();
 
   server.close((err) => {
     void prisma.$disconnect().then(() => {

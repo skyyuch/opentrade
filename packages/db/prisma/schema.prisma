@@ -1046,3 +1046,140 @@ model ModerationTermAudit {
   @@index([tenantId, termId, createdAt])
   @@map("moderation_term_audits")
 }
+
+// ---------------------------------------------------------------------------
+// News aggregation (per ADR-0057)
+//
+// A cache of third-party financial-news headlines aggregated from curated RSS
+// feeds (`packages/config/news`). Compliance contract (ADR-0057 D1): we store
+// ONLY the headline, source attribution, canonical outbound link, and the
+// publisher timestamp — NEVER the article body. The public feed is rendered
+// strictly chronologically (no editorial ranking / no paid placement).
+//
+// Global reference data, NOT tenant-scoped (ADR-0057 D5) — mirrors the
+// `Instrument` catalog exception (rule 31). Rows are upserted by the
+// `news-fetcher` task, deduped by `sourceUrl`, and soft-retired via `isActive`
+// (never hard-deleted).
+// ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Economic calendar (per ADR-0058)
+//
+// A cache of macroeconomic data-release events aggregated from primary
+// statistical authorities (`packages/config/calendar`). Compliance contract
+// (ADR-0058 D1): we store ONLY facts published by the authority itself —
+// indicator name / release time / region / covered period / previous value /
+// post-release actual value / canonical official link. NEVER forecast or
+// consensus values, NEVER an impact/importance rating, NEVER interpretation.
+// The public calendar is rendered strictly chronologically (no editorial
+// ranking / no paid placement).
+//
+// Global reference data, NOT tenant-scoped (ADR-0058 D4) — mirrors the
+// `Instrument` / `NewsItem` exception (rule 31). Rows are upserted by the
+// `calendar-fetcher` task in two phases (ADR-0058 D3): the scheduled event
+// first (`actualValue = null`), then the released figure is backfilled — both
+// keyed by `(indicatorCode, periodLabel)` (ADR-0058 D6). Soft-retired via
+// `isActive` (never hard-deleted).
+// ---------------------------------------------------------------------------
+
+/// Region an economic event belongs to (ADR-0058 D1). Coverage grows batch by
+/// batch (US → HK → CN); new regions are non-breaking enum ADD VALUEs.
+enum EconomicRegion {
+  US
+  HK
+  CN
+}
+
+/// Filtering-only category (ADR-0058 D1). Used purely for region/category
+/// filtering — NEVER for ranking one event above another (an editorial
+/// importance rating is advice-adjacent and violates rule 00).
+enum EconomicCategory {
+  INFLATION
+  GROWTH
+  EMPLOYMENT
+  RATE_DECISION
+  TRADE
+  OTHER
+}
+
+model EconomicEvent {
+  id String @id @default(uuid()) @db.Uuid
+
+  /// Stable machine code, e.g. "US_CPI_YOY" (from `packages/config/calendar`).
+  indicatorCode String @db.VarChar(60)
+  /// Trilingual display names copied from the config registry (ADR-0058 D6 —
+  /// the indicator set is small and curated, so names live with the event,
+  /// matching the `Instrument` trilingual-name precedent).
+  nameZhHant    String @db.VarChar(200)
+  nameZhHans    String @db.VarChar(200)
+  nameEn        String @db.VarChar(200)
+
+  region   EconomicRegion
+  category EconomicCategory
+
+  /// Release timestamp — stored UTC, displayed in Asia/Hong_Kong (ADR-0058 D7).
+  /// The sole ordering key for the chronological calendar.
+  scheduledAt DateTime
+  /// The covered period, e.g. "2026-06" / "2026 Q2". Second half of the
+  /// `(indicatorCode, periodLabel)` upsert key (ADR-0058 D6).
+  periodLabel String @db.VarChar(40)
+
+  /// The authority's own previous-period figure. Nullable — may be unknown at
+  /// schedule time. NEVER a forecast/consensus value (ADR-0058 D1).
+  previousValue Decimal? @db.Decimal(20, 4)
+  /// The released figure, backfilled by the fetcher's second phase once the
+  /// authority publishes it (ADR-0058 D3). Null until released.
+  actualValue   Decimal? @db.Decimal(20, 4)
+  /// Unit of `previousValue` / `actualValue`, e.g. "%" / "%_YOY" / "k".
+  unit          String   @db.VarChar(20)
+
+  /// Human-facing attribution of the issuing authority, e.g. "BLS" / "BEA".
+  sourceName String @db.VarChar(120)
+  /// Canonical link to the official release page (ADR-0058 D1).
+  sourceUrl  String @db.VarChar(2048)
+
+  /// When this row was last fetched/upserted by the calendar-fetcher task.
+  fetchedAt DateTime @default(now())
+  /// Soft-retirement flag — never hard-delete reference rows (rule 31).
+  isActive  Boolean  @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Idempotent two-phase upsert key (ADR-0058 D6).
+  @@unique([indicatorCode, periodLabel])
+  // Hot path: chronological window queries (`?from&to`).
+  @@index([scheduledAt])
+  // Optional filter dimensions (ADR-0058 D5).
+  @@index([region, category])
+  @@map("economic_events")
+}
+
+model NewsItem {
+  id String @id @default(uuid()) @db.Uuid
+  /// The publisher's headline. No article body is ever stored (ADR-0057 D1).
+  title String @db.VarChar(500)
+  /// Human-facing attribution, e.g. "信報" / "Reuters".
+  sourceName String @db.VarChar(120)
+  /// Canonical link to the original article. Unique — the dedup key.
+  sourceUrl String @unique @db.VarChar(2048)
+  /// Publisher timestamp; the sole ordering key for the chronological feed.
+  publishedAt DateTime
+  /// Primary language of the headline (zh-Hant / zh-Hans / en).
+  lang String @db.VarChar(10)
+  /// Forward-compatible seam for future per-instrument tagging (ADR-0057 D4).
+  /// Left empty in the MVP; populated later when the quotes vertical needs
+  /// related-news. Anchored on `Instrument.symbol` codes when populated.
+  symbols String[]
+  /// When this row was last fetched/upserted by the news-fetcher task.
+  fetchedAt DateTime @default(now())
+  /// Soft-retirement flag — never hard-delete reference rows (rule 31).
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Hot path: chronological feed of active items.
+  @@index([isActive, publishedAt])
+  @@map("news_items")
+}
