@@ -116,8 +116,12 @@ variable "app_secret_names" {
   #     superseded by the keypair — rule 50 forbids HS256 anyway).
   #   - `deepl-api-key` is deprecated but kept: ADR-0027 may rewire it for
   #     on-demand translation.
+  #   - `fred-api-key` feeds the calendar-fetcher (ADR-0058 D2). Optional in
+  #     app code: if the value is empty the fetcher stays inert and
+  #     GET /v1/calendar serves an empty cache.
   default = [
     "opentrade/dev/database-url",
+    "opentrade/dev/fred-api-key",
     "opentrade/dev/privy-app-id",
     "opentrade/dev/privy-app-secret",
     "opentrade/dev/privy-verification-key",
