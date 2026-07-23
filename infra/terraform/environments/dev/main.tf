@@ -248,6 +248,10 @@ locals {
     KOL_SBT_ADDRESS             = module.app_secrets.secret_arns["opentrade/dev/kol-sbt-address"]
     KOL_SIGNAL_REGISTRY_ADDRESS = module.app_secrets.secret_arns["opentrade/dev/kol-signal-registry-address"]
     KOL_NOTE_REGISTRY_ADDRESS   = module.app_secrets.secret_arns["opentrade/dev/kol-note-registry-address"]
+
+    # ADR-0058 D2: feeds the calendar-fetcher (runs in the api process). App
+    # code treats it as optional — an empty value leaves the fetcher inert.
+    FRED_API_KEY = module.app_secrets.secret_arns["opentrade/dev/fred-api-key"]
   }
 
   api_plain_env = {
