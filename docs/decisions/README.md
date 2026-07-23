@@ -143,6 +143,7 @@ YYYY-MM-DD
 | 0056 | Compose DATABASE_URL from the RDS-managed secret at container start (amends 0046 D9, 0048)   | Accepted                   | 2026-06-25 |
 | 0057 | Third-party financial-news aggregation — headline-only, chronological, via curated RSS       | Accepted                   | 2026-07-01 |
 | 0058 | Economic-calendar aggregation — official-source, facts-only, chronological                   | Accepted                   | 2026-07-21 |
+| 0059 | Derive fed-funds rate-decision events from FRED observation change-points (amends 0058 D3)   | Accepted                   | 2026-07-23 |
 
 ---
 
