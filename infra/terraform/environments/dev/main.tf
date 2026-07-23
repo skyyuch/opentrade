@@ -366,7 +366,14 @@ module "migrate" {
   vpc_id                  = module.vpc.vpc_id
   private_subnet_ids      = module.vpc.private_subnet_ids
   ecr_image               = "${module.ecr_api.repository_url}:migrate"
-  database_url_secret_arn = module.app_secrets.secret_arns["opentrade/dev/database-url"]
+
+  # ADR-0056: same single-source-of-truth wiring as api/worker — password from
+  # the RDS-managed secret, connection parts as plain env, entrypoint composes.
+  db_password_secret_arn = "${module.rds.master_password_secret_arn}:password::"
+  db_username            = module.rds.db_username
+  db_host                = module.rds.db_address
+  db_port                = tostring(module.rds.db_port)
+  db_name                = module.rds.db_name
 }
 
 # --------------------------------------------------------------------------
@@ -385,10 +392,15 @@ module "sfc_sync" {
   private_subnet_ids      = module.vpc.private_subnet_ids
   ecr_image               = "${module.ecr_api.repository_url}:dev"
   rds_security_group_id   = module.rds.security_group_id
-  # Full connection string (with sslmode), NOT the RDS master-password JSON —
-  # same source the api/worker/migrate tasks use (ADR-0048).
-  db_secret_arn = module.app_secrets.secret_arns["opentrade/dev/database-url"]
-  enabled       = true # API image with the sync entry point is deployed
+
+  # ADR-0056: same single-source-of-truth wiring as api/worker — password from
+  # the RDS-managed secret, connection parts as plain env, entrypoint composes.
+  db_password_secret_arn = "${module.rds.master_password_secret_arn}:password::"
+  db_username            = module.rds.db_username
+  db_host                = module.rds.db_address
+  db_port                = tostring(module.rds.db_port)
+  db_name                = module.rds.db_name
+  enabled                = true # API image with the sync entry point is deployed
 }
 
 # --------------------------------------------------------------------------

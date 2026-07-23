@@ -51,14 +51,20 @@ resource "aws_ecs_task_definition" "migrate" {
 
       environment = [
         { name = "NODE_ENV", value = "production" },
+        # ADR-0056: non-secret DB connection parts; the container entrypoint
+        # combines these with the injected DB_PASSWORD into DATABASE_URL.
+        { name = "DB_USERNAME", value = var.db_username },
+        { name = "DB_HOST", value = var.db_host },
+        { name = "DB_PORT", value = var.db_port },
+        { name = "DB_NAME", value = var.db_name },
       ]
 
-      # Full connection string (not the RDS master JSON) — the database-url
-      # app secret the owner composed and wrote per rule 50 / ADR-0048.
+      # ADR-0056: DB password from the RDS-managed secret's `password` JSON
+      # key — no hand-filled connection-string secret, no rotation drift.
       secrets = [
         {
-          name      = "DATABASE_URL"
-          valueFrom = var.database_url_secret_arn
+          name      = "DB_PASSWORD"
+          valueFrom = var.db_password_secret_arn
         },
       ]
 
