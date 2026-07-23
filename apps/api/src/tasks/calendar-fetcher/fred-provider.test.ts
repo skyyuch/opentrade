@@ -6,8 +6,9 @@
  *     maps to the release that PUBLISHED it (~one period later), and the next
  *     future release is a scheduled event with actualValue = null + a distinct
  *     period label (no upsert-key collision)
- *   - buildDrafts high-frequency (daily → FOMC) as-of matching: past decision
- *     takes the value on/before it, future decisions are actual = null
+ *   - buildDrafts high-frequency (daily → FOMC) change-point detection: only
+ *     days the rate actually moved become events (no daily noise), older changes
+ *     seed the baseline, unchanged days are skipped
  *   - FredCalendarProvider: happy path over mocked FRED JSON, inert without an
  *     API key, per-indicator failure isolation, skips indicators lacking a
  *     FRED series id
@@ -91,24 +92,57 @@ describe('buildDrafts — periodic (monthly) tail-alignment', () => {
   });
 });
 
-describe('buildDrafts — high-frequency (daily → FOMC) as-of matching', () => {
-  const releaseDates = [d('2026-06-18'), d('2026-07-30'), d('2026-09-17')];
-  const observations = [
-    { date: d('2026-06-15'), value: '5.50' },
-    { date: d('2026-06-16'), value: '5.50' },
-    { date: d('2026-06-17'), value: '5.50' },
-    { date: d('2026-06-18'), value: '5.25' },
-    { date: d('2026-07-18'), value: '5.25' },
-    { date: d('2026-07-19'), value: '5.25' },
-  ];
+describe('buildDrafts — high-frequency (daily → FOMC) change-point detection', () => {
+  // Daily release dates are noise for this series, so they are ignored entirely.
+  const releaseDates = [d('2026-06-15'), d('2026-06-16'), d('2026-06-17'), d('2026-06-18')];
 
-  it('fills the past decision from the value as of that date and leaves future decisions null', () => {
+  // A real daily series (DFEDTARU) so inferFrequencyDays classifies it daily.
+  const dailyFrom = (
+    startIso: string,
+    endIso: string,
+    valueAt: (t: number) => string,
+  ): { date: Date; value: string }[] => {
+    const out: { date: Date; value: string }[] = [];
+    const dayMs = 24 * 60 * 60 * 1000;
+    for (let t = d(startIso).getTime(); t <= d(endIso).getTime(); t += dayMs) {
+      out.push({ date: new Date(t), value: valueAt(t) });
+    }
+    return out;
+  };
+
+  it('emits one event per day the rate actually moved (not per release day)', () => {
+    // Rate history: 5.50 → 5.25 (pre-window) → 5.00 (in-window) → 4.75 (in-window).
+    // Window starts 200 days before NOW (2026-01-01), so the 2025-09-18 move only
+    // seeds the baseline while the two later moves become events.
+    const observations = dailyFrom('2025-08-01', '2026-07-19', (t) => {
+      if (t < d('2025-09-18').getTime()) return '5.50';
+      if (t < d('2026-03-19').getTime()) return '5.25';
+      if (t < d('2026-06-18').getTime()) return '5.00';
+      return '4.75';
+    });
+
     const drafts = buildDrafts('US_FED_FUNDS_RATE', releaseDates, observations, NOW);
 
-    expect(drafts).toHaveLength(3);
-    expect(drafts[0]).toMatchObject({ periodLabel: '2026-06-18', actualValue: '5.25' });
-    expect(drafts[1]).toMatchObject({ periodLabel: '2026-07-30', actualValue: null });
-    expect(drafts[2]).toMatchObject({ periodLabel: '2026-09-17', actualValue: null });
+    expect(drafts).toHaveLength(2);
+    expect(drafts[0]).toMatchObject({
+      periodLabel: '2026-03-19',
+      previousValue: '5.25', // carried forward from the pre-window change
+      actualValue: '5.00',
+    });
+    expect(drafts[0]?.scheduledAt.toISOString()).toBe('2026-03-19T00:00:00.000Z');
+    expect(drafts[1]).toMatchObject({
+      periodLabel: '2026-06-18',
+      previousValue: '5.00',
+      actualValue: '4.75',
+    });
+    // Each change date is distinct → no (indicatorCode, periodLabel) collision.
+    const labels = drafts.map((x) => x.periodLabel);
+    expect(new Set(labels).size).toBe(labels.length);
+  });
+
+  it('produces no event when the rate never moves inside the window', () => {
+    const flat = dailyFrom('2025-08-01', '2026-07-19', () => '4.75');
+    expect(buildDrafts('US_FED_FUNDS_RATE', releaseDates, flat, NOW)).toEqual([]);
   });
 });
 

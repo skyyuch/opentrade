@@ -168,9 +168,10 @@ export class FredCalendarProvider implements ICalendarProvider {
  *     observation list by index. This correctly maps the June datapoint to the
  *     July release, not the June one.
  *   - High-frequency series (daily — the fed-funds target behind FOMC
- *     decisions): the "actual" is the value as of the decision date, so each
- *     release takes the latest observation on/before it, and the period label
- *     is the decision date itself.
+ *     decisions): its FRED release schedule fires EVERY business day, so the
+ *     release list is daily noise, not decisions. Instead we derive events from
+ *     observation CHANGE-POINTS — a rate "decision" that matters is a day the
+ *     target actually moved — ignoring the release schedule entirely.
  */
 export function buildDrafts(
   indicatorCode: string,
@@ -178,11 +179,13 @@ export function buildDrafts(
   observations: readonly ObservationPoint[],
   now: Date,
 ): CalendarEventDraft[] {
-  if (releaseDates.length === 0) return [];
   const freqDays = inferFrequencyDays(observations);
-  return freqDays >= 20
-    ? alignPeriodic(indicatorCode, releaseDates, observations, now, freqDays)
-    : alignHighFrequency(indicatorCode, releaseDates, observations, now, freqDays);
+  if (freqDays < 20) {
+    // Daily series: change-points, not the (daily) release schedule.
+    return alignRateChanges(indicatorCode, observations, now, freqDays);
+  }
+  if (releaseDates.length === 0) return [];
+  return alignPeriodic(indicatorCode, releaseDates, observations, now, freqDays);
 }
 
 /** Tail-align one observation per release (monthly / quarterly). */
@@ -218,34 +221,48 @@ function alignPeriodic(
   return drafts;
 }
 
-/** As-of matching for sub-monthly series (daily fed-funds behind FOMC). */
-function alignHighFrequency(
+/**
+ * Derive rate-decision events from observation CHANGE-POINTS (daily fed-funds
+ * behind FOMC). The FRED release schedule for a daily series fires every
+ * business day, so instead of one noisy event per release we emit one event per
+ * day the value actually moved — a real decision that changed the target —
+ * carrying the prior value as `previousValue`. Observations before the display
+ * window still seed the baseline so the first shown change has a correct
+ * `previousValue`; only change-points inside the window become drafts.
+ *
+ * Known limitation: FOMC meetings that HOLD the rate produce no change-point and
+ * therefore no event. Surfacing scheduled-but-unchanged decisions would require
+ * the FOMC meeting calendar — a separate source deliberately outside ADR-0058's
+ * FRED-only, facts-only scope.
+ */
+function alignRateChanges(
   indicatorCode: string,
-  releaseDates: readonly Date[],
   observations: readonly ObservationPoint[],
   now: Date,
   freqDays: number,
 ): CalendarEventDraft[] {
   const drafts: CalendarEventDraft[] = [];
-  let previousValue: string | null = null;
+  const windowStart = now.getTime() - LOOKBACK_MS;
+  let baseline: string | null = null;
 
-  for (const releaseDate of releaseDates) {
-    // A future decision has no value yet (two-phase: actual backfilled later).
-    const obs =
-      releaseDate.getTime() <= now.getTime()
-        ? latestObservationOnOrBefore(observations, releaseDate.getTime())
-        : undefined;
-
-    const actualValue = obs ? obs.value : null;
+  for (const obs of observations) {
+    if (baseline === null) {
+      baseline = obs.value; // seed baseline from the oldest observation
+      continue;
+    }
+    if (obs.value === baseline) continue; // unchanged day → not a decision
+    const previousValue = baseline;
+    baseline = obs.value;
+    // Values only matter for the display window; older changes just carry the
+    // baseline forward so an in-window change still shows its true `previous`.
+    if (obs.date.getTime() < windowStart) continue;
     drafts.push({
       indicatorCode,
-      scheduledAt: releaseDate,
-      // The decision date itself is the natural period for a rate decision.
-      periodLabel: periodLabelFor(releaseDate, freqDays),
+      scheduledAt: obs.date,
+      periodLabel: periodLabelFor(obs.date, freqDays),
       previousValue,
-      actualValue,
+      actualValue: obs.value,
     });
-    if (actualValue !== null) previousValue = actualValue;
   }
   return drafts;
 }
@@ -257,18 +274,6 @@ function lastIndexOnOrBefore(dates: readonly Date[], cutoff: number): number {
     else break;
   }
   return idx;
-}
-
-function latestObservationOnOrBefore(
-  observations: readonly ObservationPoint[],
-  cutoff: number,
-): ObservationPoint | undefined {
-  let match: ObservationPoint | undefined;
-  for (const obs of observations) {
-    if (obs.date.getTime() <= cutoff) match = obs;
-    else break;
-  }
-  return match;
 }
 
 function inferFrequencyDays(observations: readonly ObservationPoint[]): number {
