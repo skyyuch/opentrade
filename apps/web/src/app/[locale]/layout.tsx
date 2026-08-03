@@ -17,9 +17,13 @@
  *     no runtime requests hit Google CDN (satisfies the GDPR concern in
  *     rule 22). Source Han self-hosting lands in Phase 0.5 per ADR-0011
  *     §3 Implementation Notes.
- *   - `<ThemeProvider>` wraps `<NextIntlClientProvider>` so a future
- *     theme toggle button (Client Component) can call `useTheme()`
- *     anywhere inside the locale segment.
+ *   - Phase 1 forces dark mode, so `<html className="dark">` is hard-coded
+ *     below and `next-themes`' `<ThemeProvider>` is intentionally NOT mounted:
+ *     it injects an inline `<script>` that React 19 warns about ("scripts
+ *     inside React components are never executed on the client"), while
+ *     providing zero function under a single forced theme. The
+ *     `ThemeProvider` component + `next-themes` dependency are kept for the
+ *     Phase 2+ theme toggle, which will re-mount it here.
  */
 
 import '@opentrade/ui/styles/globals.css';
@@ -31,7 +35,6 @@ import { getMessages, getTranslations } from 'next-intl/server';
 
 import { Footer } from '../../components/layout/Footer';
 import { Header } from '../../components/layout/Header';
-import { ThemeProvider } from '../../components/providers/ThemeProvider';
 import { Web3Providers } from '../../components/providers/Web3Providers';
 import { routing } from '../../i18n/routing';
 
@@ -82,15 +85,13 @@ const LocaleLayout = async (props: Props): Promise<ReactNode> => {
   return (
     <html lang={locale} className="dark" suppressHydrationWarning>
       <body className={`${inter.className} min-h-screen bg-background text-foreground antialiased`}>
-        <ThemeProvider>
-          <NextIntlClientProvider locale={locale} messages={messages}>
-            <Web3Providers>
-              <Header />
-              <main className="min-h-[calc(100vh-8rem)]">{children}</main>
-              <Footer />
-            </Web3Providers>
-          </NextIntlClientProvider>
-        </ThemeProvider>
+        <NextIntlClientProvider locale={locale} messages={messages}>
+          <Web3Providers>
+            <Header />
+            <main className="min-h-[calc(100vh-8rem)]">{children}</main>
+            <Footer />
+          </Web3Providers>
+        </NextIntlClientProvider>
       </body>
     </html>
   );
