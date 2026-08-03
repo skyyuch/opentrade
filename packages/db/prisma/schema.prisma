@@ -1083,11 +1083,20 @@ model ModerationTermAudit {
 // ---------------------------------------------------------------------------
 
 /// Region an economic event belongs to (ADR-0058 D1). Coverage grows batch by
-/// batch (US → HK → CN); new regions are non-breaking enum ADD VALUEs.
+/// batch; new regions are non-breaking enum ADD VALUEs. ADR-0061 expands beyond
+/// the original US/HK/CN MVP to multi-region official sources (EU/EA via
+/// Eurostat, plus staged GB/CA/AU/JP). `region` is a filter/label only, NEVER a
+/// ranking.
 enum EconomicRegion {
   US
   HK
   CN
+  EU
+  EA
+  GB
+  CA
+  AU
+  JP
 }
 
 /// Filtering-only category (ADR-0058 D1). Used purely for region/category
@@ -1167,6 +1176,10 @@ model NewsItem {
   publishedAt DateTime
   /// Primary language of the headline (zh-Hant / zh-Hans / en).
   lang String @db.VarChar(10)
+  /// Publisher's own feed-provided thumbnail URL (ADR-0060): taken only from the
+  /// RSS item's media enclosure, https-only, stored as a URL (never re-hosted).
+  /// Nullable — absent when the feed carries no media.
+  imageUrl String? @db.VarChar(2048)
   /// Forward-compatible seam for future per-instrument tagging (ADR-0057 D4).
   /// Left empty in the MVP; populated later when the quotes vertical needs
   /// related-news. Anchored on `Instrument.symbol` codes when populated.

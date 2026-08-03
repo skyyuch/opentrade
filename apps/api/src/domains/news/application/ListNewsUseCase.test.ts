@@ -24,6 +24,7 @@ const fixture = (overrides: Partial<NewsItemRecord> = {}): NewsItemRecord => ({
   sourceUrl: 'https://example.com/a',
   publishedAt: new Date('2026-07-01T08:00:00.000Z'),
   lang: 'zh-Hant',
+  imageUrl: null,
   ...overrides,
 });
 
@@ -49,6 +50,7 @@ describe('ListNewsUseCase', () => {
         sourceUrl: 'https://example.com/a',
         publishedAt: '2026-07-01T08:00:00.000Z',
         lang: 'zh-Hant',
+        imageUrl: null,
       },
     ]);
     expect(result.nextCursor).toBeNull();

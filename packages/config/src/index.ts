@@ -28,5 +28,16 @@ export type { SupportedLocale } from './locales.js';
 export { NEWS_FEED_SOURCES, enabledNewsFeeds } from './news.js';
 export type { NewsFeedSource } from './news.js';
 
-export { CALENDAR_INDICATOR_SOURCES, enabledCalendarIndicators } from './calendar.js';
-export type { CalendarCategory, CalendarIndicatorSource, CalendarRegion } from './calendar.js';
+export {
+  CALENDAR_INDICATOR_SOURCES,
+  CALENDAR_REGION_FLAG,
+  calendarIndicatorsForProvider,
+  enabledCalendarIndicators,
+} from './calendar.js';
+export type {
+  CalendarCategory,
+  CalendarConfiguredRelease,
+  CalendarIndicatorSource,
+  CalendarProvider,
+  CalendarRegion,
+} from './calendar.js';

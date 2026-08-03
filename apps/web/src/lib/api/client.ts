@@ -971,6 +971,8 @@ export type NewsItem = {
   sourceUrl: string;
   publishedAt: string;
   lang: string;
+  /** Publisher's own feed thumbnail URL, or null when absent (ADR-0060). */
+  imageUrl: string | null;
 };
 
 export type NewsResponse = {
@@ -1003,9 +1005,23 @@ export const fetchNews = (
 // not import from other apps, rule 10 — same discipline as `NewsItem`).
 // ---------------------------------------------------------------------------
 
-export type EconomicRegion = 'US' | 'HK' | 'CN';
+// Per ADR-0061 D1: expanded beyond the US/HK/CN MVP to multi-region official
+// sources. `EA` is the euro area (a subset of `EU`); both render the EU flag.
+// `region` is a filter/label only, never a ranking axis. Mirrors the
+// `EconomicRegion` Prisma enum + the apps/api domain union.
+export type EconomicRegion = 'US' | 'HK' | 'CN' | 'EU' | 'EA' | 'GB' | 'CA' | 'AU' | 'JP';
 
-export const ECONOMIC_REGIONS = ['US', 'HK', 'CN'] as const satisfies readonly EconomicRegion[];
+export const ECONOMIC_REGIONS = [
+  'US',
+  'HK',
+  'CN',
+  'EU',
+  'EA',
+  'GB',
+  'CA',
+  'AU',
+  'JP',
+] as const satisfies readonly EconomicRegion[];
 
 export type EconomicCategory =
   | 'INFLATION'

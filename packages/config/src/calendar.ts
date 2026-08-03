@@ -14,21 +14,70 @@
  * impact/importance rating, no interpretation. Ordering is strictly
  * chronological and never purchasable.
  *
- * Coverage grows batch by batch (ADR-0058 D2): US (BLS / BEA / Fed schedules
- * + FRED for released values) first, HK Census & Statistics Department next,
- * CN National Bureau of Statistics explicitly deferred.
+ * Coverage grows batch by batch (ADR-0058 D2 / ADR-0061 D2): US (FRED) +
+ * EU/euro area (Eurostat) + Hong Kong (C&SD) land first; UK / Canada /
+ * Australia / Japan are a fast-follow batch; CN is explicitly deferred. Each
+ * indicator records WHICH official provider serves it (`provider`) and the
+ * provider-specific identifier(s) it needs, so a new authority is an additive
+ * config + one pluggable `ICalendarProvider`, never a rewrite.
  *
  * The FRED API key is NOT stored here — it lives in AWS Secrets Manager and
  * is injected via env at runtime (rule 50). This registry only records the
- * public series identifier each indicator maps to.
+ * public series identifier each indicator maps to. Eurostat and HK C&SD are
+ * key-less official sources.
  *
  * `lang` uses the project locale vocabulary (ADR-0003): zh-Hant / zh-Hans / en.
  */
 
 import type { SupportedLocale } from './locales.js';
 
-/** Region an indicator belongs to (ADR-0058 D1). Mirrors the DB enum. */
-export type CalendarRegion = 'US' | 'HK' | 'CN';
+/**
+ * Region an indicator belongs to (ADR-0058 D1 / ADR-0061 D1). Mirrors the DB
+ * `EconomicRegion` enum. `region` is a filter/label only, NEVER a ranking. `EA`
+ * is the euro area (a subset of `EU`); both carry the same flag.
+ */
+export type CalendarRegion = 'US' | 'HK' | 'CN' | 'EU' | 'EA' | 'GB' | 'CA' | 'AU' | 'JP';
+
+/**
+ * The official statistical authority / API that serves an indicator's release
+ * schedule (ADR-0061 D2). Each maps to one pluggable `ICalendarProvider` with
+ * isolated per-source failure. A commercial aggregator is deliberately NOT a
+ * provider (ADR-0058/0061 D4).
+ */
+export type CalendarProvider = 'FRED' | 'EUROSTAT' | 'HK_CSD' | 'ONS' | 'STATCAN';
+
+/**
+ * Region → Unicode flag emoji (ADR-0061 D1). Purely a visual region marker;
+ * mirrored by the web `CalendarList` so both server and client render the same
+ * flag. The euro area (`EA`) shares the EU flag.
+ */
+export const CALENDAR_REGION_FLAG: Record<CalendarRegion, string> = {
+  US: '🇺🇸',
+  HK: '🇭🇰',
+  CN: '🇨🇳',
+  EU: '🇪🇺',
+  EA: '🇪🇺',
+  GB: '🇬🇧',
+  CA: '🇨🇦',
+  AU: '🇦🇺',
+  JP: '🇯🇵',
+};
+
+/**
+ * A pre-announced official release, encoded from an authority's published
+ * annual schedule when it exposes no machine-readable API (ADR-0061 D2 — e.g.
+ * Hong Kong C&SD, whose only source is the annual PDF, fixed 16:30 HKT). The
+ * `HK_CSD` provider reads these verbatim; no external fetch is made.
+ */
+export type CalendarConfiguredRelease = {
+  /**
+   * Release timestamp as an ISO-8601 UTC string. HK C&SD publishes at a fixed
+   * 16:30 HKT, i.e. 08:30 UTC (Hong Kong has no DST), pre-converted here.
+   */
+  readonly dateUtc: string;
+  /** The covered period, e.g. "2025-12" / "2026 Q2" (ADR-0058 D6 upsert half). */
+  readonly periodLabel: string;
+};
 
 /**
  * Filtering-only category (ADR-0058 D1). Used purely for region/category
@@ -48,7 +97,13 @@ export type CalendarIndicatorSource = {
    * `(indicatorCode, periodLabel)` upsert key (ADR-0058 D6).
    */
   readonly indicatorCode: string;
-  /** Issuing authority, e.g. "BLS" / "BEA" / "Federal Reserve". */
+  /**
+   * Which official provider serves this indicator's release schedule
+   * (ADR-0061 D2). The fetcher routes each indicator to its provider; a
+   * provider ignores indicators tagged for another provider.
+   */
+  readonly provider: CalendarProvider;
+  /** Issuing authority, e.g. "BLS" / "BEA" / "Federal Reserve" / "Eurostat". */
   readonly authority: string;
   /**
    * Trilingual display names (ADR-0058 D1 / D6), copied onto each
@@ -71,10 +126,51 @@ export type CalendarIndicatorSource = {
   readonly sourceUrl: string;
   /**
    * FRED series identifier used to backfill released `actual` / `previous`
-   * observation values (ADR-0058 D2 two-phase population). Absent for
-   * authorities not covered by FRED (e.g. HK C&SD, added in a later batch).
+   * observation values (ADR-0058 D2 two-phase population). Present only for
+   * `provider: 'FRED'` indicators.
    */
   readonly fredSeriesId?: string;
+  /**
+   * Eurostat release-calendar title to match on (ADR-0061 D2). Eurostat's
+   * `eventsJson` endpoint returns stable, periodic official titles (e.g.
+   * "Flash estimate inflation euro area"); the Eurostat provider maps a
+   * release to this indicator by an exact, case-insensitive title match.
+   * Present only for `provider: 'EUROSTAT'` indicators. Eurostat exposes the
+   * schedule only (no values), so such events stay `previous/actual = null`.
+   */
+  readonly eurostatTitle?: string;
+  /**
+   * ONS release-calendar URI slug prefix to match on (ADR-0061 D2 batch 2).
+   * The UK ONS releases API (`api.beta.ons.gov.uk`) returns one entry per
+   * dated release whose `uri` is a stable `/releases/<slug><period>` — e.g.
+   * `/releases/consumerpriceinflationukjuly2026`. The ONS provider maps a
+   * release to this indicator when the slug (after `/releases/`) starts with
+   * this prefix (excluding the `…timeseries` duplicate). Present only for
+   * `provider: 'ONS'` indicators. ONS exposes the schedule only (no values),
+   * so such events stay `previous/actual = null` — honest and compliant (D1).
+   */
+  readonly onsUriPrefix?: string;
+  /**
+   * Statistics Canada "The Daily" release-schedule title to match on
+   * (ADR-0061 D2 batch 2). StatCan's key-indicators schedule JSON
+   * (`schedule-key_indicators-eng.json`) lists each forthcoming release with a
+   * stable official `title` (e.g. "Consumer Price Index") and a `description`
+   * period (e.g. "June 2026" / "Second quarter 2026"). The StatCan provider
+   * maps a release to this indicator by an exact, case-insensitive `title`
+   * match. Present only for `provider: 'STATCAN'` indicators. StatCan's
+   * schedule carries no values, so such events stay `previous/actual = null`
+   * — honest and compliant (D1). Release time is a fixed 08:30 Eastern (The
+   * Daily), converted to UTC with DST awareness by the provider.
+   */
+  readonly statcanTitle?: string;
+  /**
+   * Pre-encoded official release schedule for authorities with no
+   * machine-readable API (ADR-0061 D2). Present only for `provider: 'HK_CSD'`
+   * indicators, whose sole source is the C&SD annual PDF schedule. Values are
+   * not published in machine-readable form, so these events carry the schedule
+   * + period only (`previous/actual = null`) — honest and compliant (D1).
+   */
+  readonly releases?: readonly CalendarConfiguredRelease[];
   /** Primary language of the authority's release pages. */
   readonly lang: SupportedLocale;
   /** Disabled indicators are kept for provenance but skipped by the fetcher. */
@@ -89,6 +185,7 @@ export type CalendarIndicatorSource = {
 export const CALENDAR_INDICATOR_SOURCES: readonly CalendarIndicatorSource[] = [
   {
     indicatorCode: 'US_CPI_YOY',
+    provider: 'FRED',
     authority: 'BLS',
     nameZhHant: '美國消費者物價指數（按年）',
     nameZhHans: '美国消费者物价指数（按年）',
@@ -104,6 +201,7 @@ export const CALENDAR_INDICATOR_SOURCES: readonly CalendarIndicatorSource[] = [
   },
   {
     indicatorCode: 'US_NONFARM_PAYROLLS',
+    provider: 'FRED',
     authority: 'BLS',
     nameZhHant: '美國非農就業人數變動',
     nameZhHans: '美国非农就业人数变动',
@@ -119,6 +217,7 @@ export const CALENDAR_INDICATOR_SOURCES: readonly CalendarIndicatorSource[] = [
   },
   {
     indicatorCode: 'US_UNEMPLOYMENT_RATE',
+    provider: 'FRED',
     authority: 'BLS',
     nameZhHant: '美國失業率',
     nameZhHans: '美国失业率',
@@ -134,6 +233,7 @@ export const CALENDAR_INDICATOR_SOURCES: readonly CalendarIndicatorSource[] = [
   },
   {
     indicatorCode: 'US_GDP_QOQ',
+    provider: 'FRED',
     authority: 'BEA',
     nameZhHant: '美國實質國內生產總值（按季年率）',
     nameZhHans: '美国实际国内生产总值（按季年率）',
@@ -149,6 +249,7 @@ export const CALENDAR_INDICATOR_SOURCES: readonly CalendarIndicatorSource[] = [
   },
   {
     indicatorCode: 'US_FED_FUNDS_RATE',
+    provider: 'FRED',
     authority: 'Federal Reserve',
     nameZhHant: '美國聯邦基金利率決議（上限）',
     nameZhHans: '美国联邦基金利率决议（上限）',
@@ -162,9 +263,382 @@ export const CALENDAR_INDICATOR_SOURCES: readonly CalendarIndicatorSource[] = [
     lang: 'en',
     enabled: true,
   },
+
+  // --- EU / euro area — Eurostat (ADR-0061 batch 1) --------------------------
+  // Served by the Eurostat provider via the official `eventsJson` release
+  // calendar (key-less). Eurostat exposes the schedule only, so these events
+  // carry release time + period with `previous/actual = null` (honest, D1).
+  // `eurostatTitle` is the stable, periodic official title to match on.
+  {
+    indicatorCode: 'EA_HICP_FLASH_YOY',
+    provider: 'EUROSTAT',
+    authority: 'Eurostat',
+    nameZhHant: '歐元區消費者物價指數（快報，按年）',
+    nameZhHans: '欧元区消费者物价指数（快报，按年）',
+    nameEn: 'Euro area HICP flash estimate (YoY)',
+    region: 'EA',
+    category: 'INFLATION',
+    unit: '%_YOY',
+    scheduleUrl: 'https://ec.europa.eu/eurostat/web/main/news/euro-indicators',
+    sourceUrl: 'https://ec.europa.eu/eurostat/web/hicp',
+    eurostatTitle: 'Flash estimate inflation euro area',
+    lang: 'en',
+    enabled: true,
+  },
+  {
+    indicatorCode: 'EU_HICP_YOY',
+    provider: 'EUROSTAT',
+    authority: 'Eurostat',
+    nameZhHant: '歐盟消費者物價指數（按年）',
+    nameZhHans: '欧盟消费者物价指数（按年）',
+    nameEn: 'EU inflation (HICP, YoY)',
+    region: 'EU',
+    category: 'INFLATION',
+    unit: '%_YOY',
+    scheduleUrl: 'https://ec.europa.eu/eurostat/web/main/news/euro-indicators',
+    sourceUrl: 'https://ec.europa.eu/eurostat/web/hicp',
+    eurostatTitle: 'Inflation (HICP)',
+    lang: 'en',
+    enabled: true,
+  },
+  {
+    indicatorCode: 'EA_GDP_FLASH_QOQ',
+    provider: 'EUROSTAT',
+    authority: 'Eurostat',
+    nameZhHant: '歐元區國內生產總值（快報，按季）',
+    nameZhHans: '欧元区国内生产总值（快报，按季）',
+    nameEn: 'Euro area GDP flash estimate (QoQ)',
+    region: 'EA',
+    category: 'GROWTH',
+    unit: '%',
+    scheduleUrl: 'https://ec.europa.eu/eurostat/web/main/news/euro-indicators',
+    sourceUrl: 'https://ec.europa.eu/eurostat/web/national-accounts',
+    eurostatTitle: 'Flash estimate GDP and employment - EU and euro area',
+    lang: 'en',
+    enabled: true,
+  },
+  {
+    indicatorCode: 'EA_UNEMPLOYMENT_RATE',
+    provider: 'EUROSTAT',
+    authority: 'Eurostat',
+    nameZhHant: '歐元區失業率',
+    nameZhHans: '欧元区失业率',
+    nameEn: 'Euro area unemployment rate',
+    region: 'EA',
+    category: 'EMPLOYMENT',
+    unit: '%',
+    scheduleUrl: 'https://ec.europa.eu/eurostat/web/main/news/euro-indicators',
+    sourceUrl: 'https://ec.europa.eu/eurostat/web/lfs',
+    eurostatTitle: 'Unemployment',
+    lang: 'en',
+    enabled: true,
+  },
+  {
+    indicatorCode: 'EU_RETAIL_TRADE',
+    provider: 'EUROSTAT',
+    authority: 'Eurostat',
+    nameZhHant: '歐盟零售貿易',
+    nameZhHans: '欧盟零售贸易',
+    nameEn: 'EU retail trade',
+    region: 'EU',
+    category: 'OTHER',
+    unit: '%_MOM',
+    scheduleUrl: 'https://ec.europa.eu/eurostat/web/main/news/euro-indicators',
+    sourceUrl: 'https://ec.europa.eu/eurostat/web/short-term-business-statistics',
+    eurostatTitle: 'Retail trade',
+    lang: 'en',
+    enabled: true,
+  },
+
+  // --- Hong Kong — Census & Statistics Department (ADR-0061 batch 1) ---------
+  // C&SD exposes no machine-readable release API; its only source is the
+  // official annual PDF schedule (fixed 16:30 HKT = 08:30 UTC). The 2026
+  // dates below are transcribed verbatim from the 2026 "Schedule of Regular
+  // Press Releases" PDF. NOTE (rule 00 資料正確性): this is a per-year table —
+  // C&SD publishes the next year's schedule each September, so these `releases`
+  // arrays MUST be refreshed annually (tracked in docs/03-status.md). Values
+  // (previous/actual) are not machine-readable, so these events carry the
+  // schedule + period only (`previous/actual = null`) — honest and compliant.
+  {
+    indicatorCode: 'HK_CPI_YOY',
+    provider: 'HK_CSD',
+    authority: 'Census and Statistics Department',
+    nameZhHant: '香港綜合消費物價指數（按年）',
+    nameZhHans: '香港综合消费物价指数（按年）',
+    nameEn: 'Hong Kong Composite CPI (YoY)',
+    region: 'HK',
+    category: 'INFLATION',
+    unit: '%_YOY',
+    scheduleUrl: 'https://www.censtatd.gov.hk/en/press_release_sc.html?scode=270&pcode=B1060001',
+    sourceUrl: 'https://www.censtatd.gov.hk/en/scode270.html',
+    // Reference month → 2026 release date (16:30 HKT).
+    releases: [
+      { dateUtc: '2026-01-22T08:30:00.000Z', periodLabel: '2025-12' },
+      { dateUtc: '2026-02-25T08:30:00.000Z', periodLabel: '2026-01' },
+      { dateUtc: '2026-03-20T08:30:00.000Z', periodLabel: '2026-02' },
+      { dateUtc: '2026-04-23T08:30:00.000Z', periodLabel: '2026-03' },
+      { dateUtc: '2026-05-21T08:30:00.000Z', periodLabel: '2026-04' },
+      { dateUtc: '2026-06-23T08:30:00.000Z', periodLabel: '2026-05' },
+      { dateUtc: '2026-07-21T08:30:00.000Z', periodLabel: '2026-06' },
+      { dateUtc: '2026-08-20T08:30:00.000Z', periodLabel: '2026-07' },
+      { dateUtc: '2026-09-23T08:30:00.000Z', periodLabel: '2026-08' },
+      { dateUtc: '2026-10-22T08:30:00.000Z', periodLabel: '2026-09' },
+      { dateUtc: '2026-11-20T08:30:00.000Z', periodLabel: '2026-10' },
+      { dateUtc: '2026-12-21T08:30:00.000Z', periodLabel: '2026-11' },
+    ],
+    lang: 'zh-Hant',
+    enabled: true,
+  },
+  {
+    indicatorCode: 'HK_UNEMPLOYMENT_RATE',
+    provider: 'HK_CSD',
+    authority: 'Census and Statistics Department',
+    nameZhHant: '香港失業率（經季節性調整）',
+    nameZhHans: '香港失业率（经季节性调整）',
+    nameEn: 'Hong Kong unemployment rate (seasonally adjusted)',
+    region: 'HK',
+    category: 'EMPLOYMENT',
+    unit: '%',
+    scheduleUrl: 'https://www.censtatd.gov.hk/en/press_release_sc.html?scode=200&pcode=B1050001',
+    sourceUrl: 'https://www.censtatd.gov.hk/en/scode200.html',
+    // Rolling three-month window → 2026 release date; periodLabel = window end month.
+    releases: [
+      { dateUtc: '2026-01-20T08:30:00.000Z', periodLabel: '2025-12' },
+      { dateUtc: '2026-02-20T08:30:00.000Z', periodLabel: '2026-01' },
+      { dateUtc: '2026-03-18T08:30:00.000Z', periodLabel: '2026-02' },
+      { dateUtc: '2026-04-23T08:30:00.000Z', periodLabel: '2026-03' },
+      { dateUtc: '2026-05-19T08:30:00.000Z', periodLabel: '2026-04' },
+      { dateUtc: '2026-06-16T08:30:00.000Z', periodLabel: '2026-05' },
+      { dateUtc: '2026-07-17T08:30:00.000Z', periodLabel: '2026-06' },
+      { dateUtc: '2026-08-20T08:30:00.000Z', periodLabel: '2026-07' },
+      { dateUtc: '2026-09-17T08:30:00.000Z', periodLabel: '2026-08' },
+      { dateUtc: '2026-10-22T08:30:00.000Z', periodLabel: '2026-09' },
+      { dateUtc: '2026-11-17T08:30:00.000Z', periodLabel: '2026-10' },
+      { dateUtc: '2026-12-17T08:30:00.000Z', periodLabel: '2026-11' },
+    ],
+    lang: 'zh-Hant',
+    enabled: true,
+  },
+  {
+    indicatorCode: 'HK_EXTERNAL_TRADE',
+    provider: 'HK_CSD',
+    authority: 'Census and Statistics Department',
+    nameZhHant: '香港對外商品貿易',
+    nameZhHans: '香港对外商品贸易',
+    nameEn: 'Hong Kong external merchandise trade',
+    region: 'HK',
+    category: 'TRADE',
+    // Values are not machine-readable and stay null; unit is left empty because
+    // no figure is ever rendered next to it (D1 honesty).
+    unit: '',
+    scheduleUrl: 'https://www.censtatd.gov.hk/en/press_release_sc.html?scode=230&pcode=B1020003',
+    sourceUrl: 'https://www.censtatd.gov.hk/en/scode230.html',
+    // Reference month → 2026 release date (16:30 HKT).
+    releases: [
+      { dateUtc: '2026-01-27T08:30:00.000Z', periodLabel: '2025-12' },
+      { dateUtc: '2026-02-27T08:30:00.000Z', periodLabel: '2026-01' },
+      { dateUtc: '2026-03-26T08:30:00.000Z', periodLabel: '2026-02' },
+      { dateUtc: '2026-04-28T08:30:00.000Z', periodLabel: '2026-03' },
+      { dateUtc: '2026-05-28T08:30:00.000Z', periodLabel: '2026-04' },
+      { dateUtc: '2026-06-25T08:30:00.000Z', periodLabel: '2026-05' },
+      { dateUtc: '2026-07-27T08:30:00.000Z', periodLabel: '2026-06' },
+      { dateUtc: '2026-08-25T08:30:00.000Z', periodLabel: '2026-07' },
+      { dateUtc: '2026-09-24T08:30:00.000Z', periodLabel: '2026-08' },
+      { dateUtc: '2026-10-28T08:30:00.000Z', periodLabel: '2026-09' },
+      { dateUtc: '2026-11-26T08:30:00.000Z', periodLabel: '2026-10' },
+      { dateUtc: '2026-12-28T08:30:00.000Z', periodLabel: '2026-11' },
+    ],
+    lang: 'zh-Hant',
+    enabled: true,
+  },
+  // --- United Kingdom — Office for National Statistics (ADR-0061 batch 2) ----
+  // Served by the ONS provider via the official releases API
+  // (`api.beta.ons.gov.uk/v1/search/releases`, key-less). The API lists each
+  // dated release with a stable `/releases/<slug><period>` uri; the provider
+  // maps a release to an indicator by `onsUriPrefix` (the stable slug prefix,
+  // excluding the `…timeseries` duplicate). ONS exposes the schedule only, so
+  // these events carry release time + period with `previous/actual = null`
+  // (honest, D1). `onsUriPrefix` is verified against the live upcoming list.
+  {
+    indicatorCode: 'GB_CPI_YOY',
+    provider: 'ONS',
+    authority: 'Office for National Statistics',
+    nameZhHant: '英國消費者物價指數（按年）',
+    nameZhHans: '英国消费者物价指数（按年）',
+    nameEn: 'UK Consumer Price Inflation (YoY)',
+    region: 'GB',
+    category: 'INFLATION',
+    unit: '%_YOY',
+    scheduleUrl: 'https://www.ons.gov.uk/releasecalendar',
+    sourceUrl:
+      'https://www.ons.gov.uk/economy/inflationandpriceindices/bulletins/consumerpriceinflation/latest',
+    onsUriPrefix: 'consumerpriceinflationuk',
+    lang: 'en',
+    enabled: true,
+  },
+  {
+    indicatorCode: 'GB_GDP_MONTHLY',
+    provider: 'ONS',
+    authority: 'Office for National Statistics',
+    nameZhHant: '英國國內生產總值（月度估計）',
+    nameZhHans: '英国国内生产总值（月度估计）',
+    nameEn: 'UK GDP monthly estimate',
+    region: 'GB',
+    category: 'GROWTH',
+    unit: '%_MOM',
+    scheduleUrl: 'https://www.ons.gov.uk/releasecalendar',
+    sourceUrl:
+      'https://www.ons.gov.uk/economy/grossdomesticproductgdp/bulletins/gdpmonthlyestimateuk/latest',
+    onsUriPrefix: 'gdpmonthlyestimateuk',
+    lang: 'en',
+    enabled: true,
+  },
+  {
+    indicatorCode: 'GB_LABOUR_MARKET',
+    provider: 'ONS',
+    authority: 'Office for National Statistics',
+    nameZhHant: '英國勞動市場統計',
+    nameZhHans: '英国劳动市场统计',
+    nameEn: 'UK labour market',
+    region: 'GB',
+    category: 'EMPLOYMENT',
+    unit: '%',
+    scheduleUrl: 'https://www.ons.gov.uk/releasecalendar',
+    sourceUrl:
+      'https://www.ons.gov.uk/employmentandlabourmarket/peopleinwork/employmentandemployeetypes/bulletins/uklabourmarket/latest',
+    onsUriPrefix: 'uklabourmarket',
+    lang: 'en',
+    enabled: true,
+  },
+  {
+    indicatorCode: 'GB_RETAIL_SALES',
+    provider: 'ONS',
+    authority: 'Office for National Statistics',
+    nameZhHant: '英國零售銷售',
+    nameZhHans: '英国零售销售',
+    nameEn: 'UK retail sales',
+    region: 'GB',
+    category: 'OTHER',
+    unit: '%_MOM',
+    scheduleUrl: 'https://www.ons.gov.uk/releasecalendar',
+    sourceUrl:
+      'https://www.ons.gov.uk/businessindustryandtrade/retailindustry/bulletins/retailsales/latest',
+    onsUriPrefix: 'retailsalesgreatbritain',
+    lang: 'en',
+    enabled: true,
+  },
+
+  // --- Canada — Statistics Canada (ADR-0061 batch 2) ------------------------
+  // Served by the StatCan provider via the official key-indicators release
+  // schedule JSON (`schedule-key_indicators-eng.json`, key-less), which lists
+  // each forthcoming release with a stable official `title` + `description`
+  // period. The provider maps a release to an indicator by exact `title`
+  // match; release time is a fixed 08:30 Eastern (The Daily), DST-converted to
+  // UTC by the provider. Schedule-only, so `previous/actual = null` (honest,
+  // D1). `statcanTitle` values are verified against the live schedule.
+  {
+    indicatorCode: 'CA_CPI_YOY',
+    provider: 'STATCAN',
+    authority: 'Statistics Canada',
+    nameZhHant: '加拿大消費者物價指數（按年）',
+    nameZhHans: '加拿大消费者物价指数（按年）',
+    nameEn: 'Canada Consumer Price Index (YoY)',
+    region: 'CA',
+    category: 'INFLATION',
+    unit: '%_YOY',
+    scheduleUrl: 'https://www150.statcan.gc.ca/n1/dai-quo/ssi/homepage/schedule-eng.htm',
+    sourceUrl:
+      'https://www.statcan.gc.ca/en/subjects-start/prices_and_price_indexes/consumer_price_indexes',
+    statcanTitle: 'Consumer Price Index',
+    lang: 'en',
+    enabled: true,
+  },
+  {
+    indicatorCode: 'CA_GDP_MONTHLY',
+    provider: 'STATCAN',
+    authority: 'Statistics Canada',
+    nameZhHant: '加拿大國內生產總值（按行業）',
+    nameZhHans: '加拿大国内生产总值（按行业）',
+    nameEn: 'Canada GDP by industry',
+    region: 'CA',
+    category: 'GROWTH',
+    unit: '%_MOM',
+    scheduleUrl: 'https://www150.statcan.gc.ca/n1/dai-quo/ssi/homepage/schedule-eng.htm',
+    sourceUrl:
+      'https://www.statcan.gc.ca/en/subjects-start/economic_accounts/gross_domestic_product',
+    statcanTitle: 'Gross domestic product by industry',
+    lang: 'en',
+    enabled: true,
+  },
+  {
+    indicatorCode: 'CA_LABOUR_FORCE_SURVEY',
+    provider: 'STATCAN',
+    authority: 'Statistics Canada',
+    nameZhHant: '加拿大勞動力調查',
+    nameZhHans: '加拿大劳动力调查',
+    nameEn: 'Canada Labour Force Survey',
+    region: 'CA',
+    category: 'EMPLOYMENT',
+    unit: '%',
+    scheduleUrl: 'https://www150.statcan.gc.ca/n1/dai-quo/ssi/homepage/schedule-eng.htm',
+    sourceUrl: 'https://www.statcan.gc.ca/en/subjects-start/labour_',
+    statcanTitle: 'Labour Force Survey',
+    lang: 'en',
+    enabled: true,
+  },
+  {
+    indicatorCode: 'CA_RETAIL_TRADE',
+    provider: 'STATCAN',
+    authority: 'Statistics Canada',
+    nameZhHant: '加拿大零售貿易',
+    nameZhHans: '加拿大零售贸易',
+    nameEn: 'Canada retail trade',
+    region: 'CA',
+    category: 'OTHER',
+    unit: '%_MOM',
+    scheduleUrl: 'https://www150.statcan.gc.ca/n1/dai-quo/ssi/homepage/schedule-eng.htm',
+    sourceUrl:
+      'https://www.statcan.gc.ca/en/subjects-start/business_performance_and_ownership/retail_and_wholesale',
+    statcanTitle: 'Retail trade',
+    lang: 'en',
+    enabled: true,
+  },
+  {
+    indicatorCode: 'CA_MERCHANDISE_TRADE',
+    provider: 'STATCAN',
+    authority: 'Statistics Canada',
+    nameZhHant: '加拿大國際商品貿易',
+    nameZhHans: '加拿大国际商品贸易',
+    nameEn: 'Canada international merchandise trade',
+    region: 'CA',
+    category: 'TRADE',
+    unit: '',
+    scheduleUrl: 'https://www150.statcan.gc.ca/n1/dai-quo/ssi/homepage/schedule-eng.htm',
+    sourceUrl: 'https://www.statcan.gc.ca/en/subjects-start/international_trade',
+    statcanTitle: 'Canadian international merchandise trade',
+    lang: 'en',
+    enabled: true,
+  },
+
+  // NOTE: HK GDP advance estimate (季頻) is intentionally NOT encoded yet. The
+  // 2026 PDF linearised ambiguously on the exact release months during research
+  // (docs/conversations/2026-08-03-calendar-multi-region-research.md 發現 3),
+  // and shipping a wrong economic-release date violates rule 00 (資料正確性).
+  // Deferred to a follow-up once the PDF table is re-read precisely.
 ] as const;
 
 /** The subset the fetcher should actually poll. */
 export function enabledCalendarIndicators(): readonly CalendarIndicatorSource[] {
   return CALENDAR_INDICATOR_SOURCES.filter((s) => s.enabled);
+}
+
+/**
+ * The enabled indicators served by a given official provider (ADR-0061 D2).
+ * Each `ICalendarProvider` implementation uses this to poll only its own
+ * authority's indicators, so a broken source is isolated to one provider.
+ */
+export function calendarIndicatorsForProvider(
+  provider: CalendarProvider,
+): readonly CalendarIndicatorSource[] {
+  return CALENDAR_INDICATOR_SOURCES.filter((s) => s.enabled && s.provider === provider);
 }

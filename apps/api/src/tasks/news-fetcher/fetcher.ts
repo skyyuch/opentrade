@@ -8,8 +8,9 @@
  * external pull -> DB upsert), runnable in the API process or a separate ECS
  * task.
  *
- * Compliance (ADR-0057 D1): only headline / source / link / timestamp are ever
- * written; `symbols` is left empty in the MVP (forward-compatible seam, D4).
+ * Compliance (ADR-0057 D1): only headline / source / link / timestamp — plus
+ * the publisher's own feed thumbnail URL (ADR-0060) — are ever written;
+ * `symbols` is left empty in the MVP (forward-compatible seam, D4).
  */
 
 import type { INewsFeedProvider } from './types.js';
@@ -46,6 +47,10 @@ export class NewsFetcher {
             sourceName: h.sourceName,
             publishedAt: h.publishedAt,
             lang: h.lang,
+            // Only overwrite the thumbnail when the fresh draft actually carries
+            // one, so a later image-less re-fetch never wipes a good URL
+            // (mirrors the calendar fetcher's two-phase value guard).
+            ...(h.imageUrl !== null ? { imageUrl: h.imageUrl } : {}),
             fetchedAt: new Date(),
             isActive: true,
           },
@@ -55,6 +60,7 @@ export class NewsFetcher {
             sourceUrl: h.sourceUrl,
             publishedAt: h.publishedAt,
             lang: h.lang,
+            imageUrl: h.imageUrl,
             symbols: [],
           },
         });

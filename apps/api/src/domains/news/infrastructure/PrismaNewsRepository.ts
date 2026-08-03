@@ -19,6 +19,7 @@ function toRecord(row: NewsItem): NewsItemRecord {
     sourceUrl: row.sourceUrl,
     publishedAt: row.publishedAt,
     lang: row.lang,
+    imageUrl: row.imageUrl,
   };
 }
 

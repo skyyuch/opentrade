@@ -28,6 +28,7 @@ const d = (iso: string): Date => new Date(`${iso}T00:00:00.000Z`);
 
 const indicator = (overrides: Partial<CalendarIndicatorSource> = {}): CalendarIndicatorSource => ({
   indicatorCode: 'US_CPI_YOY',
+  provider: 'FRED',
   authority: 'BLS',
   nameZhHant: '美國消費者物價指數（按年）',
   nameZhHans: '美国消费者物价指数（按年）',

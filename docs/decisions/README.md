@@ -142,8 +142,10 @@ YYYY-MM-DD
 | 0055 | Telegram-driven spec/ADR drafting then owner ratification before grind (amends 0052)         | Accepted                   | 2026-06-22 |
 | 0056 | Compose DATABASE_URL from the RDS-managed secret at container start (amends 0046 D9, 0048)   | Accepted                   | 2026-06-25 |
 | 0057 | Third-party financial-news aggregation — headline-only, chronological, via curated RSS       | Accepted                   | 2026-07-01 |
-| 0058 | Economic-calendar aggregation — official-source, facts-only, chronological                   | Accepted                   | 2026-07-21 |
+| 0058 | Economic-calendar aggregation — official-source, facts-only, chronological                   | Accepted (amended by 0061) | 2026-07-21 |
 | 0059 | Derive fed-funds rate-decision events from FRED observation change-points (amends 0058 D3)   | Accepted                   | 2026-07-23 |
+| 0060 | Display the publisher's own RSS-provided thumbnail on aggregated news (amends 0057 D1)       | Accepted                   | 2026-08-03 |
+| 0061 | Economic-calendar multi-region expansion via additional official sources (amends 0058 D1/D2) | Accepted                   | 2026-08-03 |
 
 ---
 
