@@ -93,6 +93,43 @@
 - HK C&SD `releases[]` 為 2026 年表，每年 9 月官方出次年表 → 需年度更新 config。
 - `FRED_API_KEY` 已由 owner 填本地 `.env`；正式環境需在 Secrets Manager 設。
 
+## Batch 2 進度與來源可得性發現（2026-08-03 續作 session）
+
+已交付（各一個 cohesive commit，branch `docs/status-pr58-closeout`）：
+
+- **GB ONS**（`139a934`）：`gb-ons-provider.ts` 打官方 releases API
+  `api.beta.ons.gov.uk/v1/search/releases`（免金鑰），抓 `type-upcoming`+`type-published`
+  兩頁，用穩定 slug 前綴 `onsUriPrefix` 精確比對（排除 `…timeseries` 重複），schedule-only 值留 null。
+  4 指標：CPI / GDP monthly / labour market / retail sales。live 實測 14 筆、10 unit tests。
+- **CA StatCan**（`6525db3`）：`ca-statcan-provider.ts` 打官方 key-indicators 日程 JSON
+  `schedule-key_indicators-eng.json`（免金鑰、含未來日期），用穩定官方 `title` 精確比對；
+  The Daily 固定 08:30 東部時間，以 **DST-aware** offset 換算 UTC（不引入 date lib，D7）。
+  5 指標：CPI / GDP by industry / Labour Force Survey / retail trade / merchandise trade。live 實測 30 筆、9 unit tests。
+
+> ⚠️ **關鍵來源可得性發現（省下個 session 重做）**：owner 原列的 4 個「免金鑰快速」源中，
+> **只有 GB ONS 與 CA StatCan 真的有乾淨、免金鑰、機器可讀的前瞻發布日程**（JSON）。
+> **AU ABS 與 NZ Stats NZ 都只提供 HTML 發布日曆**，實測其常見端點皆無乾淨 feed：
+>
+> - **ABS**：`/rss/*`、`/*.ics`、Drupal `?_format=json`、`/jsonapi/*` 全 404 或回 HTML；
+>   只有 Funnelback 搜尋後端 `search.abs.gov.au/s/search.json`（回 400＝端點存在但需逆向 collection/meta 參數）。
+> - **Stats NZ**：`/rss/*` 404、`release-calendar.json` 403、`release-calendar.ics` 回 HTML（無 VEVENT）、
+>   OData `api.stats.govt.nz` 需金鑰。
+>   → AU/NZ 需 **HTML 爬取**（Drupal View / 發布日曆頁）或**逆向 Funnelback JSON**，屬較大、較脆弱、
+>   風險較高（rule 00 資料正確性）的**獨立聚焦單元**，本 session 刻意**延後**，未硬塞脆弱爬蟲。
+
+### 下個 session 的 Batch 3 候選（擇一聚焦，勿一次全上）
+
+1. **AU ABS**：優先嘗試逆向 `search.abs.gov.au/s/search.json`（Funnelback，需找對 collection + 依 release-date meta 排序），
+   成功即等同 clean JSON；否則退而解析 `/release-calendar/future-releases` 的 Drupal View HTML（表格結構尚穩定，但需 fixture 化測試 + 年度巡檢）。enum `AU` 已備、國旗/i18n 已備 → 純 provider+config。
+2. **NZ Stats NZ**：需先擴 enum（`ALTER TYPE ... ADD VALUE IF NOT EXISTS 'NZ'`，仿 `20260803080000`）
+   - config `CalendarRegion`/旗 + api `ECONOMIC_REGION_VALUES` + web `ECONOMIC_REGIONS`/`REGION_FLAG` + 三語 `regionNZ` + parity（一個 cross-layer commit），再寫 provider（HTML 爬取其 release-calendar 頁）。
+3. **JP e-Stat**：需免費 appId（走 Secrets Manager + 條件掛載，仿 FRED）；e-Stat 有官方發布日曆 API。
+4. **CN NBS**：enum 已有 `CN`，但官方發布日程無 JSON → 仿 HK config 編碼（且只收 NBS，**絕不**收財新/匯豐 PMI）。
+
+Provider pattern 已定型（見 `gb-ons-provider.ts` / `ca-statcan-provider.ts`）：injectable `fetchFn`/`now`、
+per-entry try/catch 隔離、window 過濾、title/slug 精確比對、schedule-only 值留 null、fixture 驅動 unit test、
+`index.ts` 匯出 + `main.ts` 免金鑰常駐接線、live 端點實測一次。
+
 ## 給未來 AI agent 的建議
 
 1. **先讀** `ADR-0058`（合規/架構母 ADR）+ `ADR-0061`（多地區擴充）+ `docs/conversations/2026-08-03-calendar-multi-region-research.md`（Eurostat/HK 研究）。
