@@ -1083,11 +1083,20 @@ model ModerationTermAudit {
 // ---------------------------------------------------------------------------
 
 /// Region an economic event belongs to (ADR-0058 D1). Coverage grows batch by
-/// batch (US → HK → CN); new regions are non-breaking enum ADD VALUEs.
+/// batch; new regions are non-breaking enum ADD VALUEs. ADR-0061 expands beyond
+/// the original US/HK/CN MVP to multi-region official sources (EU/EA via
+/// Eurostat, plus staged GB/CA/AU/JP). `region` is a filter/label only, NEVER a
+/// ranking.
 enum EconomicRegion {
   US
   HK
   CN
+  EU
+  EA
+  GB
+  CA
+  AU
+  JP
 }
 
 /// Filtering-only category (ADR-0058 D1). Used purely for region/category

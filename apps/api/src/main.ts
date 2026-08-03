@@ -18,7 +18,12 @@ import { PrismaSignalRepository } from './domains/signals/infrastructure/PrismaS
 import { createServer } from './http/server.js';
 import { env } from './shared/env.js';
 import { logger } from './shared/observability/logger.js';
-import { CalendarFetcher, FredCalendarProvider } from './tasks/calendar-fetcher/index.js';
+import {
+  CalendarFetcher,
+  EurostatCalendarProvider,
+  FredCalendarProvider,
+  HkCsdCalendarProvider,
+} from './tasks/calendar-fetcher/index.js';
 import { NewsFetcher, RssFeedProvider } from './tasks/news-fetcher/index.js';
 import { PriceRecorder, YahooFinanceProvider } from './tasks/price-recorder/index.js';
 import { SettleWorker } from './tasks/settle-worker.js';
@@ -71,14 +76,19 @@ const newsFetcher = new NewsFetcher(prisma, {
   provider: new RssFeedProvider(),
 });
 
-// Calendar Fetcher (per ADR-0058): polls official statistical sources and
-// upserts events into the economic_events cache that GET /v1/calendar reads.
-// The FRED provider is only wired when an API key is configured (Secrets
-// Manager, rule 50); otherwise the fetcher runs with no providers and stays
-// inert.
-const calendarProviders: ICalendarProvider[] = env.FRED_API_KEY
-  ? [new FredCalendarProvider({ apiKey: env.FRED_API_KEY })]
-  : [];
+// Calendar Fetcher (per ADR-0058 / ADR-0061): polls official statistical
+// sources and upserts events into the economic_events cache that
+// GET /v1/calendar reads. Multi-region official providers (ADR-0061 D2):
+//   - Eurostat (EU / euro area) and HK C&SD are key-less official sources and
+//     are always wired.
+//   - FRED (US) needs a free API key (Secrets Manager, rule 50); it is added
+//     only when configured, otherwise it stays absent (the other providers
+//     still run). Each provider isolates its own failures.
+const calendarProviders: ICalendarProvider[] = [
+  new EurostatCalendarProvider(),
+  new HkCsdCalendarProvider(),
+  ...(env.FRED_API_KEY ? [new FredCalendarProvider({ apiKey: env.FRED_API_KEY })] : []),
+];
 const calendarFetcher = new CalendarFetcher(prisma, {
   intervalMs: 6 * 60 * 60 * 1000, // 6 hours
   providers: calendarProviders,

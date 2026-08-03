@@ -25,6 +25,53 @@ const localizedName = (item: EconomicEventItem, locale: string): string => {
 };
 
 /**
+ * Region → Unicode flag emoji (ADR-0061 D1). Purely a visual region marker
+ * (region is a filter/label, never a ranking). Mirrors `CALENDAR_REGION_FLAG`
+ * in `@opentrade/config`; the euro area (`EA`) shares the EU flag.
+ */
+const REGION_FLAG: Record<EconomicRegion, string> = {
+  US: '🇺🇸',
+  HK: '🇭🇰',
+  CN: '🇨🇳',
+  EU: '🇪🇺',
+  EA: '🇪🇺',
+  GB: '🇬🇧',
+  CA: '🇨🇦',
+  AU: '🇦🇺',
+  JP: '🇯🇵',
+};
+
+/**
+ * Stable Asia/Hong_Kong date key (YYYY-MM-DD) for grouping. `en-CA` yields the
+ * ISO-ordered date parts so the string is both a valid group key and sorts
+ * chronologically. Times are stored UTC and rendered in HK time (ADR-0058 D7).
+ */
+const hkDateKey = (iso: string): string =>
+  new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Hong_Kong',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date(iso));
+
+/**
+ * Bucket the (already chronological, server-ordered) events by their HK-local
+ * date, preserving order — an Investing.com-style date-grouped layout.
+ */
+const groupByHkDate = (
+  items: EconomicEventItem[],
+): { dateKey: string; headingAt: string; events: EconomicEventItem[] }[] => {
+  const groups: { dateKey: string; headingAt: string; events: EconomicEventItem[] }[] = [];
+  for (const item of items) {
+    const dateKey = hkDateKey(item.scheduledAt);
+    const last = groups[groups.length - 1];
+    if (last?.dateKey === dateKey) last.events.push(item);
+    else groups.push({ dateKey, headingAt: item.scheduledAt, events: [item] });
+  }
+  return groups;
+};
+
+/**
  * Filterable, cursor-paginated economic-event list (ADR-0058).
  *
  * Compliance shape (D1): ordering is strictly chronological (`scheduledAt`,
@@ -188,89 +235,118 @@ export const CalendarList = ({ initialItems, initialCursor }: Props) => {
             {t('showingCount', { count: items.length })}
           </div>
 
-          <ul className="flex flex-col gap-3">
-            {items.map((item) => {
-              const released = item.actualValue !== null;
-              return (
-                <li key={item.id}>
-                  {/*
-                    External outbound link (ADR-0058 D1): each event links to
-                    the authority's official release page — we never reproduce
-                    release text. `nofollow` + `noopener` on third-party links.
-                  */}
-                  <a
-                    href={item.sourceUrl}
-                    target="_blank"
-                    rel="noopener noreferrer nofollow"
-                    className="group flex items-start justify-between gap-4 rounded-2xl border border-white/10 bg-zinc-900/40 p-5 backdrop-blur-xl transition-all hover:border-[#00FF88]/30 hover:bg-zinc-900/60"
-                  >
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <h3 className="text-base font-semibold leading-snug text-white transition-colors group-hover:text-[#00FF88]">
-                          {localizedName(item, locale)}
-                        </h3>
-                        <span
-                          className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${
-                            released
-                              ? 'border-[#00FF88]/40 text-[#00FF88]/90'
-                              : 'border-white/20 text-white/50'
-                          }`}
+          {/*
+            Date-grouped layout (ADR-0061): events are bucketed under an HK-local
+            day heading, Investing.com-style, while ordering stays strictly
+            chronological (server `scheduledAt`) — grouping never re-ranks (D1).
+          */}
+          <div className="flex flex-col gap-8">
+            {groupByHkDate(items).map((group) => (
+              <section key={group.dateKey} className="flex flex-col gap-3">
+                <h2 className="sticky top-0 z-10 -mx-1 bg-black/40 px-1 py-1 text-sm font-semibold text-white/70 backdrop-blur">
+                  {format.dateTime(new Date(group.headingAt), {
+                    weekday: 'short',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    timeZone: 'Asia/Hong_Kong',
+                  })}
+                </h2>
+
+                <ul className="flex flex-col gap-3">
+                  {group.events.map((item) => {
+                    const released = item.actualValue !== null;
+                    return (
+                      <li key={item.id}>
+                        {/*
+                          External outbound link (ADR-0058 D1): each event links to
+                          the authority's official release page — we never reproduce
+                          release text. `nofollow` + `noopener` on third-party links.
+                        */}
+                        <a
+                          href={item.sourceUrl}
+                          target="_blank"
+                          rel="noopener noreferrer nofollow"
+                          className="group flex items-start gap-4 rounded-2xl border border-white/10 bg-zinc-900/40 p-5 backdrop-blur-xl transition-all hover:border-[#00FF88]/30 hover:bg-zinc-900/60"
                         >
-                          {released ? t('statusReleased') : t('statusUpcoming')}
-                        </span>
-                      </div>
-
-                      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-white/40">
-                        <span className="font-medium text-white/60">{item.sourceName}</span>
-                        <span aria-hidden>·</span>
-                        <time dateTime={item.scheduledAt}>
-                          {/* Stored UTC, displayed in HK time (ADR-0058 D7). */}
-                          {format.dateTime(new Date(item.scheduledAt), {
-                            year: 'numeric',
-                            month: 'short',
-                            day: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit',
-                            timeZone: 'Asia/Hong_Kong',
-                          })}
-                        </time>
-                        <span aria-hidden>·</span>
-                        <span>
-                          {t('period')}: {item.periodLabel}
-                        </span>
-                      </div>
-
-                      {/* Official facts only — previous + actual, never forecast/consensus (D1). */}
-                      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
-                        <span className="text-white/50">
-                          {t('previousValue')}:{' '}
-                          <span className="font-medium text-white/80">
-                            {item.previousValue !== null
-                              ? `${item.previousValue} ${item.unit}`
-                              : t('pendingValue')}
-                          </span>
-                        </span>
-                        <span className="text-white/50">
-                          {t('actualValue')}:{' '}
-                          <span
-                            className={`font-medium ${released ? 'text-[#00FF88]' : 'text-white/40'}`}
+                          {/* Time column — the day's chronological anchor (HK time, D7). */}
+                          <time
+                            dateTime={item.scheduledAt}
+                            className="w-14 shrink-0 pt-0.5 text-sm font-semibold tabular-nums text-white/70"
                           >
-                            {item.actualValue !== null
-                              ? `${item.actualValue} ${item.unit}`
-                              : t('pendingValue')}
-                          </span>
-                        </span>
-                      </div>
-                    </div>
-                    <ExternalLink
-                      size={16}
-                      className="mt-1 shrink-0 text-white/30 transition-colors group-hover:text-[#00FF88]"
-                    />
-                  </a>
-                </li>
-              );
-            })}
-          </ul>
+                            {format.dateTime(new Date(item.scheduledAt), {
+                              hour: '2-digit',
+                              minute: '2-digit',
+                              hour12: false,
+                              timeZone: 'Asia/Hong_Kong',
+                            })}
+                          </time>
+
+                          <div className="min-w-0 flex-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span
+                                aria-hidden
+                                className="text-lg leading-none"
+                                title={t(`region${item.region}`)}
+                              >
+                                {REGION_FLAG[item.region]}
+                              </span>
+                              <h3 className="text-base font-semibold leading-snug text-white transition-colors group-hover:text-[#00FF88]">
+                                {localizedName(item, locale)}
+                              </h3>
+                              <span
+                                className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${
+                                  released
+                                    ? 'border-[#00FF88]/40 text-[#00FF88]/90'
+                                    : 'border-white/20 text-white/50'
+                                }`}
+                              >
+                                {released ? t('statusReleased') : t('statusUpcoming')}
+                              </span>
+                            </div>
+
+                            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-white/40">
+                              <span className="font-medium text-white/60">{item.sourceName}</span>
+                              <span aria-hidden>·</span>
+                              <span>
+                                {t('period')}: {item.periodLabel}
+                              </span>
+                            </div>
+
+                            {/* Official facts only — previous + actual, never forecast/consensus (D1). */}
+                            <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
+                              <span className="text-white/50">
+                                {t('previousValue')}:{' '}
+                                <span className="font-medium text-white/80">
+                                  {item.previousValue !== null
+                                    ? `${item.previousValue} ${item.unit}`
+                                    : t('pendingValue')}
+                                </span>
+                              </span>
+                              <span className="text-white/50">
+                                {t('actualValue')}:{' '}
+                                <span
+                                  className={`font-medium ${released ? 'text-[#00FF88]' : 'text-white/40'}`}
+                                >
+                                  {item.actualValue !== null
+                                    ? `${item.actualValue} ${item.unit}`
+                                    : t('pendingValue')}
+                                </span>
+                              </span>
+                            </div>
+                          </div>
+                          <ExternalLink
+                            size={16}
+                            className="mt-1 shrink-0 text-white/30 transition-colors group-hover:text-[#00FF88]"
+                          />
+                        </a>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </section>
+            ))}
+          </div>
 
           {cursor && (
             <div className="flex justify-center pt-2">

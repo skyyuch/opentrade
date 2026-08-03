@@ -22,7 +22,7 @@
  * others (mirrors the news-fetcher's per-feed isolation).
  */
 
-import { enabledCalendarIndicators } from '@opentrade/config';
+import { calendarIndicatorsForProvider } from '@opentrade/config';
 
 import type { CalendarEventDraft, ICalendarProvider } from './types.js';
 import type { CalendarIndicatorSource } from '@opentrade/config';
@@ -61,7 +61,7 @@ export class FredCalendarProvider implements ICalendarProvider {
 
   constructor(options: FredCalendarProviderOptions) {
     this.apiKey = options.apiKey;
-    this.indicators = options.indicators ?? enabledCalendarIndicators();
+    this.indicators = options.indicators ?? calendarIndicatorsForProvider('FRED');
     this.fetchFn = options.fetchFn ?? fetch;
     this.now = options.now ?? ((): Date => new Date());
   }

@@ -21,6 +21,7 @@ import type { PrismaClient } from '@opentrade/db';
 
 const CPI: CalendarIndicatorSource = {
   indicatorCode: 'US_CPI_YOY',
+  provider: 'FRED',
   authority: 'BLS',
   nameZhHant: '美國消費者物價指數（按年）',
   nameZhHans: '美国消费者物价指数（按年）',

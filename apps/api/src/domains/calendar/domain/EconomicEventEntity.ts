@@ -11,13 +11,23 @@
  * enums are mirrored as hand-written unions (same pattern as `KolTypeValue`).
  */
 
-/** Mirrors the `EconomicRegion` Prisma enum (ADR-0058 D1). */
-export type EconomicRegionValue = 'US' | 'HK' | 'CN';
+/**
+ * Mirrors the `EconomicRegion` Prisma enum (ADR-0058 D1, expanded by
+ * ADR-0061 D1). `region` is a filter/label only, never a ranking. `EA` is the
+ * euro area (a subset of `EU`); `CN` remains reserved but deferred.
+ */
+export type EconomicRegionValue = 'US' | 'HK' | 'CN' | 'EU' | 'EA' | 'GB' | 'CA' | 'AU' | 'JP';
 
 export const ECONOMIC_REGION_VALUES = [
   'US',
   'HK',
   'CN',
+  'EU',
+  'EA',
+  'GB',
+  'CA',
+  'AU',
+  'JP',
 ] as const satisfies readonly EconomicRegionValue[];
 
 /**
