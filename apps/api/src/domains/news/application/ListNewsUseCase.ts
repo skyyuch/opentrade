@@ -22,6 +22,8 @@ export type NewsItemDto = {
   sourceUrl: string;
   publishedAt: string;
   lang: string;
+  /** Publisher's own feed thumbnail URL, or null when absent (ADR-0060). */
+  imageUrl: string | null;
 };
 
 export type ListNewsResult = {
@@ -43,6 +45,7 @@ function toDto(record: NewsItemRecord): NewsItemDto {
     sourceUrl: record.sourceUrl,
     publishedAt: record.publishedAt.toISOString(),
     lang: record.lang,
+    imageUrl: record.imageUrl,
   };
 }
 

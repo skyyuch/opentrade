@@ -971,6 +971,8 @@ export type NewsItem = {
   sourceUrl: string;
   publishedAt: string;
   lang: string;
+  /** Publisher's own feed thumbnail URL, or null when absent (ADR-0060). */
+  imageUrl: string | null;
 };
 
 export type NewsResponse = {

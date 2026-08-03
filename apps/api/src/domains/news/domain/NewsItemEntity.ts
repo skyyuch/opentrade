@@ -15,6 +15,11 @@ export type NewsItemRecord = {
   sourceUrl: string;
   publishedAt: Date;
   lang: string;
+  /**
+   * Publisher's own feed-provided thumbnail URL (ADR-0060). `null` when the
+   * source feed carried no media — the record is otherwise unchanged.
+   */
+  imageUrl: string | null;
 };
 
 export type ListNewsOptions = {
