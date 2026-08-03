@@ -20,6 +20,7 @@ import { env } from './shared/env.js';
 import { logger } from './shared/observability/logger.js';
 import {
   CalendarFetcher,
+  CaStatCanCalendarProvider,
   EurostatCalendarProvider,
   FredCalendarProvider,
   GbOnsCalendarProvider,
@@ -80,8 +81,8 @@ const newsFetcher = new NewsFetcher(prisma, {
 // Calendar Fetcher (per ADR-0058 / ADR-0061): polls official statistical
 // sources and upserts events into the economic_events cache that
 // GET /v1/calendar reads. Multi-region official providers (ADR-0061 D2):
-//   - Eurostat (EU / euro area), HK C&SD and UK ONS are key-less official
-//     sources and are always wired.
+//   - Eurostat (EU / euro area), HK C&SD, UK ONS and Canada StatCan are
+//     key-less official sources and are always wired.
 //   - FRED (US) needs a free API key (Secrets Manager, rule 50); it is added
 //     only when configured, otherwise it stays absent (the other providers
 //     still run). Each provider isolates its own failures.
@@ -89,6 +90,7 @@ const calendarProviders: ICalendarProvider[] = [
   new EurostatCalendarProvider(),
   new HkCsdCalendarProvider(),
   new GbOnsCalendarProvider(),
+  new CaStatCanCalendarProvider(),
   ...(env.FRED_API_KEY ? [new FredCalendarProvider({ apiKey: env.FRED_API_KEY })] : []),
 ];
 const calendarFetcher = new CalendarFetcher(prisma, {

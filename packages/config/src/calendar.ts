@@ -44,7 +44,7 @@ export type CalendarRegion = 'US' | 'HK' | 'CN' | 'EU' | 'EA' | 'GB' | 'CA' | 'A
  * isolated per-source failure. A commercial aggregator is deliberately NOT a
  * provider (ADR-0058/0061 D4).
  */
-export type CalendarProvider = 'FRED' | 'EUROSTAT' | 'HK_CSD' | 'ONS';
+export type CalendarProvider = 'FRED' | 'EUROSTAT' | 'HK_CSD' | 'ONS' | 'STATCAN';
 
 /**
  * Region → Unicode flag emoji (ADR-0061 D1). Purely a visual region marker;
@@ -150,6 +150,19 @@ export type CalendarIndicatorSource = {
    * so such events stay `previous/actual = null` — honest and compliant (D1).
    */
   readonly onsUriPrefix?: string;
+  /**
+   * Statistics Canada "The Daily" release-schedule title to match on
+   * (ADR-0061 D2 batch 2). StatCan's key-indicators schedule JSON
+   * (`schedule-key_indicators-eng.json`) lists each forthcoming release with a
+   * stable official `title` (e.g. "Consumer Price Index") and a `description`
+   * period (e.g. "June 2026" / "Second quarter 2026"). The StatCan provider
+   * maps a release to this indicator by an exact, case-insensitive `title`
+   * match. Present only for `provider: 'STATCAN'` indicators. StatCan's
+   * schedule carries no values, so such events stay `previous/actual = null`
+   * — honest and compliant (D1). Release time is a fixed 08:30 Eastern (The
+   * Daily), converted to UTC with DST awareness by the provider.
+   */
+  readonly statcanTitle?: string;
   /**
    * Pre-encoded official release schedule for authorities with no
    * machine-readable API (ADR-0061 D2). Present only for `provider: 'HK_CSD'`
@@ -511,6 +524,98 @@ export const CALENDAR_INDICATOR_SOURCES: readonly CalendarIndicatorSource[] = [
     sourceUrl:
       'https://www.ons.gov.uk/businessindustryandtrade/retailindustry/bulletins/retailsales/latest',
     onsUriPrefix: 'retailsalesgreatbritain',
+    lang: 'en',
+    enabled: true,
+  },
+
+  // --- Canada — Statistics Canada (ADR-0061 batch 2) ------------------------
+  // Served by the StatCan provider via the official key-indicators release
+  // schedule JSON (`schedule-key_indicators-eng.json`, key-less), which lists
+  // each forthcoming release with a stable official `title` + `description`
+  // period. The provider maps a release to an indicator by exact `title`
+  // match; release time is a fixed 08:30 Eastern (The Daily), DST-converted to
+  // UTC by the provider. Schedule-only, so `previous/actual = null` (honest,
+  // D1). `statcanTitle` values are verified against the live schedule.
+  {
+    indicatorCode: 'CA_CPI_YOY',
+    provider: 'STATCAN',
+    authority: 'Statistics Canada',
+    nameZhHant: '加拿大消費者物價指數（按年）',
+    nameZhHans: '加拿大消费者物价指数（按年）',
+    nameEn: 'Canada Consumer Price Index (YoY)',
+    region: 'CA',
+    category: 'INFLATION',
+    unit: '%_YOY',
+    scheduleUrl: 'https://www150.statcan.gc.ca/n1/dai-quo/ssi/homepage/schedule-eng.htm',
+    sourceUrl:
+      'https://www.statcan.gc.ca/en/subjects-start/prices_and_price_indexes/consumer_price_indexes',
+    statcanTitle: 'Consumer Price Index',
+    lang: 'en',
+    enabled: true,
+  },
+  {
+    indicatorCode: 'CA_GDP_MONTHLY',
+    provider: 'STATCAN',
+    authority: 'Statistics Canada',
+    nameZhHant: '加拿大國內生產總值（按行業）',
+    nameZhHans: '加拿大国内生产总值（按行业）',
+    nameEn: 'Canada GDP by industry',
+    region: 'CA',
+    category: 'GROWTH',
+    unit: '%_MOM',
+    scheduleUrl: 'https://www150.statcan.gc.ca/n1/dai-quo/ssi/homepage/schedule-eng.htm',
+    sourceUrl:
+      'https://www.statcan.gc.ca/en/subjects-start/economic_accounts/gross_domestic_product',
+    statcanTitle: 'Gross domestic product by industry',
+    lang: 'en',
+    enabled: true,
+  },
+  {
+    indicatorCode: 'CA_LABOUR_FORCE_SURVEY',
+    provider: 'STATCAN',
+    authority: 'Statistics Canada',
+    nameZhHant: '加拿大勞動力調查',
+    nameZhHans: '加拿大劳动力调查',
+    nameEn: 'Canada Labour Force Survey',
+    region: 'CA',
+    category: 'EMPLOYMENT',
+    unit: '%',
+    scheduleUrl: 'https://www150.statcan.gc.ca/n1/dai-quo/ssi/homepage/schedule-eng.htm',
+    sourceUrl: 'https://www.statcan.gc.ca/en/subjects-start/labour_',
+    statcanTitle: 'Labour Force Survey',
+    lang: 'en',
+    enabled: true,
+  },
+  {
+    indicatorCode: 'CA_RETAIL_TRADE',
+    provider: 'STATCAN',
+    authority: 'Statistics Canada',
+    nameZhHant: '加拿大零售貿易',
+    nameZhHans: '加拿大零售贸易',
+    nameEn: 'Canada retail trade',
+    region: 'CA',
+    category: 'OTHER',
+    unit: '%_MOM',
+    scheduleUrl: 'https://www150.statcan.gc.ca/n1/dai-quo/ssi/homepage/schedule-eng.htm',
+    sourceUrl:
+      'https://www.statcan.gc.ca/en/subjects-start/business_performance_and_ownership/retail_and_wholesale',
+    statcanTitle: 'Retail trade',
+    lang: 'en',
+    enabled: true,
+  },
+  {
+    indicatorCode: 'CA_MERCHANDISE_TRADE',
+    provider: 'STATCAN',
+    authority: 'Statistics Canada',
+    nameZhHant: '加拿大國際商品貿易',
+    nameZhHans: '加拿大国际商品贸易',
+    nameEn: 'Canada international merchandise trade',
+    region: 'CA',
+    category: 'TRADE',
+    unit: '',
+    scheduleUrl: 'https://www150.statcan.gc.ca/n1/dai-quo/ssi/homepage/schedule-eng.htm',
+    sourceUrl: 'https://www.statcan.gc.ca/en/subjects-start/international_trade',
+    statcanTitle: 'Canadian international merchandise trade',
     lang: 'en',
     enabled: true,
   },
