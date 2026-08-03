@@ -234,6 +234,11 @@ function alignPeriodic(
  * therefore no event. Surfacing scheduled-but-unchanged decisions would require
  * the FOMC meeting calendar — a separate source deliberately outside ADR-0058's
  * FRED-only, facts-only scope.
+ *
+ * Value comparison is NUMERIC, not string: FRED renders the most recent
+ * observation with extra trailing zeros (e.g. `3.7500000000` vs the historical
+ * `3.75`), so a string compare would falsely flag an unchanged rate as a "move"
+ * and emit a bogus prev==actual event.
  */
 function alignRateChanges(
   indicatorCode: string,
@@ -250,7 +255,7 @@ function alignRateChanges(
       baseline = obs.value; // seed baseline from the oldest observation
       continue;
     }
-    if (obs.value === baseline) continue; // unchanged day → not a decision
+    if (sameNumericValue(obs.value, baseline)) continue; // unchanged day → not a decision
     const previousValue = baseline;
     baseline = obs.value;
     // Values only matter for the display window; older changes just carry the
@@ -265,6 +270,20 @@ function alignRateChanges(
     });
   }
   return drafts;
+}
+
+/**
+ * True when two FRED value strings represent the same number. FRED pads the
+ * latest observation with trailing zeros (`3.7500000000` vs `3.75`), so a raw
+ * string compare would spuriously report a change. Falls back to string
+ * equality when either side is not a finite number (defensive; FRED "." missing
+ * values are already filtered upstream).
+ */
+function sameNumericValue(a: string, b: string): boolean {
+  const na = Number(a);
+  const nb = Number(b);
+  if (Number.isFinite(na) && Number.isFinite(nb)) return na === nb;
+  return a === b;
 }
 
 function lastIndexOnOrBefore(dates: readonly Date[], cutoff: number): number {

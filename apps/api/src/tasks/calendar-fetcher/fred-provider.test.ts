@@ -144,6 +144,14 @@ describe('buildDrafts — high-frequency (daily → FOMC) change-point detection
     const flat = dailyFrom('2025-08-01', '2026-07-19', () => '4.75');
     expect(buildDrafts('US_FED_FUNDS_RATE', releaseDates, flat, NOW)).toEqual([]);
   });
+
+  it('treats FRED trailing-zero formatting as unchanged (numeric compare)', () => {
+    // FRED renders the most recent observation padded (e.g. "3.7500000000")
+    // while history is "3.75"; a string compare would emit a bogus event.
+    const obs = dailyFrom('2025-08-01', '2026-07-19', () => '3.75');
+    obs[obs.length - 1] = { date: obs[obs.length - 1]!.date, value: '3.7500000000' };
+    expect(buildDrafts('US_FED_FUNDS_RATE', releaseDates, obs, NOW)).toEqual([]);
+  });
 });
 
 type FredJson = Record<string, unknown>;
