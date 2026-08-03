@@ -44,7 +44,7 @@ export type CalendarRegion = 'US' | 'HK' | 'CN' | 'EU' | 'EA' | 'GB' | 'CA' | 'A
  * isolated per-source failure. A commercial aggregator is deliberately NOT a
  * provider (ADR-0058/0061 D4).
  */
-export type CalendarProvider = 'FRED' | 'EUROSTAT' | 'HK_CSD';
+export type CalendarProvider = 'FRED' | 'EUROSTAT' | 'HK_CSD' | 'ONS';
 
 /**
  * Region → Unicode flag emoji (ADR-0061 D1). Purely a visual region marker;
@@ -139,6 +139,17 @@ export type CalendarIndicatorSource = {
    * schedule only (no values), so such events stay `previous/actual = null`.
    */
   readonly eurostatTitle?: string;
+  /**
+   * ONS release-calendar URI slug prefix to match on (ADR-0061 D2 batch 2).
+   * The UK ONS releases API (`api.beta.ons.gov.uk`) returns one entry per
+   * dated release whose `uri` is a stable `/releases/<slug><period>` — e.g.
+   * `/releases/consumerpriceinflationukjuly2026`. The ONS provider maps a
+   * release to this indicator when the slug (after `/releases/`) starts with
+   * this prefix (excluding the `…timeseries` duplicate). Present only for
+   * `provider: 'ONS'` indicators. ONS exposes the schedule only (no values),
+   * so such events stay `previous/actual = null` — honest and compliant (D1).
+   */
+  readonly onsUriPrefix?: string;
   /**
    * Pre-encoded official release schedule for authorities with no
    * machine-readable API (ADR-0061 D2). Present only for `provider: 'HK_CSD'`
@@ -427,6 +438,83 @@ export const CALENDAR_INDICATOR_SOURCES: readonly CalendarIndicatorSource[] = [
     lang: 'zh-Hant',
     enabled: true,
   },
+  // --- United Kingdom — Office for National Statistics (ADR-0061 batch 2) ----
+  // Served by the ONS provider via the official releases API
+  // (`api.beta.ons.gov.uk/v1/search/releases`, key-less). The API lists each
+  // dated release with a stable `/releases/<slug><period>` uri; the provider
+  // maps a release to an indicator by `onsUriPrefix` (the stable slug prefix,
+  // excluding the `…timeseries` duplicate). ONS exposes the schedule only, so
+  // these events carry release time + period with `previous/actual = null`
+  // (honest, D1). `onsUriPrefix` is verified against the live upcoming list.
+  {
+    indicatorCode: 'GB_CPI_YOY',
+    provider: 'ONS',
+    authority: 'Office for National Statistics',
+    nameZhHant: '英國消費者物價指數（按年）',
+    nameZhHans: '英国消费者物价指数（按年）',
+    nameEn: 'UK Consumer Price Inflation (YoY)',
+    region: 'GB',
+    category: 'INFLATION',
+    unit: '%_YOY',
+    scheduleUrl: 'https://www.ons.gov.uk/releasecalendar',
+    sourceUrl:
+      'https://www.ons.gov.uk/economy/inflationandpriceindices/bulletins/consumerpriceinflation/latest',
+    onsUriPrefix: 'consumerpriceinflationuk',
+    lang: 'en',
+    enabled: true,
+  },
+  {
+    indicatorCode: 'GB_GDP_MONTHLY',
+    provider: 'ONS',
+    authority: 'Office for National Statistics',
+    nameZhHant: '英國國內生產總值（月度估計）',
+    nameZhHans: '英国国内生产总值（月度估计）',
+    nameEn: 'UK GDP monthly estimate',
+    region: 'GB',
+    category: 'GROWTH',
+    unit: '%_MOM',
+    scheduleUrl: 'https://www.ons.gov.uk/releasecalendar',
+    sourceUrl:
+      'https://www.ons.gov.uk/economy/grossdomesticproductgdp/bulletins/gdpmonthlyestimateuk/latest',
+    onsUriPrefix: 'gdpmonthlyestimateuk',
+    lang: 'en',
+    enabled: true,
+  },
+  {
+    indicatorCode: 'GB_LABOUR_MARKET',
+    provider: 'ONS',
+    authority: 'Office for National Statistics',
+    nameZhHant: '英國勞動市場統計',
+    nameZhHans: '英国劳动市场统计',
+    nameEn: 'UK labour market',
+    region: 'GB',
+    category: 'EMPLOYMENT',
+    unit: '%',
+    scheduleUrl: 'https://www.ons.gov.uk/releasecalendar',
+    sourceUrl:
+      'https://www.ons.gov.uk/employmentandlabourmarket/peopleinwork/employmentandemployeetypes/bulletins/uklabourmarket/latest',
+    onsUriPrefix: 'uklabourmarket',
+    lang: 'en',
+    enabled: true,
+  },
+  {
+    indicatorCode: 'GB_RETAIL_SALES',
+    provider: 'ONS',
+    authority: 'Office for National Statistics',
+    nameZhHant: '英國零售銷售',
+    nameZhHans: '英国零售销售',
+    nameEn: 'UK retail sales',
+    region: 'GB',
+    category: 'OTHER',
+    unit: '%_MOM',
+    scheduleUrl: 'https://www.ons.gov.uk/releasecalendar',
+    sourceUrl:
+      'https://www.ons.gov.uk/businessindustryandtrade/retailindustry/bulletins/retailsales/latest',
+    onsUriPrefix: 'retailsalesgreatbritain',
+    lang: 'en',
+    enabled: true,
+  },
+
   // NOTE: HK GDP advance estimate (季頻) is intentionally NOT encoded yet. The
   // 2026 PDF linearised ambiguously on the exact release months during research
   // (docs/conversations/2026-08-03-calendar-multi-region-research.md 發現 3),
