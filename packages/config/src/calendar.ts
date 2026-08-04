@@ -16,8 +16,8 @@
  *
  * Coverage grows batch by batch (ADR-0058 D2 / ADR-0061 D2): US (FRED) +
  * EU/euro area (Eurostat) + Hong Kong (C&SD) land first; UK ONS + Canada
- * StatCan follow (batch 2); Mainland China (NBS) and Australia (ABS) land in
- * batch 3. Each
+ * StatCan follow (batch 2); Mainland China (NBS), Australia (ABS) and Japan
+ * (e-Stat) land in batch 3. Each
  * indicator records WHICH official provider serves it (`provider`) and the
  * provider-specific identifier(s) it needs, so a new authority is an additive
  * config + one pluggable `ICalendarProvider`, never a rewrite.
@@ -51,7 +51,15 @@ export type CalendarRegion = 'US' | 'HK' | 'CN' | 'EU' | 'EA' | 'GB' | 'CA' | 'A
  * isolated per-source failure. A commercial aggregator is deliberately NOT a
  * provider (ADR-0058/0061 D4).
  */
-export type CalendarProvider = 'FRED' | 'EUROSTAT' | 'HK_CSD' | 'ONS' | 'STATCAN' | 'NBS' | 'ABS';
+export type CalendarProvider =
+  | 'FRED'
+  | 'EUROSTAT'
+  | 'HK_CSD'
+  | 'ONS'
+  | 'STATCAN'
+  | 'NBS'
+  | 'ABS'
+  | 'ESTAT';
 
 /**
  * Region → Unicode flag emoji (ADR-0061 D1). Purely a visual region marker;
@@ -190,6 +198,45 @@ export type CalendarIndicatorSource = {
    * verified against the live future-release list.
    */
   readonly absEventName?: string;
+  /**
+   * Japan e-Stat government-statistics code (政府統計コード) to match on
+   * (ADR-0061 D2 batch 3). Japan's official portal e-Stat exposes its forward
+   * release schedule not via its appId REST API (which only lists already-
+   * published tables, no forward calendar) but via the key-less "公表予定"
+   * (release-calendar) Drupal page, whose semantic rows each carry the release
+   * datetime (`data-kensakuKouhyou_date`, JST), the issuing ministry, and a
+   * stable statistics code (`data-toukei_cd`) plus the release name+period. The
+   * e-Stat provider fetches that page (key-less) and maps a release to this
+   * indicator by an exact `data-toukei_cd` match, further narrowed by
+   * `estatNameIncludes` / `estatNameExcludes` (one `toukei_cd` groups a family
+   * of release variants — e.g. national vs Tokyo-ward CPI, or 1st vs 2nd
+   * preliminary GDP — so the name filter isolates the single headline release
+   * and prevents `(indicatorCode, periodLabel)` upsert collisions). Present only
+   * for `provider: 'ESTAT'` indicators. The page exposes no figures, so such
+   * events stay `previous/actual = null` — honest and compliant (D1). Release
+   * time is read from `data-kensakuKouhyou_date` (JST = UTC+9, no DST) and
+   * converted to UTC by the provider (no date library — D7). Codes + filters are
+   * verified against the live release-calendar (2026-08-04).
+   */
+  readonly estatToukeiCode?: string;
+  /**
+   * Substrings that must ALL be present in an e-Stat release name for it to map
+   * to this indicator (ADR-0061 D2 batch 3). Used with `estatToukeiCode` to pick
+   * the single headline release out of a `toukei_cd` family (e.g. `['全国']`
+   * for national CPI, `['基本集計']` for the headline Labour Force tabulation,
+   * `['1次速報']` for the first-preliminary GDP). Present only for
+   * `provider: 'ESTAT'`.
+   */
+  readonly estatNameIncludes?: readonly string[];
+  /**
+   * Substrings that must NOT appear in an e-Stat release name (ADR-0061 D2
+   * batch 3). Excludes sibling variants sharing the same `toukei_cd` that would
+   * otherwise collide on the upsert key or misrepresent the indicator (e.g.
+   * `['東京都区部','遡及']` off national CPI, `['詳細集計']` off the headline
+   * Labour Force, `['2次速報']` off first-preliminary GDP, `['確報']` off the
+   * preliminary Industrial Production). Present only for `provider: 'ESTAT'`.
+   */
+  readonly estatNameExcludes?: readonly string[];
   /**
    * Pre-encoded official release schedule for authorities with no
    * machine-readable API (ADR-0061 D2). Present for `provider: 'HK_CSD'`
@@ -897,6 +944,129 @@ export const CALENDAR_INDICATOR_SOURCES: readonly CalendarIndicatorSource[] = [
     sourceUrl:
       'https://www.abs.gov.au/statistics/economy/finance/monthly-household-spending-indicator/latest-release',
     absEventName: 'Monthly Household Spending Indicator',
+    lang: 'en',
+    enabled: true,
+  },
+
+  // --- Japan — e-Stat (公表予定) official release calendar (ADR-0061 batch 3) -
+  // e-Stat (政府統計の総合窓口) is Japan's official statistics portal. Its appId
+  // REST API only lists already-published tables (past OPEN_DATE), NOT a forward
+  // release schedule; the forward schedule is the key-less "公表予定"
+  // (release-calendar) Drupal page. The e-Stat provider fetches that page
+  // (key-less) and maps a release to an indicator by its stable government-
+  // statistics code (`data-toukei_cd` → `estatToukeiCode`), narrowed by
+  // `estatNameIncludes` / `estatNameExcludes` so exactly one headline release
+  // per family is taken (each `toukei_cd` groups variants — national vs Tokyo
+  // CPI, 1st vs 2nd preliminary GDP, preliminary vs final IP — that must not
+  // collide on the upsert key). Release time is JST (UTC+9, no DST), converted
+  // to UTC by the provider (no date library — D7). The page shows only a rolling
+  // near-term window and no figures, so these events carry release time + period
+  // with `previous/actual = null` (honest, D1). ONLY primary government
+  // authorities (総務省 統計局 / 内閣府 / 経済産業省 / 財務省) are sourced;
+  // private PMIs (au Jibun Bank / Nikkei / S&P Global) are NOT government
+  // statistics, never appear in this official calendar, and are excluded by
+  // design (ADR-0061 D4). Codes + name filters are verified against the live
+  // release-calendar (2026-08-04).
+  {
+    indicatorCode: 'JP_CPI',
+    provider: 'ESTAT',
+    authority: 'Statistics Bureau of Japan',
+    nameZhHant: '日本消費者物價指數（全國，按年）',
+    nameZhHans: '日本消费者物价指数（全国，按年）',
+    nameEn: 'Japan Consumer Price Index (nationwide)',
+    region: 'JP',
+    category: 'INFLATION',
+    unit: '%_YOY',
+    scheduleUrl: 'https://www.e-stat.go.jp/release-calendar',
+    sourceUrl: 'https://www.stat.go.jp/data/cpi/index.html',
+    estatToukeiCode: '00200573',
+    // National CPI only — exclude the Tokyo-ward advance and the 2025-base
+    // rebasing/back-cast (遡及) special release, both of which share this code.
+    estatNameIncludes: ['全国'],
+    estatNameExcludes: ['東京都区部', '遡及'],
+    lang: 'en',
+    enabled: true,
+  },
+  {
+    indicatorCode: 'JP_GDP',
+    provider: 'ESTAT',
+    authority: 'Cabinet Office',
+    nameZhHant: '日本實質國內生產總值（初值）',
+    nameZhHans: '日本实际国内生产总值（初值）',
+    nameEn: 'Japan Real GDP (1st preliminary)',
+    region: 'JP',
+    category: 'GROWTH',
+    unit: '%',
+    scheduleUrl: 'https://www.e-stat.go.jp/release-calendar',
+    sourceUrl: 'https://www.esri.cao.go.jp/jp/sna/sokuhou/sokuhou_top.html',
+    estatToukeiCode: '00100409',
+    // Quarterly QE (四半期別ＧＤＰ速報): take the 1st preliminary only; the 2nd
+    // preliminary revision of the same quarter would collide on the period key.
+    estatNameIncludes: ['1次速報'],
+    estatNameExcludes: ['2次速報'],
+    lang: 'en',
+    enabled: true,
+  },
+  {
+    indicatorCode: 'JP_LABOUR_FORCE',
+    provider: 'ESTAT',
+    authority: 'Statistics Bureau of Japan',
+    nameZhHant: '日本勞動力調查（失業率）',
+    nameZhHans: '日本劳动力调查（失业率）',
+    nameEn: 'Japan Labour Force Survey (unemployment)',
+    region: 'JP',
+    category: 'EMPLOYMENT',
+    unit: '%',
+    scheduleUrl: 'https://www.e-stat.go.jp/release-calendar',
+    sourceUrl: 'https://www.stat.go.jp/data/roudou/index.html',
+    estatToukeiCode: '00200531',
+    // Headline monthly basic tabulation (基本集計); exclude the quarterly
+    // detailed tabulation (詳細集計) that shares this code and period.
+    estatNameIncludes: ['基本集計'],
+    estatNameExcludes: ['詳細集計'],
+    lang: 'en',
+    enabled: true,
+  },
+  {
+    indicatorCode: 'JP_INDUSTRIAL_PRODUCTION',
+    provider: 'ESTAT',
+    authority: 'Ministry of Economy, Trade and Industry',
+    nameZhHant: '日本工業生產指數（速報）',
+    nameZhHans: '日本工业生产指数（速报）',
+    nameEn: 'Japan Industrial Production (preliminary)',
+    region: 'JP',
+    category: 'OTHER',
+    unit: '%_MOM',
+    scheduleUrl: 'https://www.e-stat.go.jp/release-calendar',
+    sourceUrl: 'https://www.meti.go.jp/statistics/tyo/iip/index.html',
+    estatToukeiCode: '00550300',
+    // Take the preliminary (速報) release; the later final revision (確報) of
+    // the same month shares this code and would collide on the period key.
+    estatNameIncludes: ['速報'],
+    estatNameExcludes: ['確報'],
+    lang: 'en',
+    enabled: true,
+  },
+  {
+    indicatorCode: 'JP_TRADE_BALANCE',
+    provider: 'ESTAT',
+    authority: 'Ministry of Finance',
+    nameZhHant: '日本貿易統計（商品貿易）',
+    nameZhHans: '日本贸易统计（商品贸易）',
+    nameEn: 'Japan Trade Statistics (merchandise)',
+    region: 'JP',
+    category: 'TRADE',
+    // Values are not machine-readable and stay null; unit is left empty because
+    // no figure is ever rendered next to it (D1 honesty), mirroring HK/CN trade.
+    unit: '',
+    scheduleUrl: 'https://www.e-stat.go.jp/release-calendar',
+    sourceUrl: 'https://www.customs.go.jp/toukei/info/index.htm',
+    estatToukeiCode: '00350300',
+    // One headline release per month: the export-final / import-9-digit-prelim
+    // (輸出確報) print. Excludes the later import-final (輸入確報) of an earlier
+    // month released the same day and the annual final (確定) — both lack this
+    // token — so no period-key collision. Period is Reiwa-era dated.
+    estatNameIncludes: ['輸出確報'],
     lang: 'en',
     enabled: true,
   },

@@ -27,6 +27,7 @@ import {
   FredCalendarProvider,
   GbOnsCalendarProvider,
   HkCsdCalendarProvider,
+  JpEstatCalendarProvider,
 } from './tasks/calendar-fetcher/index.js';
 import { NewsFetcher, RssFeedProvider } from './tasks/news-fetcher/index.js';
 import { PriceRecorder, YahooFinanceProvider } from './tasks/price-recorder/index.js';
@@ -84,8 +85,8 @@ const newsFetcher = new NewsFetcher(prisma, {
 // sources and upserts events into the economic_events cache that
 // GET /v1/calendar reads. Multi-region official providers (ADR-0061 D2):
 //   - Eurostat (EU / euro area), HK C&SD, UK ONS, Canada StatCan, Mainland
-//     China NBS and Australia ABS are key-less official sources and are always
-//     wired.
+//     China NBS, Australia ABS and Japan e-Stat are key-less official sources
+//     and are always wired.
 //   - FRED (US) needs a free API key (Secrets Manager, rule 50); it is added
 //     only when configured, otherwise it stays absent (the other providers
 //     still run). Each provider isolates its own failures.
@@ -96,6 +97,7 @@ const calendarProviders: ICalendarProvider[] = [
   new CaStatCanCalendarProvider(),
   new CnNbsCalendarProvider(),
   new AuAbsCalendarProvider(),
+  new JpEstatCalendarProvider(),
   ...(env.FRED_API_KEY ? [new FredCalendarProvider({ apiKey: env.FRED_API_KEY })] : []),
 ];
 const calendarFetcher = new CalendarFetcher(prisma, {
