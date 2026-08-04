@@ -71,7 +71,8 @@ export type CalendarProvider =
   | 'NBS'
   | 'ABS'
   | 'ESTAT'
-  | 'STATSNZ';
+  | 'STATSNZ'
+  | 'KOSTAT';
 
 /**
  * Region → Unicode flag emoji (ADR-0061 D1). Purely a visual region marker;
@@ -273,11 +274,12 @@ export type CalendarIndicatorSource = {
   /**
    * Pre-encoded official release schedule for authorities with no
    * machine-readable API (ADR-0061 D2). Present for `provider: 'HK_CSD'`
-   * (C&SD annual PDF schedule, 16:30 HKT) and `provider: 'NBS'` (Mainland
+   * (C&SD annual PDF schedule, 16:30 HKT), `provider: 'NBS'` (Mainland
    * China's National Bureau of Statistics annual "Regular Press Release
-   * Calendar", 9:30/10:00 Beijing time). Values are not published in
-   * machine-readable form, so these events carry the schedule + period only
-   * (`previous/actual = null`) — honest and compliant (D1).
+   * Calendar", 9:30/10:00 Beijing time) and `provider: 'KOSTAT'` (Statistics
+   * Korea's official annual release schedule, 08:00 KST). Values are not
+   * published in machine-readable form, so these events carry the schedule +
+   * period only (`previous/actual = null`) — honest and compliant (D1).
    */
   readonly releases?: readonly CalendarConfiguredRelease[];
   /** Primary language of the authority's release pages. */
@@ -1203,6 +1205,125 @@ export const CALENDAR_INDICATOR_SOURCES: readonly CalendarIndicatorSource[] = [
     scheduleUrl: 'https://www.stats.govt.nz/release-calendar/',
     sourceUrl: 'https://www.stats.govt.nz/topics/building-and-construction',
     statsNzTitlePrefix: 'Building consents issued',
+    lang: 'en',
+    enabled: true,
+  },
+
+  // --- South Korea — Statistics Korea / KOSTAT (ADR-0061 batch 4) -----------
+  // KOSTAT is Korea's primary official statistical authority (reorganised in
+  // 2026 as the Ministry of Data and Statistics — MODS; kostat.go.kr now
+  // 301-redirects to mods.go.kr). Like HK C&SD and CN NBS it exposes no
+  // machine-readable release API — its forward source is the official annual
+  // "Statistical Release Schedule", published in English. So the KOSTAT
+  // provider makes no network call: it reads the pre-encoded official schedule
+  // below (already in UTC). The 2026 dates are transcribed verbatim from the
+  // official English schedule (mods.go.kr/menu.es?mid=a20301000000) and the
+  // release times confirmed against the Korean monthly release plan
+  // (mods.go.kr/newsPln.es — 물가/고용/산업활동 all at 08:00 KST). Korea Standard
+  // Time is UTC+9 with no DST, so 08:00 KST = 23:00 UTC on the PRECEDING day
+  // (encoded directly below). NOTE (rule 00 資料正確性): this is a per-year table
+  // — KOSTAT publishes the next year's schedule in advance, so these `releases`
+  // arrays MUST be refreshed annually (tracked in docs/03-status.md). Values
+  // (previous/actual) are not machine-readable, so these events carry the
+  // schedule + period only (`previous/actual = null`) — honest and compliant
+  // (D1). ONLY KOSTAT first-party indicators are here; Korea's private
+  // Manufacturing PMI (S&P Global) is NOT an official statistic and is
+  // deliberately excluded (ADR-0061 D4). GDP + the BOK base-rate decision are
+  // deferred: their only forward source is a BOK HWP/PDF attachment (not
+  // cleanly machine-readable), and the only "dated lists" found were commercial
+  // aggregators (Investing.com / Trading Economics) which ADR-0058 D1 forbids
+  // as a source — so encoding them now would violate rule 00 / D1. They follow
+  // once a primary-source BOK schedule is verified.
+  {
+    indicatorCode: 'KR_CPI',
+    provider: 'KOSTAT',
+    authority: 'Statistics Korea',
+    nameZhHant: '南韓消費者物價指數（按年）',
+    nameZhHans: '韩国消费者物价指数（按年）',
+    nameEn: 'South Korea Consumer Price Index (YoY)',
+    region: 'KR',
+    category: 'INFLATION',
+    unit: '%_YOY',
+    scheduleUrl: 'https://mods.go.kr/menu.es?mid=a20301000000',
+    sourceUrl: 'https://mods.go.kr/eng/index.do',
+    // "The Consumer Price Index in <month>" at 08:00 KST = 23:00 UTC prev day;
+    // periodLabel = the reference month reported.
+    releases: [
+      { dateUtc: '2026-02-02T23:00:00.000Z', periodLabel: '2026-01' },
+      { dateUtc: '2026-03-05T23:00:00.000Z', periodLabel: '2026-02' },
+      { dateUtc: '2026-04-01T23:00:00.000Z', periodLabel: '2026-03' },
+      { dateUtc: '2026-05-05T23:00:00.000Z', periodLabel: '2026-04' },
+      { dateUtc: '2026-06-01T23:00:00.000Z', periodLabel: '2026-05' },
+      { dateUtc: '2026-07-01T23:00:00.000Z', periodLabel: '2026-06' },
+      { dateUtc: '2026-08-03T23:00:00.000Z', periodLabel: '2026-07' },
+      { dateUtc: '2026-09-01T23:00:00.000Z', periodLabel: '2026-08' },
+      { dateUtc: '2026-10-01T23:00:00.000Z', periodLabel: '2026-09' },
+      { dateUtc: '2026-11-02T23:00:00.000Z', periodLabel: '2026-10' },
+      { dateUtc: '2026-12-01T23:00:00.000Z', periodLabel: '2026-11' },
+      { dateUtc: '2026-12-30T23:00:00.000Z', periodLabel: '2026-12' },
+    ],
+    lang: 'en',
+    enabled: true,
+  },
+  {
+    indicatorCode: 'KR_EMPLOYMENT',
+    provider: 'KOSTAT',
+    authority: 'Statistics Korea',
+    nameZhHant: '南韓就業動向（經濟活動人口調查）',
+    nameZhHans: '韩国就业动向（经济活动人口调查）',
+    nameEn: 'South Korea Employment Trends (Economically Active Population Survey)',
+    region: 'KR',
+    category: 'EMPLOYMENT',
+    unit: '%',
+    scheduleUrl: 'https://mods.go.kr/menu.es?mid=a20301000000',
+    sourceUrl: 'https://mods.go.kr/eng/index.do',
+    // "The Economically Active Population Survey in <month>" at 08:00 KST =
+    // 23:00 UTC prev day; periodLabel = the reference month reported.
+    releases: [
+      { dateUtc: '2026-01-13T23:00:00.000Z', periodLabel: '2025-12' },
+      { dateUtc: '2026-02-10T23:00:00.000Z', periodLabel: '2026-01' },
+      { dateUtc: '2026-03-17T23:00:00.000Z', periodLabel: '2026-02' },
+      { dateUtc: '2026-04-14T23:00:00.000Z', periodLabel: '2026-03' },
+      { dateUtc: '2026-05-12T23:00:00.000Z', periodLabel: '2026-04' },
+      { dateUtc: '2026-06-10T23:00:00.000Z', periodLabel: '2026-05' },
+      { dateUtc: '2026-07-14T23:00:00.000Z', periodLabel: '2026-06' },
+      { dateUtc: '2026-08-11T23:00:00.000Z', periodLabel: '2026-07' },
+      { dateUtc: '2026-09-08T23:00:00.000Z', periodLabel: '2026-08' },
+      { dateUtc: '2026-10-15T23:00:00.000Z', periodLabel: '2026-09' },
+      { dateUtc: '2026-11-10T23:00:00.000Z', periodLabel: '2026-10' },
+      { dateUtc: '2026-12-15T23:00:00.000Z', periodLabel: '2026-11' },
+    ],
+    lang: 'en',
+    enabled: true,
+  },
+  {
+    indicatorCode: 'KR_INDUSTRIAL_ACTIVITY',
+    provider: 'KOSTAT',
+    authority: 'Statistics Korea',
+    nameZhHant: '南韓工業活動動向',
+    nameZhHans: '韩国工业活动动向',
+    nameEn: 'South Korea Monthly Industrial Activity',
+    region: 'KR',
+    category: 'OTHER',
+    unit: '%_MOM',
+    scheduleUrl: 'https://mods.go.kr/menu.es?mid=a20301000000',
+    sourceUrl: 'https://mods.go.kr/eng/index.do',
+    // "Monthly Industrial Statistics in <month>" at 08:00 KST = 23:00 UTC prev
+    // day; periodLabel = the reference month reported.
+    releases: [
+      { dateUtc: '2026-01-29T23:00:00.000Z', periodLabel: '2025-12' },
+      { dateUtc: '2026-03-03T23:00:00.000Z', periodLabel: '2026-01' },
+      { dateUtc: '2026-03-30T23:00:00.000Z', periodLabel: '2026-02' },
+      { dateUtc: '2026-04-29T23:00:00.000Z', periodLabel: '2026-03' },
+      { dateUtc: '2026-05-28T23:00:00.000Z', periodLabel: '2026-04' },
+      { dateUtc: '2026-06-29T23:00:00.000Z', periodLabel: '2026-05' },
+      { dateUtc: '2026-07-30T23:00:00.000Z', periodLabel: '2026-06' },
+      { dateUtc: '2026-08-30T23:00:00.000Z', periodLabel: '2026-07' },
+      { dateUtc: '2026-09-29T23:00:00.000Z', periodLabel: '2026-08' },
+      { dateUtc: '2026-10-29T23:00:00.000Z', periodLabel: '2026-09' },
+      { dateUtc: '2026-11-29T23:00:00.000Z', periodLabel: '2026-10' },
+      { dateUtc: '2026-12-29T23:00:00.000Z', periodLabel: '2026-11' },
+    ],
     lang: 'en',
     enabled: true,
   },

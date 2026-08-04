@@ -8,4 +8,5 @@ export { CnNbsCalendarProvider } from './cn-nbs-provider.js';
 export { AuAbsCalendarProvider } from './au-abs-provider.js';
 export { JpEstatCalendarProvider } from './jp-estat-provider.js';
 export { NzStatsNzCalendarProvider } from './nz-statsnz-provider.js';
+export { KrKostatCalendarProvider } from './kr-kostat-provider.js';
 export type { CalendarEventDraft, ICalendarProvider } from './types.js';
