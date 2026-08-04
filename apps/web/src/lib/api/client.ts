@@ -1020,7 +1020,8 @@ export type EconomicRegion =
   | 'AU'
   | 'JP'
   | 'NZ'
-  | 'KR';
+  | 'KR'
+  | 'ID';
 
 export const ECONOMIC_REGIONS = [
   'US',
@@ -1034,6 +1035,7 @@ export const ECONOMIC_REGIONS = [
   'JP',
   'NZ',
   'KR',
+  'ID',
 ] as const satisfies readonly EconomicRegion[];
 
 export type EconomicCategory =

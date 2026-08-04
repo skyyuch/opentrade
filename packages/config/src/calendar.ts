@@ -54,7 +54,8 @@ export type CalendarRegion =
   | 'AU'
   | 'JP'
   | 'NZ'
-  | 'KR';
+  | 'KR'
+  | 'ID';
 
 /**
  * The official statistical authority / API that serves an indicator's release
@@ -91,6 +92,7 @@ export const CALENDAR_REGION_FLAG: Record<CalendarRegion, string> = {
   JP: '🇯🇵',
   NZ: '🇳🇿',
   KR: '🇰🇷',
+  ID: '🇮🇩',
 };
 
 /**
