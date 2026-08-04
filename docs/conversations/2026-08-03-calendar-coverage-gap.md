@@ -119,7 +119,7 @@
 
 ## Batch 3 進度（2026-08-04 續作 session）
 
-已交付（一個 cohesive commit `a4d523f`，branch `feature/calendar-cn-nbs`，未 push）：
+已交付（cohesive commit `a4d523f`，branch `feature/calendar-cn-nbs`；**後於 PR #69 admin squash-merge 進 `main`，commit `2c5ed76`**）：
 
 - **CN NBS**（Mainland China 國家統計局）：`cn-nbs-provider.ts` 仿 `hk-csd-provider.ts` 純讀
   config `releases[]`（零網路 I/O），config 加 `CalendarProvider 'NBS'` + 4 指標
@@ -135,14 +135,39 @@
 > ⚠️ **維護待辦**：NBS `releases[]` 為 2026 年表（官方註明「preliminary and subject to
 > adjustment」，每年 12 月出次年表）→ 需**年度更新** config（同 HK C&SD 慣例）。
 
+### AU ABS 交付（2026-08-04 續作 session，commit `8d81691`，branch `feature/calendar-au-abs`）
+
+- **AU ABS**（Australian Bureau of Statistics）：`au-abs-provider.ts` 屬 **live-fetch 型**（仿 `gb-ons` / `ca-statcan`）。
+  **來源探勘結論（rule 00 先確認，省下個 session 重做）**：
+  - 逆向 Funnelback `search.abs.gov.au/s/search.json` → 只有 `collection=abs-search` 回 200，但它回的是**已發布**的
+    latest-release 頁（`date`＝發布日、title 帶期間），**非前瞻發布日程** → 不適合當日曆來源。
+  - `/release-calendar/future-releases` 的 `?_format=json` 仍回 HTML（Drupal 忽略該參數），`?page=N` 無伺服端分頁。
+  - **但該頁 HTML 其實很結構化、可靠**：每筆 future-release 是語意化 Drupal row，帶
+    **機讀 `<time datetime="2026-08-26T01:30:00Z" class="datetime">`（已是 UTC，帶 Z → 免自算 AEST/AEDT DST！）**
+    - `<h3 class="field-content event-name">`（**去期間**的產品名，適合當 match key）+ `<span class="reference-period-value">`（涵蓋期）。
+      每頁約 24 筆近期滾動窗口（同 ONS/StatCan 窗口哲學，6h 刷新）。
+  - **結論**：AU 走**解析 future-releases HTML 的 `<time datetime>` + `event-name` + `reference-period`**（比逆向 Funnelback 乾淨可靠），
+    match 語意 field class（非版面）→ rule 00 風險比預期低很多。
+- **交付**：config 加 `CalendarProvider 'ABS'` + `absEventName` match key 欄位 + **6 個 ABS 一手指標**
+  （**AU_CPI** INFLATION／**AU_GDP** GROWTH（國民所得帳）／**AU_LABOUR_FORCE** EMPLOYMENT／**AU_WAGE_PRICE_INDEX** EMPLOYMENT／
+  **AU_INTL_TRADE_GOODS** TRADE／**AU_HOUSEHOLD_SPENDING** OTHER，全部本次實測**精確驗證** event-name；GDP 名經官方頁確認）。
+  enum `AU`/旗/i18n batch 1 已備 → **無 cross-layer commit**。`index.ts` 匯出 + `main.ts` 免金鑰常駐接線。
+  provider：injectable `fetchFn`/`now`、per-row try/catch 隔離、window 過濾（LOOKBACK 60d／LOOKAHEAD 120d）、值恆 null、
+  period 正規化（"July 2026"→"2026-07"、"June Quarter 2026"→"2026 Q2"，季度以**結束月**對應 Q）。
+- **紅線嚴守**：只收 ABS 官方一手；**絕不**收私人製造業 PMI（S&P Global／Judo Bank／AiG）；facts-only、值恆 null（誠實）。
+- **驗證全綠**：typecheck 7/7、新檔 + main.ts + config + index lint 0 error、api unit **241**（CN NBS 的 231 + AU ABS 10）、
+  **live 端點實測**產出 **5 draft**（當前窗口：INTL_TRADE 2026-08-06／WPI 2026-08-19／LABOUR_FORCE 2026-08-20／CPI 2026-08-26／
+  HOUSEHOLD_SPENDING 2026-08-27，日期/期間/null 值全正確；AU_GDP 因下次發布落在窗口外故本次不現，屬正常）。
+- **⚠️ 維護待辦**：ABS future-releases 頁只給滾動近期窗口（無年表 config 需更新問題，優於 HK/CN 的年度轉錄），
+  但 **`absEventName` 若 ABS 改產品名會失配**（失配＝該指標不產事件，屬「缺覆蓋」非「錯資料」，自癒；仍建議偶爾巡檢頁面 field class 是否變動）。
+
 ### 下個 session 的 Batch 3 剩餘候選（擇一聚焦，勿一次全上）
 
-1. **AU ABS**：優先嘗試逆向 `search.abs.gov.au/s/search.json`（Funnelback，需找對 collection + 依 release-date meta 排序），
-   成功即等同 clean JSON；否則退而解析 `/release-calendar/future-releases` 的 Drupal View HTML（表格結構尚穩定，但需 fixture 化測試 + 年度巡檢）。enum `AU` 已備、國旗/i18n 已備 → 純 provider+config。
+1. ~~**AU ABS**~~ ✅ **已交付（2026-08-04，commit `8d81691`，branch `feature/calendar-au-abs`）** — 解析 future-releases HTML 的 `<time datetime>`＋`event-name`，見上方「AU ABS 交付」。
 2. **NZ Stats NZ**：需先擴 enum（`ALTER TYPE ... ADD VALUE IF NOT EXISTS 'NZ'`，仿 `20260803080000`）
    - config `CalendarRegion`/旗 + api `ECONOMIC_REGION_VALUES` + web `ECONOMIC_REGIONS`/`REGION_FLAG` + 三語 `regionNZ` + parity（一個 cross-layer commit），再寫 provider（HTML 爬取其 release-calendar 頁）。
 3. **JP e-Stat**：需免費 appId（走 Secrets Manager + 條件掛載，仿 FRED）；e-Stat 有官方發布日曆 API。
-4. ~~**CN NBS**~~ ✅ **已交付（2026-08-04，commit `a4d523f`）** — 仿 HK config 編碼、只收 NBS、見上方「Batch 3 進度」。
+4. ~~**CN NBS**~~ ✅ **已交付（2026-08-04，PR #69 admin squash-merge 進 main，commit `2c5ed76`）** — 仿 HK config 編碼、只收 NBS、見上方「Batch 3 進度」。
 
 Provider pattern 已定型（見 `gb-ons-provider.ts` / `ca-statcan-provider.ts`）：injectable `fetchFn`/`now`、
 per-entry try/catch 隔離、window 過濾、title/slug 精確比對、schedule-only 值留 null、fixture 驅動 unit test、
