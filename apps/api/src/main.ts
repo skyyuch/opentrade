@@ -31,6 +31,7 @@ import {
   JpEstatCalendarProvider,
   KrKostatCalendarProvider,
   NzStatsNzCalendarProvider,
+  VnGsoCalendarProvider,
 } from './tasks/calendar-fetcher/index.js';
 import { NewsFetcher, RssFeedProvider } from './tasks/news-fetcher/index.js';
 import { PriceRecorder, YahooFinanceProvider } from './tasks/price-recorder/index.js';
@@ -104,6 +105,7 @@ const calendarProviders: ICalendarProvider[] = [
   new NzStatsNzCalendarProvider(),
   new KrKostatCalendarProvider(),
   new IdBpsCalendarProvider(),
+  new VnGsoCalendarProvider(),
   ...(env.FRED_API_KEY ? [new FredCalendarProvider({ apiKey: env.FRED_API_KEY })] : []),
 ];
 const calendarFetcher = new CalendarFetcher(prisma, {
