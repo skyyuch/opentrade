@@ -27,6 +27,7 @@ import {
   FredCalendarProvider,
   GbOnsCalendarProvider,
   HkCsdCalendarProvider,
+  IdBpsCalendarProvider,
   JpEstatCalendarProvider,
   KrKostatCalendarProvider,
   NzStatsNzCalendarProvider,
@@ -102,6 +103,7 @@ const calendarProviders: ICalendarProvider[] = [
   new JpEstatCalendarProvider(),
   new NzStatsNzCalendarProvider(),
   new KrKostatCalendarProvider(),
+  new IdBpsCalendarProvider(),
   ...(env.FRED_API_KEY ? [new FredCalendarProvider({ apiKey: env.FRED_API_KEY })] : []),
 ];
 const calendarFetcher = new CalendarFetcher(prisma, {
