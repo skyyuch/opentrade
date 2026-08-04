@@ -1101,6 +1101,7 @@ enum EconomicRegion {
   KR
   ID
   VN
+  SG
 }
 
 /// Filtering-only category (ADR-0058 D1). Used purely for region/category

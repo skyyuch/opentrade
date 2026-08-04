@@ -56,7 +56,8 @@ export type CalendarRegion =
   | 'NZ'
   | 'KR'
   | 'ID'
-  | 'VN';
+  | 'VN'
+  | 'SG';
 
 /**
  * The official statistical authority / API that serves an indicator's release
@@ -76,7 +77,8 @@ export type CalendarProvider =
   | 'STATSNZ'
   | 'KOSTAT'
   | 'BPS'
-  | 'GSO';
+  | 'GSO'
+  | 'SINGSTAT';
 
 /**
  * Region → Unicode flag emoji (ADR-0061 D1). Purely a visual region marker;
@@ -97,6 +99,7 @@ export const CALENDAR_REGION_FLAG: Record<CalendarRegion, string> = {
   KR: '🇰🇷',
   ID: '🇮🇩',
   VN: '🇻🇳',
+  SG: '🇸🇬',
 };
 
 /**
@@ -308,6 +311,30 @@ export type CalendarIndicatorSource = {
    * only for `provider: 'GSO'` indicators.
    */
   readonly gsoNameExcludes?: readonly string[];
+  /**
+   * SingStat (Singapore Department of Statistics) Advance Release Calendar
+   * (ARC) title prefix to match on (ADR-0061 D2, batch 4). SingStat publishes
+   * its official whole-year ARC as a machine-readable JSON array embedded in
+   * the server-rendered ARC page's Next.js RSC payload (`{"arcData":{"data":
+   * [{title,release_date,…}]}}`), served over CloudFront with NO WAF challenge
+   * — so the SingStat provider fetches it live (like GB/CA/AU/JP/NZ/VN), no
+   * annual transcription needed. Each release `title` is
+   * "<indicator name>, <period>" (e.g. "CPI For General Households, Jul 2026" /
+   * "Advance Gross Domestic Product (GDP) Estimates, 2Q 2026"), so the provider
+   * maps a release to this indicator when the (whitespace-collapsed,
+   * case-insensitive) title STARTS WITH this exact prefix — including the
+   * trailing comma so a prefix can never bleed into a sibling series (e.g.
+   * "CPI For General Households," never matches "CPI By Household Income
+   * Group,"). The period is parsed from the title tail (month "Mon YYYY" →
+   * "YYYY-MM", quarter "nQ YYYY" → "YYYY Qn"). Present only for
+   * `provider: 'SINGSTAT'` indicators. The ARC exposes no figures, so such
+   * events stay `previous/actual = null` — honest and compliant (D1). The
+   * authoritative fact is the `release_date` (a single date); SingStat's
+   * standard release time is 13:00 Singapore (SGT = UTC+8, no DST → 05:00 UTC),
+   * anchored by the provider. Prefixes are verified against the live ARC
+   * (2026-08-04).
+   */
+  readonly singstatTitlePrefix?: string;
   /**
    * Pre-encoded official release schedule for authorities with no
    * machine-readable API (ADR-0061 D2). Present for `provider: 'HK_CSD'`
@@ -1615,6 +1642,145 @@ export const CALENDAR_INDICATOR_SOURCES: readonly CalendarIndicatorSource[] = [
     // substring — belt-and-suspenders).
     gsoNameIncludes: ['unemployment rate'],
     gsoNameExcludes: ['underemployment'],
+    lang: 'en',
+    enabled: true,
+  },
+
+  // --- Singapore — Department of Statistics / SingStat (ADR-0061 batch 4) ---
+  // SingStat is Singapore's primary official statistical authority. UNLIKE the
+  // other Asian authorities that are config-encoded (CN NBS / KR KOSTAT / ID
+  // BPS, whose sites are API-less or Cloudflare-walled), SingStat publishes its
+  // official whole-year Advance Release Calendar (ARC) as a machine-readable
+  // JSON array embedded in the server-rendered ARC page's Next.js RSC payload
+  // (`{"arcData":{"data":[{title,release_date,…}]}}`), served over CloudFront
+  // with NO WAF challenge — so the SingStat provider fetches it live (like GB
+  // ONS / CA StatCan / AU ABS / JP e-Stat / NZ Stats NZ / VN GSO), and no
+  // annual transcription is needed. Each ARC `title` is
+  // "<indicator name>, <period>"; the provider maps a release to an indicator
+  // by an exact `singstatTitlePrefix` start-match (comma-terminated, so a
+  // prefix can never bleed into a sibling series) and parses the period from
+  // the title tail (month → "YYYY-MM", quarter → "YYYY Qn"). The ARC exposes no
+  // figures, so these events carry release date + period with
+  // `previous/actual = null` (honest, D1). The authoritative fact is the single
+  // `release_date`; SingStat's standard release time is 13:00 Singapore
+  // (SGT = UTC+8, no DST → 05:00 UTC), anchored by the provider. ONLY SingStat
+  // first-party indicators are here; Singapore's private Manufacturing PMI
+  // (S&P Global / SIPMM) and the MAS monetary-policy statement (a central-bank
+  // release, not a SingStat statistic) are out of scope (ADR-0061 D4). Prefixes
+  // are verified against the live ARC (2026-08-04).
+  {
+    indicatorCode: 'SG_CPI',
+    provider: 'SINGSTAT',
+    authority: 'Department of Statistics Singapore',
+    nameZhHant: '新加坡消費者物價指數',
+    nameZhHans: '新加坡消费者物价指数',
+    nameEn: 'Singapore Consumer Price Index (CPI)',
+    region: 'SG',
+    category: 'INFLATION',
+    unit: '%_YOY',
+    scheduleUrl: 'https://www.singstat.gov.sg/data-tools-services/advance-release-calendar',
+    sourceUrl:
+      'https://www.singstat.gov.sg/find-data/explore-data-themes/economy-prices/consumer-price-index/latest-news-data',
+    // "CPI For General Households, <Mon YYYY>" — the monthly headline; the
+    // half-yearly "CPI By Household Income Group," sibling has a distinct prefix.
+    singstatTitlePrefix: 'CPI For General Households,',
+    lang: 'en',
+    enabled: true,
+  },
+  {
+    indicatorCode: 'SG_GDP',
+    provider: 'SINGSTAT',
+    authority: 'Ministry of Trade and Industry',
+    nameZhHant: '新加坡國內生產總值（預估，按季）',
+    nameZhHans: '新加坡国内生产总值（预估，按季）',
+    nameEn: 'Singapore Advance GDP Estimates',
+    region: 'SG',
+    category: 'GROWTH',
+    unit: '%_YOY',
+    scheduleUrl: 'https://www.singstat.gov.sg/data-tools-services/advance-release-calendar',
+    sourceUrl:
+      'https://www.singstat.gov.sg/find-data/explore-data-themes/economy-prices/national-accounts/latest-news-data',
+    // "Advance Gross Domestic Product (GDP) Estimates, <nQ YYYY>" — the flash
+    // quarterly headline (first estimate). The later fuller "GDP, <nQ YYYY>"
+    // and "Expenditure-/Income-Based GDP," releases have distinct prefixes and
+    // never map here, so no period-key collision.
+    singstatTitlePrefix: 'Advance Gross Domestic Product (GDP) Estimates,',
+    lang: 'en',
+    enabled: true,
+  },
+  {
+    indicatorCode: 'SG_UNEMPLOYMENT_RATE',
+    provider: 'SINGSTAT',
+    authority: 'Ministry of Manpower',
+    nameZhHant: '新加坡失業率（按季）',
+    nameZhHans: '新加坡失业率（按季）',
+    nameEn: 'Singapore Unemployment Rate',
+    region: 'SG',
+    category: 'EMPLOYMENT',
+    unit: '%',
+    scheduleUrl: 'https://www.singstat.gov.sg/data-tools-services/advance-release-calendar',
+    sourceUrl:
+      'https://www.singstat.gov.sg/find-data/explore-data-themes/economy-prices/labour-employment-wages-and-productivity/latest-news-data',
+    // "Unemployment Rate, <nQ YYYY>" — quarterly. The ARC `description` may give
+    // a date range ("To be released on 29 - 30 Oct"), but `release_date` is a
+    // single authoritative date and is used verbatim.
+    singstatTitlePrefix: 'Unemployment Rate,',
+    lang: 'en',
+    enabled: true,
+  },
+  {
+    indicatorCode: 'SG_MERCHANDISE_TRADE',
+    provider: 'SINGSTAT',
+    authority: 'Enterprise Singapore',
+    nameZhHant: '新加坡對外商品貿易',
+    nameZhHans: '新加坡对外商品贸易',
+    nameEn: 'Singapore Merchandise Trade',
+    region: 'SG',
+    category: 'TRADE',
+    // Values are not machine-readable and stay null; unit is left empty because
+    // no figure is ever rendered next to it (D1 honesty), mirroring HK/CN/JP/NZ.
+    unit: '',
+    scheduleUrl: 'https://www.singstat.gov.sg/data-tools-services/advance-release-calendar',
+    sourceUrl:
+      'https://www.singstat.gov.sg/find-data/explore-data-themes/trade-investment/merchandise-trade/latest-news-data',
+    // "Merchandise Trade, <Mon YYYY>" — monthly headline external trade.
+    singstatTitlePrefix: 'Merchandise Trade,',
+    lang: 'en',
+    enabled: true,
+  },
+  {
+    indicatorCode: 'SG_RETAIL_SALES',
+    provider: 'SINGSTAT',
+    authority: 'Department of Statistics Singapore',
+    nameZhHant: '新加坡零售銷售與餐飲服務指數',
+    nameZhHans: '新加坡零售销售与餐饮服务指数',
+    nameEn: 'Singapore Retail Sales and Food & Beverage Services Indices',
+    region: 'SG',
+    category: 'OTHER',
+    unit: '%_YOY',
+    scheduleUrl: 'https://www.singstat.gov.sg/data-tools-services/advance-release-calendar',
+    sourceUrl:
+      'https://www.singstat.gov.sg/find-data/explore-data-themes/industry/services/latest-news-data',
+    // "Retail Sales and Food & Beverage Services Indices, <Mon YYYY>" — monthly.
+    singstatTitlePrefix: 'Retail Sales and Food & Beverage Services Indices,',
+    lang: 'en',
+    enabled: true,
+  },
+  {
+    indicatorCode: 'SG_INDUSTRIAL_PRODUCTION',
+    provider: 'SINGSTAT',
+    authority: 'Economic Development Board',
+    nameZhHant: '新加坡工業生產指數',
+    nameZhHans: '新加坡工业生产指数',
+    nameEn: 'Singapore Index of Industrial Production',
+    region: 'SG',
+    category: 'OTHER',
+    unit: '%_YOY',
+    scheduleUrl: 'https://www.singstat.gov.sg/data-tools-services/advance-release-calendar',
+    sourceUrl:
+      'https://www.singstat.gov.sg/find-data/explore-data-themes/industry/manufacturing/latest-news-data',
+    // "Index of Industrial Production, <Mon YYYY>" — monthly headline.
+    singstatTitlePrefix: 'Index of Industrial Production,',
     lang: 'en',
     enabled: true,
   },
