@@ -16,7 +16,8 @@
  *
  * Coverage grows batch by batch (ADR-0058 D2 / ADR-0061 D2): US (FRED) +
  * EU/euro area (Eurostat) + Hong Kong (C&SD) land first; UK ONS + Canada
- * StatCan follow (batch 2); Mainland China (NBS) lands in batch 3. Each
+ * StatCan follow (batch 2); Mainland China (NBS) and Australia (ABS) land in
+ * batch 3. Each
  * indicator records WHICH official provider serves it (`provider`) and the
  * provider-specific identifier(s) it needs, so a new authority is an additive
  * config + one pluggable `ICalendarProvider`, never a rewrite.
@@ -50,7 +51,7 @@ export type CalendarRegion = 'US' | 'HK' | 'CN' | 'EU' | 'EA' | 'GB' | 'CA' | 'A
  * isolated per-source failure. A commercial aggregator is deliberately NOT a
  * provider (ADR-0058/0061 D4).
  */
-export type CalendarProvider = 'FRED' | 'EUROSTAT' | 'HK_CSD' | 'ONS' | 'STATCAN' | 'NBS';
+export type CalendarProvider = 'FRED' | 'EUROSTAT' | 'HK_CSD' | 'ONS' | 'STATCAN' | 'NBS' | 'ABS';
 
 /**
  * Region → Unicode flag emoji (ADR-0061 D1). Purely a visual region marker;
@@ -173,6 +174,22 @@ export type CalendarIndicatorSource = {
    * Daily), converted to UTC with DST awareness by the provider.
    */
   readonly statcanTitle?: string;
+  /**
+   * Australian Bureau of Statistics future-release product name to match on
+   * (ADR-0061 D2 batch 3). ABS exposes no clean JSON release-schedule API; its
+   * official forward calendar is the `/release-calendar/future-releases` page,
+   * where each upcoming release is a semantic Drupal row carrying a
+   * machine-readable UTC `<time datetime="…Z">`, a period-less product
+   * `event-name` (e.g. "Consumer Price Index, Australia"), and a
+   * `reference-period-value`. The ABS provider maps a release to this indicator
+   * by an exact, case-insensitive `event-name` match. Present only for
+   * `provider: 'ABS'` indicators. The page exposes no figures, so such events
+   * stay `previous/actual = null` — honest and compliant (D1). The release time
+   * is read directly from the `datetime` attribute (already UTC, so no DST math
+   * is needed — ABS itself accounts for AEST/AEDT). `absEventName` values are
+   * verified against the live future-release list.
+   */
+  readonly absEventName?: string;
   /**
    * Pre-encoded official release schedule for authorities with no
    * machine-readable API (ADR-0061 D2). Present for `provider: 'HK_CSD'`
@@ -763,6 +780,123 @@ export const CALENDAR_INDICATOR_SOURCES: readonly CalendarIndicatorSource[] = [
       { dateUtc: '2026-11-30T01:30:00.000Z', periodLabel: '2026-11' },
       { dateUtc: '2026-12-31T01:30:00.000Z', periodLabel: '2026-12' },
     ],
+    lang: 'en',
+    enabled: true,
+  },
+
+  // --- Australia — Australian Bureau of Statistics (ADR-0061 batch 3) -------
+  // ABS is Australia's primary official statistical authority. It exposes no
+  // clean JSON release-schedule API; its official forward calendar is the
+  // `/release-calendar/future-releases` page, whose semantic Drupal rows each
+  // carry a machine-readable UTC `<time datetime="…Z">`, a period-less product
+  // `event-name`, and a `reference-period-value`. The ABS provider fetches that
+  // page (key-less) and maps a release to an indicator by exact, case-
+  // insensitive `absEventName` match; the release time is read straight from
+  // the `datetime` attribute (already UTC — ABS accounts for AEST/AEDT itself,
+  // so no DST math). The page shows only a rolling near-term window and no
+  // figures, so these events carry release time + period with
+  // `previous/actual = null` (honest, D1). ONLY ABS first-party indicators are
+  // here; private Manufacturing PMIs (S&P Global / Judo Bank / AiG) are
+  // deliberately excluded (ADR-0061 D4). `absEventName` values are verified
+  // against the live future-release list (2026-08-04).
+  {
+    indicatorCode: 'AU_CPI',
+    provider: 'ABS',
+    authority: 'Australian Bureau of Statistics',
+    nameZhHant: '澳洲消費者物價指數',
+    nameZhHans: '澳洲消费者物价指数',
+    nameEn: 'Australia Consumer Price Index',
+    region: 'AU',
+    category: 'INFLATION',
+    unit: '%_YOY',
+    scheduleUrl: 'https://www.abs.gov.au/release-calendar/future-releases',
+    sourceUrl:
+      'https://www.abs.gov.au/statistics/economy/price-indexes-and-inflation/consumer-price-index-australia/latest-release',
+    absEventName: 'Consumer Price Index, Australia',
+    lang: 'en',
+    enabled: true,
+  },
+  {
+    indicatorCode: 'AU_GDP',
+    provider: 'ABS',
+    authority: 'Australian Bureau of Statistics',
+    nameZhHant: '澳洲國內生產總值（國民所得帳）',
+    nameZhHans: '澳洲国内生产总值（国民所得帐）',
+    nameEn: 'Australia GDP (National Accounts)',
+    region: 'AU',
+    category: 'GROWTH',
+    unit: '%',
+    scheduleUrl: 'https://www.abs.gov.au/release-calendar/future-releases',
+    sourceUrl: 'https://www.abs.gov.au/statistics/economy/national-accounts',
+    absEventName: 'Australian National Accounts: National Income, Expenditure and Product',
+    lang: 'en',
+    enabled: true,
+  },
+  {
+    indicatorCode: 'AU_LABOUR_FORCE',
+    provider: 'ABS',
+    authority: 'Australian Bureau of Statistics',
+    nameZhHant: '澳洲勞動力（失業率）',
+    nameZhHans: '澳洲劳动力（失业率）',
+    nameEn: 'Australia Labour Force',
+    region: 'AU',
+    category: 'EMPLOYMENT',
+    unit: '%',
+    scheduleUrl: 'https://www.abs.gov.au/release-calendar/future-releases',
+    sourceUrl:
+      'https://www.abs.gov.au/statistics/labour/employment-and-unemployment/labour-force-australia/latest-release',
+    absEventName: 'Labour Force, Australia',
+    lang: 'en',
+    enabled: true,
+  },
+  {
+    indicatorCode: 'AU_WAGE_PRICE_INDEX',
+    provider: 'ABS',
+    authority: 'Australian Bureau of Statistics',
+    nameZhHant: '澳洲工資價格指數',
+    nameZhHans: '澳洲工资价格指数',
+    nameEn: 'Australia Wage Price Index',
+    region: 'AU',
+    category: 'EMPLOYMENT',
+    unit: '%_YOY',
+    scheduleUrl: 'https://www.abs.gov.au/release-calendar/future-releases',
+    sourceUrl:
+      'https://www.abs.gov.au/statistics/economy/price-indexes-and-inflation/wage-price-index-australia/latest-release',
+    absEventName: 'Wage Price Index, Australia',
+    lang: 'en',
+    enabled: true,
+  },
+  {
+    indicatorCode: 'AU_INTL_TRADE_GOODS',
+    provider: 'ABS',
+    authority: 'Australian Bureau of Statistics',
+    nameZhHant: '澳洲商品國際貿易',
+    nameZhHans: '澳洲商品国际贸易',
+    nameEn: 'Australia International Trade in Goods',
+    region: 'AU',
+    category: 'TRADE',
+    unit: '',
+    scheduleUrl: 'https://www.abs.gov.au/release-calendar/future-releases',
+    sourceUrl:
+      'https://www.abs.gov.au/statistics/economy/international-trade/international-trade-goods/latest-release',
+    absEventName: 'International Trade in Goods',
+    lang: 'en',
+    enabled: true,
+  },
+  {
+    indicatorCode: 'AU_HOUSEHOLD_SPENDING',
+    provider: 'ABS',
+    authority: 'Australian Bureau of Statistics',
+    nameZhHant: '澳洲每月家庭消費指標',
+    nameZhHans: '澳洲每月家庭消费指标',
+    nameEn: 'Australia Monthly Household Spending Indicator',
+    region: 'AU',
+    category: 'OTHER',
+    unit: '%_MOM',
+    scheduleUrl: 'https://www.abs.gov.au/release-calendar/future-releases',
+    sourceUrl:
+      'https://www.abs.gov.au/statistics/economy/finance/monthly-household-spending-indicator/latest-release',
+    absEventName: 'Monthly Household Spending Indicator',
     lang: 'en',
     enabled: true,
   },
