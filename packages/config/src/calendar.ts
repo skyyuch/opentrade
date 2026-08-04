@@ -43,7 +43,7 @@ import type { SupportedLocale } from './locales.js';
  * `EconomicRegion` enum. `region` is a filter/label only, NEVER a ranking. `EA`
  * is the euro area (a subset of `EU`); both carry the same flag.
  */
-export type CalendarRegion = 'US' | 'HK' | 'CN' | 'EU' | 'EA' | 'GB' | 'CA' | 'AU' | 'JP';
+export type CalendarRegion = 'US' | 'HK' | 'CN' | 'EU' | 'EA' | 'GB' | 'CA' | 'AU' | 'JP' | 'NZ';
 
 /**
  * The official statistical authority / API that serves an indicator's release
@@ -59,7 +59,8 @@ export type CalendarProvider =
   | 'STATCAN'
   | 'NBS'
   | 'ABS'
-  | 'ESTAT';
+  | 'ESTAT'
+  | 'STATSNZ';
 
 /**
  * Region → Unicode flag emoji (ADR-0061 D1). Purely a visual region marker;
@@ -76,6 +77,7 @@ export const CALENDAR_REGION_FLAG: Record<CalendarRegion, string> = {
   CA: '🇨🇦',
   AU: '🇦🇺',
   JP: '🇯🇵',
+  NZ: '🇳🇿',
 };
 
 /**
@@ -237,6 +239,25 @@ export type CalendarIndicatorSource = {
    * preliminary Industrial Production). Present only for `provider: 'ESTAT'`.
    */
   readonly estatNameExcludes?: readonly string[];
+  /**
+   * Stats NZ release-calendar statistic-name prefix to match on (ADR-0061 D2
+   * batch 3). New Zealand's Stats NZ exposes its official forward schedule via
+   * the key-less month endpoint `/api/v1/releaseCalendarMonth/<YYYY-MM>`
+   * (browser-like headers required — the site sits behind an Incapsula WAF that
+   * 403s the legacy `.json` asset path but serves this JSON API). Each release's
+   * `DisplayName` is consistently `"<statistic name>: <period>"` (e.g.
+   * "Consumers price index: June 2026 quarter"), so the Stats NZ provider maps a
+   * release to this indicator by an exact, case-insensitive match of the name
+   * BEFORE the first colon. Splitting on the first colon cleanly separates
+   * sibling releases (e.g. "Labour market statistics" vs "Labour market
+   * statistics (income)"). Present only for `provider: 'STATSNZ'` indicators.
+   * The endpoint exposes no figures, so such events stay `previous/actual = null`
+   * — honest and compliant (D1). Release time is a fixed 10:45 Pacific/Auckland,
+   * converted to UTC with DST awareness by the provider (NZDT = UTC+13 late
+   * Sep–early Apr, NZST = UTC+12 otherwise; no date library — D7). Prefixes are
+   * verified against the live release-calendar (2026-08-04).
+   */
+  readonly statsNzTitlePrefix?: string;
   /**
    * Pre-encoded official release schedule for authorities with no
    * machine-readable API (ADR-0061 D2). Present for `provider: 'HK_CSD'`
@@ -1067,6 +1088,109 @@ export const CALENDAR_INDICATOR_SOURCES: readonly CalendarIndicatorSource[] = [
     // month released the same day and the annual final (確定) — both lack this
     // token — so no period-key collision. Period is Reiwa-era dated.
     estatNameIncludes: ['輸出確報'],
+    lang: 'en',
+    enabled: true,
+  },
+
+  // --- New Zealand — Stats NZ (Tatauranga Aotearoa) (ADR-0061 batch 3) ------
+  // Stats NZ is New Zealand's primary official statistical authority. Its
+  // release calendar (the `.json` asset path 403s behind an Incapsula WAF) is
+  // served as clean JSON by the key-less month endpoint
+  // `/api/v1/releaseCalendarMonth/<YYYY-MM>` when fetched with browser-like
+  // headers. Each release's `DisplayName` is "<statistic name>: <period>", so
+  // the Stats NZ provider fetches the months spanning its window (key-less) and
+  // maps a release to an indicator by an exact, case-insensitive match of the
+  // name before the first colon (`statsNzTitlePrefix`). Splitting on the first
+  // colon cleanly isolates sibling releases (e.g. the headline "Labour market
+  // statistics" from "Labour market statistics (income)"). Release time is a
+  // fixed 10:45 Pacific/Auckland, DST-converted to UTC by the provider. The
+  // endpoint carries no figures, so these events carry release time + period
+  // with `previous/actual = null` (honest, D1). ONLY Stats NZ first-party
+  // indicators are here; New Zealand's private PMI/PSI (BusinessNZ) are NOT
+  // official statistics and are deliberately excluded (ADR-0061 D4). Prefixes
+  // are verified against the live release-calendar (2026-08-04).
+  {
+    indicatorCode: 'NZ_CPI',
+    provider: 'STATSNZ',
+    authority: 'Stats NZ',
+    nameZhHant: '紐西蘭消費者物價指數（按季）',
+    nameZhHans: '新西兰消费者物价指数（按季）',
+    nameEn: 'New Zealand Consumers Price Index',
+    region: 'NZ',
+    category: 'INFLATION',
+    unit: '%_YOY',
+    scheduleUrl: 'https://www.stats.govt.nz/release-calendar/',
+    sourceUrl: 'https://www.stats.govt.nz/topics/prices',
+    statsNzTitlePrefix: 'Consumers price index',
+    lang: 'en',
+    enabled: true,
+  },
+  {
+    indicatorCode: 'NZ_GDP',
+    provider: 'STATSNZ',
+    authority: 'Stats NZ',
+    nameZhHant: '紐西蘭國內生產總值（按季）',
+    nameZhHans: '新西兰国内生产总值（按季）',
+    nameEn: 'New Zealand Gross Domestic Product',
+    region: 'NZ',
+    category: 'GROWTH',
+    unit: '%',
+    scheduleUrl: 'https://www.stats.govt.nz/release-calendar/',
+    sourceUrl: 'https://www.stats.govt.nz/topics/economic-growth',
+    statsNzTitlePrefix: 'Gross domestic product',
+    lang: 'en',
+    enabled: true,
+  },
+  {
+    indicatorCode: 'NZ_LABOUR_MARKET',
+    provider: 'STATSNZ',
+    authority: 'Stats NZ',
+    nameZhHant: '紐西蘭勞動市場統計（失業率）',
+    nameZhHans: '新西兰劳动市场统计（失业率）',
+    nameEn: 'New Zealand Labour Market Statistics',
+    region: 'NZ',
+    category: 'EMPLOYMENT',
+    unit: '%',
+    scheduleUrl: 'https://www.stats.govt.nz/release-calendar/',
+    sourceUrl: 'https://www.stats.govt.nz/topics/employment-and-unemployment',
+    // Exact prefix before the first colon; the "(income)" sibling release has a
+    // different prefix ("Labour market statistics (income)") so it never maps
+    // to this headline unemployment indicator.
+    statsNzTitlePrefix: 'Labour market statistics',
+    lang: 'en',
+    enabled: true,
+  },
+  {
+    indicatorCode: 'NZ_TRADE_BALANCE',
+    provider: 'STATSNZ',
+    authority: 'Stats NZ',
+    nameZhHant: '紐西蘭商品對外貿易',
+    nameZhHans: '新西兰商品对外贸易',
+    nameEn: 'New Zealand Overseas Merchandise Trade',
+    region: 'NZ',
+    category: 'TRADE',
+    // Values are not machine-readable and stay null; unit is left empty because
+    // no figure is ever rendered next to it (D1 honesty), mirroring HK/CN/JP.
+    unit: '',
+    scheduleUrl: 'https://www.stats.govt.nz/release-calendar/',
+    sourceUrl: 'https://www.stats.govt.nz/topics/imports-and-exports',
+    statsNzTitlePrefix: 'Overseas merchandise trade',
+    lang: 'en',
+    enabled: true,
+  },
+  {
+    indicatorCode: 'NZ_BUILDING_CONSENTS',
+    provider: 'STATSNZ',
+    authority: 'Stats NZ',
+    nameZhHant: '紐西蘭已核准建築許可',
+    nameZhHans: '新西兰已核准建筑许可',
+    nameEn: 'New Zealand Building Consents Issued',
+    region: 'NZ',
+    category: 'OTHER',
+    unit: '%_MOM',
+    scheduleUrl: 'https://www.stats.govt.nz/release-calendar/',
+    sourceUrl: 'https://www.stats.govt.nz/topics/building-and-construction',
+    statsNzTitlePrefix: 'Building consents issued',
     lang: 'en',
     enabled: true,
   },

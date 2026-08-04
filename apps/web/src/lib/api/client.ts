@@ -1009,7 +1009,17 @@ export const fetchNews = (
 // sources. `EA` is the euro area (a subset of `EU`); both render the EU flag.
 // `region` is a filter/label only, never a ranking axis. Mirrors the
 // `EconomicRegion` Prisma enum + the apps/api domain union.
-export type EconomicRegion = 'US' | 'HK' | 'CN' | 'EU' | 'EA' | 'GB' | 'CA' | 'AU' | 'JP';
+export type EconomicRegion =
+  | 'US'
+  | 'HK'
+  | 'CN'
+  | 'EU'
+  | 'EA'
+  | 'GB'
+  | 'CA'
+  | 'AU'
+  | 'JP'
+  | 'NZ';
 
 export const ECONOMIC_REGIONS = [
   'US',
@@ -1021,6 +1031,7 @@ export const ECONOMIC_REGIONS = [
   'CA',
   'AU',
   'JP',
+  'NZ',
 ] as const satisfies readonly EconomicRegion[];
 
 export type EconomicCategory =

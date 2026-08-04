@@ -39,6 +39,7 @@ const REGION_FLAG: Record<EconomicRegion, string> = {
   CA: '🇨🇦',
   AU: '🇦🇺',
   JP: '🇯🇵',
+  NZ: '🇳🇿',
 };
 
 /**

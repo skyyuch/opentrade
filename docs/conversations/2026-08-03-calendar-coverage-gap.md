@@ -176,12 +176,28 @@
 - **驗證全綠**：typecheck **7/7**、新檔 + main.ts + config + index lint **0 error**、api unit **257**（AU ABS 的 241 + JP e-Stat 16）、**live 端點實測**產出 **22 draft**（5 指標橫跨 2026-07～2026-11，日期/期間/JST→UTC/null 值全正確，0 碰撞）。
 - **⚠️ 維護待辦**：release-calendar 只給滾動近期窗口（**無年表 config 需年度更新問題，優於 HK/CN 的年度轉錄**）；但 `estatToukeiCode`/name 過濾若 e-Stat 改統計名或代碼會失配（失配＝缺覆蓋非錯資料，自癒；建議偶爾巡檢頁面 field class 與 toukei_cd）。
 
+### NZ Stats NZ 交付（2026-08-04 續作 session，2 個 commit，branch `feature/calendar-nz-statsnz`）
+
+**Batch 3 收官 — 最後一國。** ⚠️ **重大來源探勘修正（rule 00，推翻本文件 Batch 2「Stats NZ 端點皆不友善」的結論）**：Batch 2 測的是**錯路徑**（`/assets/RSS/release-calendar.json` → 403 Incapsula WAF）。本 session 重新探勘，用**瀏覽器式 headers**（UA + Referer + Accept + X-Requested-With）拿到**兩個乾淨的官方機讀端點**：
+
+- **`/api/v1/releaseCalendarMonth/<YYYY-MM>`** → **200 application/json**：結構化，`items.published[]`（已發布，欄位在 `DateTaxonomyTerm` 下）+ `items.upcoming[]`（前瞻，扁平），每筆有 `DisplayName`（`"統計名: 涵蓋期"`）+ `PublicationDate`（`"2026-08-05 10:45:00"` NZ 當地）+ `ID`。
+- **`/release-calendar/calendar-export`** → **200 text/calendar**：真 VEVENT + VTIMEZONE（Pacific/Auckland NZDT/NZST）。
+- **選用 month JSON API**（比 ICS 更適合 match、仿 StatCan JSON 型 provider）。這屬**實作發現**（同 AU/JP 修正端點假設的先例），非決策變更，不改 Accepted ADR，記於此 + status。
+
+**交付**：
+
+- **Commit 1（`b9a56bb`，cross-layer enum `NZ`，全 additive）**：`packages/db` schema `EconomicRegion` 加 `NZ` + migration `20260804090000_add_nz_economic_region`（`ALTER TYPE … ADD VALUE IF NOT EXISTS`）+ `prisma generate`；`packages/config` `CalendarRegion` `'NZ'` + `CALENDAR_REGION_FLAG.NZ='🇳🇿'`；api `EconomicRegionValue`/`ECONOMIC_REGION_VALUES`；web `client.ts` + `CalendarList.tsx` `REGION_FLAG`；三語 `regionNZ`（紐西蘭/新西兰/New Zealand）+ parity test pin。typecheck 7/7、parity 4 綠、migration 已套本地 dev DB。
+- **Commit 2（`752e0df`，provider）**：`nz-statsnz-provider.ts`（**live-fetch 型**，`source='STATSNZ'`）：injectable `fetchFn`/`now`、`monthsInWindow` 迴圈抓窗口各月（LOOKBACK 60d/LOOKAHEAD 120d）、合併 published+upcoming、**`DisplayName` 首冒號拆前綴精確 case-insensitive match**（天然區分 `Labour market statistics` vs `Labour market statistics (income)`）、per-row + per-month try/catch 隔離、值恆 null、**NZ 當地→UTC DST-aware**（NZDT UTC+13：9 月最後週日～4 月第一週日；NZST UTC+12；仿 StatCan DST helper、不引入 date lib，D7）、期間正規化（`"June 2026 quarter"→"2026 Q2"` 以結束月對應、`"July 2026"→"2026-07"`）。config 加 `CalendarProvider 'STATSNZ'` + `statsNzTitlePrefix` match key 欄位 + **5 個 Stats NZ 一手指標**（**NZ_CPI** INFLATION 季／**NZ_GDP** GROWTH 季／**NZ_LABOUR_MARKET** EMPLOYMENT 季／**NZ_TRADE_BALANCE** TRADE 月／**NZ_BUILDING_CONSENTS** OTHER 月，全部本次跨 4 個月實測精確驗證前綴）。`index.ts` 匯出 + `main.ts` 免金鑰常駐接線。
+- **紅線嚴守（ADR-0058 D1 / ADR-0061 D4）**：只收 Stats NZ 官方一手；**不納紐西蘭私人 PMI/PSI（BusinessNZ）**；facts-only、值恆 null、永不加 forecast/consensus/impact。
+- **驗證全綠**：typecheck **7/7**、新檔 + main.ts + config + index lint **0 error**、api unit **273**（JP e-Stat 的 257 + NZ 16）、**live 端點實測**產出 **18 draft**（5 指標橫跨 2026-06～2026-12，季頻 Q 對應/月頻/DST 轉換（9/17 22:45 NZST→9/30 21:45 NZDT）/null 值全正確，0 碰撞）。
+- **⚠️ 維護待辦**：month API 只給滾動窗口（**無年表 config 需年度更新問題，優於 HK/CN 的年度轉錄**）；唯一 rule 00 風險＝Incapsula WAF 需正確 headers，若日後升級 JS challenge 會失效（失配＝整 provider 回 `[]`＝缺覆蓋非錯資料、自癒隔離，同 ABS/JP 等級）；`statsNzTitlePrefix` 若 Stats NZ 改統計名會失配（同上自癒；建議偶爾巡檢）。
+
 ### 下個 session 的 Batch 3 剩餘候選（擇一聚焦，勿一次全上）
 
+**Batch 3 已全數收官（CN/AU/JP/NZ 皆已交付）。** 官方源覆蓋：US/EU·EA/HK/GB/CA/CN/AU/JP/NZ。下一步方向由 owner 決定（可能 Batch 4：VN GSO / ID BPS / KR KOSTAT 等需 config 編碼排程的亞洲官方源，仿 HK/CN 慣例；PMI 一律仍只收官方自家、不納私人）。
+
 1. ~~**AU ABS**~~ ✅ **已交付（2026-08-04，PR #70 squash `3851a77`）** — 解析 future-releases HTML 的 `<time datetime>`＋`event-name`，見上方「AU ABS 交付」。
-2. **NZ Stats NZ**（Batch 3 唯一剩餘）：需先擴 enum（`ALTER TYPE ... ADD VALUE IF NOT EXISTS 'NZ'`，仿 `20260803080000`）
-   - config `CalendarRegion`/旗 + api `ECONOMIC_REGION_VALUES` + web `ECONOMIC_REGIONS`/`REGION_FLAG` + 三語 `regionNZ` + parity（一個 cross-layer commit），再寫 provider（HTML 爬取其 release-calendar 頁）。
-   - ⚠️ Batch 2 實測 Stats NZ 端點皆不友善（`release-calendar.json` 403、`.ics` 無 VEVENT、OData 需金鑰）→ 只能 HTML 爬取，較脆弱、rule 00 風險較高。
+2. ~~**NZ Stats NZ**~~ ✅ **已交付（2026-08-04，branch `feature/calendar-nz-statsnz`，commits `b9a56bb`+`752e0df`）** — **推翻 Batch 2「端點不友善」結論**：實際有乾淨的 `/api/v1/releaseCalendarMonth/<YYYY-MM>` JSON（瀏覽器式 headers 過 Incapsula），見上方「NZ Stats NZ 交付」。
 3. ~~**JP e-Stat**~~ ✅ **已交付（2026-08-04，PR #72 squash `69a7de4`）** — **免金鑰**（推翻「需 appId」假設，見上方「JP e-Stat 交付」）：解析官方 release-calendar HTML 的 `data-toukei_cd` + `data-kensakuKouhyou_date`（JST）+ name include/exclude 精確辨別。
 4. ~~**CN NBS**~~ ✅ **已交付（2026-08-04，PR #69 squash `2c5ed76`）** — 仿 HK config 編碼、只收 NBS、見上方「Batch 3 進度」。
 
