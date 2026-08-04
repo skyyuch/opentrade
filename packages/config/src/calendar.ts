@@ -15,11 +15,17 @@
  * chronological and never purchasable.
  *
  * Coverage grows batch by batch (ADR-0058 D2 / ADR-0061 D2): US (FRED) +
- * EU/euro area (Eurostat) + Hong Kong (C&SD) land first; UK / Canada /
- * Australia / Japan are a fast-follow batch; CN is explicitly deferred. Each
+ * EU/euro area (Eurostat) + Hong Kong (C&SD) land first; UK ONS + Canada
+ * StatCan follow (batch 2); Mainland China (NBS) lands in batch 3. Each
  * indicator records WHICH official provider serves it (`provider`) and the
  * provider-specific identifier(s) it needs, so a new authority is an additive
  * config + one pluggable `ICalendarProvider`, never a rewrite.
+ *
+ * Compliance note for CN (ADR-0058 D1 / ADR-0061 D4): ONLY the National Bureau
+ * of Statistics of China (NBS) — the primary official statistical authority —
+ * is a source. Private manufacturing PMIs (Caixin / S&P Global / au Jibun /
+ * Nikkei etc.) are deliberately NEVER ingested; the NBS's own official
+ * Manufacturing PMI is a first-party fact and is fine.
  *
  * The FRED API key is NOT stored here — it lives in AWS Secrets Manager and
  * is injected via env at runtime (rule 50). This registry only records the
@@ -44,7 +50,7 @@ export type CalendarRegion = 'US' | 'HK' | 'CN' | 'EU' | 'EA' | 'GB' | 'CA' | 'A
  * isolated per-source failure. A commercial aggregator is deliberately NOT a
  * provider (ADR-0058/0061 D4).
  */
-export type CalendarProvider = 'FRED' | 'EUROSTAT' | 'HK_CSD' | 'ONS' | 'STATCAN';
+export type CalendarProvider = 'FRED' | 'EUROSTAT' | 'HK_CSD' | 'ONS' | 'STATCAN' | 'NBS';
 
 /**
  * Region → Unicode flag emoji (ADR-0061 D1). Purely a visual region marker;
@@ -66,13 +72,17 @@ export const CALENDAR_REGION_FLAG: Record<CalendarRegion, string> = {
 /**
  * A pre-announced official release, encoded from an authority's published
  * annual schedule when it exposes no machine-readable API (ADR-0061 D2 — e.g.
- * Hong Kong C&SD, whose only source is the annual PDF, fixed 16:30 HKT). The
- * `HK_CSD` provider reads these verbatim; no external fetch is made.
+ * Hong Kong C&SD, whose only source is the annual PDF at a fixed 16:30 HKT, and
+ * Mainland China's NBS, whose only source is the annual "Regular Press Release
+ * Calendar" at 9:30/10:00 Beijing time). The `HK_CSD` and `NBS` providers read
+ * these verbatim; no external fetch is made.
  */
 export type CalendarConfiguredRelease = {
   /**
-   * Release timestamp as an ISO-8601 UTC string. HK C&SD publishes at a fixed
-   * 16:30 HKT, i.e. 08:30 UTC (Hong Kong has no DST), pre-converted here.
+   * Release timestamp as an ISO-8601 UTC string, pre-converted from the
+   * authority's local release time (both HK and Beijing are UTC+8 with no DST,
+   * so HK 16:30 = 08:30 UTC, Beijing 09:30 = 01:30 UTC, Beijing 10:00 = 02:00
+   * UTC).
    */
   readonly dateUtc: string;
   /** The covered period, e.g. "2025-12" / "2026 Q2" (ADR-0058 D6 upsert half). */
@@ -165,10 +175,12 @@ export type CalendarIndicatorSource = {
   readonly statcanTitle?: string;
   /**
    * Pre-encoded official release schedule for authorities with no
-   * machine-readable API (ADR-0061 D2). Present only for `provider: 'HK_CSD'`
-   * indicators, whose sole source is the C&SD annual PDF schedule. Values are
-   * not published in machine-readable form, so these events carry the schedule
-   * + period only (`previous/actual = null`) — honest and compliant (D1).
+   * machine-readable API (ADR-0061 D2). Present for `provider: 'HK_CSD'`
+   * (C&SD annual PDF schedule, 16:30 HKT) and `provider: 'NBS'` (Mainland
+   * China's National Bureau of Statistics annual "Regular Press Release
+   * Calendar", 9:30/10:00 Beijing time). Values are not published in
+   * machine-readable form, so these events carry the schedule + period only
+   * (`previous/actual = null`) — honest and compliant (D1).
    */
   readonly releases?: readonly CalendarConfiguredRelease[];
   /** Primary language of the authority's release pages. */
@@ -616,6 +628,141 @@ export const CALENDAR_INDICATOR_SOURCES: readonly CalendarIndicatorSource[] = [
     scheduleUrl: 'https://www150.statcan.gc.ca/n1/dai-quo/ssi/homepage/schedule-eng.htm',
     sourceUrl: 'https://www.statcan.gc.ca/en/subjects-start/international_trade',
     statcanTitle: 'Canadian international merchandise trade',
+    lang: 'en',
+    enabled: true,
+  },
+
+  // --- Mainland China — National Bureau of Statistics (ADR-0061 batch 3) ----
+  // NBS is China's primary official statistical authority. It exposes NO
+  // machine-readable release API — its only forward schedule is the annual
+  // "Regular Press Release Calendar of NBS" (published each December for the
+  // coming year). So, like HK C&SD, the NBS provider makes no network call: it
+  // reads the pre-encoded official schedule below (already in UTC). The 2026
+  // dates are transcribed verbatim from the official English calendar
+  // (stats.gov.cn/english/PressRelease/ReleaseCalendar/, 2026 edition,
+  // published 2025-12-26). Beijing time (UTC+8, no DST): CPI/PPI/PMI at 09:30
+  // = 01:30 UTC; National Economic Performance (GDP) at 10:00 = 02:00 UTC.
+  // NOTE (rule 00 資料正確性): this is a per-year table (dates are "preliminary
+  // and subject to adjustment" per the NBS note) — NBS publishes the next
+  // year's calendar each December, so these `releases` arrays MUST be refreshed
+  // annually (tracked in docs/03-status.md). Values (previous/actual) are not
+  // machine-readable, so these events carry the schedule + period only
+  // (`previous/actual = null`) — honest and compliant (D1). ONLY NBS official
+  // indicators are here; private PMIs (Caixin/S&P Global) are excluded (D4).
+  {
+    indicatorCode: 'CN_GDP_YOY',
+    provider: 'NBS',
+    authority: 'National Bureau of Statistics of China',
+    nameZhHant: '中國國內生產總值（按年）',
+    nameZhHans: '中国国内生产总值（按年）',
+    nameEn: 'China Gross Domestic Product (YoY)',
+    region: 'CN',
+    category: 'GROWTH',
+    unit: '%_YOY',
+    scheduleUrl: 'https://www.stats.gov.cn/english/PressRelease/ReleaseCalendar/',
+    sourceUrl: 'https://www.stats.gov.cn/english/PressRelease/',
+    // "National Economic Performance" (quarterly), released Jan/Apr/Jul/Oct at
+    // 10:00 Beijing; periodLabel = the quarter reported.
+    releases: [
+      { dateUtc: '2026-01-19T02:00:00.000Z', periodLabel: '2025 Q4' },
+      { dateUtc: '2026-04-16T02:00:00.000Z', periodLabel: '2026 Q1' },
+      { dateUtc: '2026-07-15T02:00:00.000Z', periodLabel: '2026 Q2' },
+      { dateUtc: '2026-10-19T02:00:00.000Z', periodLabel: '2026 Q3' },
+    ],
+    lang: 'en',
+    enabled: true,
+  },
+  {
+    indicatorCode: 'CN_CPI_YOY',
+    provider: 'NBS',
+    authority: 'National Bureau of Statistics of China',
+    nameZhHant: '中國居民消費價格指數（按年）',
+    nameZhHans: '中国居民消费价格指数（按年）',
+    nameEn: 'China Consumer Price Index (YoY)',
+    region: 'CN',
+    category: 'INFLATION',
+    unit: '%_YOY',
+    scheduleUrl: 'https://www.stats.gov.cn/english/PressRelease/ReleaseCalendar/',
+    sourceUrl: 'https://www.stats.gov.cn/english/PressRelease/',
+    // Monthly report at 09:30 Beijing; presents the previous month's data.
+    releases: [
+      { dateUtc: '2026-01-09T01:30:00.000Z', periodLabel: '2025-12' },
+      { dateUtc: '2026-02-11T01:30:00.000Z', periodLabel: '2026-01' },
+      { dateUtc: '2026-03-09T01:30:00.000Z', periodLabel: '2026-02' },
+      { dateUtc: '2026-04-10T01:30:00.000Z', periodLabel: '2026-03' },
+      { dateUtc: '2026-05-11T01:30:00.000Z', periodLabel: '2026-04' },
+      { dateUtc: '2026-06-10T01:30:00.000Z', periodLabel: '2026-05' },
+      { dateUtc: '2026-07-09T01:30:00.000Z', periodLabel: '2026-06' },
+      { dateUtc: '2026-08-09T01:30:00.000Z', periodLabel: '2026-07' },
+      { dateUtc: '2026-09-09T01:30:00.000Z', periodLabel: '2026-08' },
+      { dateUtc: '2026-10-14T01:30:00.000Z', periodLabel: '2026-09' },
+      { dateUtc: '2026-11-09T01:30:00.000Z', periodLabel: '2026-10' },
+      { dateUtc: '2026-12-09T01:30:00.000Z', periodLabel: '2026-11' },
+    ],
+    lang: 'en',
+    enabled: true,
+  },
+  {
+    indicatorCode: 'CN_PPI_YOY',
+    provider: 'NBS',
+    authority: 'National Bureau of Statistics of China',
+    nameZhHant: '中國工業生產者出廠價格指數（按年）',
+    nameZhHans: '中国工业生产者出厂价格指数（按年）',
+    nameEn: 'China Producer Price Index (YoY)',
+    region: 'CN',
+    category: 'INFLATION',
+    unit: '%_YOY',
+    scheduleUrl: 'https://www.stats.gov.cn/english/PressRelease/ReleaseCalendar/',
+    sourceUrl: 'https://www.stats.gov.cn/english/PressRelease/',
+    // Monthly report at 09:30 Beijing (same dates as CPI); previous month.
+    releases: [
+      { dateUtc: '2026-01-09T01:30:00.000Z', periodLabel: '2025-12' },
+      { dateUtc: '2026-02-11T01:30:00.000Z', periodLabel: '2026-01' },
+      { dateUtc: '2026-03-09T01:30:00.000Z', periodLabel: '2026-02' },
+      { dateUtc: '2026-04-10T01:30:00.000Z', periodLabel: '2026-03' },
+      { dateUtc: '2026-05-11T01:30:00.000Z', periodLabel: '2026-04' },
+      { dateUtc: '2026-06-10T01:30:00.000Z', periodLabel: '2026-05' },
+      { dateUtc: '2026-07-09T01:30:00.000Z', periodLabel: '2026-06' },
+      { dateUtc: '2026-08-09T01:30:00.000Z', periodLabel: '2026-07' },
+      { dateUtc: '2026-09-09T01:30:00.000Z', periodLabel: '2026-08' },
+      { dateUtc: '2026-10-14T01:30:00.000Z', periodLabel: '2026-09' },
+      { dateUtc: '2026-11-09T01:30:00.000Z', periodLabel: '2026-10' },
+      { dateUtc: '2026-12-09T01:30:00.000Z', periodLabel: '2026-11' },
+    ],
+    lang: 'en',
+    enabled: true,
+  },
+  {
+    indicatorCode: 'CN_MANUFACTURING_PMI',
+    provider: 'NBS',
+    authority: 'National Bureau of Statistics of China',
+    nameZhHant: '中國製造業採購經理指數（官方）',
+    nameZhHans: '中国制造业采购经理指数（官方）',
+    nameEn: 'China Manufacturing PMI (official)',
+    region: 'CN',
+    category: 'OTHER',
+    // Index points; no figure is rendered (values not machine-readable), so the
+    // unit is left empty (D1 honesty), mirroring HK external trade.
+    unit: '',
+    scheduleUrl: 'https://www.stats.gov.cn/english/PressRelease/ReleaseCalendar/',
+    sourceUrl: 'https://www.stats.gov.cn/english/PressRelease/',
+    // Monthly report at 09:30 Beijing; unlike the others, the PMI presents the
+    // CURRENT month's data (NBS note 2). February's PMI is released on March 4
+    // due to the Spring Festival (NBS note 5); periodLabel = the month surveyed.
+    releases: [
+      { dateUtc: '2026-01-31T01:30:00.000Z', periodLabel: '2026-01' },
+      { dateUtc: '2026-03-04T01:30:00.000Z', periodLabel: '2026-02' },
+      { dateUtc: '2026-03-31T01:30:00.000Z', periodLabel: '2026-03' },
+      { dateUtc: '2026-04-30T01:30:00.000Z', periodLabel: '2026-04' },
+      { dateUtc: '2026-05-31T01:30:00.000Z', periodLabel: '2026-05' },
+      { dateUtc: '2026-06-30T01:30:00.000Z', periodLabel: '2026-06' },
+      { dateUtc: '2026-07-31T01:30:00.000Z', periodLabel: '2026-07' },
+      { dateUtc: '2026-08-31T01:30:00.000Z', periodLabel: '2026-08' },
+      { dateUtc: '2026-09-30T01:30:00.000Z', periodLabel: '2026-09' },
+      { dateUtc: '2026-10-31T01:30:00.000Z', periodLabel: '2026-10' },
+      { dateUtc: '2026-11-30T01:30:00.000Z', periodLabel: '2026-11' },
+      { dateUtc: '2026-12-31T01:30:00.000Z', periodLabel: '2026-12' },
+    ],
     lang: 'en',
     enabled: true,
   },
