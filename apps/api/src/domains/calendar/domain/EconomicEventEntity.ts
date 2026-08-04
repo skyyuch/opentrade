@@ -108,7 +108,11 @@ export type ListEventsOptions = {
   from?: Date;
   /** Inclusive upper bound of the `scheduledAt` window (ADR-0058 D5). */
   to?: Date;
-  /** Optional filter dimensions (ADR-0058 D5) — filtering only, never ranking. */
-  region?: EconomicRegionValue;
+  /**
+   * Optional filter dimensions (ADR-0058 D5) — filtering only, never ranking.
+   * `regions` is an OR set (any listed region matches); an empty/omitted set
+   * means "all regions". `category` stays single-select.
+   */
+  regions?: readonly EconomicRegionValue[];
   category?: EconomicCategoryValue;
 };

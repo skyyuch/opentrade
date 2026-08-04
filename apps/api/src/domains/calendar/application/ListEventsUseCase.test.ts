@@ -135,7 +135,7 @@ describe('ListEventsUseCase', () => {
       cursor: 'cur_1',
       from,
       to,
-      region: 'US',
+      regions: ['US', 'HK'],
       category: 'INFLATION',
     });
 
@@ -144,8 +144,16 @@ describe('ListEventsUseCase', () => {
       cursor: 'cur_1',
       from,
       to,
-      region: 'US',
+      regions: ['US', 'HK'],
       category: 'INFLATION',
     });
+  });
+
+  it('treats an empty region set as "all regions" (omits the filter)', async () => {
+    repo.list.mockResolvedValue([]);
+
+    await useCase.execute({ limit: 5, regions: [] });
+
+    expect(repo.list).toHaveBeenCalledWith({ limit: 6 });
   });
 });

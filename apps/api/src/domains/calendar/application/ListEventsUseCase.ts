@@ -48,7 +48,8 @@ export type ListEventsInput = {
   cursor?: string;
   from?: Date;
   to?: Date;
-  region?: EconomicRegionValue;
+  /** OR set of regions to include; omitted/empty means all regions. */
+  regions?: readonly EconomicRegionValue[];
   category?: EconomicCategoryValue;
 };
 
@@ -82,7 +83,8 @@ export class ListEventsUseCase {
     if (input.cursor !== undefined) options.cursor = input.cursor;
     if (input.from !== undefined) options.from = input.from;
     if (input.to !== undefined) options.to = input.to;
-    if (input.region !== undefined) options.region = input.region;
+    // Empty region set means "all regions" — don't forward an empty filter.
+    if (input.regions !== undefined && input.regions.length > 0) options.regions = input.regions;
     if (input.category !== undefined) options.category = input.category;
 
     const records = await this.repo.list(options);
