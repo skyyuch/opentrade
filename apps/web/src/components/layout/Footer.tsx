@@ -1,3 +1,4 @@
+import Image from 'next/image';
 import { useTranslations } from 'next-intl';
 
 import { Link } from '../../i18n/navigation';
@@ -12,9 +13,19 @@ export const Footer = (): ReactNode => {
       <div className="container mx-auto px-4 py-10">
         {/* Multi-column grid */}
         <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
-          {/* Column 1: Brand */}
+          {/* Column 1: Brand. White reverse logo per brand guidelines for the
+              dark footer surface. */}
           <div className="flex flex-col gap-3">
-            <span className="text-lg font-bold tracking-tight text-foreground">OpenTrade</span>
+            <Image
+              src="/brand/logo-reverse.png"
+              alt="OpenTrade"
+              width={840}
+              height={138}
+              className="self-start"
+              // Inline sizing (not Tailwind utilities) so the aspect ratio is
+              // locked even if a stale/partial stylesheet drops `w-auto`.
+              style={{ height: '24px', width: 'auto' }}
+            />
             <p className="text-sm leading-relaxed text-muted-foreground">{t('mission')}</p>
           </div>
 
