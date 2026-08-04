@@ -221,9 +221,27 @@
 - **驗證全綠**：typecheck **7/7**、parity 4、lint 0 error、api unit **285**（KR 的 279 + BPS 6）、真實 config smoke **28 draft**（CPI 12 + Trade 12 + GDP 4，值全 null、日期 11:00 WIB→04:00 UTC、期間正確）、migration 已套本地 dev DB。
 - **⚠️ 維護待辦**：BPS ARC 為 2026 年度（每年初出次年表）→ 需**年度更新** config（同 HK/CN/KR 慣例）。另 rule 00 風險＝CF challenge 使**日後轉錄次年表仍需真實瀏覽器**（server 端無法自動抓，屬人工年度巡檢，非 runtime 依賴——runtime 純讀 config 不觸網）。
 
+### VN GSO 交付（2026-08-04 續作 session，2 個 cohesive commit，branch `feature/calendar-vn-gso`，自 `main`（`e2e21c3`）開出）
+
+**Batch 4 第三國。** owner 指定 **VN GSO**（Vietnam General Statistics Office）。**⚠️ 重要來源探勘發現（rule 00，推翻交接稿「VN 仿 HK/CN/KR/ID 走 config 編碼」的預設）**：
+
+- **域名已更名**：`gso.gov.vn` 的 TLS 憑證 CN 已是 `nso.gov.vn`（O=GENERAL STATISTICS OFFICE），`gso.gov.vn` 現 301/重導至 **`www.nso.gov.vn`**——GSO 已更名 **National Statistics Office of Vietnam** 並改隸**財政部**（同一機構）。這是**現行官方域名**（rule 00 資料正確性）。
+- **無 Cloudflare/WAF**：站點是 **WordPress on Apache**，server 端 `curl`/fetch 直接回 200 + 完整 HTML（不像 ID BPS 的 CF challenge）→ **live-fetch 於 server 端可行**。
+- **官方 ARC 是機讀的**：`https://www.nso.gov.vn/en/release-calendar-3/`（自訂外掛 `gso-release-calendar`）頁面內嵌 **`var events=[{title,status,date,format}]` JSON 陣列**，含**全 2026 前瞻日期**（481 筆），滾動多年（2021→2026）→ **決定走 live-fetch 型（仿 GB/CA/AU/JP/NZ，非 config 編碼），免年度轉錄**。
+- **資料含雜訊（rule 00）**：ARC 陣列含非 ISO 的 `date`（如 "The 6th next month…"，官方 widget 自身用 luxon `fromISO` 天然丟棄）→ provider **只收嚴格 `YYYY-MM-DD`、期間無法解析者 skip**（缺覆蓋非錯資料）。
+- **發布時刻 rule 00 驗證**：ARC 每筆給**確切日期**（自 2024-08 Decree 62/2024/NĐ-CP 起改為次月發布；ARC 前瞻筆數實際為每月 6 或 3 日，逐筆讀 ARC＝權威）；官方多處明載發布**於「上午」**（"sáng ngày…"；如 July 2026 報告「on the morning of August 3rd」＝ARC 的 2026-08-03 吻合），未公布精確分鐘 → 時刻錨定 **09:00 Hanoi（ICT=UTC+7 無 DST → 02:00 UTC）**，**日期為權威事實**。
+
+**交付**：
+
+- **Commit 1（`aef9ba6`，cross-layer enum `VN`，全 additive）**：`packages/db` schema `EconomicRegion` 加 `VN` + migration `20260804120000_add_vn_economic_region`（`ALTER TYPE … ADD VALUE IF NOT EXISTS 'VN'`）+ `prisma generate`；`packages/config` `CalendarRegion 'VN'` + `CALENDAR_REGION_FLAG.VN='🇻🇳'`；api `EconomicRegionValue`/`ECONOMIC_REGION_VALUES`；web `client.ts` + `CalendarList.tsx` `REGION_FLAG`；三語 `regionVN`（越南/越南/Vietnam）+ parity pin。
+- **Commit 2（`516b626`，provider）**：`vn-gso-provider.ts`（**live-fetch 型**，`source='GSO'`：injectable `fetchFn`/`now`、string-aware 抽取內嵌 `var events=[…]`（標題內含 `]` 不會截斷）、`gsoNameIncludes`/`gsoNameExcludes` 子字串 match、**只收嚴格 ISO 日期**、window 過濾 LOOKBACK 60d/LOOKAHEAD 120d、期間正規化（標題開頭 period phrase → `YYYY-MM`／`YYYY Qn`，**最早 token 勝**；越南把季末月併入季報故 6 月報＝`2026 Q2`，誠實且不與月標籤碰撞）、ICT→UTC 09:00→02:00、per-row try 隔離、值恆 null）+ config 加 `CalendarProvider 'GSO'` + `gsoNameIncludes`/`gsoNameExcludes` match key + **6 個 GSO 一手指標**（**VN_CPI** INFLATION／**VN_GDP** GROWTH 季／**VN_INDUSTRIAL_PRODUCTION** OTHER／**VN_RETAIL_SALES** OTHER／**VN_TRADE_BALANCE** TRADE／**VN_UNEMPLOYMENT_RATE** EMPLOYMENT 季）+ `index.ts` 匯出 + `main.ts` 免金鑰常駐接線 + 15 unit tests。
+- **紅線嚴守（ADR-0058 D1 / ADR-0061 D4）**：只收 GSO 官方一手；**不納越南私人製造業 PMI（S&P Global）**；facts-only、永不加 forecast/consensus/impact；值恆 null（ARC 無機讀數值，誠實）。
+- **驗證全綠**：typecheck **7/7**、parity 4、lint 0 error、calendar-fetcher 全目錄 **122 test（13 檔）**（含 VN 15）、**真實 ARC live smoke** 產出 **24 draft**（6 指標橫跨 2026-07～2026-11，值全 null、日期 09:00 ICT→02:00 UTC、期間月/季正確、窗口外 2026-12-03 正確剔除、0 碰撞）、migration 已套本地 dev DB。
+- **✅ 維護優勢**：ARC 為**內嵌全年滾動 JSON**（live 抓）→ **無 config 年度轉錄負擔**（優於 HK/CN/KR/ID 的年度手工更新）；唯一 rule 00 風險＝GSO 若改頁面結構（移除 `var events=` 或改標題措辭）會失配＝缺覆蓋非錯資料、自癒隔離（同 AU/JP/NZ 等級）。
+
 ### 下個 session 的 Batch 4 剩餘候選
 
-**KR、ID 已交付。** 官方源覆蓋自此為 **US/EU·EA/HK/GB/CA/CN/AU/JP/NZ/KR/ID（11 地區）**。下一國由 owner 定：**VN GSO**（越南統計總局，官方月度發布，需先探勘現行域名與源型態再定 config 編碼 vs live）。PMI 一律仍只收官方自家、不納私人；KR 的 BOK GDP/利率仍待 primary-source 日程。
+**KR、ID、VN 已交付。** 官方源覆蓋自此為 **US/EU·EA/HK/GB/CA/CN/AU/JP/NZ/KR/ID/VN（12 地區）**。下一國由 owner 定（其他東南亞/亞洲官方統計局如 TH/MY/PH/SG/IN 等，先探勘域名與源型態再定 config 編碼 vs live）。PMI 一律仍只收官方自家、不納私人；KR 的 BOK GDP/利率仍待 primary-source 日程。
 
 ### （Batch 3 已收官）下個 session 的 Batch 3 剩餘候選（擇一聚焦，勿一次全上）
 
