@@ -1098,6 +1098,7 @@ enum EconomicRegion {
   AU
   JP
   NZ
+  KR
 }
 
 /// Filtering-only category (ADR-0058 D1). Used purely for region/category

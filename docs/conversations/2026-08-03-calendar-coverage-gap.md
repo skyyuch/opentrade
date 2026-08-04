@@ -192,7 +192,23 @@
 - **驗證全綠**：typecheck **7/7**、新檔 + main.ts + config + index lint **0 error**、api unit **273**（JP e-Stat 的 257 + NZ 16）、**live 端點實測**產出 **18 draft**（5 指標橫跨 2026-06～2026-12，季頻 Q 對應/月頻/DST 轉換（9/17 22:45 NZST→9/30 21:45 NZDT）/null 值全正確，0 碰撞）。
 - **⚠️ 維護待辦**：month API 只給滾動窗口（**無年表 config 需年度更新問題，優於 HK/CN 的年度轉錄**）；唯一 rule 00 風險＝Incapsula WAF 需正確 headers，若日後升級 JS challenge 會失效（失配＝整 provider 回 `[]`＝缺覆蓋非錯資料、自癒隔離，同 ABS/JP 等級）；`statsNzTitlePrefix` 若 Stats NZ 改統計名會失配（同上自癒；建議偶爾巡檢）。
 
-### 下個 session 的 Batch 3 剩餘候選（擇一聚焦，勿一次全上）
+## Batch 4 進度（2026-08-04 續作 session）
+
+已交付（2 個 cohesive commit，branch `feature/calendar-kr-kostat`，自 `main` 開出，**已 commit、尚未 push / 未開 PR**）。官方源覆蓋自此為 **US/EU·EA/HK/GB/CA/CN/AU/JP/NZ/KR（10 地區）**。
+
+- **KR KOSTAT**（South Korea，Statistics Korea）：**config 編碼型**（仿 HK C&SD / CN NBS，零網路 I/O）。**⚠️ 重要來源發現（rule 00）**：KOSTAT（통계청）2026 年已改組為 **國家數據處 / Ministry of Data and Statistics（MODS，mods.go.kr）**，`kostat.go.kr` 現 301 → `mods.go.kr`。KOSTAT 無機讀發布 API，前瞻源為官方**英文年度發布日程**（`mods.go.kr/menu.es?mid=a20301000000`，200 乾淨 HTML 表）。逐筆 UTC 日期**轉錄自該英文年表**，**發布時間對官方韓文月計畫**（`mods.go.kr/newsPln.es` 的 보도시간）核對＝物價/고용/산업활동 皆 **08:00 KST**；KST=UTC+9 無 DST → **前一日 23:00 UTC**（已直接編碼）。
+  - **Commit 1（`706c423`，cross-layer enum `KR`，全 additive）**：`packages/db` schema + migration `20260804100000_add_kr_economic_region` + `prisma generate`；config `CalendarRegion 'KR'` + 🇰🇷；api `EconomicRegionValue`；web `client.ts` + `CalendarList.tsx`；三語 `regionKR`（南韓/韩国/South Korea）+ parity pin。
+  - **Commit 2（`f703bc6`，provider）**：`kr-kostat-provider.ts`（`source='KOSTAT'`）+ config `CalendarProvider 'KOSTAT'` + **3 指標**（**KR_CPI** INFLATION 月頻 12／**KR_EMPLOYMENT**（經濟活動人口調查）EMPLOYMENT 月頻 12／**KR_INDUSTRIAL_ACTIVITY**（산업활동동향）OTHER 月頻 12）+ `index.ts` + `main.ts` 免金鑰常駐 + 6 unit tests。
+  - **紅線嚴守**：只收 KOSTAT 官方一手；**不納韓國私人製造業 PMI（S&P Global）**；facts-only、值恆 null。
+  - **BOK（GDP + 基準利率）刻意延後**：其唯一前瞻源為 BOK **HWP/PDF 附件**（非乾淨機讀），能找到的「有日期清單」全來自 **Investing.com / Trading Economics 聚合器**——ADR-0058 D1 禁以聚合器為來源，硬編碼將違反 rule 00 / D1；待日後驗到 primary-source BOK 日程再補（同 HK GDP advance 的延後紀律）。
+  - **驗證全綠**：typecheck 7/7、parity 4、lint 0 error、api unit **279**（NZ 的 273 + KR 6）、真實 config smoke **36 draft**（12/12/12，值全 null、日期/期間正確）、migration 已套本地 dev DB。
+  - **⚠️ 維護待辦**：KOSTAT 年表為 2026 年度（每年出次年表）→ 需**年度更新** config（同 HK/CN）。
+
+### 下個 session 的 Batch 4 剩餘候選（擇一聚焦）
+
+**KR 已交付。** 下一國由 owner 定：**VN GSO**（越南統計總局，官方月度發布，仿 config 編碼）｜**ID BPS**（印尼統計局，有官方 Advance Release Calendar，仿 config 編碼）。PMI 一律仍只收官方自家、不納私人；BOK GDP/利率待 primary-source 日程。
+
+### （Batch 3 已收官）下個 session 的 Batch 3 剩餘候選（擇一聚焦，勿一次全上）
 
 **Batch 3 已全數收官（CN/AU/JP/NZ 皆已交付）。** 官方源覆蓋：US/EU·EA/HK/GB/CA/CN/AU/JP/NZ。下一步方向由 owner 決定（可能 Batch 4：VN GSO / ID BPS / KR KOSTAT 等需 config 編碼排程的亞洲官方源，仿 HK/CN 慣例；PMI 一律仍只收官方自家、不納私人）。
 
