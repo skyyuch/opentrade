@@ -239,9 +239,26 @@
 - **驗證全綠**：typecheck **7/7**、parity 4、lint 0 error、calendar-fetcher 全目錄 **122 test（13 檔）**（含 VN 15）、**真實 ARC live smoke** 產出 **24 draft**（6 指標橫跨 2026-07～2026-11，值全 null、日期 09:00 ICT→02:00 UTC、期間月/季正確、窗口外 2026-12-03 正確剔除、0 碰撞）、migration 已套本地 dev DB。
 - **✅ 維護優勢**：ARC 為**內嵌全年滾動 JSON**（live 抓）→ **無 config 年度轉錄負擔**（優於 HK/CN/KR/ID 的年度手工更新）；唯一 rule 00 風險＝GSO 若改頁面結構（移除 `var events=` 或改標題措辭）會失配＝缺覆蓋非錯資料、自癒隔離（同 AU/JP/NZ 等級）。
 
+### SG SingStat 交付（2026-08-04 續作 session，2 個 cohesive commit，branch `feature/calendar-sg-singstat`，自 `main` 開出）
+
+**Batch 4 第四國。** owner 於東南亞/亞洲官方統計局中選 **SG SingStat**（Department of Statistics Singapore）。**⚠️ 重要來源探勘發現（rule 00，server 端重驗推翻交接稿一度誤判「ARC 經 Directus BFF `/api/data-sources` 404 → live 不可行、走 config 編碼」）**：
+
+- **無 WAF、正確 ARC 頁 server 端 200**：ARC 正確頁為 `https://www.singstat.gov.sg/data-tools-services/advance-release-calendar`（舊 `whats-new/advance-release-calendar` 404 是先前誤判來源），server 端 `curl` 直接回 **HTTP 200 + 310KB HTML**（CloudFront 前端、**無 Cloudflare/Incapsula challenge**，不像 ID BPS）→ **live-fetch 於 server 端可行**。
+- **官方 ARC 是機讀的（Next.js RSC payload）**：全年 ARC 日程以機讀 JSON 內嵌於頁面的 Next.js RSC 串流 chunk：`self.__next_f.push([1,"…{\"arcData\":{\"themeFilter\":[…],\"data\":[{id,title,state,description,frequency,release_date,themes,tags,subject,…}]}}…"])`（實測 **243 筆前瞻筆數**橫跨 2026-08～2027-07，全 `state:"Upcoming"`）→ **決定走 live-fetch 型（仿 GB/CA/AU/JP/NZ/VN，非 config 編碼），免年度轉錄**。
+- **標題結構 + 比對法**：每筆 `title`＝「`<指標名>, <期間>`」，provider 以**含逗號結尾的 `singstatTitlePrefix` 前綴 startsWith 比對**（逗號結尾使前綴互斥、不 bleed 到 sibling：`CPI For General Households,` 永不誤配半年頻 `CPI By Household Income Group,`；advance GDP `Advance Gross Domestic Product (GDP) Estimates,` 永不誤配完整 `GDP,`／`Expenditure-Based GDP,`）；期間自標題尾解析（月 `Mon YYYY`→`YYYY-MM`、季 `nQ YYYY`（新加坡數字在前，如 `2Q 2026`）→`YYYY Qn`；半年 `2H` 不用故回 null 略過）。
+- **發布時刻 rule 00 驗證**：ARC 逐筆給**單一權威 `release_date`（嚴格 `YYYY-MM-DD`）**；`description` 的「Not Later Than」或日期區間（如 Unemployment「To be released on 29 - 30 Oct」）**刻意忽略**，`release_date` 為定案日。SingStat 標準發布時刻＝**13:00 新加坡（SGT=UTC+8 無 DST → 05:00 UTC）**，錨定此時刻，日期為權威事實。
+
+**交付**：
+
+- **Commit 1（`e3e314e`，cross-layer enum `SG`，全 additive）**：`packages/db` schema `EconomicRegion` 加 `SG` + migration `20260804130000_add_sg_economic_region`（`ALTER TYPE … ADD VALUE IF NOT EXISTS 'SG'`）+ `prisma generate`；`packages/config` `CalendarRegion 'SG'` + `CALENDAR_REGION_FLAG.SG='🇸🇬'`；api `EconomicRegionValue`/`ECONOMIC_REGION_VALUES`；web `client.ts` + `CalendarList.tsx` `REGION_FLAG`；三語 `regionSG`（新加坡/新加坡/Singapore）+ parity pin。
+- **Commit 2（`6b8f15f`，provider）**：`sg-singstat-provider.ts`（**live-fetch 型**，`source='SINGSTAT'`：injectable `fetchFn`/`now`、**RSC payload 抽取**（掃 `self.__next_f.push([1,"…"])` marker → `JSON.parse` 字串字面解碼 → string-aware 大括號掃描 `{"arcData":…}` → 取 `.arcData.data`，標題內含 `{}` 不截斷）、逗號結尾前綴 startsWith match、**只收嚴格 ISO `release_date`**、window 過濾 LOOKBACK 60d/LOOKAHEAD 120d、期間正規化（季優先、`nQ YYYY`→`YYYY Qn`、`Mon YYYY`→`YYYY-MM`）、SGT→UTC 13:00→05:00、per-row try 隔離、值恆 null）+ config 加 `CalendarProvider 'SINGSTAT'` + `singstatTitlePrefix` match key + **6 個 SingStat 一手指標**（**SG_CPI** INFLATION 月／**SG_GDP**（Advance GDP Estimates）GROWTH 季／**SG_UNEMPLOYMENT_RATE** EMPLOYMENT 季／**SG_MERCHANDISE_TRADE** TRADE 月／**SG_RETAIL_SALES** OTHER 月／**SG_INDUSTRIAL_PRODUCTION** OTHER 月，各 `sourceUrl` 為官方 `find-data/explore-data-themes/…/latest-news-data` 實測 200）+ `index.ts` 匯出 + `main.ts` 免金鑰常駐接線 + 16 unit tests。
+- **紅線嚴守（ADR-0058 D1 / ADR-0061 D4）**：只收 SingStat 官方一手；**不納新加坡私人製造業 PMI（S&P Global / SIPMM）**；**MAS 貨幣政策聲明屬央行非 SingStat 統計、不納**（同 KR 把 BOK、ID 把 BI 分離的紀律）；facts-only、永不加 forecast/consensus/impact；值恆 null（ARC 無機讀數值，誠實）。
+- **驗證全綠**：typecheck **config/api/web 3/3**、parity 4、lint 0 error（僅既有無關 KOL 頁 warning）、calendar-fetcher 全目錄 **138 test（14 檔）**（含 SG 16）、**真實 ARC live smoke**（抽取器對 production HTML 跑）產出 **243 筆全解析、6 指標比對數正確**（CPI/Merchandise/Retail/IIP 各 12 月頻、GDP/Unemployment 各 4 季頻）、`prisma validate` 綠、migration 已 `prisma generate`。
+- **✅ 維護優勢**：ARC 為**內嵌全年 JSON**（live 抓）→ **無 config 年度轉錄負擔**（優於 HK/CN/KR/ID 的年度手工更新）；唯一 rule 00 風險＝SingStat 若改 RSC 結構（移除 `arcData` 或改標題措辭）會失配＝缺覆蓋非錯資料、自癒隔離（同 AU/JP/NZ/VN 等級）。
+
 ### 下個 session 的 Batch 4 剩餘候選
 
-**KR、ID、VN 已交付。** 官方源覆蓋自此為 **US/EU·EA/HK/GB/CA/CN/AU/JP/NZ/KR/ID/VN（12 地區）**。下一國由 owner 定（其他東南亞/亞洲官方統計局如 TH/MY/PH/SG/IN 等，先探勘域名與源型態再定 config 編碼 vs live）。PMI 一律仍只收官方自家、不納私人；KR 的 BOK GDP/利率仍待 primary-source 日程。
+**KR、ID、VN、SG 已交付。** 官方源覆蓋自此為 **US/EU·EA/HK/GB/CA/CN/AU/JP/NZ/KR/ID/VN/SG（13 地區）**。下一國由 owner 定（其他東南亞/亞洲官方統計局如 TH/MY/PH/IN 等，先探勘域名與源型態再定 config 編碼 vs live）。PMI 一律仍只收官方自家、不納私人；KR 的 BOK GDP/利率仍待 primary-source 日程。
 
 ### （Batch 3 已收官）下個 session 的 Batch 3 剩餘候選（擇一聚焦，勿一次全上）
 
