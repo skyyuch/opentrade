@@ -161,7 +161,7 @@
 - **⚠️ 維護待辦**：ABS future-releases 頁只給滾動近期窗口（無年表 config 需更新問題，優於 HK/CN 的年度轉錄），
   但 **`absEventName` 若 ABS 改產品名會失配**（失配＝該指標不產事件，屬「缺覆蓋」非「錯資料」，自癒；仍建議偶爾巡檢頁面 field class 是否變動）。
 
-### JP e-Stat 交付（2026-08-04 續作 session，branch `feature/calendar-jp-estat`）
+### JP e-Stat 交付（2026-08-04 續作 session，PR #72 squash-merge 進 main，commit `69a7de4`）
 
 - **JP e-Stat**（政府統計の総合窓口 / Japan Statistics portal）：`jp-estat-provider.ts` 屬 **live-fetch 型**（仿 `au-abs`），但**免金鑰**。
   **⚠️ 重要來源探勘修正（rule 00，推翻本文件先前「JP 需免費 appId」的假設）**：
@@ -182,7 +182,7 @@
 2. **NZ Stats NZ**（Batch 3 唯一剩餘）：需先擴 enum（`ALTER TYPE ... ADD VALUE IF NOT EXISTS 'NZ'`，仿 `20260803080000`）
    - config `CalendarRegion`/旗 + api `ECONOMIC_REGION_VALUES` + web `ECONOMIC_REGIONS`/`REGION_FLAG` + 三語 `regionNZ` + parity（一個 cross-layer commit），再寫 provider（HTML 爬取其 release-calendar 頁）。
    - ⚠️ Batch 2 實測 Stats NZ 端點皆不友善（`release-calendar.json` 403、`.ics` 無 VEVENT、OData 需金鑰）→ 只能 HTML 爬取，較脆弱、rule 00 風險較高。
-3. ~~**JP e-Stat**~~ ✅ **已交付（2026-08-04，branch `feature/calendar-jp-estat`）** — **免金鑰**（推翻「需 appId」假設，見上方「JP e-Stat 交付」）：解析官方 release-calendar HTML 的 `data-toukei_cd` + `data-kensakuKouhyou_date`（JST）+ name include/exclude 精確辨別。
+3. ~~**JP e-Stat**~~ ✅ **已交付（2026-08-04，PR #72 squash `69a7de4`）** — **免金鑰**（推翻「需 appId」假設，見上方「JP e-Stat 交付」）：解析官方 release-calendar HTML 的 `data-toukei_cd` + `data-kensakuKouhyou_date`（JST）+ name include/exclude 精確辨別。
 4. ~~**CN NBS**~~ ✅ **已交付（2026-08-04，PR #69 squash `2c5ed76`）** — 仿 HK config 編碼、只收 NBS、見上方「Batch 3 進度」。
 
 Provider pattern 已定型（見 `gb-ons-provider.ts` / `ca-statcan-provider.ts`）：injectable `fetchFn`/`now`、
