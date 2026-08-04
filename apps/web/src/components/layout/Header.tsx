@@ -2,6 +2,7 @@
 
 import { usePrivy } from '@privy-io/react-auth';
 import { ExternalLink, Globe, LogOut, Menu, Settings, X } from 'lucide-react';
+import Image from 'next/image';
 import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
@@ -100,12 +101,20 @@ export const Header = (): ReactNode => {
   return (
     <header className="sticky top-0 z-20 border-b border-white/5 bg-transparent backdrop-blur-md">
       <div className="mx-auto flex h-16 items-center justify-between px-6 lg:px-10">
-        {/* Logo (z-50 so it stays above mobile overlay) */}
-        <Link href="/" onClick={closeMobile} className="relative z-50 flex items-center gap-3">
-          <div className="flex h-8 w-8 rotate-45 items-center justify-center rounded-sm bg-[#00FF88]">
-            <div className="h-4 w-4 -rotate-45 border-2 border-[#050608]" />
-          </div>
-          <span className="text-2xl font-bold uppercase tracking-tight text-white">OpenTrade</span>
+        {/* Logo (z-50 so it stays above mobile overlay). White reverse variant
+            per brand guidelines for dark backgrounds. */}
+        <Link href="/" onClick={closeMobile} className="relative z-50 flex items-center">
+          <Image
+            src="/brand/logo-reverse.png"
+            alt="OpenTrade"
+            width={840}
+            height={138}
+            priority
+            // Inline sizing (not Tailwind utilities) so the aspect ratio is
+            // locked even if a stale/partial stylesheet drops `w-auto` — that
+            // regression stretches the wordmark to its intrinsic 840px width.
+            style={{ height: '28px', width: 'auto' }}
+          />
         </Link>
 
         {/* Desktop nav */}
