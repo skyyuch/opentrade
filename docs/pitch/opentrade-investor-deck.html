@@ -217,6 +217,9 @@
   .gallery { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 18px; }
   .shot { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: #0d1526; transition: .2s; }
   .shot:hover { border-color: var(--line-strong); transform: translateY(-3px); }
+  .shot .bar { display: flex; align-items: center; gap: 6px; padding: 8px 12px; background: #0a1120; border-bottom: 1px solid var(--line); }
+  .shot .bar i { width: 9px; height: 9px; border-radius: 50%; background: #33415580; display: inline-block; }
+  .shot .bar .url { margin-left: 8px; font-size: 11px; color: var(--ink-mute); background: #0d1526; border: 1px solid var(--line); border-radius: 6px; padding: 3px 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .shot img { display: block; width: 100%; height: auto; }
   .shot .cap { padding: 11px 14px; font-size: 13.5px; color: var(--ink-soft); border-top: 1px solid var(--line); display: flex; align-items: center; gap: 8px; }
   .shot .cap b { color: var(--ink); font-weight: 600; }
@@ -396,11 +399,11 @@
       <div class="kicker">产品实拍 · 皆为真实运行画面</div>
       <h2>不是原型图，<span class="grad">是已经在跑的产品</span></h2>
       <div class="gallery">
-        <div class="shot"><img src="assets/shot-home.png" alt="散户首页" /><div class="cap"><b>散户首页</b><span class="done">已上线</span></div></div>
-        <div class="shot"><img src="assets/shot-brokers.png" alt="券商目录" /><div class="cap"><b>券商目录</b><span class="done">已上线</span></div></div>
-        <div class="shot"><img src="assets/shot-kols.png" alt="KOL 名录" /><div class="cap"><b>KOL 名录</b><span class="done">已上线</span></div></div>
-        <div class="shot"><img src="assets/shot-news.png" alt="财经新闻" /><div class="cap"><b>财经新闻</b><span class="done">已上线</span></div></div>
-        <div class="shot"><img src="assets/shot-calendar.png" alt="财经日历" /><div class="cap"><b>财经日历</b><span class="done">已上线</span></div></div>
+        <div class="shot"><div class="bar"><i></i><i></i><i></i><span class="url">opentrade.io</span></div><img src="assets/shot-home.png" alt="散户首页" /><div class="cap"><b>散户首页</b><span class="done">已上线</span></div></div>
+        <div class="shot"><div class="bar"><i></i><i></i><i></i><span class="url">opentrade.io / brokers</span></div><img src="assets/shot-brokers.png" alt="券商目录" /><div class="cap"><b>券商目录</b><span class="done">已上线</span></div></div>
+        <div class="shot"><div class="bar"><i></i><i></i><i></i><span class="url">opentrade.io / kols</span></div><img src="assets/shot-kols.png" alt="KOL 名录" /><div class="cap"><b>KOL 名录</b><span class="done">已上线</span></div></div>
+        <div class="shot"><div class="bar"><i></i><i></i><i></i><span class="url">opentrade.io / news</span></div><img src="assets/shot-news.png" alt="财经新闻" /><div class="cap"><b>财经新闻</b><span class="done">已上线</span></div></div>
+        <div class="shot"><div class="bar"><i></i><i></i><i></i><span class="url">opentrade.io / calendar</span></div><img src="assets/shot-calendar.png" alt="财经日历" /><div class="cap"><b>财经日历</b><span class="done">已上线</span></div></div>
         <div class="shot more"><h3>还有更多</h3><p>商户后台、评论提交、投诉受理、发布前审核、身份验证…… 均已实作完成，可现场演示。</p></div>
       </div>
     </div>
