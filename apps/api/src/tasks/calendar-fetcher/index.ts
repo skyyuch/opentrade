@@ -10,4 +10,5 @@ export { JpEstatCalendarProvider } from './jp-estat-provider.js';
 export { NzStatsNzCalendarProvider } from './nz-statsnz-provider.js';
 export { KrKostatCalendarProvider } from './kr-kostat-provider.js';
 export { IdBpsCalendarProvider } from './id-bps-provider.js';
+export { VnGsoCalendarProvider } from './vn-gso-provider.js';
 export type { CalendarEventDraft, ICalendarProvider } from './types.js';

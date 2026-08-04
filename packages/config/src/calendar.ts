@@ -75,7 +75,8 @@ export type CalendarProvider =
   | 'ESTAT'
   | 'STATSNZ'
   | 'KOSTAT'
-  | 'BPS';
+  | 'BPS'
+  | 'GSO';
 
 /**
  * Region → Unicode flag emoji (ADR-0061 D1). Purely a visual region marker;
@@ -278,6 +279,35 @@ export type CalendarIndicatorSource = {
    * verified against the live release-calendar (2026-08-04).
    */
   readonly statsNzTitlePrefix?: string;
+  /**
+   * Substrings that must ALL be present in a Vietnam GSO release title for it to
+   * map to this indicator (ADR-0061 D2, batch 4). Vietnam's General Statistics
+   * Office (rebranded the National Statistics Office of Vietnam; the old
+   * gso.gov.vn now resolves to nso.gov.vn) publishes its official Advance
+   * Release Calendar as a machine-readable `var events=[{title,status,date}]`
+   * JSON array embedded in the key-less release-calendar page (no Cloudflare
+   * challenge — a plain server-side fetch succeeds). Each release title embeds
+   * the covered period at the START and the indicator name at the END (e.g.
+   * "The January/2026 consumer price index (CPI), gold price index, USD price
+   * index"), so the GSO provider maps a release to this indicator by matching
+   * these substrings (case-insensitive, whitespace-collapsed) — e.g.
+   * `['consumer price index (cpi)']` for CPI, `['gross domestic product (gdp)']`
+   * for the headline GDP. Present only for `provider: 'GSO'` indicators. The
+   * calendar exposes no figures, so such events stay `previous/actual = null`
+   * — honest and compliant (D1). The ARC commits to a date only (the release
+   * is officially held "in the morning"); the provider anchors the time at
+   * 09:00 Hanoi (ICT = UTC+7, no DST → 02:00 UTC), the date being the
+   * authoritative fact. Filters are verified against the live ARC (2026-08-04).
+   */
+  readonly gsoNameIncludes?: readonly string[];
+  /**
+   * Substrings that must NOT appear in a Vietnam GSO release title (ADR-0061 D2,
+   * batch 4). Excludes sibling releases that share a headline substring but are
+   * a different indicator (e.g. `['growth rate','per capita','structure']` off
+   * the headline GDP, `['underemployment']` off the unemployment rate). Present
+   * only for `provider: 'GSO'` indicators.
+   */
+  readonly gsoNameExcludes?: readonly string[];
   /**
    * Pre-encoded official release schedule for authorities with no
    * machine-readable API (ADR-0061 D2). Present for `provider: 'HK_CSD'`
@@ -1445,6 +1475,146 @@ export const CALENDAR_INDICATOR_SOURCES: readonly CalendarIndicatorSource[] = [
       { dateUtc: '2026-08-05T04:00:00.000Z', periodLabel: '2026 Q2' },
       { dateUtc: '2026-11-05T04:00:00.000Z', periodLabel: '2026 Q3' },
     ],
+    lang: 'en',
+    enabled: true,
+  },
+
+  // --- Vietnam — General Statistics Office / GSO (ADR-0061 batch 4) ---------
+  // The GSO is Vietnam's primary official statistical authority (rebranded the
+  // National Statistics Office of Vietnam and moved under the Ministry of
+  // Finance; the old gso.gov.vn now resolves to nso.gov.vn). UNLIKE the other
+  // Asian authorities in this batch (CN/KR/ID, whose sites are WAF-walled or
+  // API-less and are therefore config-encoded), the GSO publishes its official
+  // Advance Release Calendar as a machine-readable `var events=[]` JSON array
+  // embedded in the key-less release-calendar page, and the site sits on plain
+  // Apache with NO Cloudflare challenge — so the GSO provider fetches it live
+  // (like GB/CA/AU/JP/NZ), no annual transcription needed. Each release title
+  // embeds the period at the start and the indicator name at the end; the
+  // provider maps a release to an indicator by `gsoNameIncludes` /
+  // `gsoNameExcludes` substrings and normalises the leading period phrase to
+  // the FRED-aligned label (ADR-0058 D6). The ARC exposes no figures, so these
+  // events carry release date + period with `previous/actual = null` (honest,
+  // D1). The ARC commits to a date only (the release is officially held "in the
+  // morning" — Decree 62/2024/NĐ-CP moved it to the 6th of the following month);
+  // the provider anchors 09:00 Hanoi (ICT = UTC+7, no DST → 02:00 UTC), the
+  // date being the authoritative fact. ONLY GSO first-party indicators are
+  // here; Vietnam's private Manufacturing PMI (S&P Global) is NOT an official
+  // statistic and is deliberately excluded (ADR-0061 D4). Match filters are
+  // verified against the live ARC (2026-08-04).
+  {
+    indicatorCode: 'VN_CPI',
+    provider: 'GSO',
+    authority: 'General Statistics Office of Viet Nam',
+    nameZhHant: '越南消費者物價指數',
+    nameZhHans: '越南消费者物价指数',
+    nameEn: 'Vietnam Consumer Price Index (CPI)',
+    region: 'VN',
+    category: 'INFLATION',
+    unit: '%_YOY',
+    scheduleUrl: 'https://www.nso.gov.vn/en/release-calendar-3/',
+    sourceUrl: 'https://www.nso.gov.vn/en/press-room/',
+    // "The <period> consumer price index (CPI), gold price index, USD price
+    // index" — the single headline CPI line per release.
+    gsoNameIncludes: ['consumer price index (cpi)'],
+    lang: 'en',
+    enabled: true,
+  },
+  {
+    indicatorCode: 'VN_GDP',
+    provider: 'GSO',
+    authority: 'General Statistics Office of Viet Nam',
+    nameZhHant: '越南國內生產總值（按季）',
+    nameZhHans: '越南国内生产总值（按季）',
+    nameEn: 'Vietnam Gross Domestic Product (GDP)',
+    region: 'VN',
+    category: 'GROWTH',
+    unit: '%_YOY',
+    scheduleUrl: 'https://www.nso.gov.vn/en/release-calendar-3/',
+    sourceUrl: 'https://www.nso.gov.vn/en/press-room/',
+    // Quarterly headline GDP. Exclude the sibling GDP-family lines that share
+    // "gross domestic product" but are a different figure (growth rate,
+    // per-capita, structure); the `(gdp)` token already excludes the annual
+    // "gross domestic production (GDP)" (note: "production", not "product").
+    gsoNameIncludes: ['gross domestic product (gdp)'],
+    gsoNameExcludes: ['growth rate', 'per capita', 'structure'],
+    lang: 'en',
+    enabled: true,
+  },
+  {
+    indicatorCode: 'VN_INDUSTRIAL_PRODUCTION',
+    provider: 'GSO',
+    authority: 'General Statistics Office of Viet Nam',
+    nameZhHant: '越南工業生產指數（IIP）',
+    nameZhHans: '越南工业生产指数（IIP）',
+    nameEn: 'Vietnam Index of Industrial Production (IIP)',
+    region: 'VN',
+    category: 'OTHER',
+    unit: '%_YOY',
+    scheduleUrl: 'https://www.nso.gov.vn/en/release-calendar-3/',
+    sourceUrl: 'https://www.nso.gov.vn/en/press-room/',
+    // "The <period> index of industrial production" — distinct from the
+    // industrial "shipment" / "inventory" index lines (different phrase).
+    gsoNameIncludes: ['index of industrial production'],
+    lang: 'en',
+    enabled: true,
+  },
+  {
+    indicatorCode: 'VN_RETAIL_SALES',
+    provider: 'GSO',
+    authority: 'General Statistics Office of Viet Nam',
+    nameZhHant: '越南商品零售總額',
+    nameZhHans: '越南商品零售总额',
+    nameEn: 'Vietnam Retail Sales of Goods',
+    region: 'VN',
+    category: 'OTHER',
+    unit: '%_YOY',
+    scheduleUrl: 'https://www.nso.gov.vn/en/release-calendar-3/',
+    sourceUrl: 'https://www.nso.gov.vn/en/press-room/',
+    // "The <period> turnover of retail sales" (plural) — the monthly headline;
+    // the annual roll-up is "turnover of retail sale" (singular) and does not
+    // match, so no period-key collision.
+    gsoNameIncludes: ['turnover of retail sales'],
+    lang: 'en',
+    enabled: true,
+  },
+  {
+    indicatorCode: 'VN_TRADE_BALANCE',
+    provider: 'GSO',
+    authority: 'General Statistics Office of Viet Nam',
+    nameZhHant: '越南商品貿易差額',
+    nameZhHans: '越南商品贸易差额',
+    nameEn: 'Vietnam Trade Balance of Goods',
+    region: 'VN',
+    category: 'TRADE',
+    // Values are not machine-readable and stay null; unit is left empty because
+    // no figure is ever rendered next to it (D1 honesty), mirroring HK/CN/JP/NZ/ID.
+    unit: '',
+    scheduleUrl: 'https://www.nso.gov.vn/en/release-calendar-3/',
+    sourceUrl: 'https://www.nso.gov.vn/en/press-room/',
+    // "The <period> trade surplus/deficit of goods" — the monthly headline
+    // merchandise balance; the annual "trade balance of goods" is a different
+    // phrase and does not match.
+    gsoNameIncludes: ['trade surplus/deficit of goods'],
+    lang: 'en',
+    enabled: true,
+  },
+  {
+    indicatorCode: 'VN_UNEMPLOYMENT_RATE',
+    provider: 'GSO',
+    authority: 'General Statistics Office of Viet Nam',
+    nameZhHant: '越南失業率',
+    nameZhHans: '越南失业率',
+    nameEn: 'Vietnam Unemployment Rate',
+    region: 'VN',
+    category: 'EMPLOYMENT',
+    unit: '%',
+    scheduleUrl: 'https://www.nso.gov.vn/en/release-calendar-3/',
+    sourceUrl: 'https://www.nso.gov.vn/en/press-room/',
+    // "The <period> unemployment rate" (quarterly). Exclude the sibling
+    // "underemployment rate" (which in any case lacks the "unemployment"
+    // substring — belt-and-suspenders).
+    gsoNameIncludes: ['unemployment rate'],
+    gsoNameExcludes: ['underemployment'],
     lang: 'en',
     enabled: true,
   },
