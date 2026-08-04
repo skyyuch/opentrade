@@ -56,7 +56,8 @@ export type CalendarRegion =
   | 'NZ'
   | 'KR'
   | 'ID'
-  | 'VN';
+  | 'VN'
+  | 'SG';
 
 /**
  * The official statistical authority / API that serves an indicator's release
@@ -97,6 +98,7 @@ export const CALENDAR_REGION_FLAG: Record<CalendarRegion, string> = {
   KR: '🇰🇷',
   ID: '🇮🇩',
   VN: '🇻🇳',
+  SG: '🇸🇬',
 };
 
 /**

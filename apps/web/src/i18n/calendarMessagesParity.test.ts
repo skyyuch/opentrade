@@ -109,6 +109,7 @@ describe('calendar vertical i18n parity (ADR-0058)', () => {
       'regionKR',
       'regionID',
       'regionVN',
+      'regionSG',
       'filterAllCategories',
       'categoryINFLATION',
       'categoryGROWTH',

@@ -29,7 +29,8 @@ export type EconomicRegionValue =
   | 'NZ'
   | 'KR'
   | 'ID'
-  | 'VN';
+  | 'VN'
+  | 'SG';
 
 export const ECONOMIC_REGION_VALUES = [
   'US',
@@ -45,6 +46,7 @@ export const ECONOMIC_REGION_VALUES = [
   'KR',
   'ID',
   'VN',
+  'SG',
 ] as const satisfies readonly EconomicRegionValue[];
 
 /**
