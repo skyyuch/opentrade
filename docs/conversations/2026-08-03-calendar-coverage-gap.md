@@ -117,14 +117,32 @@
 >   → AU/NZ 需 **HTML 爬取**（Drupal View / 發布日曆頁）或**逆向 Funnelback JSON**，屬較大、較脆弱、
 >   風險較高（rule 00 資料正確性）的**獨立聚焦單元**，本 session 刻意**延後**，未硬塞脆弱爬蟲。
 
-### 下個 session 的 Batch 3 候選（擇一聚焦，勿一次全上）
+## Batch 3 進度（2026-08-04 續作 session）
+
+已交付（一個 cohesive commit `a4d523f`，branch `feature/calendar-cn-nbs`，未 push）：
+
+- **CN NBS**（Mainland China 國家統計局）：`cn-nbs-provider.ts` 仿 `hk-csd-provider.ts` 純讀
+  config `releases[]`（零網路 I/O），config 加 `CalendarProvider 'NBS'` + 4 指標
+  （**CN_GDP_YOY** 季頻 4／**CN_CPI_YOY** 月頻 12／**CN_PPI_YOY** 月頻 12／
+  **CN_MANUFACTURING_PMI** NBS 官方製造業 PMI 月頻 12）。逐筆 UTC 日期**轉錄自官方英文
+  「Regular Press Release Calendar of NBS in 2026」**（stats.gov.cn/english/PressRelease/
+  ReleaseCalendar/，2025-12-26 發布）：CPI/PPI/PMI 09:30 北京=01:30 UTC、GDP 10:00 北京=02:00 UTC
+  （北京 UTC+8 無 DST）；PMI 呈當月且 2 月 PMI 因春節於 3/4 發布（NBS note 5，已編碼）。
+  enum `CN`/旗/三語 `regionCN` batch 1 已備 → 無 cross-layer commit。**只收 NBS 官方一手，
+  絕不收財新/匯豐（Caixin/S&P Global）私人 PMI**（NBS 自家官方 PMI 屬一手事實可納）。
+  typecheck 7/7、api unit **231**（+6）、真實 config smoke **40 draft**（日期/期間/null 值正確）。
+
+> ⚠️ **維護待辦**：NBS `releases[]` 為 2026 年表（官方註明「preliminary and subject to
+> adjustment」，每年 12 月出次年表）→ 需**年度更新** config（同 HK C&SD 慣例）。
+
+### 下個 session 的 Batch 3 剩餘候選（擇一聚焦，勿一次全上）
 
 1. **AU ABS**：優先嘗試逆向 `search.abs.gov.au/s/search.json`（Funnelback，需找對 collection + 依 release-date meta 排序），
    成功即等同 clean JSON；否則退而解析 `/release-calendar/future-releases` 的 Drupal View HTML（表格結構尚穩定，但需 fixture 化測試 + 年度巡檢）。enum `AU` 已備、國旗/i18n 已備 → 純 provider+config。
 2. **NZ Stats NZ**：需先擴 enum（`ALTER TYPE ... ADD VALUE IF NOT EXISTS 'NZ'`，仿 `20260803080000`）
    - config `CalendarRegion`/旗 + api `ECONOMIC_REGION_VALUES` + web `ECONOMIC_REGIONS`/`REGION_FLAG` + 三語 `regionNZ` + parity（一個 cross-layer commit），再寫 provider（HTML 爬取其 release-calendar 頁）。
 3. **JP e-Stat**：需免費 appId（走 Secrets Manager + 條件掛載，仿 FRED）；e-Stat 有官方發布日曆 API。
-4. **CN NBS**：enum 已有 `CN`，但官方發布日程無 JSON → 仿 HK config 編碼（且只收 NBS，**絕不**收財新/匯豐 PMI）。
+4. ~~**CN NBS**~~ ✅ **已交付（2026-08-04，commit `a4d523f`）** — 仿 HK config 編碼、只收 NBS、見上方「Batch 3 進度」。
 
 Provider pattern 已定型（見 `gb-ons-provider.ts` / `ca-statcan-provider.ts`）：injectable `fetchFn`/`now`、
 per-entry try/catch 隔離、window 過濾、title/slug 精確比對、schedule-only 值留 null、fixture 驅動 unit test、
