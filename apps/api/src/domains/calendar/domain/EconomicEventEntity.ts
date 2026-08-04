@@ -16,7 +16,17 @@
  * ADR-0061 D1). `region` is a filter/label only, never a ranking. `EA` is the
  * euro area (a subset of `EU`); `CN` remains reserved but deferred.
  */
-export type EconomicRegionValue = 'US' | 'HK' | 'CN' | 'EU' | 'EA' | 'GB' | 'CA' | 'AU' | 'JP';
+export type EconomicRegionValue =
+  | 'US'
+  | 'HK'
+  | 'CN'
+  | 'EU'
+  | 'EA'
+  | 'GB'
+  | 'CA'
+  | 'AU'
+  | 'JP'
+  | 'NZ';
 
 export const ECONOMIC_REGION_VALUES = [
   'US',
@@ -28,6 +38,7 @@ export const ECONOMIC_REGION_VALUES = [
   'CA',
   'AU',
   'JP',
+  'NZ',
 ] as const satisfies readonly EconomicRegionValue[];
 
 /**
