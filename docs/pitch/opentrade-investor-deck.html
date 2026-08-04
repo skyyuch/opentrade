@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>OpenTrade · 投资人简报</title>
+<style>
+  /* ============ 设计系统 ============ */
+  :root {
+    --bg: #070b16;
+    --bg-2: #0b1120;
+    --panel: #101a2e;
+    --panel-2: #152239;
+    --line: rgba(148, 163, 184, 0.16);
+    --line-strong: rgba(148, 163, 184, 0.32);
+    --ink: #eef2fb;
+    --ink-soft: #b9c4da;
+    --ink-mute: #7e8aa3;
+    --accent: #38e1b0;      /* 链上 / 信任绿 */
+    --accent-2: #5aa2ff;    /* 科技蓝 */
+    --gold: #f3c96b;        /* 不可篡改金 */
+    --danger: #ff6b7a;      /* 问题红 */
+    --radius: 18px;
+    --maxw: 1180px;
+    --font: "PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei",
+            "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    overflow: hidden;
+  }
+
+  /* ============ 舞台 / 幻灯片 ============ */
+  .deck { height: 100vh; width: 100vw; position: relative; }
+
+  .slide {
+    position: absolute;
+    inset: 0;
+    display: none;
+    padding: 6vh 7vw 8vh;
+    background:
+      radial-gradient(1100px 620px at 82% -8%, rgba(90, 162, 255, 0.14), transparent 60%),
+      radial-gradient(900px 560px at 6% 108%, rgba(56, 225, 176, 0.12), transparent 60%),
+      linear-gradient(180deg, var(--bg) 0%, var(--bg-2) 100%);
+    animation: fade .5s ease both;
+    overflow: auto;
+  }
+  .slide.active { display: flex; flex-direction: column; justify-content: center; }
+  @keyframes fade { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+
+  .wrap { width: 100%; max-width: var(--maxw); margin: 0 auto; }
+
+  /* ============ 文字元件 ============ */
+  .kicker {
+    display: inline-flex; align-items: center; gap: 9px;
+    font-size: 13px; font-weight: 700; letter-spacing: .18em;
+    text-transform: uppercase; color: var(--accent);
+    padding: 7px 14px; border: 1px solid var(--line-strong);
+    border-radius: 999px; background: rgba(56, 225, 176, 0.06);
+    margin-bottom: 26px;
+  }
+  .kicker::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 12px var(--accent); }
+
+  h1 { font-size: clamp(34px, 5.4vw, 68px); line-height: 1.05; letter-spacing: -0.02em; font-weight: 800; }
+  h2 { font-size: clamp(28px, 3.9vw, 48px); line-height: 1.12; letter-spacing: -0.01em; font-weight: 800; margin-bottom: 8px; }
+  h3 { font-size: clamp(18px, 2vw, 23px); font-weight: 700; line-height: 1.3; }
+  .lead { font-size: clamp(17px, 1.9vw, 22px); color: var(--ink-soft); line-height: 1.55; max-width: 60ch; }
+  .muted { color: var(--ink-mute); }
+  .grad { background: linear-gradient(100deg, var(--accent), var(--accent-2) 60%, var(--gold)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .em-gold { color: var(--gold); }
+  .em-red { color: var(--danger); }
+  .em-green { color: var(--accent); }
+
+  .divider { height: 1px; background: var(--line); margin: 26px 0; border: 0; }
+
+  /* ============ 网格 / 卡片 ============ */
+  .grid { display: grid; gap: 18px; }
+  .g2 { grid-template-columns: repeat(2, 1fr); }
+  .g3 { grid-template-columns: repeat(3, 1fr); }
+  .g4 { grid-template-columns: repeat(4, 1fr); }
+
+  .card {
+    background: linear-gradient(160deg, var(--panel), var(--panel-2));
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 22px 22px 20px;
+    position: relative;
+    overflow: hidden;
+  }
+  .card::after {
+    content: ""; position: absolute; inset: 0 0 auto 0; height: 2px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    opacity: .5;
+  }
+  .card h3 { margin-bottom: 8px; }
+  .card p { color: var(--ink-soft); font-size: 15px; line-height: 1.55; }
+  .card .ico { font-size: 24px; display: block; margin-bottom: 12px; }
+  .card .tag {
+    display: inline-block; font-size: 11.5px; font-weight: 700; letter-spacing: .06em;
+    padding: 4px 10px; border-radius: 999px; margin-top: 12px;
+  }
+  .tag-done { color: var(--accent); background: rgba(56,225,176,.1); border: 1px solid rgba(56,225,176,.3); }
+  .tag-next { color: var(--gold); background: rgba(243,201,107,.1); border: 1px solid rgba(243,201,107,.3); }
+  .tag-plan { color: var(--ink-mute); background: rgba(148,163,184,.08); border: 1px solid var(--line); }
+
+  .card.danger::after { background: linear-gradient(90deg, transparent, var(--danger), transparent); }
+  .card.danger .ico { color: var(--danger); }
+
+  /* 列表 */
+  ul.clean { list-style: none; display: grid; gap: 14px; }
+  ul.clean li { position: relative; padding-left: 34px; color: var(--ink-soft); font-size: clamp(15px, 1.6vw, 18px); line-height: 1.5; }
+  ul.clean li::before {
+    content: "✓"; position: absolute; left: 0; top: -1px;
+    width: 22px; height: 22px; border-radius: 7px; font-size: 13px; font-weight: 800;
+    display: grid; place-items: center; color: var(--bg);
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  }
+  ul.cross li::before { content: "✕"; background: linear-gradient(135deg, var(--danger), #d94a5c); color: #fff; }
+  ul.clean li b { color: var(--ink); }
+
+  /* 数字 stat */
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+  .stat { text-align: left; }
+  .stat .n { font-size: clamp(30px, 4vw, 48px); font-weight: 800; line-height: 1; letter-spacing: -.02em; }
+  .stat .l { color: var(--ink-mute); font-size: 14px; margin-top: 8px; }
+
+  /* 对比表 */
+  table.cmp { width: 100%; border-collapse: collapse; font-size: clamp(13px, 1.4vw, 16px); }
+  table.cmp th, table.cmp td { text-align: left; padding: 14px 16px; border-bottom: 1px solid var(--line); }
+  table.cmp thead th { font-size: 13px; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-mute); }
+  table.cmp thead th:nth-child(3) { color: var(--accent); }
+  table.cmp tbody td:first-child { color: var(--ink-mute); }
+  table.cmp td.wf { color: var(--ink-soft); }
+  table.cmp td.ot { color: var(--ink); font-weight: 600; }
+  table.cmp td.ot::before { content: "◆ "; color: var(--accent); }
+  table.cmp tr:hover td { background: rgba(255,255,255,.015); }
+
+  /* 时间线 */
+  .timeline { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0; position: relative; margin-top: 20px; }
+  .timeline::before { content:""; position:absolute; top: 18px; left: 8%; right: 8%; height:2px; background: var(--line-strong); }
+  .tl { position: relative; padding: 0 10px; text-align: center; }
+  .tl .dot { width: 16px; height: 16px; border-radius: 50%; margin: 10px auto 16px; background: var(--panel); border: 2px solid var(--ink-mute); position: relative; z-index: 2; }
+  .tl.done .dot { background: var(--accent); border-color: var(--accent); box-shadow: 0 0 14px rgba(56,225,176,.6); }
+  .tl.active .dot { background: var(--gold); border-color: var(--gold); box-shadow: 0 0 14px rgba(243,201,107,.6); }
+  .tl .ph { font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-mute); }
+  .tl .ti { font-size: 15px; font-weight: 700; margin: 6px 0 4px; }
+  .tl .td { font-size: 12.5px; color: var(--ink-mute); line-height: 1.45; }
+
+  /* 架构层 */
+  .arch { display: grid; gap: 12px; }
+  .layer { border: 1px solid var(--line); border-radius: 14px; padding: 16px 20px; background: var(--panel); display: flex; align-items: center; gap: 18px; }
+  .layer .lb { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-mute); min-width: 96px; }
+  .layer .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip { font-size: 13px; padding: 6px 12px; border-radius: 8px; background: var(--panel-2); border: 1px solid var(--line); color: var(--ink-soft); }
+  .layer.chain { border-color: rgba(56,225,176,.35); background: linear-gradient(160deg, rgba(56,225,176,.06), transparent); }
+  .layer.chain .chip { border-color: rgba(56,225,176,.25); color: var(--accent); }
+
+  /* 引言大字 */
+  .quote { font-size: clamp(26px, 4.2vw, 52px); line-height: 1.22; font-weight: 800; letter-spacing: -.01em; max-width: 20ch; }
+  .quote .grad { display: inline; }
+
+  /* 封面 */
+  .cover-badge { display:flex; align-items:center; gap:14px; margin-bottom: 40px; }
+  .logo { width: 46px; height: 46px; border-radius: 12px; display: grid; place-items: center; font-weight: 900; font-size: 22px; color: var(--bg); background: linear-gradient(135deg, var(--accent), var(--accent-2)); box-shadow: 0 10px 30px rgba(56,225,176,.25); }
+  .logo-t { font-size: 20px; font-weight: 800; letter-spacing: -.01em; }
+  .cover-foot { display:flex; gap: 30px; flex-wrap: wrap; margin-top: 44px; color: var(--ink-mute); font-size: 14px; }
+  .cover-foot b { color: var(--ink-soft); font-weight: 600; }
+
+  .two { display: grid; grid-template-columns: 1.05fr .95fr; gap: 48px; align-items: center; }
+  .two.rev { grid-template-columns: 1.18fr .82fr; }
+
+  .pill-row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 22px; }
+  .pill { font-size: 13.5px; color: var(--ink-soft); border: 1px solid var(--line-strong); border-radius: 999px; padding: 8px 15px; }
+
+  .note { font-size: 13px; color: var(--ink-mute); margin-top: 22px; line-height: 1.5; }
+  .redline { border-left: 3px solid var(--danger); padding: 4px 0 4px 18px; }
+  .greenline { border-left: 3px solid var(--accent); padding: 4px 0 4px 18px; }
+
+  /* ============ 控制列 ============ */
+  .hud { position: fixed; bottom: 0; left: 0; right: 0; z-index: 50; display: flex; align-items: center; justify-content: space-between; padding: 14px 26px; pointer-events: none; }
+  .hud .brand { font-size: 13px; color: var(--ink-mute); font-weight: 600; letter-spacing: .02em; }
+  .hud .ctrls { display: flex; align-items: center; gap: 10px; pointer-events: auto; }
+  .hud button { width: 38px; height: 38px; border-radius: 10px; border: 1px solid var(--line-strong); background: rgba(16,26,46,.7); color: var(--ink); font-size: 16px; cursor: pointer; backdrop-filter: blur(8px); transition: .15s; }
+  .hud button:hover { border-color: var(--accent); color: var(--accent); }
+  .counter { font-variant-numeric: tabular-nums; font-size: 13px; color: var(--ink-soft); min-width: 54px; text-align: center; }
+
+  .progress { position: fixed; top: 0; left: 0; height: 3px; z-index: 60; background: linear-gradient(90deg, var(--accent), var(--accent-2), var(--gold)); transition: width .35s ease; box-shadow: 0 0 12px rgba(56,225,176,.5); }
+
+  .footnum { position: absolute; top: 5vh; right: 7vw; font-size: 13px; color: var(--ink-mute); letter-spacing: .1em; font-variant-numeric: tabular-nums; }
+
+  .disc { font-size: 11.5px; color: var(--ink-mute); border-top: 1px solid var(--line); padding-top: 14px; margin-top: 26px; line-height: 1.55; }
+
+  /* ============ Logo 图片 ============ */
+  .logo-img { height: 34px; width: auto; display: block; }
+  .cover-badge .logo-img { height: 46px; }
+
+  /* ============ 浏览器框 ============ */
+  .browser { border: 1px solid var(--line-strong); border-radius: 14px; overflow: hidden; background: #0d1526; box-shadow: 0 26px 64px rgba(0,0,0,.5); }
+  .browser .bar { display: flex; align-items: center; gap: 7px; padding: 10px 14px; background: #0a1120; border-bottom: 1px solid var(--line); }
+  .browser .bar i { width: 10px; height: 10px; border-radius: 50%; background: #33415580; display: inline-block; }
+  .browser .bar .url { margin-left: 10px; font-size: 11.5px; color: var(--ink-mute); background: #0d1526; border: 1px solid var(--line); border-radius: 7px; padding: 4px 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .browser img { display: block; width: 100%; height: auto; }
+
+  /* ============ 加宽展示版面（截图页） ============ */
+  .slide.showcase { padding-left: 2.2vw; padding-right: 2.2vw; }
+  .slide.showcase .wrap { max-width: 1680px; }
+
+  /* ============ 产品截图画廊 ============ */
+  .gallery { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 18px; }
+  .shot { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: #0d1526; transition: .2s; }
+  .shot:hover { border-color: var(--line-strong); transform: translateY(-3px); }
+  .shot img { display: block; width: 100%; height: auto; }
+  .shot .cap { padding: 11px 14px; font-size: 13.5px; color: var(--ink-soft); border-top: 1px solid var(--line); display: flex; align-items: center; gap: 8px; }
+  .shot .cap b { color: var(--ink); font-weight: 600; }
+  .shot .cap .done { font-size: 11px; color: var(--accent); border: 1px solid rgba(56,225,176,.3); background: rgba(56,225,176,.08); border-radius: 999px; padding: 2px 8px; margin-left: auto; }
+  .shot.more { display: flex; flex-direction: column; justify-content: center; padding: 22px; background: linear-gradient(160deg, var(--panel), var(--panel-2)); }
+  .shot.more h3 { margin-bottom: 12px; }
+  .shot.more p { color: var(--ink-soft); font-size: 14px; line-height: 1.6; }
+
+  /* ============ 打印 / PDF ============ */
+  @media print {
+    @page { size: 1280px 720px; margin: 0; }
+    html, body { overflow: visible; height: auto; }
+    .hud, .progress { display: none !important; }
+    .deck { height: auto; }
+    .slide { display: flex !important; position: relative; inset: auto; height: 720px; width: 1280px; page-break-after: always; animation: none; overflow: hidden; }
+  }
+
+  @media (max-width: 820px) {
+    .g3, .g4, .two, .two.rev, .stats, .timeline, .gallery { grid-template-columns: 1fr; }
+    .timeline::before { display: none; }
+    .slide { padding: 8vh 6vw; }
+  }
+</style>
+</head>
+<body>
+<div class="progress" id="progress"></div>
+<div class="deck" id="deck">
+
+  <!-- 1 · 封面 -->
+  <section class="slide active">
+    <div class="wrap">
+      <div class="cover-badge">
+        <img class="logo-img" src="assets/logo-reverse.png" alt="OpenTrade" />
+      </div>
+      <div class="kicker">Web 3.0 · 去中心化金融服务评论平台</div>
+      <h1>让金融服务评论<br /><span class="grad">回归公正</span></h1>
+      <p class="lead" style="margin-top:24px">
+        平台<b style="color:var(--ink)">无权删除</b>、<b style="color:var(--ink)">无权篡改</b>、<b style="color:var(--ink)">无人能用钱洗白</b>。<br />
+        用区块链的不可篡改特性，对 WikiFX 式的 Web2.0 评分平台进行降维打击。
+      </p>
+      <div class="cover-foot">
+        <span><b>起点市场</b> · 香港持牌券商 / 财经 KOL / 金商</span>
+        <span><b>底层</b> · Base L2 · IPFS · OP Stack</span>
+        <span><b>阶段</b> · MVP 核心已跑通</span>
+      </div>
+      <div class="note">投资人简报 · Confidential — 仅供潜在投资人内部评估使用</div>
+    </div>
+  </section>
+
+  <!-- 2 · 一句话 -->
+  <section class="slide">
+    <span class="footnum">01</span>
+    <div class="wrap">
+      <div class="kicker">一句话说清</div>
+      <p class="quote">
+        金融服务界的 <span class="grad">OpenRice + Glassdoor</span>，<br />
+        但评论一旦上链，<span class="em-gold">连我们自己都改不了。</span>
+      </p>
+      <div class="pill-row">
+        <span class="pill">✍️ 用户评论上链 · 不可删</span>
+        <span class="pill">📈 KOL 喊单信号上链 · 不可洗白</span>
+        <span class="pill">⚖️ 争议 → 去中心化陪审团仲裁</span>
+      </div>
+      <p class="note">我们不是「另一个外汇天眼」——我们是它无法跟进的 Web3 维度。</p>
+    </div>
+  </section>
+
+  <!-- 3 · 问题一 -->
+  <section class="slide">
+    <span class="footnum">02</span>
+    <div class="wrap">
+      <div class="kicker">问题 · 行业痛点</div>
+      <h2>Web2.0 评分平台的<span class="em-red">「中心化勒索」</span></h2>
+      <p class="lead">以外汇天眼（WikiFX）为代表，行业普遍存在结构性不公。</p>
+      <div class="grid g4" style="margin-top:30px">
+        <div class="card danger"><span class="ico">🗑️</span><h3>付费删负评</h3><p>商家付费后，平台「协助处理」负面留言。</p></div>
+        <div class="card danger"><span class="ico">💰</span><h3>付费买排名</h3><p>广告位直接影响搜索结果与评分显示。</p></div>
+        <div class="card danger"><span class="ico">❓</span><h3>无证查证</h3><p>投诉未经核实就多语公开，目的是逼商家付费「处理」。</p></div>
+        <div class="card danger"><span class="ico">⚖️</span><h3>球员兼裁判</h3><p>平台同时是评分方、广告收益方、仲裁方。</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4 · 问题二/三 -->
+  <section class="slide">
+    <span class="footnum">03</span>
+    <div class="wrap">
+      <div class="kicker">问题 · 另外两个盲区</div>
+      <div class="two">
+        <div>
+          <h2>财演「赢了高调、<br /><span class="em-red">输了删文</span>」</h2>
+          <ul class="clean cross" style="margin-top:22px">
+            <li>喊单「打中」大肆宣传、截图留底</li>
+            <li>喊单失败即<b>删除原贴、重发新贴</b></li>
+            <li>卖技术指标只给精选回测，不揭失败案例</li>
+          </ul>
+          <p class="note">投资者拿不到<b style="color:var(--ink-soft)">完整、不可篡改</b>的历史业绩。</p>
+        </div>
+        <div>
+          <h2>监管的<span class="em-red">盲区</span></h2>
+          <p class="lead" style="margin-top:14px">香港证监会（SFC）管合规与牌照，但<b style="color:var(--ink)">不管</b>：</p>
+          <ul class="clean cross" style="margin-top:20px">
+            <li>App 使用体验：稳定性、出金速度、客服</li>
+            <li>KOL 喊单的<b>真实胜率</b></li>
+            <li>暗藏条款：隐性手续费、滑点、止损机制</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5 · 解法 -->
+  <section class="slide">
+    <span class="footnum">04</span>
+    <div class="wrap">
+      <div class="kicker">解法</div>
+      <h2>用<span class="grad">区块链不可篡改</span>，把公正做成「技术保证」</h2>
+      <p class="lead">不靠承诺、不靠平台良心——公正由密码学与去中心化机制强制执行。</p>
+      <div class="grid g3" style="margin-top:32px">
+        <div class="card">
+          <span class="ico">🔒</span><h3>不可删除</h3>
+          <p>评论一旦写入区块链，就永久留存。任何人——包括平台自己——都无法删除或修改，最多只能加注说明。</p>
+        </div>
+        <div class="card">
+          <span class="ico">🪪</span><h3>可验证身份</h3>
+          <p>用户先取得一枚不可转让的「链上身份凭证」，并可用隐私技术证明自己是真实客户，而不必暴露账户余额。</p>
+        </div>
+        <div class="card">
+          <span class="ico">🏛️</span><h3>去中心化仲裁</h3>
+          <p>有争议时，由系统随机抽选的高信誉用户组成陪审团投票裁决，双方对等提交证据，平台无权干预结果。</p>
+        </div>
+      </div>
+      <p class="note redline">业务红线：永不实作「平台可删除评论」或「商户付费影响排序」的功能——这是项目存在的根本理由。</p>
+    </div>
+  </section>
+
+  <!-- 6 · 愿景 -->
+  <section class="slide">
+    <span class="footnum">05</span>
+    <div class="wrap two">
+      <div>
+        <div class="kicker">使命</div>
+        <p class="quote">让投资者<br /><span class="grad">敢相信评论、<br />找得到真相。</span></p>
+      </div>
+      <div>
+        <div class="grid g2">
+          <div class="card"><span class="ico">⚖️</span><h3>公正</h3><p>技术保证，不靠承诺。</p></div>
+          <div class="card"><span class="ico">🔎</span><h3>透明</h3><p>规则、合约、数据公开可查。</p></div>
+          <div class="card"><span class="ico">🧱</span><h3>不可篡改</h3><p>链上数据任何人都改不了。</p></div>
+          <div class="card"><span class="ico">🙌</span><h3>赋权用户</h3><p>陪审团、身份、自证喊单。</p></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7 · 产品总览 -->
+  <section class="slide">
+    <span class="footnum">06</span>
+    <div class="wrap">
+      <div class="kicker">产品 · 核心已跑通</div>
+      <h2>核心产品已经<span class="em-green">能跑</span>，不是概念</h2>
+      <div class="grid g3" style="margin-top:26px">
+        <div class="card"><span class="ico">✍️</span><h3>链上评论</h3><p>散户登录 → 找券商 → 写评论 → 永久上链不可改。支持繁中/简中/英文三语。</p><span class="tag tag-done">已完成</span></div>
+        <div class="card"><span class="ico">📈</span><h3>KOL 喊单上链</h3><p>KOL 发出买/卖/持有信号即刻上链，系统按真实市场价格自动计算胜率。</p><span class="tag tag-done">已完成</span></div>
+        <div class="card"><span class="ico">🥇</span><h3>券商 / 金商名册</h3><p>香港持牌券商 + 香港黄金交易所（HKGX）金商，已预先建档，非空白页。</p><span class="tag tag-done">已完成</span></div>
+        <div class="card"><span class="ico">🛡️</span><h3>发布前自动审核</h3><p>发布前自动挡粗口、人身攻击、引流广告、违法与起底——但负评用语一律放行。</p><span class="tag tag-done">已完成</span></div>
+        <div class="card"><span class="ico">🏢</span><h3>商户后台 + 公开回应</h3><p>商户可认领专页、公开回应评论——但无法删除任何一条评论。</p><span class="tag tag-done">已完成</span></div>
+        <div class="card"><span class="ico">📰</span><h3>财经新闻 + 日历</h3><p>中立聚合第三方财经标题与官方经济数据发布，严格按时间排序、不做解读、附免责。</p><span class="tag tag-done">已完成</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7.5 · 产品实拍 -->
+  <section class="slide showcase">
+    <span class="footnum">07</span>
+    <div class="wrap">
+      <div class="kicker">产品实拍 · 皆为真实运行画面</div>
+      <h2>不是原型图，<span class="grad">是已经在跑的产品</span></h2>
+      <div class="gallery">
+        <div class="shot"><img src="assets/shot-home.png" alt="散户首页" /><div class="cap"><b>散户首页</b><span class="done">已上线</span></div></div>
+        <div class="shot"><img src="assets/shot-brokers.png" alt="券商目录" /><div class="cap"><b>券商目录</b><span class="done">已上线</span></div></div>
+        <div class="shot"><img src="assets/shot-kols.png" alt="KOL 名录" /><div class="cap"><b>KOL 名录</b><span class="done">已上线</span></div></div>
+        <div class="shot"><img src="assets/shot-news.png" alt="财经新闻" /><div class="cap"><b>财经新闻</b><span class="done">已上线</span></div></div>
+        <div class="shot"><img src="assets/shot-calendar.png" alt="财经日历" /><div class="cap"><b>财经日历</b><span class="done">已上线</span></div></div>
+        <div class="shot more"><h3>还有更多</h3><p>商户后台、评论提交、投诉受理、发布前审核、身份验证…… 均已实作完成，可现场演示。</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 8 · KOL 信号 深入 -->
+  <section class="slide showcase">
+    <span class="footnum">08</span>
+    <div class="wrap two rev">
+      <div class="browser">
+        <div class="bar"><i></i><i></i><i></i><span class="url">opentrade.io / kols / crypto-mak</span></div>
+        <img src="assets/shot-kol-detail.png" alt="KOL 业绩页面" />
+      </div>
+      <div>
+        <div class="kicker">拳头功能 · 真实画面</div>
+        <h2>KOL 的<span class="grad">链上业绩护照</span></h2>
+        <p class="lead">每一次喊单都带有进场价、目标价、止损与不可篡改的链上时间戳；胜率由系统客观计算，「赢了高调、输了删文」从此行不通。</p>
+        <ul class="clean" style="margin-top:22px">
+          <li>诚实的 KOL 靠真实战绩脱颖而出；不接受认证者标示「未经链上验证」</li>
+          <li>可按<b>类型</b>（财演 / 指标卖家）与<b>领域</b>（股票 / 加密 / 外汇）筛选</li>
+          <li>对 KOL 而言，是一份「可验证的个人品牌资产」</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 9 · 核心差异化：陪审团 -->
+  <section class="slide">
+    <span class="footnum">09</span>
+    <div class="wrap">
+      <div class="kicker">核心差异化 · 下一张王牌</div>
+      <h2>去中心化陪审团仲裁 <span class="tag tag-next" style="vertical-align:middle">开发中</span></h2>
+      <p class="lead">这是对 WikiFX 降维打击、也是对投资人/评审讲故事最强的一张牌：平台<b style="color:var(--ink)">无权决定谁对谁错</b>。</p>
+      <div class="timeline" style="margin-top:34px; grid-template-columns:repeat(5,1fr)">
+        <div class="tl done"><div class="ph">Step 1</div><div class="dot"></div><div class="ti">提交投诉</div><div class="td">用户上传证据，永久留存、不可篡改</div></div>
+        <div class="tl done"><div class="ph">Step 2</div><div class="dot"></div><div class="ti">双方答辩</div><div class="td">被投诉方 7 天内提交反驳，证据对等呈现</div></div>
+        <div class="tl active"><div class="ph">Step 3</div><div class="dot"></div><div class="ti">随机抽选</div><div class="td">以可验证的公平机制随机抽 5 位陪审员</div></div>
+        <div class="tl"><div class="ph">Step 4</div><div class="dot"></div><div class="ti">投票裁决</div><div class="td">7 天内多数决（3:2），结果永久上链</div></div>
+        <div class="tl"><div class="ph">Step 5</div><div class="dot"></div><div class="ti">永久展示</div><div class="td">在专页显示仲裁纪录，不可删除</div></div>
+      </div>
+      <p class="note">投诉「前半段」（提交 + 后台核实 / 驳回）已完成；接下来的「仲裁裁决」是最关键、也最花时间的一环（约 4–6 周），完成后就是我们对 WikiFX 最强的差异化。</p>
+    </div>
+  </section>
+
+  <!-- 10 · vs WikiFX -->
+  <section class="slide">
+    <span class="footnum">10</span>
+    <div class="wrap">
+      <div class="kicker">竞争 · 维度差异</div>
+      <h2>我们不跟 WikiFX 拼流量，<span class="grad">拼它跟不了的维度</span></h2>
+      <table class="cmp" style="margin-top:20px">
+        <thead><tr><th>维度</th><th>WikiFX（外汇天眼）</th><th>OpenTrade</th></tr></thead>
+        <tbody>
+          <tr><td>技术基础</td><td class="wf">中心化（平台说了算）</td><td class="ot">去中心化（区块链背书）</td></tr>
+          <tr><td>评论能否被删</td><td class="wf">平台可删除</td><td class="ot">永久保存，不可删</td></tr>
+          <tr><td>评论真实性</td><td class="wf">平台单方审核</td><td class="ot">链上身份验证 + 陪审团仲裁</td></tr>
+          <tr><td>财演战绩</td><td class="wf">无纪录</td><td class="ot">喊单历史永久锁定，无法删改</td></tr>
+          <tr><td>争议处理</td><td class="wf">平台单方决定</td><td class="ot">去中心化陪审团裁决</td></tr>
+          <tr><td>商业模式</td><td class="wf">商家付费（被指影响公正）</td><td class="ot">工具订阅费，不影响评论</td></tr>
+          <tr><td>法律风险</td><td class="wf">多次被指诽谤诉讼</td><td class="ot">平台不发表意见，只呈现事实</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 11 · 市场 -->
+  <section class="slide">
+    <span class="footnum">11</span>
+    <div class="wrap">
+      <div class="kicker">市场 · 分阶段扩张</div>
+      <h2>从香港切入，逐步扩至<span class="grad">全球金融服务评论</span></h2>
+      <div class="grid g3" style="margin-top:28px">
+        <div class="card">
+          <span class="tag tag-next">Phase 1 · 2026</span>
+          <h3 style="margin-top:14px">香港 MVP</h3>
+          <p style="margin-top:10px">持牌券商（第 1/2 类）· 财经 KOL / 财演 · 技术指标卖家 · 金商（HKGX 行员）。</p>
+        </div>
+        <div class="card">
+          <span class="tag tag-plan">Phase 2 · 2027+</span>
+          <h3 style="margin-top:14px">区域扩张</h3>
+          <p style="margin-top:10px">香港保险 / 强积金 / 信托 · 台湾、新加坡券商 · 全球外汇经纪商（正面对标 WikiFX）。</p>
+        </div>
+        <div class="card">
+          <span class="tag tag-plan">Phase 3 · 2028+</span>
+          <h3 style="margin-top:14px">多元金融</h3>
+          <p style="margin-top:10px">加密货币交易所评论 · 银行服务评论 · 面向机构的数据订阅。</p>
+        </div>
+      </div>
+      <p class="note">四类核心用户：散户（信任工具）· 券商（公平评论场）· KOL（可验证品牌资产）· 金商（体验评论）。</p>
+    </div>
+  </section>
+
+  <!-- 12 · 技术架构 -->
+  <section class="slide">
+    <span class="footnum">12</span>
+    <div class="wrap">
+      <div class="kicker">运作原理 · 一看就懂</div>
+      <h2>操作像普通 App，<span class="grad">公正由区块链保证</span></h2>
+      <p class="lead">散户用最熟悉的方式（社交帐号一键登录），完全不必懂区块链；而「该公开的」永久上链、「属于隐私的」加密保管。</p>
+      <div class="grid g3" style="margin-top:30px">
+        <div class="card">
+          <span class="ico">📱</span><h3>① 像用一般 App</h3>
+          <p>用户用 Google / 邮箱等社交帐号登录即可写评论、看战绩，背后自动帮你处理所有区块链细节，零门槛。</p>
+        </div>
+        <div class="card">
+          <span class="ico">⛓️</span><h3>② 该公开的，上链</h3>
+          <p>评论、KOL 喊单、陪审裁决、身份凭证——这些需要「谁都改不了」的内容，永久写入区块链公开可查。</p>
+        </div>
+        <div class="card">
+          <span class="ico">🔐</span><h3>③ 属隐私的，加密</h3>
+          <p>个人身份、账户余额等敏感资料，绝不上链，改用加密方式在云端保管，符合香港个资法规。</p>
+        </div>
+      </div>
+      <p class="note greenline">一句话：<b style="color:var(--ink-soft)">「任何用户可能想删的资料，绝不上链；任何应该被公开监督的内容，永久上链。」</b></p>
+    </div>
+  </section>
+
+  <!-- 13 · 护城河 -->
+  <section class="slide">
+    <span class="footnum">13</span>
+    <div class="wrap">
+      <div class="kicker">护城河 · 为什么难被复制</div>
+      <h2>不是「加个区块链」，而是<span class="grad">全栈为公正而设计</span></h2>
+      <div class="grid g2" style="margin-top:24px">
+        <div class="card"><span class="ico">🧬</span><h3>公正是「写死」的</h3><p>系统底层根本没有「删评论」这个功能——这是设计上的硬约束，不是政策。竞品若想跟进，等于推翻自己「靠收费删评」的商业模式。</p></div>
+        <div class="card"><span class="ico">🕸️</span><h3>网络效应 + 数据资产</h3><p>越多不可删的真实评论 → 越可信 → 越多用户，滚成飞轮。长期累积的可信数据本身就能授权变现。</p></div>
+        <div class="card"><span class="ico">📐</span><h3>为五年后的规模设计</h3><p>从第一天就按「未来要服务多地区、多语言、大量用户」的标准打底，避免日后推倒重来。</p></div>
+        <div class="card"><span class="ico">⚙️</span><h3>精实团队 · 高效交付</h3><p>核心产品由小团队搭配 AI 辅助高速交付，迭代快、成本低，且每一步决策都有完整文档留痕。</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 14 · 商业模式 -->
+  <section class="slide">
+    <span class="footnum">14</span>
+    <div class="wrap">
+      <div class="kicker">商业模式</div>
+      <h2>基本原则：<span class="em-green">绝不收商家钱影响评论显示</span></h2>
+      <div class="grid g4" style="margin-top:26px">
+        <div class="card"><span class="ico">🧰</span><h3>B 端 SaaS 工具费</h3><p>商户认领专页后付费启用：链上业绩仪表板、情绪分析、API 接入。</p></div>
+        <div class="card"><span class="ico">⚖️</span><h3>仲裁协议费</h3><p>陪审团仲裁时双方质押，平台抽 5–10%。</p></div>
+        <div class="card"><span class="ico">📊</span><h3>数据 API 授权</h3><p>累积评论后，整理数据授权给保险公司、媒体、学术。</p></div>
+        <div class="card"><span class="ico">🏛️</span><h3>政府 / 机构合作</h3><p>协助 SFC、消委会做投诉前置筛选。</p></div>
+      </div>
+      <p class="note greenline">收入与「评论公正」彻底解耦——这既是道德承诺，也是与 WikiFX 差异化的商业基础。V1 不发代币（避开 VATP 风险）。</p>
+    </div>
+  </section>
+
+  <!-- 15 · 合规 -->
+  <section class="slide">
+    <span class="footnum">15</span>
+    <div class="wrap">
+      <div class="kicker">合规定位</div>
+      <h2>纯技术基础设施，<span class="grad">主动避开监管红线</span></h2>
+      <div class="grid g2" style="margin-top:24px">
+        <div class="card"><span class="ico">📄</span><h3>不需 SFC 牌照</h3><p>纯技术服务商，不发表意见、不撮合交易——避开第 4 类「提供意见」牌照。所有 UI 附免责声明。</p></div>
+        <div class="card"><span class="ico">🪙</span><h3>不碰虚拟资产牌照</h3><p>初期使用「积分」系统，第一版不发行任何代币，避开香港虚拟资产平台（VATP）监管，待政策明朗再评估。</p></div>
+        <div class="card"><span class="ico">🔐</span><h3>符合个资法规</h3><p>个人敏感资料以加密方式处理，原始资料不上链、不长期保存；月结单等证明验证完即销毁。</p></div>
+        <div class="card"><span class="ico">👔</span><h3>顾问配置</h3><p>规划中：退休 SFC 高层作为董事，强化合规定位与行业信任。</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 16 · 里程碑 -->
+  <section class="slide">
+    <span class="footnum">16</span>
+    <div class="wrap">
+      <div class="kicker">进度 · 里程碑</div>
+      <h2>已从地基走到<span class="em-green">核心产品跑通</span></h2>
+      <div class="timeline" style="margin-top:30px">
+        <div class="tl done"><div class="ph">Phase 0</div><div class="dot"></div><div class="ti">地基</div><div class="td">工程底座 + 云端环境搭建完成</div></div>
+        <div class="tl done"><div class="ph">Phase 1</div><div class="dot"></div><div class="ti">链上评论</div><div class="td">散户写评论 → 上链不可改</div></div>
+        <div class="tl done"><div class="ph">Phase 2</div><div class="dot"></div><div class="ti">KOL 信号</div><div class="td">信号上链 · 自动算胜率</div></div>
+        <div class="tl active"><div class="ph">Phase 3</div><div class="dot"></div><div class="ti">陪审团仲裁</div><div class="td">核心差异化 · 开发中</div></div>
+        <div class="tl"><div class="ph">Phase 4–5</div><div class="dot"></div><div class="ti">基金 + 公测</div><div class="td">CCMF 申请 · 千名真实用户</div></div>
+      </div>
+      <div class="divider"></div>
+      <div class="stats">
+        <div class="stat"><div class="n grad">链上评论</div><div class="l">散户端到端已跑通</div></div>
+        <div class="stat"><div class="n grad">KOL 信号</div><div class="l">发信号 + 胜率计算完成</div></div>
+        <div class="stat"><div class="n grad">3 语言</div><div class="l">繁中 / 简中 / 英文</div></div>
+        <div class="stat"><div class="n grad">云已上线</div><div class="l">云端环境已完成部署</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 17 · 资金路径 -->
+  <section class="slide">
+    <span class="footnum">17</span>
+    <div class="wrap">
+      <div class="kicker">资金路径</div>
+      <h2>阶梯式融资，<span class="grad">先用不摊薄股权的资金验证</span></h2>
+      <div class="timeline" style="margin-top:34px; grid-template-columns:repeat(4,1fr)">
+        <div class="tl active"><div class="ph">Step 1</div><div class="dot"></div><div class="ti">数码港 CCMF</div><div class="td">不摊薄股权的启动资金 · 产品 Demo 与商业计画准备中</div></div>
+        <div class="tl"><div class="ph">Step 2</div><div class="dot"></div><div class="ti">创科局基金</div><div class="td">规模化验证与团队扩充</div></div>
+        <div class="tl"><div class="ph">Step 3</div><div class="dot"></div><div class="ti">孵化器</div><div class="td">HKSTP / Cyberport 加速</div></div>
+        <div class="tl"><div class="ph">Step 4</div><div class="dot"></div><div class="ti">创投</div><div class="td">区域扩张与市场进攻</div></div>
+      </div>
+      <p class="lead" style="margin-top:32px">
+        本轮沟通目标：找到认同<b style="color:var(--ink)">「公正基础设施」</b>长期价值的投资人，
+        一起把去中心化陪审团仲裁推到可 demo，赶上创科局申请窗口。
+      </p>
+      <p class="note">（具体融资金额与股权结构可依投资人需求另附条款文件。）</p>
+    </div>
+  </section>
+
+  <!-- 18 · 结尾 -->
+  <section class="slide">
+    <div class="wrap" style="text-align:center; align-items:center;">
+      <div class="cover-badge" style="justify-content:center">
+        <img class="logo-img" src="assets/logo-reverse.png" alt="OpenTrade" style="height:52px" />
+      </div>
+      <p class="quote" style="margin:0 auto; text-align:center; max-width:24ch">
+        公正，<span class="grad">不该是一种奢望，<br />而该是一种技术保证。</span>
+      </p>
+      <div class="pill-row" style="justify-content:center; margin-top:30px">
+        <span class="pill">✍️ 不可删除的评论</span>
+        <span class="pill">📈 不可洗白的喊单</span>
+        <span class="pill">⚖️ 无人能干预的仲裁</span>
+      </div>
+      <p class="lead" style="margin:34px auto 0; text-align:center">期待与您一起，重建金融服务评论的信任基础设施。</p>
+      <p class="disc" style="max-width:70ch; margin-left:auto; margin-right:auto; text-align:center; border:0">
+        免责声明：OpenTrade 为纯资讯呈现的技术平台，不构成任何投资建议。本简报含前瞻性陈述，实际进度可能因资源、监管与市场情况而变动。Confidential — 仅供潜在投资人评估使用。
+      </p>
+    </div>
+  </section>
+
+</div>
+
+<!-- HUD -->
+<div class="hud">
+  <div class="brand" style="display:flex;align-items:center;gap:10px"><img src="assets/logo-reverse.png" alt="OpenTrade" style="height:18px;width:auto;opacity:.85" /> · 投资人简报</div>
+  <div class="ctrls">
+    <button id="prev" aria-label="上一页">‹</button>
+    <div class="counter"><span id="cur">1</span> / <span id="total">18</span></div>
+    <button id="next" aria-label="下一页">›</button>
+  </div>
+</div>
+
+<script>
+  (function () {
+    var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+    var i = 0;
+    var curEl = document.getElementById('cur');
+    var totalEl = document.getElementById('total');
+    var progress = document.getElementById('progress');
+    totalEl.textContent = slides.length;
+
+    function show(n) {
+      i = Math.max(0, Math.min(slides.length - 1, n));
+      slides.forEach(function (s, idx) { s.classList.toggle('active', idx === i); });
+      curEl.textContent = i + 1;
+      progress.style.width = ((i + 1) / slides.length * 100) + '%';
+      if (location.hash !== '#' + (i + 1)) history.replaceState(null, '', '#' + (i + 1));
+    }
+    function next() { show(i + 1); }
+    function prev() { show(i - 1); }
+
+    document.getElementById('next').addEventListener('click', next);
+    document.getElementById('prev').addEventListener('click', prev);
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') { e.preventDefault(); next(); }
+      else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); prev(); }
+      else if (e.key === 'Home') { show(0); }
+      else if (e.key === 'End') { show(slides.length - 1); }
+      else if (e.key === 'f' || e.key === 'F') {
+        if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+        else document.exitFullscreen();
+      }
+    });
+
+    // 点击右/左半屏翻页（忽略按钮点击）
+    document.getElementById('deck').addEventListener('click', function (e) {
+      if (e.target.closest('.hud')) return;
+      var x = e.clientX / window.innerWidth;
+      if (x > 0.62) next(); else if (x < 0.2) prev();
+    });
+
+    var start = parseInt((location.hash || '#1').slice(1), 10);
+    show(isNaN(start) ? 0 : start - 1);
+  })();
+</script>
+</body>
+</html>
