@@ -73,7 +73,8 @@ export type CalendarProvider =
   | 'ABS'
   | 'ESTAT'
   | 'STATSNZ'
-  | 'KOSTAT';
+  | 'KOSTAT'
+  | 'BPS';
 
 /**
  * Region → Unicode flag emoji (ADR-0061 D1). Purely a visual region marker;
@@ -100,8 +101,10 @@ export const CALENDAR_REGION_FLAG: Record<CalendarRegion, string> = {
  * annual schedule when it exposes no machine-readable API (ADR-0061 D2 — e.g.
  * Hong Kong C&SD, whose only source is the annual PDF at a fixed 16:30 HKT, and
  * Mainland China's NBS, whose only source is the annual "Regular Press Release
- * Calendar" at 9:30/10:00 Beijing time). The `HK_CSD` and `NBS` providers read
- * these verbatim; no external fetch is made.
+ * Calendar" at 9:30/10:00 Beijing time, and Indonesia's BPS annual Advance
+ * Release Calendar at 11:00 WIB, whose whole site sits behind a Cloudflare
+ * challenge so it cannot be fetched live). The `HK_CSD`, `NBS`, `KOSTAT` and
+ * `BPS` providers read these verbatim; no external fetch is made.
  */
 export type CalendarConfiguredRelease = {
   /**
@@ -278,10 +281,13 @@ export type CalendarIndicatorSource = {
    * machine-readable API (ADR-0061 D2). Present for `provider: 'HK_CSD'`
    * (C&SD annual PDF schedule, 16:30 HKT), `provider: 'NBS'` (Mainland
    * China's National Bureau of Statistics annual "Regular Press Release
-   * Calendar", 9:30/10:00 Beijing time) and `provider: 'KOSTAT'` (Statistics
-   * Korea's official annual release schedule, 08:00 KST). Values are not
-   * published in machine-readable form, so these events carry the schedule +
-   * period only (`previous/actual = null`) — honest and compliant (D1).
+   * Calendar", 9:30/10:00 Beijing time), `provider: 'KOSTAT'` (Statistics
+   * Korea's official annual release schedule, 08:00 KST) and `provider: 'BPS'`
+   * (Statistics Indonesia's Advance Release Calendar, 11:00 WIB — the whole BPS
+   * site sits behind a Cloudflare challenge, so it is transcribed rather than
+   * fetched live). Values are not published in machine-readable form, so these
+   * events carry the schedule + period only (`previous/actual = null`) — honest
+   * and compliant (D1).
    */
   readonly releases?: readonly CalendarConfiguredRelease[];
   /** Primary language of the authority's release pages. */
@@ -1325,6 +1331,117 @@ export const CALENDAR_INDICATOR_SOURCES: readonly CalendarIndicatorSource[] = [
       { dateUtc: '2026-10-29T23:00:00.000Z', periodLabel: '2026-09' },
       { dateUtc: '2026-11-29T23:00:00.000Z', periodLabel: '2026-10' },
       { dateUtc: '2026-12-29T23:00:00.000Z', periodLabel: '2026-11' },
+    ],
+    lang: 'en',
+    enabled: true,
+  },
+
+  // --- Indonesia — BPS-Statistics Indonesia (ADR-0061 batch 4) --------------
+  // BPS (Badan Pusat Statistik) is Indonesia's primary official statistical
+  // authority. It publishes an official Advance Release Calendar (ARC) covering
+  // the whole year, but the entire bps.go.id site sits behind a Cloudflare
+  // JS/managed challenge (a server-side fetch gets HTTP 403 "Just a moment…"),
+  // so a live fetch at runtime is not viable. Like HK C&SD / CN NBS / KR
+  // KOSTAT, the BPS provider therefore makes no network call: it reads the
+  // pre-encoded official schedule below (already in UTC). The 2026 dates are
+  // transcribed verbatim from the official ARC list view
+  // (bps.go.id/en/arc, 2026) and the release time is confirmed from the ARC's
+  // own "Press Conference Schedule" widget, which states the Berita Resmi
+  // Statistik (BRS) briefings occur at 11:00 WIB. Western Indonesia Time (WIB)
+  // is UTC+7 with no DST, so 11:00 WIB = 04:00 UTC on the same day (encoded
+  // directly below). NOTE (rule 00 資料正確性): this is a per-year table — BPS
+  // publishes the next year's ARC at the start of each year, so these
+  // `releases` arrays MUST be refreshed annually (tracked in docs/03-status.md).
+  // Values (previous/actual) are not machine-readable, so these events carry the
+  // schedule + period only (`previous/actual = null`) — honest and compliant
+  // (D1). ONLY BPS first-party indicators are here; Indonesia's private
+  // Manufacturing PMI (S&P Global) is NOT an official statistic and is
+  // deliberately excluded (ADR-0061 D4); the Bank Indonesia BI-Rate is a
+  // central-bank release (not a BPS statistic) and is out of this provider's
+  // scope.
+  {
+    indicatorCode: 'ID_CPI',
+    provider: 'BPS',
+    authority: 'BPS-Statistics Indonesia',
+    nameZhHant: '印尼消費者物價指數（按年）',
+    nameZhHans: '印度尼西亚消费者物价指数（按年）',
+    nameEn: 'Indonesia Consumer Price Index (YoY)',
+    region: 'ID',
+    category: 'INFLATION',
+    unit: '%_YOY',
+    scheduleUrl: 'https://www.bps.go.id/en/arc',
+    sourceUrl: 'https://www.bps.go.id/en/pressrelease',
+    // "Consumer Price Index" (Inflasi/IHK), released the first working day of
+    // the month at 11:00 WIB = 04:00 UTC; reports the previous month.
+    releases: [
+      { dateUtc: '2026-01-05T04:00:00.000Z', periodLabel: '2025-12' },
+      { dateUtc: '2026-02-02T04:00:00.000Z', periodLabel: '2026-01' },
+      { dateUtc: '2026-03-02T04:00:00.000Z', periodLabel: '2026-02' },
+      { dateUtc: '2026-04-01T04:00:00.000Z', periodLabel: '2026-03' },
+      { dateUtc: '2026-05-04T04:00:00.000Z', periodLabel: '2026-04' },
+      { dateUtc: '2026-06-02T04:00:00.000Z', periodLabel: '2026-05' },
+      { dateUtc: '2026-07-01T04:00:00.000Z', periodLabel: '2026-06' },
+      { dateUtc: '2026-08-03T04:00:00.000Z', periodLabel: '2026-07' },
+      { dateUtc: '2026-09-01T04:00:00.000Z', periodLabel: '2026-08' },
+      { dateUtc: '2026-10-01T04:00:00.000Z', periodLabel: '2026-09' },
+      { dateUtc: '2026-11-02T04:00:00.000Z', periodLabel: '2026-10' },
+      { dateUtc: '2026-12-01T04:00:00.000Z', periodLabel: '2026-11' },
+    ],
+    lang: 'en',
+    enabled: true,
+  },
+  {
+    indicatorCode: 'ID_TRADE_BALANCE',
+    provider: 'BPS',
+    authority: 'BPS-Statistics Indonesia',
+    nameZhHant: '印尼對外商品貿易（出口與進口）',
+    nameZhHans: '印度尼西亚对外商品贸易（出口与进口）',
+    nameEn: 'Indonesia Exports and Imports',
+    region: 'ID',
+    category: 'TRADE',
+    // Values are not machine-readable and stay null; unit is left empty because
+    // no figure is ever rendered next to it (D1 honesty), mirroring HK/CN/JP/NZ.
+    unit: '',
+    scheduleUrl: 'https://www.bps.go.id/en/arc',
+    sourceUrl: 'https://www.bps.go.id/en/pressrelease',
+    // "Exports And Imports" (Ekspor-Impor), released the same first working day
+    // as CPI at 11:00 WIB = 04:00 UTC; reports the previous month.
+    releases: [
+      { dateUtc: '2026-01-05T04:00:00.000Z', periodLabel: '2025-12' },
+      { dateUtc: '2026-02-02T04:00:00.000Z', periodLabel: '2026-01' },
+      { dateUtc: '2026-03-02T04:00:00.000Z', periodLabel: '2026-02' },
+      { dateUtc: '2026-04-01T04:00:00.000Z', periodLabel: '2026-03' },
+      { dateUtc: '2026-05-04T04:00:00.000Z', periodLabel: '2026-04' },
+      { dateUtc: '2026-06-02T04:00:00.000Z', periodLabel: '2026-05' },
+      { dateUtc: '2026-07-01T04:00:00.000Z', periodLabel: '2026-06' },
+      { dateUtc: '2026-08-03T04:00:00.000Z', periodLabel: '2026-07' },
+      { dateUtc: '2026-09-01T04:00:00.000Z', periodLabel: '2026-08' },
+      { dateUtc: '2026-10-01T04:00:00.000Z', periodLabel: '2026-09' },
+      { dateUtc: '2026-11-02T04:00:00.000Z', periodLabel: '2026-10' },
+      { dateUtc: '2026-12-01T04:00:00.000Z', periodLabel: '2026-11' },
+    ],
+    lang: 'en',
+    enabled: true,
+  },
+  {
+    indicatorCode: 'ID_GDP',
+    provider: 'BPS',
+    authority: 'BPS-Statistics Indonesia',
+    nameZhHant: '印尼國內生產總值（經濟成長，按年）',
+    nameZhHans: '印度尼西亚国内生产总值（经济增长，按年）',
+    nameEn: 'Indonesia Economic Growth (GDP, YoY)',
+    region: 'ID',
+    category: 'GROWTH',
+    unit: '%_YOY',
+    scheduleUrl: 'https://www.bps.go.id/en/arc',
+    sourceUrl: 'https://www.bps.go.id/en/pressrelease',
+    // "Economic Growth" (PDB), released quarterly on the 5th at 11:00 WIB =
+    // 04:00 UTC; periodLabel = the quarter reported.
+    releases: [
+      { dateUtc: '2026-02-05T04:00:00.000Z', periodLabel: '2025 Q4' },
+      { dateUtc: '2026-05-05T04:00:00.000Z', periodLabel: '2026 Q1' },
+      { dateUtc: '2026-08-05T04:00:00.000Z', periodLabel: '2026 Q2' },
+      { dateUtc: '2026-11-05T04:00:00.000Z', periodLabel: '2026 Q3' },
     ],
     lang: 'en',
     enabled: true,
