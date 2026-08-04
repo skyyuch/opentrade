@@ -204,9 +204,26 @@
   - **驗證全綠**：typecheck 7/7、parity 4、lint 0 error、api unit **279**（NZ 的 273 + KR 6）、真實 config smoke **36 draft**（12/12/12，值全 null、日期/期間正確）、migration 已套本地 dev DB。
   - **⚠️ 維護待辦**：KOSTAT 年表為 2026 年度（每年出次年表）→ 需**年度更新** config（同 HK/CN）。
 
-### 下個 session 的 Batch 4 剩餘候選（擇一聚焦）
+### ID BPS 交付（2026-08-04 續作 session，2 個 cohesive commit，branch `feature/calendar-id-bps`，自 `main`（`d526078`）開出）
 
-**KR 已交付。** 下一國由 owner 定：**VN GSO**（越南統計總局，官方月度發布，仿 config 編碼）｜**ID BPS**（印尼統計局，有官方 Advance Release Calendar，仿 config 編碼）。PMI 一律仍只收官方自家、不納私人；BOK GDP/利率待 primary-source 日程。
+**Batch 4 第二國。** owner 於 [VN GSO / ID BPS 擇一] 選 **ID BPS**。**⚠️ 重要來源探勘發現（rule 00，推翻交接稿「ID 有官方 ARC＝仿 config 編碼即可直接抓」的樂觀假設）**：
+
+- **BPS 全站（`www.bps.go.id`）在 Cloudflare JS/managed challenge 後** —— server 端 `curl`（含瀏覽器式 UA）與 WebFetch 一律回 **HTTP 403「Just a moment…」**（`cf-mitigated: challenge`）。這比 NZ 的 Incapsula 更嚴（需執行 JS 解 challenge，非單純 headers 可過）→ **live-fetch runtime 不可行**。
+- 但 BPS **PPID 官方文件明載**：Advance Release Calendar（ARC / Rencana Terbit）於每年年初公布**全年一年期**發布日程 → 正是 HK/CN/KR 的「年度預告日程」情境 → **決定走 config 編碼型（仿 KR/HK/CN），runtime 零網路 I/O，完全避開 CF challenge**。
+- **轉錄方法**：用真實瀏覽器（過 CF challenge）開官方 ARC（`bps.go.id/en/arc`，Next.js App Router SPA、FullCalendar + Mantine 表），切「List」視圖得**整年 2026 表格**（No. | Title | Release Schedule | Status），用「Find title」逐指標過濾 + 分頁擷取全 12/4 筆。
+- **發布時刻 rule 00 驗證**：ARC 頁「Press Conference Schedule」widget 明載 **Time: 11:00:00 UTC+7**（BRS 記者會）。WIB=UTC+7 無 DST → **11:00 WIB = 04:00 UTC 同日**（直接編碼）。CPI detail 頁標題（「…inflation in December 2025…」在 1/5 發布）交叉確認**期間映射＝發布月報前一月**。
+
+**交付**：
+
+- **Commit 1（`10a703e`，cross-layer enum `ID`，全 additive）**：`packages/db` schema `EconomicRegion` 加 `ID` + migration `20260804110000_add_id_economic_region`（`ALTER TYPE … ADD VALUE IF NOT EXISTS 'ID'`）+ `prisma generate`；`packages/config` `CalendarRegion 'ID'` + `CALENDAR_REGION_FLAG.ID='🇮🇩'`；api `EconomicRegionValue`/`ECONOMIC_REGION_VALUES`；web `client.ts` + `CalendarList.tsx` `REGION_FLAG`；三語 `regionID`（印尼/印度尼西亚/Indonesia）+ parity pin。
+- **Commit 2（`bc1b333`，provider）**：`id-bps-provider.ts`（`source='BPS'`，仿 `kr-kostat`／`cn-nbs`／`hk-csd` 純讀 config `releases[]`、零網路 I/O、per-release try 隔離、malformed date skip、值恆 null）+ config 加 `CalendarProvider 'BPS'` + **3 個 BPS 一手指標**（**ID_CPI** INFLATION 月頻 12／**ID_TRADE_BALANCE**（Exports and Imports）TRADE 月頻 12／**ID_GDP**（Economic Growth）GROWTH 季頻 4）+ `index.ts` 匯出 + `main.ts` 免金鑰常駐接線 + 6 unit tests。
+- **紅線嚴守（ADR-0058 D1 / ADR-0061 D4）**：只收 BPS 官方一手；**不納印尼私人製造業 PMI（S&P Global）**；**Bank Indonesia BI-Rate 屬央行非 BPS 統計，本 provider 不納**（同 KR 把 BOK 分離的紀律）；facts-only、值恆 null。
+- **驗證全綠**：typecheck **7/7**、parity 4、lint 0 error、api unit **285**（KR 的 279 + BPS 6）、真實 config smoke **28 draft**（CPI 12 + Trade 12 + GDP 4，值全 null、日期 11:00 WIB→04:00 UTC、期間正確）、migration 已套本地 dev DB。
+- **⚠️ 維護待辦**：BPS ARC 為 2026 年度（每年初出次年表）→ 需**年度更新** config（同 HK/CN/KR 慣例）。另 rule 00 風險＝CF challenge 使**日後轉錄次年表仍需真實瀏覽器**（server 端無法自動抓，屬人工年度巡檢，非 runtime 依賴——runtime 純讀 config 不觸網）。
+
+### 下個 session 的 Batch 4 剩餘候選
+
+**KR、ID 已交付。** 官方源覆蓋自此為 **US/EU·EA/HK/GB/CA/CN/AU/JP/NZ/KR/ID（11 地區）**。下一國由 owner 定：**VN GSO**（越南統計總局，官方月度發布，需先探勘現行域名與源型態再定 config 編碼 vs live）。PMI 一律仍只收官方自家、不納私人；KR 的 BOK GDP/利率仍待 primary-source 日程。
 
 ### （Batch 3 已收官）下個 session 的 Batch 3 剩餘候選（擇一聚焦，勿一次全上）
 
