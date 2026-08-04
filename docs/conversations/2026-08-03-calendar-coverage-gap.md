@@ -161,13 +161,29 @@
 - **⚠️ 維護待辦**：ABS future-releases 頁只給滾動近期窗口（無年表 config 需更新問題，優於 HK/CN 的年度轉錄），
   但 **`absEventName` 若 ABS 改產品名會失配**（失配＝該指標不產事件，屬「缺覆蓋」非「錯資料」，自癒；仍建議偶爾巡檢頁面 field class 是否變動）。
 
+### JP e-Stat 交付（2026-08-04 續作 session，branch `feature/calendar-jp-estat`）
+
+- **JP e-Stat**（政府統計の総合窓口 / Japan Statistics portal）：`jp-estat-provider.ts` 屬 **live-fetch 型**（仿 `au-abs`），但**免金鑰**。
+  **⚠️ 重要來源探勘修正（rule 00，推翻本文件先前「JP 需免費 appId」的假設）**：
+  - **e-Stat 的 appId REST API（`getStatsList` 等）不提供前瞻發布日曆** —— 它只列**已公開**統計表（`OPEN_DATE`＝過去公開日 + `UPDATED_DATE`），官方文件明講「公表予定（release calendar）是網站另一個功能，非此 API」。
+  - **前瞻公表予定**在 `https://www.e-stat.go.jp/release-calendar`，是**免金鑰的 Drupal 伺服端渲染 HTML**（實測 200 text/html，含真實日期 + 府省 + 統計名，非 JS 動態載入），結構非常乾淨可靠。
+  - 每列 `<li class="stat-list-row">` 的 `stat-announce-comment` span 帶 **`data-toukei_cd`（政府統計コード，穩定機讀 ID）** + **`data-kensakuKouhyou_date="YYYYMMDDHHMM"`（JST）** + 連結文字（統計名＋涵蓋期）+ `stat-announce-kikan`（府省）。
+  - **結論**：JP 走**解析 release-calendar HTML 的 `data-toukei_cd` + `data-kensakuKouhyou_date` + name**（比 appId API 更適合當日曆源，且免金鑰＝部署即見資料、無 owner secret 步驟、比原計畫更簡單）。此屬**實作發現**（同 AU ABS 把「SDMX API」修正為「HTML parse」的先例），非決策變更，不改 Accepted ADR，記於此 + status。
+- **關鍵設計（rule 00：寧缺勿錯）**：單一 `toukei_cd` 家族含多種發布變體（全國 vs 東京都區部 CPI、1 次 vs 2 次速報 GDP、速報 vs 確報 IP），故用 **`estatToukeiCode` + `estatNameIncludes`/`estatNameExcludes`（AND/NONE 子字串）精確辨別**，只取單一 headline 發布，杜絕 `(indicatorCode, periodLabel)` upsert 碰撞（實測 3 個月窗口 0 碰撞）。
+- **交付**：config 加 `CalendarProvider 'ESTAT'` + `estatToukeiCode`/`estatNameIncludes`/`estatNameExcludes` 三欄位 + **5 個 e-Stat 一手指標**（**JP_CPI** INFLATION `00200573` 全國／**JP_GDP** GROWTH `00100409` 四半期別 1 次速報／**JP_LABOUR_FORCE** EMPLOYMENT `00200531` 基本集計／**JP_INDUSTRIAL_PRODUCTION** OTHER `00550300` 速報／**JP_TRADE_BALANCE** TRADE `00350300` 輸出確報），全部本次實測**精確驗證** toukei_cd + name 過濾。enum `JP`/旗/三語 `regionJP` batch 1 已備 → **無 cross-layer commit**。`index.ts` 匯出 + `main.ts` 免金鑰常駐接線。
+- **provider**：injectable `fetchFn`/`now`、per-row try/catch 隔離、window 過濾（LOOKBACK 30d／LOOKAHEAD 120d）、值恆 null、**JST→UTC**（減 9h 常數位移，`Date.UTC` 處理跨日；JST 無 DST，不引入 date lib，D7）、**日文期間正規化**（全形數字→半形、**令和 era→西曆**（令和8=2026）、季度 `YYYY年M-M月期`→`YYYY Qn`、月 `YYYY年M月`→`YYYY-MM`、**最早出現者勝**以免月報內嵌季度平均被誤標）。
+- **紅線嚴守（ADR-0058 D1 / ADR-0061 D4）**：只收政府一手（総務省統計局／内閣府／経済産業省／財務省）；私人 PMI（au Jibun Bank／日經／S&P Global）**非政府統計、不會出現在此官方日曆、且設計上排除**；facts-only、值恆 null（誠實）。
+- **驗證全綠**：typecheck **7/7**、新檔 + main.ts + config + index lint **0 error**、api unit **257**（AU ABS 的 241 + JP e-Stat 16）、**live 端點實測**產出 **22 draft**（5 指標橫跨 2026-07～2026-11，日期/期間/JST→UTC/null 值全正確，0 碰撞）。
+- **⚠️ 維護待辦**：release-calendar 只給滾動近期窗口（**無年表 config 需年度更新問題，優於 HK/CN 的年度轉錄**）；但 `estatToukeiCode`/name 過濾若 e-Stat 改統計名或代碼會失配（失配＝缺覆蓋非錯資料，自癒；建議偶爾巡檢頁面 field class 與 toukei_cd）。
+
 ### 下個 session 的 Batch 3 剩餘候選（擇一聚焦，勿一次全上）
 
-1. ~~**AU ABS**~~ ✅ **已交付（2026-08-04，commit `8d81691`，branch `feature/calendar-au-abs`）** — 解析 future-releases HTML 的 `<time datetime>`＋`event-name`，見上方「AU ABS 交付」。
-2. **NZ Stats NZ**：需先擴 enum（`ALTER TYPE ... ADD VALUE IF NOT EXISTS 'NZ'`，仿 `20260803080000`）
+1. ~~**AU ABS**~~ ✅ **已交付（2026-08-04，PR #70 squash `3851a77`）** — 解析 future-releases HTML 的 `<time datetime>`＋`event-name`，見上方「AU ABS 交付」。
+2. **NZ Stats NZ**（Batch 3 唯一剩餘）：需先擴 enum（`ALTER TYPE ... ADD VALUE IF NOT EXISTS 'NZ'`，仿 `20260803080000`）
    - config `CalendarRegion`/旗 + api `ECONOMIC_REGION_VALUES` + web `ECONOMIC_REGIONS`/`REGION_FLAG` + 三語 `regionNZ` + parity（一個 cross-layer commit），再寫 provider（HTML 爬取其 release-calendar 頁）。
-3. **JP e-Stat**：需免費 appId（走 Secrets Manager + 條件掛載，仿 FRED）；e-Stat 有官方發布日曆 API。
-4. ~~**CN NBS**~~ ✅ **已交付（2026-08-04，PR #69 admin squash-merge 進 main，commit `2c5ed76`）** — 仿 HK config 編碼、只收 NBS、見上方「Batch 3 進度」。
+   - ⚠️ Batch 2 實測 Stats NZ 端點皆不友善（`release-calendar.json` 403、`.ics` 無 VEVENT、OData 需金鑰）→ 只能 HTML 爬取，較脆弱、rule 00 風險較高。
+3. ~~**JP e-Stat**~~ ✅ **已交付（2026-08-04，branch `feature/calendar-jp-estat`）** — **免金鑰**（推翻「需 appId」假設，見上方「JP e-Stat 交付」）：解析官方 release-calendar HTML 的 `data-toukei_cd` + `data-kensakuKouhyou_date`（JST）+ name include/exclude 精確辨別。
+4. ~~**CN NBS**~~ ✅ **已交付（2026-08-04，PR #69 squash `2c5ed76`）** — 仿 HK config 編碼、只收 NBS、見上方「Batch 3 進度」。
 
 Provider pattern 已定型（見 `gb-ons-provider.ts` / `ca-statcan-provider.ts`）：injectable `fetchFn`/`now`、
 per-entry try/catch 隔離、window 過濾、title/slug 精確比對、schedule-only 值留 null、fixture 驅動 unit test、
