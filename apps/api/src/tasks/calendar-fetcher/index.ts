@@ -11,4 +11,5 @@ export { NzStatsNzCalendarProvider } from './nz-statsnz-provider.js';
 export { KrKostatCalendarProvider } from './kr-kostat-provider.js';
 export { IdBpsCalendarProvider } from './id-bps-provider.js';
 export { VnGsoCalendarProvider } from './vn-gso-provider.js';
+export { SgSingstatCalendarProvider } from './sg-singstat-provider.js';
 export type { CalendarEventDraft, ICalendarProvider } from './types.js';
