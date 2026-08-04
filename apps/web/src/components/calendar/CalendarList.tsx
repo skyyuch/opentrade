@@ -42,6 +42,7 @@ const REGION_FLAG: Record<EconomicRegion, string> = {
   NZ: '🇳🇿',
   KR: '🇰🇷',
   ID: '🇮🇩',
+  VN: '🇻🇳',
 };
 
 /**
