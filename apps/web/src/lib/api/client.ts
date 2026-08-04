@@ -1089,14 +1089,16 @@ export type CalendarResponse = {
 /**
  * Fetch economic-calendar events (`GET /v1/calendar`, public — no auth).
  * Chronological by `scheduledAt` (earliest first), cursor-paginated.
- * `from` / `to` bound the window (ISO strings); `region` / `category` filter.
- * `limit` is clamped server-side to [1, 100] (default 50).
+ * `from` / `to` bound the window (ISO strings); `regions` (OR set, repeated
+ * `?region=` params) / `category` filter. Omitting `regions` (or passing an
+ * empty array) means all regions. `limit` is clamped server-side to [1, 100]
+ * (default 50).
  */
 export const fetchCalendar = (
   params?: {
     from?: string;
     to?: string;
-    region?: EconomicRegion;
+    regions?: readonly EconomicRegion[];
     category?: EconomicCategory;
     limit?: number;
     cursor?: string;
@@ -1106,7 +1108,7 @@ export const fetchCalendar = (
   const query = new URLSearchParams();
   if (params?.from) query.set('from', params.from);
   if (params?.to) query.set('to', params.to);
-  if (params?.region) query.set('region', params.region);
+  for (const region of params?.regions ?? []) query.append('region', region);
   if (params?.category) query.set('category', params.category);
   if (params?.limit !== undefined) query.set('limit', String(params.limit));
   if (params?.cursor) query.set('cursor', params.cursor);

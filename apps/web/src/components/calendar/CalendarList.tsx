@@ -1,11 +1,19 @@
 'use client';
 
-import { CalendarDays, ExternalLink, Loader2 } from 'lucide-react';
+import {
+  CalendarDays,
+  Check,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  ExternalLink,
+  Loader2,
+} from 'lucide-react';
 import { useFormatter, useLocale, useTranslations } from 'next-intl';
 import { useCallback, useState } from 'react';
 
 import { ECONOMIC_CATEGORIES, ECONOMIC_REGIONS, fetchCalendar } from '../../lib/api/client';
-import { calendarWindow } from '../../lib/calendarWindow';
+import { calendarWindowAt } from '../../lib/calendarWindow';
 
 import type { EconomicCategory, EconomicEventItem, EconomicRegion } from '../../lib/api/client';
 import type { CalendarTimeframe } from '../../lib/calendarWindow';
@@ -45,6 +53,19 @@ const REGION_FLAG: Record<EconomicRegion, string> = {
   VN: '🇻🇳',
   SG: '🇸🇬',
 };
+
+/**
+ * Region filter split (ADR-0058 D1): the region row is a *filter*, never a
+ * ranking. As official coverage grows past a dozen regions, showing every chip
+ * inline gets noisy, so a small "popular" set stays inline and the rest live
+ * behind a "More" picker. Membership here is purely a UI convenience for the
+ * HK-centric default audience — it confers no prominence to the underlying
+ * events (ordering is always chronological, server-side).
+ */
+const POPULAR_REGIONS: readonly EconomicRegion[] = ['US', 'HK', 'CN', 'EU', 'JP'];
+const MORE_REGIONS: readonly EconomicRegion[] = ECONOMIC_REGIONS.filter(
+  (r) => !POPULAR_REGIONS.includes(r),
+);
 
 /**
  * Stable Asia/Hong_Kong date key (YYYY-MM-DD) for grouping. `en-CA` yields the
@@ -91,8 +112,12 @@ export const CalendarList = ({ initialItems, initialCursor }: Props) => {
   const format = useFormatter();
 
   const [timeframe, setTimeframe] = useState<CalendarTimeframe>('week');
-  const [region, setRegion] = useState<EconomicRegion | null>(null);
+  const [periodOffset, setPeriodOffset] = useState(0);
+  // Multi-select region filter (OR set). Empty = all regions (ADR-0058 D1:
+  // filter only, never ranking).
+  const [regions, setRegions] = useState<EconomicRegion[]>([]);
   const [category, setCategory] = useState<EconomicCategory | null>(null);
+  const [isRegionMenuOpen, setIsRegionMenuOpen] = useState(false);
 
   const [items, setItems] = useState<EconomicEventItem[]>(initialItems);
   const [cursor, setCursor] = useState<string | null>(initialCursor);
@@ -103,15 +128,16 @@ export const CalendarList = ({ initialItems, initialCursor }: Props) => {
   const buildParams = useCallback(
     (
       nextTimeframe: CalendarTimeframe,
-      nextRegion: EconomicRegion | null,
+      nextOffset: number,
+      nextRegions: readonly EconomicRegion[],
       nextCategory: EconomicCategory | null,
     ) => {
-      const window = calendarWindow(nextTimeframe, new Date());
+      const window = calendarWindowAt(nextTimeframe, nextOffset, new Date());
       return {
         from: window.from,
         to: window.to,
         limit: PAGE_SIZE,
-        ...(nextRegion !== null ? { region: nextRegion } : {}),
+        ...(nextRegions.length > 0 ? { regions: nextRegions } : {}),
         ...(nextCategory !== null ? { category: nextCategory } : {}),
       };
     },
@@ -121,16 +147,20 @@ export const CalendarList = ({ initialItems, initialCursor }: Props) => {
   const applyFilters = useCallback(
     async (
       nextTimeframe: CalendarTimeframe,
-      nextRegion: EconomicRegion | null,
+      nextOffset: number,
+      nextRegions: readonly EconomicRegion[],
       nextCategory: EconomicCategory | null,
     ) => {
       setTimeframe(nextTimeframe);
-      setRegion(nextRegion);
+      setPeriodOffset(nextOffset);
+      setRegions([...nextRegions]);
       setCategory(nextCategory);
       setIsLoading(true);
       setError(false);
       try {
-        const data = await fetchCalendar(buildParams(nextTimeframe, nextRegion, nextCategory));
+        const data = await fetchCalendar(
+          buildParams(nextTimeframe, nextOffset, nextRegions, nextCategory),
+        );
         setItems(data.items);
         setCursor(data.nextCursor);
       } catch {
@@ -142,11 +172,23 @@ export const CalendarList = ({ initialItems, initialCursor }: Props) => {
     [buildParams],
   );
 
+  /** Toggle one region in/out of the OR set, then refetch. */
+  const toggleRegion = useCallback(
+    (r: EconomicRegion) => {
+      const next = regions.includes(r) ? regions.filter((x) => x !== r) : [...regions, r];
+      void applyFilters(timeframe, periodOffset, next, category);
+    },
+    [applyFilters, category, periodOffset, regions, timeframe],
+  );
+
   const handleLoadMore = useCallback(async () => {
     if (!cursor || isLoadingMore) return;
     setIsLoadingMore(true);
     try {
-      const data = await fetchCalendar({ ...buildParams(timeframe, region, category), cursor });
+      const data = await fetchCalendar({
+        ...buildParams(timeframe, periodOffset, regions, category),
+        cursor,
+      });
       setItems((prev) => [...prev, ...data.items]);
       setCursor(data.nextCursor);
     } catch {
@@ -154,56 +196,191 @@ export const CalendarList = ({ initialItems, initialCursor }: Props) => {
     } finally {
       setIsLoadingMore(false);
     }
-  }, [buildParams, category, cursor, isLoadingMore, region, timeframe]);
+  }, [buildParams, category, cursor, isLoadingMore, periodOffset, regions, timeframe]);
 
   const chipClass = (active: boolean) =>
-    `rounded-full border px-4 py-1.5 text-sm font-medium transition-colors ${
+    `inline-flex items-center gap-1.5 rounded-full border px-4 py-1.5 text-sm font-medium transition-colors ${
       active
         ? 'border-[#00FF88]/60 bg-[#00FF88]/10 text-[#00FF88]'
         : 'border-white/10 bg-white/5 text-white/60 hover:bg-white/10 hover:text-white'
     }`;
 
+  /**
+   * A multi-select region filter chip shown as "🇺🇸 United States" (flag +
+   * localized name). Clicking toggles it in/out of the OR set. The flag is
+   * `aria-hidden` so the button's accessible name stays the plain region label
+   * (screen readers + tests key off the name only).
+   */
+  const regionChip = (r: EconomicRegion) => (
+    <button
+      key={r}
+      type="button"
+      aria-pressed={regions.includes(r)}
+      onClick={() => toggleRegion(r)}
+      className={chipClass(regions.includes(r))}
+    >
+      <span aria-hidden className="text-base leading-none">
+        {REGION_FLAG[r]}
+      </span>
+      {t(`region${r}`)}
+    </button>
+  );
+
+  const selectedMoreRegions = regions.filter((r) => MORE_REGIONS.includes(r));
+
+  // The currently-viewed period (offset from now), for the nav label. Rendered
+  // in HK time (D7); Intl supplies locale-aware month names, so no i18n string.
+  const periodWindow = calendarWindowAt(timeframe, periodOffset, new Date());
+  const periodLabel =
+    timeframe === 'week'
+      ? `${format.dateTime(new Date(periodWindow.from), {
+          month: 'short',
+          day: 'numeric',
+          timeZone: 'Asia/Hong_Kong',
+        })} – ${format.dateTime(new Date(periodWindow.to), {
+          month: 'short',
+          day: 'numeric',
+          timeZone: 'Asia/Hong_Kong',
+        })}`
+      : format.dateTime(new Date(periodWindow.from), {
+          month: 'long',
+          year: 'numeric',
+          timeZone: 'Asia/Hong_Kong',
+        });
+
   return (
     <div className="flex flex-col gap-6">
       {/* Timeframe + region + category filter chips (filters only, no ranking — ADR-0058 D1) */}
       <div className="flex flex-col gap-3">
-        <div className="flex flex-wrap gap-2">
-          {(['week', 'month'] as const).map((tf) => (
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap gap-2">
+            {(['week', 'month'] as const).map((tf) => (
+              <button
+                key={tf}
+                type="button"
+                onClick={() => void applyFilters(tf, 0, regions, category)}
+                className={chipClass(timeframe === tf)}
+              >
+                {tf === 'week' ? t('timeframeWeek') : t('timeframeMonth')}
+              </button>
+            ))}
+          </div>
+
+          {/* Period pager — browse past/future weeks or months (offset paging). */}
+          <div className="flex items-center gap-1">
             <button
-              key={tf}
               type="button"
-              onClick={() => void applyFilters(tf, region, category)}
-              className={chipClass(timeframe === tf)}
+              aria-label={t('previousPeriod')}
+              onClick={() => void applyFilters(timeframe, periodOffset - 1, regions, category)}
+              className="inline-flex size-8 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/60 transition-colors hover:bg-white/10 hover:text-white"
             >
-              {tf === 'week' ? t('timeframeWeek') : t('timeframeMonth')}
+              <ChevronLeft size={16} />
             </button>
-          ))}
+            <span className="min-w-[9rem] text-center text-sm font-medium tabular-nums text-white/70">
+              {periodLabel}
+            </span>
+            <button
+              type="button"
+              aria-label={t('nextPeriod')}
+              onClick={() => void applyFilters(timeframe, periodOffset + 1, regions, category)}
+              className="inline-flex size-8 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/60 transition-colors hover:bg-white/10 hover:text-white"
+            >
+              <ChevronRight size={16} />
+            </button>
+            {periodOffset !== 0 && (
+              <button
+                type="button"
+                onClick={() => void applyFilters(timeframe, 0, regions, category)}
+                className="ml-1 rounded-full border border-[#00FF88]/40 bg-[#00FF88]/10 px-3 py-1 text-xs font-medium text-[#00FF88] transition-colors hover:bg-[#00FF88]/20"
+              >
+                {t('filterToday')}
+              </button>
+            )}
+          </div>
         </div>
 
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
-            onClick={() => void applyFilters(timeframe, null, category)}
-            className={chipClass(region === null)}
+            onClick={() => {
+              setIsRegionMenuOpen(false);
+              void applyFilters(timeframe, periodOffset, [], category);
+            }}
+            className={chipClass(regions.length === 0)}
           >
             {t('filterAllRegions')}
           </button>
-          {ECONOMIC_REGIONS.map((r) => (
+          {POPULAR_REGIONS.map((r) => regionChip(r))}
+
+          {/* Keep any picked "More" regions visible inline as active chips. */}
+          {selectedMoreRegions.map((r) => regionChip(r))}
+
+          {/* "More" region picker — the long tail of official regions (D1). */}
+          <div className="relative">
             <button
-              key={r}
               type="button"
-              onClick={() => void applyFilters(timeframe, r, category)}
-              className={chipClass(region === r)}
+              onClick={() => setIsRegionMenuOpen((open) => !open)}
+              aria-haspopup="listbox"
+              aria-expanded={isRegionMenuOpen}
+              className={chipClass(selectedMoreRegions.length > 0)}
             >
-              {t(`region${r}`)}
+              {selectedMoreRegions.length > 0
+                ? `${t('filterMoreRegions')} · ${selectedMoreRegions.length}`
+                : t('filterMoreRegions')}
+              <ChevronDown
+                size={14}
+                className={`transition-transform ${isRegionMenuOpen ? 'rotate-180' : ''}`}
+              />
             </button>
-          ))}
+
+            {isRegionMenuOpen && (
+              <>
+                {/* Click-away backdrop. */}
+                <button
+                  type="button"
+                  aria-hidden
+                  tabIndex={-1}
+                  onClick={() => setIsRegionMenuOpen(false)}
+                  className="fixed inset-0 z-20 cursor-default"
+                />
+                <div
+                  role="listbox"
+                  className="absolute left-0 top-full z-30 mt-2 grid max-h-72 w-56 grid-cols-1 gap-1 overflow-y-auto rounded-2xl border border-white/10 bg-zinc-900/95 p-2 shadow-xl backdrop-blur-xl"
+                >
+                  {MORE_REGIONS.map((r) => {
+                    const active = regions.includes(r);
+                    return (
+                      <button
+                        key={r}
+                        type="button"
+                        role="option"
+                        aria-selected={active}
+                        // Toggle without closing — multi-select (pick several).
+                        onClick={() => toggleRegion(r)}
+                        className={`flex items-center gap-2 rounded-xl px-3 py-2 text-left text-sm transition-colors ${
+                          active
+                            ? 'bg-[#00FF88]/10 text-[#00FF88]'
+                            : 'text-white/70 hover:bg-white/10 hover:text-white'
+                        }`}
+                      >
+                        <span aria-hidden className="text-base leading-none">
+                          {REGION_FLAG[r]}
+                        </span>
+                        <span className="flex-1">{t(`region${r}`)}</span>
+                        {active && <Check size={14} className="shrink-0" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+          </div>
         </div>
 
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
-            onClick={() => void applyFilters(timeframe, region, null)}
+            onClick={() => void applyFilters(timeframe, periodOffset, regions, null)}
             className={chipClass(category === null)}
           >
             {t('filterAllCategories')}
@@ -212,7 +389,7 @@ export const CalendarList = ({ initialItems, initialCursor }: Props) => {
             <button
               key={c}
               type="button"
-              onClick={() => void applyFilters(timeframe, region, c)}
+              onClick={() => void applyFilters(timeframe, periodOffset, regions, c)}
               className={chipClass(category === c)}
             >
               {t(`category${c}`)}

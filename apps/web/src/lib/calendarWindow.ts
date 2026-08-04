@@ -48,3 +48,30 @@ export function calendarWindow(timeframe: CalendarTimeframe, now: Date): Calenda
     to: new Date(nextFirstHkMidnight - 1).toISOString(),
   };
 }
+
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+
+/**
+ * Like {@link calendarWindow}, but shifted by `offset` whole periods so the UI
+ * can page into the past / future (offset 0 = current period, -1 = previous,
+ * +1 = next). All boundary math stays anchored to the HK wall clock (D7):
+ *
+ *  - week: shift the anchor by `offset * 7` days, then snap to that week's
+ *    Monday..Sunday (adding whole weeks never crosses a DST edge — HK has none —
+ *    so the resulting week is exact regardless of the current weekday).
+ *  - month: shift the HK calendar month by `offset`, anchoring mid-month/mid-day
+ *    so `Date.UTC` month-overflow rolls the year correctly and the +8h HK shift
+ *    can never bleed into an adjacent month.
+ */
+export function calendarWindowAt(
+  timeframe: CalendarTimeframe,
+  offset: number,
+  now: Date,
+): CalendarWindow {
+  if (timeframe === 'week') {
+    return calendarWindow('week', new Date(now.getTime() + offset * WEEK_MS));
+  }
+  const hk = new Date(now.getTime() + HK_OFFSET_MS);
+  const anchor = new Date(Date.UTC(hk.getUTCFullYear(), hk.getUTCMonth() + offset, 15, 12));
+  return calendarWindow('month', anchor);
+}
