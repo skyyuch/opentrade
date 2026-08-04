@@ -5,4 +5,5 @@ export { HkCsdCalendarProvider } from './hk-csd-provider.js';
 export { GbOnsCalendarProvider } from './gb-ons-provider.js';
 export { CaStatCanCalendarProvider } from './ca-statcan-provider.js';
 export { CnNbsCalendarProvider } from './cn-nbs-provider.js';
+export { AuAbsCalendarProvider } from './au-abs-provider.js';
 export type { CalendarEventDraft, ICalendarProvider } from './types.js';
