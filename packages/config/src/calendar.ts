@@ -43,7 +43,18 @@ import type { SupportedLocale } from './locales.js';
  * `EconomicRegion` enum. `region` is a filter/label only, NEVER a ranking. `EA`
  * is the euro area (a subset of `EU`); both carry the same flag.
  */
-export type CalendarRegion = 'US' | 'HK' | 'CN' | 'EU' | 'EA' | 'GB' | 'CA' | 'AU' | 'JP' | 'NZ';
+export type CalendarRegion =
+  | 'US'
+  | 'HK'
+  | 'CN'
+  | 'EU'
+  | 'EA'
+  | 'GB'
+  | 'CA'
+  | 'AU'
+  | 'JP'
+  | 'NZ'
+  | 'KR';
 
 /**
  * The official statistical authority / API that serves an indicator's release
@@ -78,6 +89,7 @@ export const CALENDAR_REGION_FLAG: Record<CalendarRegion, string> = {
   AU: '🇦🇺',
   JP: '🇯🇵',
   NZ: '🇳🇿',
+  KR: '🇰🇷',
 };
 
 /**
