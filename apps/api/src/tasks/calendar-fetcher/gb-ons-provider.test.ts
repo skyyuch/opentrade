@@ -1,23 +1,35 @@
 /**
- * Unit tests for GbOnsCalendarProvider (ADR-0061 D2, batch 2).
+ * Unit tests for GbOnsCalendarProvider (ADR-0061 D2, batch 2; value backfill
+ * Q3-B).
  *
  * Coverage:
  *   - Maps releases to indicators by the stable `onsUriPrefix` slug prefix and
  *     derives the period from the slug remainder; non-matching slugs are ignored
  *   - Skips the `…timeseries` companion release and cancelled releases
- *   - Values are always null (ONS exposes the schedule only, D1)
+ *   - Schedule-only indicators (no `onsTimeseriesPath`) keep null values (D1)
+ *   - Value backfill: released periods get previous/actual from the website
+ *     timeseries months (verbatim strings), the publication-month shift maps
+ *     the labour-market bulletin onto its rolling-quarter observation, and a
+ *     data failure only skips that indicator (isolation)
  *   - Events outside the look-back / look-ahead window are dropped
  *   - Malformed entries are isolated (one bad row can't drop the good ones)
  *   - No configured ONS indicators / a fetch failure → inert (empty)
  *   - Never emits a forecast/consensus value or impact rating (D1)
+ *   - parseOnsMonths / shiftMonthLabel edge cases
  *
- * A self-made JSON fixture (not a live URL) keeps the test hermetic — the
- * shape mirrors the official `search/releases` response.
+ * Self-made JSON fixtures (not live URLs) keep the tests hermetic — the
+ * shapes mirror the official `search/releases` and website timeseries
+ * responses verified live on 2026-08-05.
  */
 
 import { describe, expect, it, vi } from 'vitest';
 
-import { GbOnsCalendarProvider, periodFromRemainder } from './gb-ons-provider.js';
+import {
+  GbOnsCalendarProvider,
+  parseOnsMonths,
+  periodFromRemainder,
+  shiftMonthLabel,
+} from './gb-ons-provider.js';
 
 import type { CalendarIndicatorSource } from '@opentrade/config';
 
@@ -56,13 +68,30 @@ const release = (uri: string, releaseDate: string, cancelled = false): unknown =
 /**
  * Build an injectable fetch that returns the `upcoming` list for the
  * `type-upcoming` page and the `published` list for the `type-published` page,
- * mirroring the provider's two typed queries.
+ * mirroring the provider's two typed queries. Timeseries `/data` URLs are
+ * served from `seriesByPath` (path without the `/data` suffix); an
+ * unregistered path returns 404 so failure isolation can be exercised.
  */
-const fetchByType = (upcoming: unknown[], published: unknown[] = []): typeof fetch =>
+const fetchByType = (
+  upcoming: unknown[],
+  published: unknown[] = [],
+  seriesByPath: Record<string, unknown> = {},
+): typeof fetch =>
   vi.fn((url: string) => {
+    if (url.includes('/timeseries/')) {
+      const path = url.replace('https://www.ons.gov.uk', '').replace(/\/data$/, '');
+      const payload = seriesByPath[path];
+      if (payload === undefined) return Promise.resolve({ ok: false, status: 404 });
+      return Promise.resolve({ ok: true, json: () => Promise.resolve(payload) });
+    }
     const releases = url.includes('type-upcoming') ? upcoming : published;
     return Promise.resolve({ ok: true, json: () => Promise.resolve({ releases }) });
   }) as unknown as typeof fetch;
+
+/** A minimal website-timeseries payload with "YYYY MMM" months. */
+const timeseries = (months: [string, string][]): unknown => ({
+  months: months.map(([date, value]) => ({ date, value, label: date })),
+});
 
 describe('GbOnsCalendarProvider.fetchEvents', () => {
   it('maps slugs by prefix to drafts with null values and slug-derived periods', async () => {
@@ -183,6 +212,103 @@ describe('GbOnsCalendarProvider.fetchEvents', () => {
     expect(await provider.fetchEvents()).toEqual([]);
   });
 
+  it('backfills previous/actual from the timeseries months and leaves unpublished periods null', async () => {
+    const provider = new GbOnsCalendarProvider({
+      indicators: [
+        { ...cpi, onsTimeseriesPath: '/economy/inflationandpriceindices/timeseries/d7g7/mm23' },
+      ],
+      now: () => NOW,
+      fetchFn: fetchByType(
+        // Upcoming July bulletin: July not yet published, June is its previous.
+        [release('/releases/consumerpriceinflationukjuly2026', '2026-08-19T06:00:00.000Z')],
+        // Published June bulletin (in the look-back window).
+        [release('/releases/consumerpriceinflationukjune2026', '2026-07-22T06:00:00.000Z')],
+        {
+          '/economy/inflationandpriceindices/timeseries/d7g7/mm23': timeseries([
+            ['2026 MAY', '2.8'],
+            ['2026 JUN', '2.6'],
+          ]),
+        },
+      ),
+    });
+
+    const drafts = await provider.fetchEvents();
+    expect(drafts).toHaveLength(2);
+
+    const june = drafts.find((d) => d.periodLabel === '2026-06');
+    expect(june).toMatchObject({ previousValue: '2.8', actualValue: '2.6' });
+
+    const july = drafts.find((d) => d.periodLabel === '2026-07');
+    expect(july).toMatchObject({ previousValue: '2.6', actualValue: null });
+  });
+
+  it('applies the publication-month shift for the labour-market rolling quarter', async () => {
+    const labour: CalendarIndicatorSource = {
+      ...cpi,
+      indicatorCode: 'GB_LABOUR_MARKET',
+      category: 'EMPLOYMENT',
+      onsUriPrefix: 'uklabourmarket',
+      onsTimeseriesPath:
+        '/employmentandlabourmarket/peoplenotinwork/unemployment/timeseries/mgsx/lms',
+      onsPeriodShiftMonths: -3,
+    };
+    const provider = new GbOnsCalendarProvider({
+      indicators: [labour],
+      now: () => NOW,
+      fetchFn: fetchByType(
+        [],
+        // July bulletin (publication month) covers Mar–May → April observation.
+        [release('/releases/uklabourmarketjuly2026', '2026-07-21T06:00:00.000Z')],
+        {
+          '/employmentandlabourmarket/peoplenotinwork/unemployment/timeseries/mgsx/lms': timeseries(
+            [
+              ['2026 MAR', '4.9'],
+              ['2026 APR', '4.9'],
+            ],
+          ),
+        },
+      ),
+    });
+
+    const [draft] = await provider.fetchEvents();
+    expect(draft).toMatchObject({
+      periodLabel: '2026-07',
+      previousValue: '4.9',
+      actualValue: '4.9',
+    });
+  });
+
+  it('keeps values null when the timeseries endpoint fails (per-indicator isolation)', async () => {
+    const provider = new GbOnsCalendarProvider({
+      indicators: [
+        { ...cpi, onsTimeseriesPath: '/economy/inflationandpriceindices/timeseries/d7g7/mm23' },
+      ],
+      now: () => NOW,
+      // No series registered → the timeseries call returns 404.
+      fetchFn: fetchByType(
+        [],
+        [release('/releases/consumerpriceinflationukjune2026', '2026-07-22T06:00:00.000Z')],
+      ),
+    });
+
+    const [draft] = await provider.fetchEvents();
+    expect(draft).toMatchObject({ previousValue: null, actualValue: null });
+  });
+
+  it('does not call the timeseries endpoint for schedule-only indicators', async () => {
+    const fetchFn = fetchByType([
+      release('/releases/consumerpriceinflationukaugust2026', '2026-08-19T06:00:00.000Z'),
+    ]);
+    const provider = new GbOnsCalendarProvider({
+      indicators: [cpi], // no onsTimeseriesPath
+      now: () => NOW,
+      fetchFn,
+    });
+
+    await provider.fetchEvents();
+    expect(fetchFn).toHaveBeenCalledTimes(2); // the two schedule pages only
+  });
+
   it('never emits a forecast/consensus value or impact rating (ADR-0058 D1)', async () => {
     const provider = new GbOnsCalendarProvider({
       indicators: [cpi],
@@ -210,5 +336,33 @@ describe('periodFromRemainder', () => {
     expect(periodFromRemainder('apriltojune2026')).toBeNull();
     expect(periodFromRemainder('2026')).toBeNull();
     expect(periodFromRemainder('')).toBeNull();
+  });
+});
+
+describe('parseOnsMonths', () => {
+  it('keeps values verbatim and skips unpublished or malformed entries', () => {
+    const series = parseOnsMonths({
+      months: [
+        { date: '2026 MAY', value: '1.0' }, // trailing zero must survive
+        { date: '2026 JUN', value: '-0.1' },
+        { date: '2026 JUL', value: '' }, // not yet published
+        { date: '2026 AUG', value: '..' }, // ONS missing marker
+        { date: 'JUN 2026', value: '2.0' }, // wrong shape
+      ],
+    });
+    expect(series.get('2026-05')).toBe('1.0');
+    expect(series.get('2026-06')).toBe('-0.1');
+    expect(series.size).toBe(2);
+  });
+});
+
+describe('shiftMonthLabel', () => {
+  it('shifts across year boundaries and rejects non-month labels', () => {
+    expect(shiftMonthLabel('2026-07', -3)).toBe('2026-04');
+    expect(shiftMonthLabel('2026-01', -1)).toBe('2025-12');
+    expect(shiftMonthLabel('2025-12', 1)).toBe('2026-01');
+    expect(shiftMonthLabel('2026-07', 0)).toBe('2026-07');
+    expect(shiftMonthLabel('2026 Q2', -1)).toBeNull();
+    expect(shiftMonthLabel('2026', -1)).toBeNull();
   });
 });
