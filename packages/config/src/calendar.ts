@@ -324,9 +324,39 @@ export type CalendarIndicatorSource = {
    * stay `previous/actual = null` — honest and compliant (D1). The release time
    * is read directly from the `datetime` attribute (already UTC, so no DST math
    * is needed — ABS itself accounts for AEST/AEDT). `absEventName` values are
-   * verified against the live future-release list.
+   * verified against the live future-release list. Released values are
+   * backfilled from the ABS Data API via `absDataflowId` / `absSeriesKey`
+   * below.
    */
   readonly absEventName?: string;
+  /**
+   * ABS Data API (SDMX) dataflow the released figures live in (Q3-B value
+   * backfill). The key-less REST endpoint
+   * `data.api.abs.gov.au/rest/data/<dataflowId>/<seriesKey>?format=jsondata`
+   * returns the headline series as SDMX-JSON. Present only for backfilled
+   * `provider: 'ABS'` indicators; omitted → schedule-only (values stay null).
+   */
+  readonly absDataflowId?: string;
+  /**
+   * Full dotted SDMX series key of the SINGLE headline series inside
+   * `absDataflowId` — every dimension pinned, no wildcards, so the API can
+   * only ever return the exact series the indicator's `unit` describes (e.g.
+   * CPI `3.10001.10.50.M` = % change from previous year · All groups CPI ·
+   * Original · Australia · Monthly). Keys are verified against the ABS
+   * codelists and cross-checked verbatim against the official release pages
+   * (2026-08-05). Present only with `absDataflowId`.
+   */
+  readonly absSeriesKey?: string;
+  /**
+   * Rounding applied to the `absSeriesKey` observations so the stored figure
+   * matches the release's own headline precision (the US `CPIAUCSL` 333
+   * lesson, rule 00). The ABS Labour Force API series is unrounded (e.g.
+   * `4.42834371`) while the release headline states "4.4%", so:
+   *   - `round1` — round half away from zero to one decimal.
+   * Omitted → the observation is stored verbatim at the series' own published
+   * precision. Present only with `absDataflowId`.
+   */
+  readonly absTransform?: 'round1';
   /**
    * Japan e-Stat government-statistics code (政府統計コード) to match on
    * (ADR-0061 D2 batch 3). Japan's official portal e-Stat exposes its forward
@@ -1195,9 +1225,12 @@ export const CALENDAR_INDICATOR_SOURCES: readonly CalendarIndicatorSource[] = [
   // insensitive `absEventName` match; the release time is read straight from
   // the `datetime` attribute (already UTC — ABS accounts for AEST/AEDT itself,
   // so no DST math). The page shows only a rolling near-term window and no
-  // figures, so these events carry release time + period with
-  // `previous/actual = null` (honest, D1). ONLY ABS first-party indicators are
-  // here; private Manufacturing PMIs (S&P Global / Judo Bank / AiG) are
+  // figures; released `previous/actual` values are backfilled from the ABS
+  // Data API (SDMX, key-less) via the per-indicator `absDataflowId` +
+  // `absSeriesKey` (Q3-B) — every key pins ALL dimensions to the single
+  // headline series and every figure below was cross-checked verbatim against
+  // the official release page (2026-08-05). ONLY ABS first-party indicators
+  // are here; private Manufacturing PMIs (S&P Global / Judo Bank / AiG) are
   // deliberately excluded (ADR-0061 D4). `absEventName` values are verified
   // against the live future-release list (2026-08-04).
   {
@@ -1214,6 +1247,11 @@ export const CALENDAR_INDICATOR_SOURCES: readonly CalendarIndicatorSource[] = [
     sourceUrl:
       'https://www.abs.gov.au/statistics/economy/price-indexes-and-inflation/consumer-price-index-australia/latest-release',
     absEventName: 'Consumer Price Index, Australia',
+    // Official pre-computed YoY (All groups CPI, Original, Australia, Monthly
+    // — the complete monthly CPI) — verified against the release: 2026-06 =
+    // 3.8, 2026-05 = 4 ("rose 3.8%, down from 4.0%").
+    absDataflowId: 'CPI',
+    absSeriesKey: '3.10001.10.50.M',
     lang: 'en',
     enabled: true,
   },
@@ -1230,6 +1268,11 @@ export const CALENDAR_INDICATOR_SOURCES: readonly CalendarIndicatorSource[] = [
     scheduleUrl: 'https://www.abs.gov.au/release-calendar/future-releases',
     sourceUrl: 'https://www.abs.gov.au/statistics/economy/national-accounts',
     absEventName: 'Australian National Accounts: National Income, Expenditure and Product',
+    // Official pre-computed QoQ growth (GDP, chain volume measures % change,
+    // SA, Australia) — verified against the release: 2026-Q1 = 0.3 ("the
+    // Australian economy rose 0.3%").
+    absDataflowId: 'ANA_AGG',
+    absSeriesKey: 'M2.GPM.20.AUS.Q',
     lang: 'en',
     enabled: true,
   },
@@ -1247,6 +1290,13 @@ export const CALENDAR_INDICATOR_SOURCES: readonly CalendarIndicatorSource[] = [
     sourceUrl:
       'https://www.abs.gov.au/statistics/labour/employment-and-unemployment/labour-force-australia/latest-release',
     absEventName: 'Labour Force, Australia',
+    // Unemployment rate (Persons, Total age, SA, Australia, Monthly). The API
+    // series is unrounded (4.42834371) while the release headline states
+    // "4.4%" — round1 reproduces the official precision; verified: 2026-06 =
+    // 4.4, 2026-05 = 4.4.
+    absDataflowId: 'LF',
+    absSeriesKey: 'M13.3.1599.20.AUS.M',
+    absTransform: 'round1',
     lang: 'en',
     enabled: true,
   },
@@ -1264,6 +1314,11 @@ export const CALENDAR_INDICATOR_SOURCES: readonly CalendarIndicatorSource[] = [
     sourceUrl:
       'https://www.abs.gov.au/statistics/economy/price-indexes-and-inflation/wage-price-index-australia/latest-release',
     absEventName: 'Wage Price Index, Australia',
+    // Official pre-computed YoY (Total hourly rates of pay excluding bonuses,
+    // Private and Public, All Industries, SA, Australia) — verified against
+    // the release: 2026-Q1 = 3.3 ("over the twelve months … rose 3.3%").
+    absDataflowId: 'WPI',
+    absSeriesKey: '3.THRPEB.7.TOT.20.AUS.Q',
     lang: 'en',
     enabled: true,
   },
@@ -1276,11 +1331,16 @@ export const CALENDAR_INDICATOR_SOURCES: readonly CalendarIndicatorSource[] = [
     nameEn: 'Australia International Trade in Goods',
     region: 'AU',
     category: 'TRADE',
-    unit: '',
+    unit: 'M AUD',
     scheduleUrl: 'https://www.abs.gov.au/release-calendar/future-releases',
     sourceUrl:
       'https://www.abs.gov.au/statistics/economy/international-trade/international-trade-goods/latest-release',
     absEventName: 'International Trade in Goods',
+    // Balance on goods, $ millions, SA, Australia, Monthly — stored verbatim;
+    // verified against the release: 2026-05 = -3018, 2026-04 = 1383 ("the
+    // seasonally adjusted balance on goods decreased $4,401m in May").
+    absDataflowId: 'ITGS',
+    absSeriesKey: 'M1.170.20.AUS.M',
     lang: 'en',
     enabled: true,
   },
@@ -1298,6 +1358,12 @@ export const CALENDAR_INDICATOR_SOURCES: readonly CalendarIndicatorSource[] = [
     sourceUrl:
       'https://www.abs.gov.au/statistics/economy/finance/monthly-household-spending-indicator/latest-release',
     absEventName: 'Monthly Household Spending Indicator',
+    // Official pre-computed MoM (Household spending % change from previous
+    // period, Total, Current Price, SA, Australia) — verified against the
+    // release: 2026-06 = 0.8 ("rose 0.8% month-on-month on a current price,
+    // seasonally adjusted basis").
+    absDataflowId: 'HSI_M',
+    absSeriesKey: '8.TOT.CUR.20.AUS.M',
     lang: 'en',
     enabled: true,
   },
