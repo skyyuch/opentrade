@@ -234,10 +234,37 @@ export type CalendarIndicatorSource = {
    * `/releases/consumerpriceinflationukjuly2026`. The ONS provider maps a
    * release to this indicator when the slug (after `/releases/`) starts with
    * this prefix (excluding the `…timeseries` duplicate). Present only for
-   * `provider: 'ONS'` indicators. ONS exposes the schedule only (no values),
-   * so such events stay `previous/actual = null` — honest and compliant (D1).
+   * `provider: 'ONS'` indicators. The releases calendar itself carries no
+   * figures; released values are backfilled from the ONS timeseries endpoint
+   * via `onsTimeseriesPath` below.
    */
   readonly onsUriPrefix?: string;
+  /**
+   * ONS website timeseries path used to backfill the released `previous` /
+   * `actual` figures (ADR-0058 D3 two-phase population, Q3-B value backfill):
+   * `https://www.ons.gov.uk<path>/data` returns the series as key-less JSON
+   * whose `months[]` carry the authority's own published figures as verbatim
+   * strings — always facts, never a forecast/consensus (D1). The path is
+   * `/<topic…>/timeseries/<cdid>/<dataset>` — the topic segments are required
+   * (verified live 2026-08-05; the old `api.ons.gov.uk` v0 timeseries API was
+   * retired on 2024-11-25 and now returns a decommission notice). Each CDID
+   * is the bulletin's HEADLINE series, cross-checked against the official
+   * bulletin figures (rule 00). Present only for `provider: 'ONS'`
+   * indicators; omitted → schedule-only (values stay null).
+   */
+  readonly onsTimeseriesPath?: string;
+  /**
+   * Months to add to a release's period label to reach the matching
+   * timeseries observation month (Q3-B value backfill). ONS bulletin slugs
+   * usually name the DATA period ("consumerpriceinflationukjune2026" carries
+   * June data → shift 0, the default), but the labour-market bulletin is
+   * named after its PUBLICATION month while the unemployment series (MGSX)
+   * labels each rolling three-month window by its MIDDLE month — the July
+   * bulletin covers Mar–May, whose observation is April, so the shift is -3
+   * (verified against `months[].label` "2026 MAR-MAY" and the official
+   * bulletin figures, rule 00). Present only with `onsTimeseriesPath`.
+   */
+  readonly onsPeriodShiftMonths?: number;
   /**
    * Statistics Canada "The Daily" release-schedule title to match on
    * (ADR-0061 D2 batch 2). StatCan's key-indicators schedule JSON
@@ -727,9 +754,11 @@ export const CALENDAR_INDICATOR_SOURCES: readonly CalendarIndicatorSource[] = [
   // (`api.beta.ons.gov.uk/v1/search/releases`, key-less). The API lists each
   // dated release with a stable `/releases/<slug><period>` uri; the provider
   // maps a release to an indicator by `onsUriPrefix` (the stable slug prefix,
-  // excluding the `…timeseries` duplicate). ONS exposes the schedule only, so
-  // these events carry release time + period with `previous/actual = null`
-  // (honest, D1). `onsUriPrefix` is verified against the live upcoming list.
+  // excluding the `…timeseries` duplicate), then backfills released
+  // previous/actual figures from the key-less ONS website timeseries endpoint
+  // (`onsTimeseriesPath`, Q3-B). `onsUriPrefix` is verified against the live
+  // upcoming list; every headline CDID and figure is cross-checked against
+  // the official bulletins (rule 00, 2026-08-05).
   {
     indicatorCode: 'GB_CPI_YOY',
     provider: 'ONS',
@@ -744,6 +773,10 @@ export const CALENDAR_INDICATOR_SOURCES: readonly CalendarIndicatorSource[] = [
     sourceUrl:
       'https://www.ons.gov.uk/economy/inflationandpriceindices/bulletins/consumerpriceinflation/latest',
     onsUriPrefix: 'consumerpriceinflationuk',
+    // D7G7 = "CPI ANNUAL RATE 00: ALL ITEMS" — the bulletin's headline 12-month
+    // rate (verified: 2026-06 = 2.6, 2026-05 = 2.8, matching the official
+    // June 2026 bulletin).
+    onsTimeseriesPath: '/economy/inflationandpriceindices/timeseries/d7g7/mm23',
     lang: 'en',
     enabled: true,
   },
@@ -761,6 +794,11 @@ export const CALENDAR_INDICATOR_SOURCES: readonly CalendarIndicatorSource[] = [
     sourceUrl:
       'https://www.ons.gov.uk/economy/grossdomesticproductgdp/bulletins/gdpmonthlyestimateuk/latest',
     onsUriPrefix: 'gdpmonthlyestimateuk',
+    // ECYX = "Gross Value Added - Monthly (period on period growth) CVM SA" —
+    // the headline "Monthly GDP grew by x%" series (verified: 2026-05 = 0.1,
+    // 2026-04 = -0.1, 2026-03 = 0.3, matching the official May 2026 bulletin
+    // word for word).
+    onsTimeseriesPath: '/economy/grossdomesticproductgdp/timeseries/ecyx/mgdp',
     lang: 'en',
     enabled: true,
   },
@@ -778,6 +816,15 @@ export const CALENDAR_INDICATOR_SOURCES: readonly CalendarIndicatorSource[] = [
     sourceUrl:
       'https://www.ons.gov.uk/employmentandlabourmarket/peopleinwork/employmentandemployeetypes/bulletins/uklabourmarket/latest',
     onsUriPrefix: 'uklabourmarket',
+    // MGSX = "Unemployment rate (aged 16 and over, seasonally adjusted)" —
+    // the bulletin's headline rate. The bulletin slug names the PUBLICATION
+    // month while MGSX labels each rolling quarter by its middle month, so
+    // the July bulletin (Mar–May window) maps to the April observation:
+    // shift -3 (verified: 2026 APR, labelled "2026 MAR-MAY", = 4.9 matching
+    // the official July 2026 bulletin).
+    onsTimeseriesPath:
+      '/employmentandlabourmarket/peoplenotinwork/unemployment/timeseries/mgsx/lms',
+    onsPeriodShiftMonths: -3,
     lang: 'en',
     enabled: true,
   },
@@ -795,6 +842,12 @@ export const CALENDAR_INDICATOR_SOURCES: readonly CalendarIndicatorSource[] = [
     sourceUrl:
       'https://www.ons.gov.uk/businessindustryandtrade/retailindustry/bulletins/retailsales/latest',
     onsUriPrefix: 'retailsalesgreatbritain',
+    // J5EC = "RSI: Month on prev month % change: All Business All retail inc
+    // fuel VOL SA" — the headline "sales volumes rose by x% over the month"
+    // series (verified: 2026-06 = 1.0, 2026-05 = 1.2, 2026-04 = -0.7 — all
+    // matching the official June 2026 bulletin, including the April
+    // revision).
+    onsTimeseriesPath: '/businessindustryandtrade/retailindustry/timeseries/j5ec/drsi',
     lang: 'en',
     enabled: true,
   },
