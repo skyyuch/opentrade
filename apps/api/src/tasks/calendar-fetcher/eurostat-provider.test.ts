@@ -1,22 +1,33 @@
 /**
- * Unit tests for EurostatCalendarProvider (ADR-0061 D2).
+ * Unit tests for EurostatCalendarProvider (ADR-0061 D2; value backfill Q3-B).
  *
  * Coverage:
  *   - Maps whitelisted release titles (case-insensitive) to indicatorCodes and
  *     normalises the period label; non-whitelisted titles are ignored
- *   - Values are always null (Eurostat exposes the schedule only, D1)
+ *   - Schedule-only indicators (no `eurostatDataset`) keep null values (D1)
+ *   - Value backfill: released periods get previous/actual from the
+ *     dissemination JSON-stat series (monthly and quarterly), unpublished
+ *     periods stay honestly null, and a data failure / mis-specified filter
+ *     set only skips that indicator (isolation)
  *   - Events outside the look-back/look-ahead window are dropped
  *   - Malformed entries are isolated (one bad row can't drop the good ones)
  *   - No configured EUROSTAT indicators / a fetch failure → inert (empty)
  *   - Period normalisation covers month / quarter / year / fallback
+ *   - previousPeriodLabel month / quarter / year-boundary arithmetic
  *
- * A self-made JSON fixture (not a live URL) keeps the test hermetic — the
- * shape mirrors the official `eventsJson` response documented in research.
+ * Self-made JSON fixtures (not live URLs) keep the tests hermetic — the
+ * shapes mirror the official `eventsJson` and dissemination JSON-stat
+ * responses verified live on 2026-08-05.
  */
 
 import { describe, expect, it, vi } from 'vitest';
 
-import { EurostatCalendarProvider, normalizePeriod } from './eurostat-provider.js';
+import {
+  EurostatCalendarProvider,
+  normalizeJsonStatPeriod,
+  normalizePeriod,
+  previousPeriodLabel,
+} from './eurostat-provider.js';
 
 import type { CalendarIndicatorSource } from '@opentrade/config';
 
@@ -54,6 +65,32 @@ const fetchReturning = (payload: unknown): typeof fetch =>
       json: () => Promise.resolve(payload),
     }),
   ) as unknown as typeof fetch;
+
+/**
+ * Build an injectable fetch that serves the schedule (`eventsJson`) and the
+ * dissemination data endpoint (`/statistics/1.0/data/<dataset>`) from a map.
+ */
+const fetchRouting = (schedule: unknown, dataByDataset: Record<string, unknown>): typeof fetch =>
+  vi.fn((input: unknown) => {
+    const url = String(input);
+    const match = /\/statistics\/1\.0\/data\/([^?]+)/.exec(url);
+    const payload = match ? dataByDataset[match[1] ?? ''] : schedule;
+    if (payload === undefined) {
+      return Promise.resolve({ ok: false, status: 404 });
+    }
+    return Promise.resolve({
+      ok: true,
+      json: () => Promise.resolve(payload),
+    });
+  }) as unknown as typeof fetch;
+
+/** A minimal JSON-stat envelope with a single (time-only) headline series. */
+const jsonStat = (timeIndex: Record<string, number>, values: Record<string, number>): unknown => ({
+  id: ['freq', 'unit', 'coicop18', 'geo', 'time'],
+  size: [1, 1, 1, 1, Object.keys(timeIndex).length],
+  dimension: { time: { category: { index: timeIndex } } },
+  value: values,
+});
 
 describe('EurostatCalendarProvider.fetchEvents', () => {
   it('maps whitelisted titles to drafts with null values and normalised periods', async () => {
@@ -174,6 +211,146 @@ describe('EurostatCalendarProvider.fetchEvents', () => {
     expect(await provider.fetchEvents()).toEqual([]);
   });
 
+  it('backfills previous/actual from the dissemination series and leaves unpublished periods null', async () => {
+    const provider = new EurostatCalendarProvider({
+      indicators: [{ ...hicpFlash, eurostatDataset: 'prc_hicp_minr' }],
+      now: () => NOW,
+      fetchFn: fetchRouting(
+        [
+          // Released 2026-07-31 (in the look-back window): July figure exists.
+          {
+            title: 'Flash estimate inflation euro area',
+            period: 'July 2026',
+            start: '2026-07-31T09:00Z',
+          },
+          // Upcoming release: August not yet published, but July serves as its previous.
+          {
+            title: 'Flash estimate inflation euro area',
+            period: 'August 2026',
+            start: '2026-09-01T09:00Z',
+          },
+        ],
+        {
+          prc_hicp_minr: jsonStat(
+            { '2026-05': 0, '2026-06': 1, '2026-07': 2, '2026-08': 3 },
+            // 2026-08 (index 3) absent — the authority has not published it.
+            { '0': 3.2, '1': 2.8, '2': 2.9 },
+          ),
+        },
+      ),
+    });
+
+    const drafts = await provider.fetchEvents();
+    expect(drafts).toHaveLength(2);
+
+    const july = drafts.find((d) => d.periodLabel === '2026-07');
+    expect(july).toMatchObject({ previousValue: '2.8', actualValue: '2.9' });
+
+    const august = drafts.find((d) => d.periodLabel === '2026-08');
+    expect(august).toMatchObject({ previousValue: '2.9', actualValue: null });
+  });
+
+  it('backfills a quarterly series, joining "Qn/YYYY" schedule labels to "YYYY-Qn" data labels', async () => {
+    const provider = new EurostatCalendarProvider({
+      indicators: [
+        {
+          ...gdpFlash,
+          eurostatDataset: 'namq_10_gdp',
+        },
+      ],
+      now: () => NOW,
+      fetchFn: fetchRouting(
+        [
+          {
+            title: 'Flash estimate GDP and employment - EU and euro area',
+            period: 'Q2/2026',
+            start: '2026-08-14T09:00Z',
+          },
+        ],
+        {
+          namq_10_gdp: jsonStat({ '2026-Q1': 0, '2026-Q2': 1 }, { '0': 0, '1': 0.4 }),
+        },
+      ),
+    });
+
+    const [draft] = await provider.fetchEvents();
+    expect(draft).toMatchObject({
+      periodLabel: '2026 Q2',
+      previousValue: '0',
+      actualValue: '0.4',
+    });
+  });
+
+  it('keeps values null when the data endpoint fails (per-indicator isolation)', async () => {
+    const provider = new EurostatCalendarProvider({
+      indicators: [{ ...hicpFlash, eurostatDataset: 'prc_hicp_minr' }],
+      now: () => NOW,
+      // No data payload registered → the data call returns 404.
+      fetchFn: fetchRouting(
+        [
+          {
+            title: 'Flash estimate inflation euro area',
+            period: 'July 2026',
+            start: '2026-07-31T09:00Z',
+          },
+        ],
+        {},
+      ),
+    });
+
+    const [draft] = await provider.fetchEvents();
+    expect(draft).toMatchObject({ previousValue: null, actualValue: null });
+  });
+
+  it('rejects a series whose filters did not isolate one headline (rule 00 — never guess a figure)', async () => {
+    const provider = new EurostatCalendarProvider({
+      indicators: [{ ...hicpFlash, eurostatDataset: 'prc_hicp_minr' }],
+      now: () => NOW,
+      fetchFn: fetchRouting(
+        [
+          {
+            title: 'Flash estimate inflation euro area',
+            period: 'July 2026',
+            start: '2026-07-31T09:00Z',
+          },
+        ],
+        {
+          prc_hicp_minr: {
+            // Two geos came back — picking one could store the WRONG figure.
+            id: ['freq', 'unit', 'coicop18', 'geo', 'time'],
+            size: [1, 1, 1, 2, 2],
+            dimension: { time: { category: { index: { '2026-06': 0, '2026-07': 1 } } } },
+            value: { '0': 2.8, '1': 2.9, '2': 2.9, '3': 3.1 },
+          },
+        },
+      ),
+    });
+
+    const [draft] = await provider.fetchEvents();
+    expect(draft).toMatchObject({ previousValue: null, actualValue: null });
+  });
+
+  it('does not call the data endpoint for schedule-only indicators', async () => {
+    const fetchFn = fetchRouting(
+      [
+        {
+          title: 'Flash estimate inflation euro area',
+          period: 'July 2026',
+          start: '2026-07-31T09:00Z',
+        },
+      ],
+      {},
+    );
+    const provider = new EurostatCalendarProvider({
+      indicators: [hicpFlash], // no eurostatDataset
+      now: () => NOW,
+      fetchFn,
+    });
+
+    await provider.fetchEvents();
+    expect(fetchFn).toHaveBeenCalledTimes(1); // the schedule call only
+  });
+
   it('never emits a forecast/consensus value or impact rating (ADR-0058 D1)', async () => {
     const provider = new EurostatCalendarProvider({
       indicators: [hicpFlash],
@@ -207,5 +384,27 @@ describe('normalizePeriod', () => {
     expect(normalizePeriod('2026')).toBe('2026');
     expect(normalizePeriod('First half 2026')).toBe('First half 2026');
     expect(normalizePeriod('')).toBe('');
+  });
+});
+
+describe('normalizeJsonStatPeriod', () => {
+  it('aligns JSON-stat time labels to the shared period convention', () => {
+    expect(normalizeJsonStatPeriod('2026-07')).toBe('2026-07');
+    expect(normalizeJsonStatPeriod('2026-Q2')).toBe('2026 Q2');
+    expect(normalizeJsonStatPeriod('2026')).toBe('2026');
+  });
+});
+
+describe('previousPeriodLabel', () => {
+  it('steps back one month / quarter, across year boundaries', () => {
+    expect(previousPeriodLabel('2026-07')).toBe('2026-06');
+    expect(previousPeriodLabel('2026-01')).toBe('2025-12');
+    expect(previousPeriodLabel('2026 Q2')).toBe('2026 Q1');
+    expect(previousPeriodLabel('2026 Q1')).toBe('2025 Q4');
+  });
+
+  it('returns null outside the month/quarter conventions', () => {
+    expect(previousPeriodLabel('2026')).toBeNull();
+    expect(previousPeriodLabel('First half 2026')).toBeNull();
   });
 });

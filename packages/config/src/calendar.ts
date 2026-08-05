@@ -194,10 +194,39 @@ export type CalendarIndicatorSource = {
    * `eventsJson` endpoint returns stable, periodic official titles (e.g.
    * "Flash estimate inflation euro area"); the Eurostat provider maps a
    * release to this indicator by an exact, case-insensitive title match.
-   * Present only for `provider: 'EUROSTAT'` indicators. Eurostat exposes the
-   * schedule only (no values), so such events stay `previous/actual = null`.
+   * Present only for `provider: 'EUROSTAT'` indicators. The `eventsJson`
+   * calendar itself carries no figures; released values are backfilled from
+   * the dissemination API via `eurostatDataset` / `eurostatFilters` below.
    */
   readonly eurostatTitle?: string;
+  /**
+   * Eurostat dissemination-API dataset code used to backfill the released
+   * `previous` / `actual` figures (ADR-0058 D3 two-phase population, Q3-B
+   * value backfill). The key-less statistics endpoint
+   * `https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/<dataset>`
+   * returns the authority's own published observations as JSON-stat — always
+   * facts, never a forecast/consensus (D1). Dataset codes are verified against
+   * the live API, NOT copied blindly from the release calendar's
+   * `datasetCodes` hint: e.g. the calendar still lists `prc_hicp_manr` for
+   * HICP, but that series was frozen at 2025-12 by the 2026 rebase
+   * (2025=100) — the live successor is `prc_hicp_minr` (verified 2026-08-05,
+   * figures cross-checked against the official euro-indicators news
+   * releases). Present only for `provider: 'EUROSTAT'` indicators; omitted →
+   * schedule-only (values stay null).
+   */
+  readonly eurostatDataset?: string;
+  /**
+   * Dimension filters appended to the `eurostatDataset` query so exactly one
+   * series (one value per period) is returned, matching the indicator's
+   * headline definition and `unit` label — e.g. `unit: 'RCH_A'` (annual rate
+   * of change) for a `%_YOY` indicator, never the raw index level (the
+   * US `CPIAUCSL` 333 lesson, rule 00). NOTE: the euro-area geo code is NOT
+   * uniform across datasets — HICP/GDP carry the moving aggregate `EA` while
+   * `une_rt_m` only carries the dated `EA21` — so the exact geo is part of
+   * this per-indicator config, verified per dataset. Present only with
+   * `eurostatDataset`.
+   */
+  readonly eurostatFilters?: Readonly<Record<string, string>>;
   /**
    * ONS release-calendar URI slug prefix to match on (ADR-0061 D2 batch 2).
    * The UK ONS releases API (`api.beta.ons.gov.uk`) returns one entry per
@@ -465,11 +494,17 @@ export const CALENDAR_INDICATOR_SOURCES: readonly CalendarIndicatorSource[] = [
     enabled: true,
   },
 
-  // --- EU / euro area — Eurostat (ADR-0061 batch 1) --------------------------
+  // --- EU / euro area — Eurostat (ADR-0061 batch 1; values Q3-B) -------------
   // Served by the Eurostat provider via the official `eventsJson` release
-  // calendar (key-less). Eurostat exposes the schedule only, so these events
-  // carry release time + period with `previous/actual = null` (honest, D1).
-  // `eurostatTitle` is the stable, periodic official title to match on.
+  // calendar (key-less) for the schedule, plus the key-less dissemination
+  // statistics API (`eurostatDataset` + `eurostatFilters`) to backfill the
+  // released `previous` / `actual` figures (ADR-0058 D3 two-phase population).
+  // `eurostatTitle` is the stable, periodic official title to match on. Every
+  // dataset/filter combination below was verified live against the API and
+  // its figures cross-checked against the official euro-indicators news
+  // releases on 2026-08-05 (rule 00) — e.g. EA flash HICP 2026-07 = 2.9%, EA
+  // unemployment 2026-06 = 6.3%, EA GDP 2026-Q2 = +0.4%, EU retail 2026-05 =
+  // +0.5%.
   {
     indicatorCode: 'EA_HICP_FLASH_YOY',
     provider: 'EUROSTAT',
@@ -483,6 +518,14 @@ export const CALENDAR_INDICATOR_SOURCES: readonly CalendarIndicatorSource[] = [
     scheduleUrl: 'https://ec.europa.eu/eurostat/web/main/news/euro-indicators',
     sourceUrl: 'https://ec.europa.eu/eurostat/web/hicp',
     eurostatTitle: 'Flash estimate inflation euro area',
+    // HICP was rebased to 2025=100 in 2026: `prc_hicp_manr` is frozen at
+    // 2025-12; `prc_hicp_minr` is the live successor (ECOICOP ver.2). RCH_A =
+    // annual rate of change (the headline YoY %); flash figures land in this
+    // dataset at release time (verified: updated 2026-07-31T11:00, the flash
+    // release instant). `EA` is the moving euro-area aggregate (EA21 from
+    // 2026), matching the press-release "euro area" headline.
+    eurostatDataset: 'prc_hicp_minr',
+    eurostatFilters: { unit: 'RCH_A', coicop18: 'TOTAL', geo: 'EA' },
     lang: 'en',
     enabled: true,
   },
@@ -499,6 +542,11 @@ export const CALENDAR_INDICATOR_SOURCES: readonly CalendarIndicatorSource[] = [
     scheduleUrl: 'https://ec.europa.eu/eurostat/web/main/news/euro-indicators',
     sourceUrl: 'https://ec.europa.eu/eurostat/web/hicp',
     eurostatTitle: 'Inflation (HICP)',
+    // Same rebased dataset as the EA flash; the EU aggregate is only
+    // published with the full HICP release (~mid following month), so the
+    // freshest month stays null until then — honest two-phase backfill.
+    eurostatDataset: 'prc_hicp_minr',
+    eurostatFilters: { unit: 'RCH_A', coicop18: 'TOTAL', geo: 'EU27_2020' },
     lang: 'en',
     enabled: true,
   },
@@ -515,6 +563,12 @@ export const CALENDAR_INDICATOR_SOURCES: readonly CalendarIndicatorSource[] = [
     scheduleUrl: 'https://ec.europa.eu/eurostat/web/main/news/euro-indicators',
     sourceUrl: 'https://ec.europa.eu/eurostat/web/national-accounts',
     eurostatTitle: 'Flash estimate GDP and employment - EU and euro area',
+    // Headline QoQ growth: chain-linked volumes, % change on previous period,
+    // seasonally and calendar adjusted GDP at market prices. The quarter's
+    // figure first lands with the preliminary flash (t+30), i.e. slightly
+    // before this t+45 release — still the authority's own published fact.
+    eurostatDataset: 'namq_10_gdp',
+    eurostatFilters: { unit: 'CLV_PCH_PRE', s_adj: 'SCA', na_item: 'B1GQ', geo: 'EA' },
     lang: 'en',
     enabled: true,
   },
@@ -531,6 +585,11 @@ export const CALENDAR_INDICATOR_SOURCES: readonly CalendarIndicatorSource[] = [
     scheduleUrl: 'https://ec.europa.eu/eurostat/web/main/news/euro-indicators',
     sourceUrl: 'https://ec.europa.eu/eurostat/web/lfs',
     eurostatTitle: 'Unemployment',
+    // Headline seasonally-adjusted total unemployment rate (% of active
+    // population). NOTE: `une_rt_m` carries no moving `EA` aggregate — only
+    // dated compositions — so the geo is the current `EA21` (from 2026).
+    eurostatDataset: 'une_rt_m',
+    eurostatFilters: { s_adj: 'SA', age: 'TOTAL', sex: 'T', unit: 'PC_ACT', geo: 'EA21' },
     lang: 'en',
     enabled: true,
   },
@@ -547,6 +606,17 @@ export const CALENDAR_INDICATOR_SOURCES: readonly CalendarIndicatorSource[] = [
     scheduleUrl: 'https://ec.europa.eu/eurostat/web/main/news/euro-indicators',
     sourceUrl: 'https://ec.europa.eu/eurostat/web/short-term-business-statistics',
     eurostatTitle: 'Retail trade',
+    // Headline MoM change in the volume of retail sales (deflated turnover),
+    // NACE G47, seasonally and calendar adjusted, % change on previous
+    // period — matches the "Volume of retail trade" news-release headline.
+    eurostatDataset: 'sts_trtu_m',
+    eurostatFilters: {
+      indic_bt: 'VOL_SLS',
+      nace_r2: 'G47',
+      s_adj: 'SCA',
+      unit: 'PCH_PRE',
+      geo: 'EU27_2020',
+    },
     lang: 'en',
     enabled: true,
   },
