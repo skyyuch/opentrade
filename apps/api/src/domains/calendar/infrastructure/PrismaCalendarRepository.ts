@@ -47,7 +47,9 @@ export class PrismaCalendarRepository implements ICalendarRepository {
               },
             }
           : {}),
-        ...(options.region ? { region: options.region } : {}),
+        ...(options.regions && options.regions.length > 0
+          ? { region: { in: [...options.regions] } }
+          : {}),
         ...(options.category ? { category: options.category } : {}),
       },
       orderBy: [{ scheduledAt: 'asc' }, { id: 'asc' }],

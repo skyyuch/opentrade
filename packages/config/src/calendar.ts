@@ -176,6 +176,20 @@ export type CalendarIndicatorSource = {
    */
   readonly fredSeriesId?: string;
   /**
+   * Optional FRED `units` transformation applied to the observations so the
+   * stored figure matches the indicator's headline definition (and its `unit`
+   * label) rather than the raw series level (ADR-0058 D1 — the figure must be
+   * the authority's own reported number). FRED computes these standard
+   * transformations itself, so provenance stays with the official data
+   * warehouse. Omitted → `lin` (raw level). Values used:
+   *   - `pc1` — percent change from a year ago (year-over-year %), e.g. CPI YoY.
+   *   - `chg` — change from the previous period, e.g. nonfarm payrolls (monthly
+   *     change in thousands, not the total employment level).
+   * See <https://fred.stlouisfed.org/docs/api/fred/series_observations.html>.
+   * Present only for `provider: 'FRED'` indicators.
+   */
+  readonly fredUnits?: 'pc1' | 'chg';
+  /**
    * Eurostat release-calendar title to match on (ADR-0061 D2). Eurostat's
    * `eventsJson` endpoint returns stable, periodic official titles (e.g.
    * "Flash estimate inflation euro area"); the Eurostat provider maps a
@@ -373,7 +387,11 @@ export const CALENDAR_INDICATOR_SOURCES: readonly CalendarIndicatorSource[] = [
     unit: '%_YOY',
     scheduleUrl: 'https://www.bls.gov/schedule/news_release/cpi.htm',
     sourceUrl: 'https://www.bls.gov/cpi/',
-    fredSeriesId: 'CPIAUCSL',
+    // Headline CPI YoY is BLS's 12-month % change on the NON-seasonally-adjusted
+    // index (CPIAUCNS); `pc1` makes FRED report that year-over-year % directly
+    // rather than the raw index level (~333), matching the `%_YOY` unit.
+    fredSeriesId: 'CPIAUCNS',
+    fredUnits: 'pc1',
     lang: 'en',
     enabled: true,
   },
@@ -389,7 +407,12 @@ export const CALENDAR_INDICATOR_SOURCES: readonly CalendarIndicatorSource[] = [
     unit: 'k',
     scheduleUrl: 'https://www.bls.gov/schedule/news_release/empsit.htm',
     sourceUrl: 'https://www.bls.gov/ces/',
+    // The market figure is the MONTHLY CHANGE in payrolls (~+150k), not the
+    // total employment level (~159,000k). `chg` makes FRED report the
+    // period-over-period change in thousands, matching the `k` unit + the
+    // "Nonfarm Payrolls (change)" name.
     fredSeriesId: 'PAYEMS',
+    fredUnits: 'chg',
     lang: 'en',
     enabled: true,
   },

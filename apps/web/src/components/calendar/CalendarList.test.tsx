@@ -146,10 +146,46 @@ describe('CalendarList — filters', () => {
       expect(fetchCalendarMock).toHaveBeenCalledTimes(1);
     });
     const params = fetchCalendarMock.mock.calls[0]?.[0] as Record<string, unknown>;
-    expect(params['region']).toBe('US');
+    expect(params['regions']).toEqual(['US']);
     expect(params['category']).toBeUndefined();
     expect(typeof params['from']).toBe('string');
     expect(typeof params['to']).toBe('string');
+  });
+
+  it('accumulates multiple regions as an OR set (multi-select)', async () => {
+    fetchCalendarMock.mockResolvedValue({ items: [RELEASED_EVENT], nextCursor: null });
+
+    renderList([RELEASED_EVENT, UPCOMING_EVENT]);
+    await userEvent.click(screen.getByRole('button', { name: 'United States' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Hong Kong' }));
+
+    await waitFor(() => {
+      expect(fetchCalendarMock).toHaveBeenCalledTimes(2);
+    });
+    const params = fetchCalendarMock.mock.calls[1]?.[0] as Record<string, unknown>;
+    expect(params['regions']).toEqual(['US', 'HK']);
+
+    // Clicking an active region again removes it from the set.
+    await userEvent.click(screen.getByRole('button', { name: 'United States' }));
+    await waitFor(() => {
+      expect(fetchCalendarMock).toHaveBeenCalledTimes(3);
+    });
+    const params3 = fetchCalendarMock.mock.calls[2]?.[0] as Record<string, unknown>;
+    expect(params3['regions']).toEqual(['HK']);
+  });
+
+  it('drops the region filter entirely when "All regions" is clicked', async () => {
+    fetchCalendarMock.mockResolvedValue({ items: [RELEASED_EVENT], nextCursor: null });
+
+    renderList([RELEASED_EVENT, UPCOMING_EVENT]);
+    await userEvent.click(screen.getByRole('button', { name: 'United States' }));
+    await userEvent.click(screen.getByRole('button', { name: 'All regions' }));
+
+    await waitFor(() => {
+      expect(fetchCalendarMock).toHaveBeenCalledTimes(2);
+    });
+    const params = fetchCalendarMock.mock.calls[1]?.[0] as Record<string, unknown>;
+    expect(params['regions']).toBeUndefined();
   });
 
   it('refetches with the category filter when a category chip is clicked', async () => {

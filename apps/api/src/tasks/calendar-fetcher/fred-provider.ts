@@ -90,7 +90,7 @@ export class FredCalendarProvider implements ICalendarProvider {
     const releaseId = await this.getReleaseId(seriesId);
     const [releaseDates, observations] = await Promise.all([
       this.getReleaseDates(releaseId),
-      this.getObservations(seriesId),
+      this.getObservations(seriesId, indicator.fredUnits),
     ]);
 
     return buildDrafts(indicator.indicatorCode, releaseDates, observations, this.now());
@@ -121,11 +121,18 @@ export class FredCalendarProvider implements ICalendarProvider {
       .sort((a, b) => a.getTime() - b.getTime());
   }
 
-  private async getObservations(seriesId: string): Promise<ObservationPoint[]> {
+  private async getObservations(
+    seriesId: string,
+    units?: 'pc1' | 'chg',
+  ): Promise<ObservationPoint[]> {
     const start = toYmd(new Date(this.now().getTime() - LOOKBACK_MS - OBS_EXTRA_LOOKBACK_MS));
+    // FRED computes standard transformations (`pc1` = YoY %, `chg` = change)
+    // itself, so the stored figure matches the indicator's headline definition
+    // instead of the raw series level (ADR-0058 D1). Omitted → raw level.
+    const unitsParam = units ? `&units=${units}` : '';
     const json = await this.getJson(
       `/fred/series/observations?series_id=${encodeURIComponent(seriesId)}` +
-        `&sort_order=asc&observation_start=${start}`,
+        `&sort_order=asc&observation_start=${start}${unitsParam}`,
     );
     const raw =
       (json as { observations?: { date?: unknown; value?: unknown }[] }).observations ?? [];

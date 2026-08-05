@@ -262,6 +262,49 @@ describe('FredCalendarProvider', () => {
     expect(drafts).toHaveLength(4);
   });
 
+  it('appends the FRED units transformation to observations only when set', async () => {
+    const urls: string[] = [];
+    const spyFetch = vi.fn((input: string | URL | Request) => {
+      urls.push(urlOf(input));
+      const { ok, status, body } = CPI_ROUTES(urlOf(input));
+      return Promise.resolve({ ok, status, json: () => Promise.resolve(body) });
+    }) as unknown as typeof fetch;
+
+    const provider = new FredCalendarProvider({
+      apiKey: 'test-key',
+      indicators: [indicator({ fredUnits: 'pc1' })],
+      fetchFn: spyFetch,
+      now: () => NOW,
+    });
+    await provider.fetchEvents();
+
+    const obsUrl = urls.find((u) => u.includes('/fred/series/observations'));
+    expect(obsUrl).toContain('units=pc1');
+    // The transformation applies only to observations, never to the schedule.
+    const scheduleUrl = urls.find((u) => u.includes('/fred/release/dates'));
+    expect(scheduleUrl).not.toContain('units=');
+  });
+
+  it('omits the units param entirely when fredUnits is not configured', async () => {
+    const urls: string[] = [];
+    const spyFetch = vi.fn((input: string | URL | Request) => {
+      urls.push(urlOf(input));
+      const { ok, status, body } = CPI_ROUTES(urlOf(input));
+      return Promise.resolve({ ok, status, json: () => Promise.resolve(body) });
+    }) as unknown as typeof fetch;
+
+    const provider = new FredCalendarProvider({
+      apiKey: 'test-key',
+      indicators: [indicator()],
+      fetchFn: spyFetch,
+      now: () => NOW,
+    });
+    await provider.fetchEvents();
+
+    const obsUrl = urls.find((u) => u.includes('/fred/series/observations'));
+    expect(obsUrl).not.toContain('units=');
+  });
+
   it('never emits a forecast/consensus/impact field (ADR-0058 D1)', async () => {
     const provider = new FredCalendarProvider({
       apiKey: 'test-key',
