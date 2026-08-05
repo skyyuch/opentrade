@@ -1,27 +1,46 @@
 /**
- * Statistics Canada (StatCan) calendar provider (ADR-0061 D2, batch 2).
+ * Statistics Canada (StatCan) calendar provider (ADR-0061 D2, batch 2; value
+ * backfill Q3-B).
  *
- * StatCan is Canada's official statistical authority. Its key-indicators
- * release schedule is exposed as a key-less JSON file
- * (`schedule-key_indicators-eng.json`) listing each forthcoming release with a
- * stable official `title` (e.g. "Consumer Price Index"), a `description`
- * period (e.g. "June 2026" / "Second quarter 2026") and a date. This provider
- * fetches that file and maps each release to a configured indicator by an
- * exact, case-insensitive `title` match against the curated registry.
+ * StatCan is Canada's official statistical authority. Two key-less official
+ * endpoints are combined for ADR-0058 D3's two-phase population:
+ *
+ *   1. Schedule — the key-indicators schedule JSON
+ *      (`schedule-key_indicators-eng.json`) lists each forthcoming release
+ *      with a stable official `title` (e.g. "Consumer Price Index") and a
+ *      `description` period (e.g. "June 2026" / "Second quarter 2026"). Each
+ *      release is mapped to a configured indicator by an exact,
+ *      case-insensitive `title` match against the curated registry.
+ *   2. Values — the Web Data Service (WDS) endpoint
+ *      `getDataFromVectorsAndLatestNPeriods` returns the authority's own
+ *      published observations for the headline series pinned by each
+ *      indicator's `statcanVectorId`. For each such indicator the provider
+ *      backfills `previousValue` / `actualValue` onto the scheduled drafts,
+ *      joining on the draft's own period label — so schedule and data can
+ *      never drift into duplicate rows. WDS stores no pre-computed headline
+ *      percent changes (only the Bank-of-Canada core-inflation measures,
+ *      which are not the headline), so where `statcanTransform` is configured
+ *      the provider computes the standard YoY (`pc1`) / MoM (`pch`) percent
+ *      change locally from the verbatim series, rounded half-away-from-zero
+ *      to one decimal — The Daily's own headline precision (owner-ratified
+ *      2026-08-05; every configured figure cross-checked verbatim against the
+ *      official The Daily bulletin, rule 00).
  *
  * StatCan's flagship bulletin, "The Daily", is released at a fixed 08:30
  * Eastern time; the schedule file carries a date only, so this provider
  * constructs the UTC timestamp as 08:30 America/Toronto with DST awareness
  * (no date library, per ADR-0058 D7).
  *
- * Compliance (ADR-0058 D1): the schedule exposes no figures, so every event
- * carries release time + period with `previousValue = actualValue = null` —
- * honest and compliant. NEVER a forecast/consensus value, NEVER an impact
- * rating. Every event links back to the authority's official page via the
- * config registry (`sourceUrl`).
+ * Compliance (ADR-0058 D1): only the authority's own previous/actual figures
+ * are ever produced — NEVER a forecast/consensus value, NEVER an impact
+ * rating. A period StatCan has not published yet simply stays null (honest);
+ * the fetcher's two-phase upsert backfills it on a later poll. Every event
+ * links back to the authority's official page via the config registry
+ * (`sourceUrl`).
  *
- * Per-event failures are isolated: one malformed entry can never block the
- * others (mirrors the Eurostat / ONS / FRED providers).
+ * Per-event and per-series failures are isolated: one malformed entry or one
+ * broken series can never block the others (mirrors the Eurostat / ONS / FRED
+ * providers).
  */
 
 import { calendarIndicatorsForProvider } from '@opentrade/config';
@@ -31,6 +50,14 @@ import type { CalendarIndicatorSource } from '@opentrade/config';
 
 const STATCAN_SCHEDULE_URL =
   'https://www150.statcan.gc.ca/n1/dai-quo/ssi/homepage/schedule-key_indicators-eng.json';
+const STATCAN_WDS_DATA_URL =
+  'https://www150.statcan.gc.ca/t1/wds/rest/getDataFromVectorsAndLatestNPeriods';
+/**
+ * Observations fetched per vector: the drafts window spans at most ~2 past
+ * months, and the `pc1` (YoY) transform needs 12 months of history behind the
+ * earliest of them — 20 leaves comfortable slack.
+ */
+const WDS_LATEST_N = 20;
 const REQUEST_TIMEOUT_MS = 10_000;
 const DAY_MS = 24 * 60 * 60 * 1000;
 /** How far back to keep just-released events, and how far ahead to schedule. */
@@ -44,6 +71,22 @@ type StatCanRawEntry = {
   date?: unknown;
   title?: unknown;
   description?: unknown;
+};
+
+/** One per-vector result from the WDS `getDataFromVectorsAndLatestNPeriods`. */
+type StatCanWdsResult = {
+  status?: unknown;
+  object?: {
+    vectorId?: unknown;
+    vectorDataPoint?: { refPer?: unknown; value?: unknown; decimals?: unknown }[];
+  };
+};
+
+/** One monthly observation of a WDS series, keyed by `YYYY-MM` in the map. */
+export type StatCanObservation = {
+  value: number;
+  /** The series' own published precision, used to render levels verbatim. */
+  decimals: number;
 };
 
 export type CaStatCanCalendarProviderOptions = {
@@ -95,7 +138,74 @@ export class CaStatCanCalendarProvider implements ICalendarProvider {
         // Non-fatal: one malformed entry must not stop the others.
       }
     }
+
+    await this.backfillValues(drafts);
     return drafts;
+  }
+
+  /**
+   * Backfill `previousValue` / `actualValue` onto the scheduled drafts from
+   * the WDS headline vectors (ADR-0058 D3 phase two). Joining on the draft's
+   * own period label guarantees the value lands on the exact row the schedule
+   * created — never a duplicate. A series failure only skips that one
+   * indicator (its drafts stay honestly null).
+   */
+  private async backfillValues(drafts: CalendarEventDraft[]): Promise<void> {
+    const wanted = this.indicators.filter(
+      (i) =>
+        typeof i.statcanVectorId === 'number' &&
+        drafts.some((d) => d.indicatorCode === i.indicatorCode),
+    );
+    if (wanted.length === 0) return;
+
+    let seriesByVector: Map<number, Map<string, StatCanObservation>>;
+    try {
+      seriesByVector = await this.fetchVectors(
+        wanted.map((i) => i.statcanVectorId).filter((v): v is number => typeof v === 'number'),
+      );
+    } catch {
+      return; // Non-fatal: drafts stay honestly null until a later poll.
+    }
+
+    for (const indicator of wanted) {
+      const series =
+        indicator.statcanVectorId === undefined
+          ? undefined
+          : seriesByVector.get(indicator.statcanVectorId);
+      if (!series) continue; // Per-vector failure: skip just this indicator.
+
+      for (const draft of drafts) {
+        if (draft.indicatorCode !== indicator.indicatorCode) continue;
+        const actual = valueForPeriod(series, draft.periodLabel, indicator.statcanTransform);
+        if (actual !== null) draft.actualValue = actual;
+        const prevMonth = shiftMonthLabel(draft.periodLabel, -1);
+        if (prevMonth) {
+          const previous = valueForPeriod(series, prevMonth, indicator.statcanTransform);
+          if (previous !== null) draft.previousValue = previous;
+        }
+      }
+    }
+  }
+
+  /** Fetch all headline vectors in one WDS call; returns per-vector maps. */
+  private async fetchVectors(
+    vectorIds: readonly number[],
+  ): Promise<Map<number, Map<string, StatCanObservation>>> {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+    try {
+      const res = await this.fetchFn(STATCAN_WDS_DATA_URL, {
+        method: 'POST',
+        signal: controller.signal,
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+        body: JSON.stringify(vectorIds.map((vectorId) => ({ vectorId, latestN: WDS_LATEST_N }))),
+      });
+      if (!res.ok) throw new Error(`StatCan WDS request failed: ${String(res.status)}`);
+      const json: unknown = await res.json();
+      return parseWdsResults(Array.isArray(json) ? (json as StatCanWdsResult[]) : []);
+    } finally {
+      clearTimeout(timer);
+    }
   }
 
   private async fetchSchedule(): Promise<StatCanRawEntry[]> {
@@ -237,4 +347,87 @@ export function normalizeStatCanPeriod(period: string): string {
   if (/^\d{4}$/.test(trimmed)) return trimmed;
 
   return trimmed;
+}
+
+/**
+ * Parse the WDS `getDataFromVectorsAndLatestNPeriods` response into one
+ * `YYYY-MM → observation` map per vector. A non-SUCCESS vector result is
+ * simply absent from the map (per-series isolation); malformed data points
+ * are skipped so one bad observation never poisons a series.
+ */
+export function parseWdsResults(
+  results: readonly StatCanWdsResult[],
+): Map<number, Map<string, StatCanObservation>> {
+  const byVector = new Map<number, Map<string, StatCanObservation>>();
+  for (const result of results) {
+    if (result.status !== 'SUCCESS') continue;
+    const vectorId = result.object?.vectorId;
+    if (typeof vectorId !== 'number') continue;
+    const series = new Map<string, StatCanObservation>();
+    for (const dp of result.object?.vectorDataPoint ?? []) {
+      if (typeof dp.refPer !== 'string') continue;
+      const m = /^(\d{4})-(\d{2})/.exec(dp.refPer.trim());
+      if (!m) continue;
+      // WDS carries numbers; a null/absent value means suppressed or not yet
+      // published (must NOT coerce — `Number(null)` would fabricate a 0).
+      if (typeof dp.value !== 'number' || !Number.isFinite(dp.value)) continue;
+      const value = dp.value;
+      const decimals = typeof dp.decimals === 'number' ? dp.decimals : 0;
+      series.set(`${m[1] ?? ''}-${m[2] ?? ''}`, { value, decimals });
+    }
+    byVector.set(vectorId, series);
+  }
+  return byVector;
+}
+
+/**
+ * Resolve the figure for one `YYYY-MM` period from a WDS series, applying the
+ * configured standard transformation (Q3-B, owner-ratified 2026-08-05):
+ *
+ *   - (none) — the observation itself, rendered at the series' own published
+ *     precision so verbatim trailing zeros are kept (e.g. "6.5", "3855.5").
+ *   - `pch`  — percent change from the previous month, one decimal.
+ *   - `pc1`  — percent change from the same month a year ago, one decimal.
+ *
+ * One decimal, rounded half away from zero, is The Daily's own headline
+ * precision — every configured series was cross-checked verbatim against the
+ * official bulletin (rule 00). Returns null when any needed observation is
+ * missing (not yet published) or the period label is not monthly.
+ */
+export function valueForPeriod(
+  series: ReadonlyMap<string, StatCanObservation>,
+  periodLabel: string,
+  transform: 'pc1' | 'pch' | undefined,
+): string | null {
+  const current = series.get(periodLabel);
+  if (!current) return null;
+
+  if (transform === undefined) return current.value.toFixed(current.decimals);
+
+  const baseMonth = shiftMonthLabel(periodLabel, transform === 'pc1' ? -12 : -1);
+  if (!baseMonth) return null;
+  const base = series.get(baseMonth);
+  if (!base || base.value === 0) return null;
+
+  const pct = (current.value / base.value - 1) * 100;
+  const rounded = Math.sign(pct) * Math.round(Math.abs(pct) * 10);
+  return (rounded / 10).toFixed(1);
+}
+
+/**
+ * Shift a `YYYY-MM` period label by a number of months (negative = back),
+ * e.g. ("2026-01", -12) → "2025-01". Returns null for labels outside the
+ * month convention (e.g. a quarterly or annual period) so the caller skips
+ * the lookup instead of joining a wrong period (rule 00).
+ */
+export function shiftMonthLabel(label: string, months: number): string | null {
+  const m = /^(\d{4})-(\d{2})$/.exec(label);
+  if (!m) return null;
+  const year = Number(m[1]);
+  const month = Number(m[2]);
+  if (month < 1 || month > 12) return null;
+  const total = year * 12 + (month - 1) + months;
+  const newYear = Math.floor(total / 12);
+  const newMonth = (total % 12) + 1;
+  return `${String(newYear)}-${String(newMonth).padStart(2, '0')}`;
 }

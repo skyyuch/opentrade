@@ -273,11 +273,44 @@ export type CalendarIndicatorSource = {
    * period (e.g. "June 2026" / "Second quarter 2026"). The StatCan provider
    * maps a release to this indicator by an exact, case-insensitive `title`
    * match. Present only for `provider: 'STATCAN'` indicators. StatCan's
-   * schedule carries no values, so such events stay `previous/actual = null`
-   * — honest and compliant (D1). Release time is a fixed 08:30 Eastern (The
-   * Daily), converted to UTC with DST awareness by the provider.
+   * schedule carries no values; released figures are backfilled from the Web
+   * Data Service via `statcanVectorId` below. Release time is a fixed 08:30
+   * Eastern (The Daily), converted to UTC with DST awareness by the provider.
    */
   readonly statcanTitle?: string;
+  /**
+   * StatCan Web Data Service vector id used to backfill the released
+   * `previous` / `actual` figures (ADR-0058 D3 two-phase population, Q3-B
+   * value backfill). The key-less WDS endpoint
+   * `getDataFromVectorsAndLatestNPeriods` returns the authority's own
+   * published observations for the single series identified by this vector —
+   * always facts, never a forecast/consensus (D1). Each vector is the
+   * bulletin's HEADLINE series, pinned via `getSeriesInfoFromVector` /
+   * `getCubeMetadata` and cross-checked against The Daily figures (rule 00,
+   * verified 2026-08-05). Present only for `provider: 'STATCAN'` indicators;
+   * omitted → schedule-only (values stay null).
+   */
+  readonly statcanVectorId?: number;
+  /**
+   * Standard transformation applied to the `statcanVectorId` observations so
+   * the stored figure matches the indicator's headline definition and `unit`
+   * label rather than the raw series level (the US `CPIAUCSL` 333 lesson,
+   * rule 00). Unlike FRED (`fredUnits`) or Eurostat (`RCH_A` / `PCH_PRE`
+   * units), StatCan's WDS carries no pre-computed headline percent-change
+   * series (only the Bank-of-Canada core-inflation measures, which are not
+   * the headline), so the provider computes the standard transformation
+   * locally from the authority's verbatim series, rounded half-away-from-zero
+   * to one decimal (The Daily's headline precision). Owner-ratified
+   * 2026-08-05 (Q3-B CA session); every configured figure is cross-checked
+   * verbatim against the official The Daily bulletin. Values (FRED-aligned
+   * naming):
+   *   - `pc1` — percent change from the same month a year ago (YoY %).
+   *   - `pch` — percent change from the previous month (MoM %).
+   * Omitted → the observation is stored as-is at the series' own published
+   * precision (e.g. the unemployment rate, the trade balance in $ millions).
+   * Present only with `statcanVectorId`.
+   */
+  readonly statcanTransform?: 'pc1' | 'pch';
   /**
    * Australian Bureau of Statistics future-release product name to match on
    * (ADR-0061 D2 batch 3). ABS exposes no clean JSON release-schedule API; its
@@ -291,9 +324,39 @@ export type CalendarIndicatorSource = {
    * stay `previous/actual = null` — honest and compliant (D1). The release time
    * is read directly from the `datetime` attribute (already UTC, so no DST math
    * is needed — ABS itself accounts for AEST/AEDT). `absEventName` values are
-   * verified against the live future-release list.
+   * verified against the live future-release list. Released values are
+   * backfilled from the ABS Data API via `absDataflowId` / `absSeriesKey`
+   * below.
    */
   readonly absEventName?: string;
+  /**
+   * ABS Data API (SDMX) dataflow the released figures live in (Q3-B value
+   * backfill). The key-less REST endpoint
+   * `data.api.abs.gov.au/rest/data/<dataflowId>/<seriesKey>?format=jsondata`
+   * returns the headline series as SDMX-JSON. Present only for backfilled
+   * `provider: 'ABS'` indicators; omitted → schedule-only (values stay null).
+   */
+  readonly absDataflowId?: string;
+  /**
+   * Full dotted SDMX series key of the SINGLE headline series inside
+   * `absDataflowId` — every dimension pinned, no wildcards, so the API can
+   * only ever return the exact series the indicator's `unit` describes (e.g.
+   * CPI `3.10001.10.50.M` = % change from previous year · All groups CPI ·
+   * Original · Australia · Monthly). Keys are verified against the ABS
+   * codelists and cross-checked verbatim against the official release pages
+   * (2026-08-05). Present only with `absDataflowId`.
+   */
+  readonly absSeriesKey?: string;
+  /**
+   * Rounding applied to the `absSeriesKey` observations so the stored figure
+   * matches the release's own headline precision (the US `CPIAUCSL` 333
+   * lesson, rule 00). The ABS Labour Force API series is unrounded (e.g.
+   * `4.42834371`) while the release headline states "4.4%", so:
+   *   - `round1` — round half away from zero to one decimal.
+   * Omitted → the observation is stored verbatim at the series' own published
+   * precision. Present only with `absDataflowId`.
+   */
+  readonly absTransform?: 'round1';
   /**
    * Japan e-Stat government-statistics code (政府統計コード) to match on
    * (ADR-0061 D2 batch 3). Japan's official portal e-Stat exposes its forward
@@ -402,9 +465,54 @@ export type CalendarIndicatorSource = {
    * authoritative fact is the `release_date` (a single date); SingStat's
    * standard release time is 13:00 Singapore (SGT = UTC+8, no DST → 05:00 UTC),
    * anchored by the provider. Prefixes are verified against the live ARC
-   * (2026-08-04).
+   * (2026-08-04). Released values are backfilled from the SingStat Table
+   * Builder API via `singstatResourceId` below.
    */
   readonly singstatTitlePrefix?: string;
+  /**
+   * SingStat Table Builder resource id used to backfill the released
+   * `previous` / `actual` figures (ADR-0058 D3 two-phase population, Q3-B
+   * value backfill). The key-less endpoint
+   * `https://tablebuilder.singstat.gov.sg/api/table/tabledata/<resourceId>`
+   * (queried with `seriesNoORrowNo=1&sortBy=key desc`) returns the table's
+   * headline series — series 1 in every configured table — as the
+   * authority's own published observations, always facts, never a
+   * forecast/consensus (D1). Each table id is pinned via the Table Builder
+   * search API and every figure was cross-checked against the official press
+   * release (MAS/MTI, EDB, MOM, DOS, Enterprise SG — rule 00, verified
+   * 2026-08-05). NOTE: the quarterly GDP table (`M014811`) is only updated at
+   * the full Economic Survey, never on the advance-estimates release day, so
+   * `SG_GDP` backfills late with the current-vintage full estimate
+   * (owner-ratified 2026-08-05). Present only for `provider: 'SINGSTAT'`
+   * indicators; omitted → schedule-only (values stay null).
+   */
+  readonly singstatResourceId?: string;
+  /**
+   * Exact (whitespace-collapsed) `rowText` the Table Builder series 1 must
+   * carry — a guard so a silent table restructuring can never rebind the
+   * indicator to a non-headline series (rule 00): on mismatch the provider
+   * skips the backfill (values stay honestly null). Present only with
+   * `singstatResourceId`.
+   */
+  readonly singstatRowText?: string;
+  /**
+   * Standard transformation applied to the `singstatResourceId` observations
+   * so the stored figure matches the indicator's headline definition and
+   * `unit` label (the US `CPIAUCSL` 333 lesson, rule 00). CPI, IIP and the
+   * unemployment rate have official pre-computed headline tables and need no
+   * transform, but the retail-sales index and merchandise-trade tables carry
+   * only levels — DOS/ESG compute the headline YoY themselves in each press
+   * release — so the provider computes the standard transformation locally
+   * from the authority's verbatim series, rounded half-away-from-zero to one
+   * decimal (the press releases' own precision; owner-ratified 2026-08-05,
+   * same ratification as `statcanTransform`). Value:
+   *   - `pc1` — percent change from the same period a year ago (YoY %):
+   *     12 months back for a monthly series, 4 quarters back for a quarterly
+   *     one (inferred from the draft's own period-label form).
+   * Omitted → the observation is stored verbatim. Present only with
+   * `singstatResourceId`.
+   */
+  readonly singstatTransform?: 'pc1';
   /**
    * Pre-encoded official release schedule for authorities with no
    * machine-readable API (ADR-0061 D2). Present for `provider: 'HK_CSD'`
@@ -858,8 +966,17 @@ export const CALENDAR_INDICATOR_SOURCES: readonly CalendarIndicatorSource[] = [
   // each forthcoming release with a stable official `title` + `description`
   // period. The provider maps a release to an indicator by exact `title`
   // match; release time is a fixed 08:30 Eastern (The Daily), DST-converted to
-  // UTC by the provider. Schedule-only, so `previous/actual = null` (honest,
-  // D1). `statcanTitle` values are verified against the live schedule.
+  // UTC by the provider. `statcanTitle` values are verified against the live
+  // schedule. Released `previous/actual` figures are backfilled from the
+  // key-less Web Data Service (`getDataFromVectorsAndLatestNPeriods`) via the
+  // per-indicator `statcanVectorId` — each vector is the bulletin's HEADLINE
+  // series, and every figure below was cross-checked verbatim against the
+  // official The Daily bulletin (rule 00, 2026-08-05): CPI YoY 2026-06 = 2.8
+  // (prev 3.2), GDP MoM 2026-05 = +0.3, unemployment rate 2026-06 = 6.5 (prev
+  // 6.6), retail MoM 2026-05 = +1.0, trade balance 2026-06 = 3855.5 M CAD
+  // ("$3.9 billion", prev $3.7B). WDS stores no pre-computed headline percent
+  // changes, so `statcanTransform` (owner-ratified) computes the standard
+  // YoY/MoM % from the verbatim series at The Daily's one-decimal precision.
   {
     indicatorCode: 'CA_CPI_YOY',
     provider: 'STATCAN',
@@ -874,6 +991,10 @@ export const CALENDAR_INDICATOR_SOURCES: readonly CalendarIndicatorSource[] = [
     sourceUrl:
       'https://www.statcan.gc.ca/en/subjects-start/prices_and_price_indexes/consumer_price_indexes',
     statcanTitle: 'Consumer Price Index',
+    // All-items CPI, Canada, NSA index (2002=100) — table 18-10-0004-01, the
+    // series The Daily's 12-month-change headline is computed from.
+    statcanVectorId: 41690973,
+    statcanTransform: 'pc1',
     lang: 'en',
     enabled: true,
   },
@@ -891,6 +1012,10 @@ export const CALENDAR_INDICATOR_SOURCES: readonly CalendarIndicatorSource[] = [
     sourceUrl:
       'https://www.statcan.gc.ca/en/subjects-start/economic_accounts/gross_domestic_product',
     statcanTitle: 'Gross domestic product by industry',
+    // All-industries real GDP, chained (2017) dollars, SA at annual rates —
+    // table 36-10-0434-01, the series behind "Real GDP grew x.x% in <month>".
+    statcanVectorId: 65201210,
+    statcanTransform: 'pch',
     lang: 'en',
     enabled: true,
   },
@@ -907,6 +1032,9 @@ export const CALENDAR_INDICATOR_SOURCES: readonly CalendarIndicatorSource[] = [
     scheduleUrl: 'https://www150.statcan.gc.ca/n1/dai-quo/ssi/homepage/schedule-eng.htm',
     sourceUrl: 'https://www.statcan.gc.ca/en/subjects-start/labour_',
     statcanTitle: 'Labour Force Survey',
+    // Unemployment rate, Canada, 15+, SA — table 14-10-0287-01; stored as-is
+    // (already the headline % rate).
+    statcanVectorId: 2062815,
     lang: 'en',
     enabled: true,
   },
@@ -924,6 +1052,10 @@ export const CALENDAR_INDICATOR_SOURCES: readonly CalendarIndicatorSource[] = [
     sourceUrl:
       'https://www.statcan.gc.ca/en/subjects-start/business_performance_and_ownership/retail_and_wholesale',
     statcanTitle: 'Retail trade',
+    // Total retail sales, Canada, current dollars, SA — table 20-10-0056-01,
+    // the series behind "Retail sales rose x.x% to $y billion".
+    statcanVectorId: 1446859483,
+    statcanTransform: 'pch',
     lang: 'en',
     enabled: true,
   },
@@ -936,10 +1068,14 @@ export const CALENDAR_INDICATOR_SOURCES: readonly CalendarIndicatorSource[] = [
     nameEn: 'Canada international merchandise trade',
     region: 'CA',
     category: 'TRADE',
-    unit: '',
+    unit: 'M CAD',
     scheduleUrl: 'https://www150.statcan.gc.ca/n1/dai-quo/ssi/homepage/schedule-eng.htm',
     sourceUrl: 'https://www.statcan.gc.ca/en/subjects-start/international_trade',
     statcanTitle: 'Canadian international merchandise trade',
+    // Trade balance, all countries, balance-of-payments basis, SA — table
+    // 12-10-0011-01; stored verbatim in $ millions (WDS scalar factor 6),
+    // hence the `M CAD` unit (The Daily headline rounds it to $ billions).
+    statcanVectorId: 87008984,
     lang: 'en',
     enabled: true,
   },
@@ -1089,9 +1225,12 @@ export const CALENDAR_INDICATOR_SOURCES: readonly CalendarIndicatorSource[] = [
   // insensitive `absEventName` match; the release time is read straight from
   // the `datetime` attribute (already UTC — ABS accounts for AEST/AEDT itself,
   // so no DST math). The page shows only a rolling near-term window and no
-  // figures, so these events carry release time + period with
-  // `previous/actual = null` (honest, D1). ONLY ABS first-party indicators are
-  // here; private Manufacturing PMIs (S&P Global / Judo Bank / AiG) are
+  // figures; released `previous/actual` values are backfilled from the ABS
+  // Data API (SDMX, key-less) via the per-indicator `absDataflowId` +
+  // `absSeriesKey` (Q3-B) — every key pins ALL dimensions to the single
+  // headline series and every figure below was cross-checked verbatim against
+  // the official release page (2026-08-05). ONLY ABS first-party indicators
+  // are here; private Manufacturing PMIs (S&P Global / Judo Bank / AiG) are
   // deliberately excluded (ADR-0061 D4). `absEventName` values are verified
   // against the live future-release list (2026-08-04).
   {
@@ -1108,6 +1247,11 @@ export const CALENDAR_INDICATOR_SOURCES: readonly CalendarIndicatorSource[] = [
     sourceUrl:
       'https://www.abs.gov.au/statistics/economy/price-indexes-and-inflation/consumer-price-index-australia/latest-release',
     absEventName: 'Consumer Price Index, Australia',
+    // Official pre-computed YoY (All groups CPI, Original, Australia, Monthly
+    // — the complete monthly CPI) — verified against the release: 2026-06 =
+    // 3.8, 2026-05 = 4 ("rose 3.8%, down from 4.0%").
+    absDataflowId: 'CPI',
+    absSeriesKey: '3.10001.10.50.M',
     lang: 'en',
     enabled: true,
   },
@@ -1124,6 +1268,11 @@ export const CALENDAR_INDICATOR_SOURCES: readonly CalendarIndicatorSource[] = [
     scheduleUrl: 'https://www.abs.gov.au/release-calendar/future-releases',
     sourceUrl: 'https://www.abs.gov.au/statistics/economy/national-accounts',
     absEventName: 'Australian National Accounts: National Income, Expenditure and Product',
+    // Official pre-computed QoQ growth (GDP, chain volume measures % change,
+    // SA, Australia) — verified against the release: 2026-Q1 = 0.3 ("the
+    // Australian economy rose 0.3%").
+    absDataflowId: 'ANA_AGG',
+    absSeriesKey: 'M2.GPM.20.AUS.Q',
     lang: 'en',
     enabled: true,
   },
@@ -1141,6 +1290,13 @@ export const CALENDAR_INDICATOR_SOURCES: readonly CalendarIndicatorSource[] = [
     sourceUrl:
       'https://www.abs.gov.au/statistics/labour/employment-and-unemployment/labour-force-australia/latest-release',
     absEventName: 'Labour Force, Australia',
+    // Unemployment rate (Persons, Total age, SA, Australia, Monthly). The API
+    // series is unrounded (4.42834371) while the release headline states
+    // "4.4%" — round1 reproduces the official precision; verified: 2026-06 =
+    // 4.4, 2026-05 = 4.4.
+    absDataflowId: 'LF',
+    absSeriesKey: 'M13.3.1599.20.AUS.M',
+    absTransform: 'round1',
     lang: 'en',
     enabled: true,
   },
@@ -1158,6 +1314,11 @@ export const CALENDAR_INDICATOR_SOURCES: readonly CalendarIndicatorSource[] = [
     sourceUrl:
       'https://www.abs.gov.au/statistics/economy/price-indexes-and-inflation/wage-price-index-australia/latest-release',
     absEventName: 'Wage Price Index, Australia',
+    // Official pre-computed YoY (Total hourly rates of pay excluding bonuses,
+    // Private and Public, All Industries, SA, Australia) — verified against
+    // the release: 2026-Q1 = 3.3 ("over the twelve months … rose 3.3%").
+    absDataflowId: 'WPI',
+    absSeriesKey: '3.THRPEB.7.TOT.20.AUS.Q',
     lang: 'en',
     enabled: true,
   },
@@ -1170,11 +1331,16 @@ export const CALENDAR_INDICATOR_SOURCES: readonly CalendarIndicatorSource[] = [
     nameEn: 'Australia International Trade in Goods',
     region: 'AU',
     category: 'TRADE',
-    unit: '',
+    unit: 'M AUD',
     scheduleUrl: 'https://www.abs.gov.au/release-calendar/future-releases',
     sourceUrl:
       'https://www.abs.gov.au/statistics/economy/international-trade/international-trade-goods/latest-release',
     absEventName: 'International Trade in Goods',
+    // Balance on goods, $ millions, SA, Australia, Monthly — stored verbatim;
+    // verified against the release: 2026-05 = -3018, 2026-04 = 1383 ("the
+    // seasonally adjusted balance on goods decreased $4,401m in May").
+    absDataflowId: 'ITGS',
+    absSeriesKey: 'M1.170.20.AUS.M',
     lang: 'en',
     enabled: true,
   },
@@ -1192,6 +1358,12 @@ export const CALENDAR_INDICATOR_SOURCES: readonly CalendarIndicatorSource[] = [
     sourceUrl:
       'https://www.abs.gov.au/statistics/economy/finance/monthly-household-spending-indicator/latest-release',
     absEventName: 'Monthly Household Spending Indicator',
+    // Official pre-computed MoM (Household spending % change from previous
+    // period, Total, Current Price, SA, Australia) — verified against the
+    // release: 2026-06 = 0.8 ("rose 0.8% month-on-month on a current price,
+    // seasonally adjusted basis").
+    absDataflowId: 'HSI_M',
+    absSeriesKey: '8.TOT.CUR.20.AUS.M',
     lang: 'en',
     enabled: true,
   },
@@ -1806,14 +1978,25 @@ export const CALENDAR_INDICATOR_SOURCES: readonly CalendarIndicatorSource[] = [
   // by an exact `singstatTitlePrefix` start-match (comma-terminated, so a
   // prefix can never bleed into a sibling series) and parses the period from
   // the title tail (month → "YYYY-MM", quarter → "YYYY Qn"). The ARC exposes no
-  // figures, so these events carry release date + period with
-  // `previous/actual = null` (honest, D1). The authoritative fact is the single
-  // `release_date`; SingStat's standard release time is 13:00 Singapore
-  // (SGT = UTC+8, no DST → 05:00 UTC), anchored by the provider. ONLY SingStat
-  // first-party indicators are here; Singapore's private Manufacturing PMI
-  // (S&P Global / SIPMM) and the MAS monetary-policy statement (a central-bank
-  // release, not a SingStat statistic) are out of scope (ADR-0061 D4). Prefixes
-  // are verified against the live ARC (2026-08-04).
+  // figures; released `previous/actual` values are backfilled from the
+  // key-less Table Builder API via the per-indicator `singstatResourceId`
+  // (Q3-B) — each table's series 1 is the headline series, guarded by an
+  // exact `singstatRowText` match, and every figure below was cross-checked
+  // against the official press release (rule 00, 2026-08-05): CPI YoY 2026-06
+  // = 1.9 (prev 1.8, MAS/MTI), IIP YoY 2026-06 = 7.2 (prev 17.8 revised,
+  // EDB), unemployment rate 2026 Q2 = 2 i.e. 2.0% (MOM), retail YoY 2026-06 =
+  // 4.0 (prev 2.9, DOS), total merchandise trade YoY 2026-06 = 49.3 (prev
+  // 39.6, Enterprise SG). CPI/IIP/unemployment have official pre-computed
+  // headline tables; retail/trade/GDP tables carry only levels, so
+  // `singstatTransform: 'pc1'` computes the press releases' own YoY at their
+  // one-decimal precision (owner-ratified, same as `statcanTransform`). The
+  // authoritative fact is the single `release_date`; SingStat's standard
+  // release time is 13:00 Singapore (SGT = UTC+8, no DST → 05:00 UTC),
+  // anchored by the provider. ONLY SingStat first-party indicators are here;
+  // Singapore's private Manufacturing PMI (S&P Global / SIPMM) and the MAS
+  // monetary-policy statement (a central-bank release, not a SingStat
+  // statistic) are out of scope (ADR-0061 D4). Prefixes are verified against
+  // the live ARC (2026-08-04).
   {
     indicatorCode: 'SG_CPI',
     provider: 'SINGSTAT',
@@ -1830,6 +2013,10 @@ export const CALENDAR_INDICATOR_SOURCES: readonly CalendarIndicatorSource[] = [
     // "CPI For General Households, <Mon YYYY>" — the monthly headline; the
     // half-yearly "CPI By Household Income Group," sibling has a distinct prefix.
     singstatTitlePrefix: 'CPI For General Households,',
+    // Official pre-computed YoY table (All Items, 2024=100) — verified against
+    // the MAS/MTI release: 2026-06 = 1.9, 2026-05 = 1.8.
+    singstatResourceId: 'M213781',
+    singstatRowText: 'All Items',
     lang: 'en',
     enabled: true,
   },
@@ -1851,6 +2038,12 @@ export const CALENDAR_INDICATOR_SOURCES: readonly CalendarIndicatorSource[] = [
     // and "Expenditure-/Income-Based GDP," releases have distinct prefixes and
     // never map here, so no period-key collision.
     singstatTitlePrefix: 'Advance Gross Domestic Product (GDP) Estimates,',
+    // Real GDP in chained (2015) dollars, quarterly → local pc1 (4 quarters).
+    // The table updates only at the full Economic Survey (late fill, current
+    // vintage — owner-ratified); verified: 2026 Q1 = 6.0 (MTI Economic Survey).
+    singstatResourceId: 'M014811',
+    singstatRowText: 'GDP In Chained (2015) Dollars',
+    singstatTransform: 'pc1',
     lang: 'en',
     enabled: true,
   },
@@ -1871,6 +2064,10 @@ export const CALENDAR_INDICATOR_SOURCES: readonly CalendarIndicatorSource[] = [
     // a date range ("To be released on 29 - 30 Oct"), but `release_date` is a
     // single authoritative date and is used verbatim.
     singstatTitlePrefix: 'Unemployment Rate,',
+    // Overall unemployment rate, SA, end of period — verified against the MOM
+    // Labour Market Advance Release: 2026 Q2 = 2 (i.e. 2.0%), 2026 Q1 = 2.
+    singstatResourceId: 'M182342',
+    singstatRowText: 'Total Unemployment Rate, (SA)',
     lang: 'en',
     enabled: true,
   },
@@ -1883,14 +2080,18 @@ export const CALENDAR_INDICATOR_SOURCES: readonly CalendarIndicatorSource[] = [
     nameEn: 'Singapore Merchandise Trade',
     region: 'SG',
     category: 'TRADE',
-    // Values are not machine-readable and stay null; unit is left empty because
-    // no figure is ever rendered next to it (D1 honesty), mirroring HK/CN/JP/NZ.
-    unit: '',
+    unit: '%_YOY',
     scheduleUrl: 'https://www.singstat.gov.sg/data-tools-services/advance-release-calendar',
     sourceUrl:
       'https://www.singstat.gov.sg/find-data/explore-data-themes/trade-investment/merchandise-trade/latest-news-data',
     // "Merchandise Trade, <Mon YYYY>" — monthly headline external trade.
     singstatTitlePrefix: 'Merchandise Trade,',
+    // Total merchandise trade at current prices → local pc1, matching the ESG
+    // report's "Total Merchandise Trade" headline YoY (SingStat's own theme
+    // page lists the same figures); verified: 2026-06 = 49.3, 2026-05 = 39.6.
+    singstatResourceId: 'M451001',
+    singstatRowText: 'Total Merchandise Trade, (At Current Prices)',
+    singstatTransform: 'pc1',
     lang: 'en',
     enabled: true,
   },
@@ -1909,6 +2110,12 @@ export const CALENDAR_INDICATOR_SOURCES: readonly CalendarIndicatorSource[] = [
       'https://www.singstat.gov.sg/find-data/explore-data-themes/industry/services/latest-news-data',
     // "Retail Sales and Food & Beverage Services Indices, <Mon YYYY>" — monthly.
     singstatTitlePrefix: 'Retail Sales and Food & Beverage Services Indices,',
+    // Total retail sales index at current prices (2025=100) → local pc1,
+    // matching the DOS release's headline YoY; verified: 2026-06 = 4.0,
+    // 2026-05 = 2.9.
+    singstatResourceId: 'M602121',
+    singstatRowText: 'Total',
+    singstatTransform: 'pc1',
     lang: 'en',
     enabled: true,
   },
@@ -1927,6 +2134,10 @@ export const CALENDAR_INDICATOR_SOURCES: readonly CalendarIndicatorSource[] = [
       'https://www.singstat.gov.sg/find-data/explore-data-themes/industry/manufacturing/latest-news-data',
     // "Index of Industrial Production, <Mon YYYY>" — monthly headline.
     singstatTitlePrefix: 'Index of Industrial Production,',
+    // Official pre-computed YoY growth table (Total manufacturing) — verified
+    // against the EDB release: 2026-06 = 7.2, 2026-05 = 17.8 (revised).
+    singstatResourceId: 'M355411',
+    singstatRowText: 'Total',
     lang: 'en',
     enabled: true,
   },

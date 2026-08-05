@@ -9,7 +9,7 @@
  *     "GDP,") are cleanly excluded
  *   - `release_date` is anchored at 13:00 Singapore (SGT = UTC+8 → 05:00 UTC)
  *   - The title tail normalises to month ("YYYY-MM") / quarter ("YYYY Qn")
- *   - Values are always null (the ARC exposes no figures, D1)
+ *   - Schedule-only indicators stay null (no `singstatResourceId`, D1-honest)
  *   - Events outside the look-back / look-ahead window are dropped
  *   - A dirty (non-ISO) date row is skipped; the good rows survive
  *   - A failed page fetch is isolated (yields nothing)
@@ -17,9 +17,17 @@
  *   - Never emits a forecast/consensus value or impact rating (D1)
  *   - RSC extraction (a brace inside a title cannot truncate it), date and
  *     period helpers
+ *   - Value backfill from the Table Builder headline series (Q3-B): verbatim
+ *     figures from the official pre-computed tables, locally-computed `pc1`
+ *     YoY (monthly 12-back / quarterly 4-back) at the press releases' own
+ *     one-decimal precision, previous = prior-period figure, unpublished
+ *     periods honestly null (incl. the GDP advance-release late-fill), the
+ *     `rowText` guard, and per-series failure isolation
  *
- * Self-made HTML fixtures (not a live URL) keep the test hermetic — the shape
- * mirrors the official ARC page's embedded `{"arcData":{"data":[…]}}` RSC chunk.
+ * Self-made fixtures (not live URLs) keep the tests hermetic — shapes mirror
+ * the official ARC page's embedded `{"arcData":{"data":[…]}}` RSC chunk and
+ * the Table Builder `tabledata` JSON; the numeric fixtures use the real 2026
+ * figures cross-checked against the official press releases (rule 00).
  */
 
 import { describe, expect, it, vi } from 'vitest';
@@ -29,7 +37,10 @@ import {
   extractSingstatEntries,
   matchIndicator,
   normalizeSingstatPeriod,
+  parseSingstatTable,
   sgDateToUtc,
+  shiftSingstatPeriod,
+  singstatValueForPeriod,
 } from './sg-singstat-provider.js';
 
 import type { CalendarIndicatorSource } from '@opentrade/config';
@@ -275,6 +286,223 @@ describe('SgSingstatCalendarProvider.fetchEvents', () => {
       'previousValue',
       'scheduledAt',
     ]);
+  });
+});
+
+describe('SgSingstatCalendarProvider value backfill (Q3-B)', () => {
+  // Real table ids + figures, cross-checked against the official press
+  // releases (rule 00): CPI YoY M213781, unemployment M182342, retail index
+  // M602121, quarterly GDP M014811.
+  const cpiWithTable: CalendarIndicatorSource = {
+    ...cpi,
+    singstatResourceId: 'M213781',
+    singstatRowText: 'All Items',
+  };
+  const retail: CalendarIndicatorSource = {
+    ...cpi,
+    indicatorCode: 'SG_RETAIL_SALES',
+    category: 'OTHER',
+    singstatTitlePrefix: 'Retail Sales and Food & Beverage Services Indices,',
+    singstatResourceId: 'M602121',
+    singstatRowText: 'Total',
+    singstatTransform: 'pc1',
+  };
+  const unemploymentWithTable: CalendarIndicatorSource = {
+    ...unemployment,
+    singstatResourceId: 'M182342',
+    singstatRowText: 'Total Unemployment Rate, (SA)',
+  };
+  const gdpWithTable: CalendarIndicatorSource = {
+    ...gdp,
+    singstatResourceId: 'M014811',
+    singstatRowText: 'GDP In Chained (2015) Dollars',
+    singstatTransform: 'pc1',
+  };
+
+  const scheduleHtml = pageWith([
+    { title: 'CPI For General Households, Jun 2026', release_date: '2026-07-23' },
+    {
+      title: 'Retail Sales and Food & Beverage Services Indices, Jun 2026',
+      release_date: '2026-08-05',
+    },
+    { title: 'Unemployment Rate, 2Q 2026', release_date: '2026-07-30' },
+    {
+      title: 'Advance Gross Domestic Product (GDP) Estimates, 2Q 2026',
+      release_date: '2026-07-14',
+    },
+  ]);
+
+  const table = (rowText: string, points: [string, string][]) => ({
+    Data: {
+      title: 'fixture',
+      row: [{ seriesNo: '1', rowText, columns: points.map(([key, value]) => ({ key, value })) }],
+    },
+  });
+
+  const tables: Record<string, unknown> = {
+    M213781: table('All Items', [
+      ['2026 Jun', '1.9'],
+      ['2026 May', '1.8'],
+    ]),
+    M602121: table('Total', [
+      ['2026 Jun', '97.276'],
+      ['2026 May', '102.23'],
+      ['2025 Jun', '93.525'],
+      ['2025 May', '99.366'],
+    ]),
+    M182342: table('Total Unemployment Rate, (SA)', [
+      ['2026 2Q', '2'],
+      ['2026 1Q', '2'],
+    ]),
+    // The quarterly GDP table lags the advance release: 2026 2Q is absent.
+    M014811: table('GDP In Chained (2015) Dollars', [
+      ['2026 1Q', '151280.4'],
+      ['2025 4Q', '154606.6'],
+      ['2025 1Q', '142732.2'],
+      ['2024 4Q', '146252.1'],
+    ]),
+  };
+
+  /** Dispatches the ARC page GET vs the Table Builder GETs like the live endpoints. */
+  const dispatchingFetch = (tablesByld: Record<string, unknown>, tablesOk = true): typeof fetch =>
+    vi.fn((url: string) => {
+      const m = /tabledata\/(\w+)\?/.exec(String(url));
+      if (!m) return Promise.resolve({ ok: true, text: () => Promise.resolve(scheduleHtml) });
+      return Promise.resolve({
+        ok: tablesOk,
+        status: tablesOk ? 200 : 503,
+        json: () => Promise.resolve(tablesByld[m[1] ?? ''] ?? {}),
+      });
+    }) as unknown as typeof fetch;
+
+  it('backfills official YoY tables, verbatim levels and computed pc1 figures', async () => {
+    const provider = new SgSingstatCalendarProvider({
+      indicators: [cpiWithTable, retail, unemploymentWithTable, gdpWithTable],
+      now: () => NOW,
+      fetchFn: dispatchingFetch(tables),
+    });
+
+    const drafts = await provider.fetchEvents();
+
+    // CPI: the authority's own pre-computed YoY strings, verbatim.
+    expect(drafts.find((d) => d.indicatorCode === 'SG_CPI')).toMatchObject({
+      periodLabel: '2026-06',
+      actualValue: '1.9',
+      previousValue: '1.8',
+    });
+    // Retail (pc1, monthly): 97.276/93.525 → 4.0; May 102.23/99.366 → 2.9.
+    expect(drafts.find((d) => d.indicatorCode === 'SG_RETAIL_SALES')).toMatchObject({
+      actualValue: '4.0',
+      previousValue: '2.9',
+    });
+    // Unemployment: verbatim (SingStat trims "2.0" to "2").
+    expect(drafts.find((d) => d.indicatorCode === 'SG_UNEMPLOYMENT_RATE')).toMatchObject({
+      periodLabel: '2026 Q2',
+      actualValue: '2',
+      previousValue: '2',
+    });
+    // GDP (pc1, quarterly, late fill): 2026 Q2 not yet in the table → null;
+    // previous quarter 151280.4/142732.2 → 6.0 (the Economic Survey figure).
+    expect(drafts.find((d) => d.indicatorCode === 'SG_GDP')).toMatchObject({
+      periodLabel: '2026 Q2',
+      actualValue: null,
+      previousValue: '6.0',
+    });
+  });
+
+  it('skips the backfill on a rowText guard mismatch (honest nulls, rule 00)', async () => {
+    const provider = new SgSingstatCalendarProvider({
+      indicators: [cpiWithTable],
+      now: () => NOW,
+      fetchFn: dispatchingFetch({ M213781: table('Food', [['2026 Jun', '2.1']]) }),
+    });
+
+    const [draft] = await provider.fetchEvents();
+    expect(draft).toMatchObject({ actualValue: null, previousValue: null });
+  });
+
+  it('keeps the schedule drafts (null values) when the Table Builder call fails', async () => {
+    const provider = new SgSingstatCalendarProvider({
+      indicators: [cpiWithTable],
+      now: () => NOW,
+      fetchFn: dispatchingFetch({}, false),
+    });
+
+    const drafts = await provider.fetchEvents();
+    expect(drafts).toHaveLength(1);
+    expect(drafts[0]).toMatchObject({ actualValue: null, previousValue: null });
+  });
+
+  it('does not call the Table Builder at all for schedule-only indicators', async () => {
+    const fetchFn = dispatchingFetch(tables);
+    const provider = new SgSingstatCalendarProvider({
+      indicators: [cpi], // No singstatResourceId.
+      now: () => NOW,
+      fetchFn,
+    });
+
+    await provider.fetchEvents();
+    const urls = (fetchFn as unknown as ReturnType<typeof vi.fn>).mock.calls.map((c) =>
+      String(c[0]),
+    );
+    expect(urls.some((u) => u.includes('tabledata'))).toBe(false);
+  });
+});
+
+describe('parseSingstatTable + singstatValueForPeriod + shiftSingstatPeriod', () => {
+  it('normalises monthly and quarterly keys and keeps values verbatim', () => {
+    const series = parseSingstatTable(
+      {
+        Data: {
+          row: [
+            {
+              rowText: 'All Items',
+              columns: [
+                { key: '2026 Jun', value: '1.9' },
+                { key: '2026 2Q', value: '2' },
+                { key: '2026 Jul', value: '' }, // Not yet published.
+                { key: 'na', value: '1' }, // Malformed key.
+              ],
+            },
+          ],
+        },
+      },
+      'All Items',
+    );
+    expect(series.get('2026-06')).toBe('1.9');
+    expect(series.get('2026 Q2')).toBe('2');
+    expect(series.size).toBe(2);
+  });
+
+  it('throws when series 1 rowText does not match the guard', () => {
+    expect(() =>
+      parseSingstatTable({ Data: { row: [{ rowText: 'Food', columns: [] }] } }, 'All Items'),
+    ).toThrow();
+    expect(() => parseSingstatTable({ Data: { row: [] } }, 'All Items')).toThrow();
+  });
+
+  it('computes pc1 across 12 months or 4 quarters, half away from zero', () => {
+    const monthly = new Map([
+      ['2026-06', '97.276'],
+      ['2025-06', '93.525'],
+    ]);
+    expect(singstatValueForPeriod(monthly, '2026-06', 'pc1')).toBe('4.0');
+    const quarterly = new Map([
+      ['2026 Q1', '151280.4'],
+      ['2025 Q1', '142732.2'],
+    ]);
+    expect(singstatValueForPeriod(quarterly, '2026 Q1', 'pc1')).toBe('6.0');
+    // Missing base observation → honest null.
+    expect(singstatValueForPeriod(monthly, '2026-06', undefined)).toBe('97.276');
+    expect(singstatValueForPeriod(new Map([['2026-06', '1']]), '2026-06', 'pc1')).toBeNull();
+  });
+
+  it('shifts periods across year boundaries in both conventions', () => {
+    expect(shiftSingstatPeriod('2026-01', -1)).toBe('2025-12');
+    expect(shiftSingstatPeriod('2026-06', -12)).toBe('2025-06');
+    expect(shiftSingstatPeriod('2026 Q1', -1)).toBe('2025 Q4');
+    expect(shiftSingstatPeriod('2026 Q2', -4)).toBe('2025 Q2');
+    expect(shiftSingstatPeriod('2H 2026', -1)).toBeNull();
   });
 });
 
