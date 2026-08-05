@@ -273,11 +273,44 @@ export type CalendarIndicatorSource = {
    * period (e.g. "June 2026" / "Second quarter 2026"). The StatCan provider
    * maps a release to this indicator by an exact, case-insensitive `title`
    * match. Present only for `provider: 'STATCAN'` indicators. StatCan's
-   * schedule carries no values, so such events stay `previous/actual = null`
-   * — honest and compliant (D1). Release time is a fixed 08:30 Eastern (The
-   * Daily), converted to UTC with DST awareness by the provider.
+   * schedule carries no values; released figures are backfilled from the Web
+   * Data Service via `statcanVectorId` below. Release time is a fixed 08:30
+   * Eastern (The Daily), converted to UTC with DST awareness by the provider.
    */
   readonly statcanTitle?: string;
+  /**
+   * StatCan Web Data Service vector id used to backfill the released
+   * `previous` / `actual` figures (ADR-0058 D3 two-phase population, Q3-B
+   * value backfill). The key-less WDS endpoint
+   * `getDataFromVectorsAndLatestNPeriods` returns the authority's own
+   * published observations for the single series identified by this vector —
+   * always facts, never a forecast/consensus (D1). Each vector is the
+   * bulletin's HEADLINE series, pinned via `getSeriesInfoFromVector` /
+   * `getCubeMetadata` and cross-checked against The Daily figures (rule 00,
+   * verified 2026-08-05). Present only for `provider: 'STATCAN'` indicators;
+   * omitted → schedule-only (values stay null).
+   */
+  readonly statcanVectorId?: number;
+  /**
+   * Standard transformation applied to the `statcanVectorId` observations so
+   * the stored figure matches the indicator's headline definition and `unit`
+   * label rather than the raw series level (the US `CPIAUCSL` 333 lesson,
+   * rule 00). Unlike FRED (`fredUnits`) or Eurostat (`RCH_A` / `PCH_PRE`
+   * units), StatCan's WDS carries no pre-computed headline percent-change
+   * series (only the Bank-of-Canada core-inflation measures, which are not
+   * the headline), so the provider computes the standard transformation
+   * locally from the authority's verbatim series, rounded half-away-from-zero
+   * to one decimal (The Daily's headline precision). Owner-ratified
+   * 2026-08-05 (Q3-B CA session); every configured figure is cross-checked
+   * verbatim against the official The Daily bulletin. Values (FRED-aligned
+   * naming):
+   *   - `pc1` — percent change from the same month a year ago (YoY %).
+   *   - `pch` — percent change from the previous month (MoM %).
+   * Omitted → the observation is stored as-is at the series' own published
+   * precision (e.g. the unemployment rate, the trade balance in $ millions).
+   * Present only with `statcanVectorId`.
+   */
+  readonly statcanTransform?: 'pc1' | 'pch';
   /**
    * Australian Bureau of Statistics future-release product name to match on
    * (ADR-0061 D2 batch 3). ABS exposes no clean JSON release-schedule API; its
@@ -858,8 +891,17 @@ export const CALENDAR_INDICATOR_SOURCES: readonly CalendarIndicatorSource[] = [
   // each forthcoming release with a stable official `title` + `description`
   // period. The provider maps a release to an indicator by exact `title`
   // match; release time is a fixed 08:30 Eastern (The Daily), DST-converted to
-  // UTC by the provider. Schedule-only, so `previous/actual = null` (honest,
-  // D1). `statcanTitle` values are verified against the live schedule.
+  // UTC by the provider. `statcanTitle` values are verified against the live
+  // schedule. Released `previous/actual` figures are backfilled from the
+  // key-less Web Data Service (`getDataFromVectorsAndLatestNPeriods`) via the
+  // per-indicator `statcanVectorId` — each vector is the bulletin's HEADLINE
+  // series, and every figure below was cross-checked verbatim against the
+  // official The Daily bulletin (rule 00, 2026-08-05): CPI YoY 2026-06 = 2.8
+  // (prev 3.2), GDP MoM 2026-05 = +0.3, unemployment rate 2026-06 = 6.5 (prev
+  // 6.6), retail MoM 2026-05 = +1.0, trade balance 2026-06 = 3855.5 M CAD
+  // ("$3.9 billion", prev $3.7B). WDS stores no pre-computed headline percent
+  // changes, so `statcanTransform` (owner-ratified) computes the standard
+  // YoY/MoM % from the verbatim series at The Daily's one-decimal precision.
   {
     indicatorCode: 'CA_CPI_YOY',
     provider: 'STATCAN',
@@ -874,6 +916,10 @@ export const CALENDAR_INDICATOR_SOURCES: readonly CalendarIndicatorSource[] = [
     sourceUrl:
       'https://www.statcan.gc.ca/en/subjects-start/prices_and_price_indexes/consumer_price_indexes',
     statcanTitle: 'Consumer Price Index',
+    // All-items CPI, Canada, NSA index (2002=100) — table 18-10-0004-01, the
+    // series The Daily's 12-month-change headline is computed from.
+    statcanVectorId: 41690973,
+    statcanTransform: 'pc1',
     lang: 'en',
     enabled: true,
   },
@@ -891,6 +937,10 @@ export const CALENDAR_INDICATOR_SOURCES: readonly CalendarIndicatorSource[] = [
     sourceUrl:
       'https://www.statcan.gc.ca/en/subjects-start/economic_accounts/gross_domestic_product',
     statcanTitle: 'Gross domestic product by industry',
+    // All-industries real GDP, chained (2017) dollars, SA at annual rates —
+    // table 36-10-0434-01, the series behind "Real GDP grew x.x% in <month>".
+    statcanVectorId: 65201210,
+    statcanTransform: 'pch',
     lang: 'en',
     enabled: true,
   },
@@ -907,6 +957,9 @@ export const CALENDAR_INDICATOR_SOURCES: readonly CalendarIndicatorSource[] = [
     scheduleUrl: 'https://www150.statcan.gc.ca/n1/dai-quo/ssi/homepage/schedule-eng.htm',
     sourceUrl: 'https://www.statcan.gc.ca/en/subjects-start/labour_',
     statcanTitle: 'Labour Force Survey',
+    // Unemployment rate, Canada, 15+, SA — table 14-10-0287-01; stored as-is
+    // (already the headline % rate).
+    statcanVectorId: 2062815,
     lang: 'en',
     enabled: true,
   },
@@ -924,6 +977,10 @@ export const CALENDAR_INDICATOR_SOURCES: readonly CalendarIndicatorSource[] = [
     sourceUrl:
       'https://www.statcan.gc.ca/en/subjects-start/business_performance_and_ownership/retail_and_wholesale',
     statcanTitle: 'Retail trade',
+    // Total retail sales, Canada, current dollars, SA — table 20-10-0056-01,
+    // the series behind "Retail sales rose x.x% to $y billion".
+    statcanVectorId: 1446859483,
+    statcanTransform: 'pch',
     lang: 'en',
     enabled: true,
   },
@@ -936,10 +993,14 @@ export const CALENDAR_INDICATOR_SOURCES: readonly CalendarIndicatorSource[] = [
     nameEn: 'Canada international merchandise trade',
     region: 'CA',
     category: 'TRADE',
-    unit: '',
+    unit: 'M CAD',
     scheduleUrl: 'https://www150.statcan.gc.ca/n1/dai-quo/ssi/homepage/schedule-eng.htm',
     sourceUrl: 'https://www.statcan.gc.ca/en/subjects-start/international_trade',
     statcanTitle: 'Canadian international merchandise trade',
+    // Trade balance, all countries, balance-of-payments basis, SA — table
+    // 12-10-0011-01; stored verbatim in $ millions (WDS scalar factor 6),
+    // hence the `M CAD` unit (The Daily headline rounds it to $ billions).
+    statcanVectorId: 87008984,
     lang: 'en',
     enabled: true,
   },
